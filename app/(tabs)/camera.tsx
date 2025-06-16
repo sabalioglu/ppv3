@@ -13,7 +13,7 @@ import {
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { Camera, Brain, Receipt, Image, FlipHorizontal, TriangleAlert as AlertTriangle, Images, Calculator, X, Scan, Check, Plus, CreditCard as Edit } from 'lucide-react-native';
+import { Camera, Brain, Receipt, Image, FlipHorizontal, TriangleAlert as AlertTriangle, Images, Calculator, X, Scan, Check, Plus, Edit } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
@@ -131,7 +131,7 @@ export default function CameraScreen() {
 
   // Handle Item Action
   const handleItemAction = (itemId: string, action: 'confirm' | 'reject' | 'edit', newName?: string) => {
-    console.log('🔘 Item action:', action, 'for item:', itemId);
+    console.log('Item action:', action, 'for item:', itemId);
     
     setParsedItems(prev => prev.map(item => {
       if (item.id === itemId) {
@@ -162,7 +162,7 @@ export default function CameraScreen() {
   // Add Items to Inventory Function
   const addToInventory = async (items: EnhancedParsedItem[]) => {
     try {
-      console.log('🏪 Adding items to inventory:', items);
+      console.log('Adding items to inventory:', items);
       
       const confirmedFoodItems = items.filter(item => 
         item.user_action === 'confirmed' && item.is_food
@@ -230,7 +230,7 @@ export default function CameraScreen() {
       );
       
     } catch (error) {
-      console.error('❌ Error adding to inventory:', error);
+      console.error('Error adding to inventory:', error);
       Alert.alert('Error', 'Failed to add items to inventory. Please try again.');
     }
   };
@@ -241,7 +241,7 @@ export default function CameraScreen() {
       setIsLoading(true);
       setScanResult(null);
       
-      console.log('🚀 Starting AI Vision processing...');
+      console.log('Starting AI Vision processing...');
       
       // Set scan image URI at the beginning
       setLastScanImageUri(Array.isArray(imageUri) ? imageUri[0] : imageUri);
@@ -304,12 +304,12 @@ export default function CameraScreen() {
           setOriginalReceiptText(analysisResult.text);
           
           try {
-            console.log('🚀 Using RapidAPI OCR directly...');
+            console.log('Using RapidAPI OCR directly...');
             const ocrResult = await RapidApiOCRService.parseReceipt(base64);
             setLastOcrResult(ocrResult);
             
             if (ocrResult.success && ocrResult.items.length > 0) {
-              console.log(`✅ OCR parsing successful: ${ocrResult.items.length} items found`);
+              console.log(`OCR parsing successful: ${ocrResult.items.length} items found`);
               setParsedItems(ocrResult.items);
               
               setTimeout(() => {
@@ -317,23 +317,23 @@ export default function CameraScreen() {
               }, 1000);
               return; // Exit early on OCR success
             } else {
-              console.warn('⚠️ OCR returned no items');
+              console.warn('OCR returned no items');
               Alert.alert('OCR Result', 'No items detected. Please try again with better lighting.');
             }
           } catch (error) {
-            console.error('❌ OCR API failed:', error);
+            console.error('OCR API failed:', error);
             Alert.alert('OCR Error', 'Receipt processing failed. Please try again.');
           }
         }
       }
       
-      console.log('✅ AI Vision processing successful:', result);
+      console.log('AI Vision processing successful:', result);
       setScanResult(result);
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
     } catch (error) {
-      console.error('❌ AI Vision processing failed:', error);
+      console.error('AI Vision processing failed:', error);
       
       setScanResult({
         type: scanMode,
@@ -355,14 +355,14 @@ export default function CameraScreen() {
     if (!cameraRef.current) return;
     
     try {
-      console.log('📸 Taking picture...');
+      console.log('Taking picture...');
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         base64: false,
       });
       
       if (photo?.uri) {
-        console.log('✅ Picture taken:', photo.uri);
+        console.log('Picture taken:', photo.uri);
         
         if (scanMode === 'multiple-images') {
           setMultipleImages(prev => [...prev, photo.uri]);
@@ -372,7 +372,7 @@ export default function CameraScreen() {
         }
       }
     } catch (error) {
-      console.error('❌ Error taking picture:', error);
+      console.error('Error taking picture:', error);
       Alert.alert('Error', 'Failed to take picture');
     }
   };
@@ -390,7 +390,7 @@ export default function CameraScreen() {
 
         if (!result.canceled && result.assets.length > 0) {
           const imageUris = result.assets.map(asset => asset.uri);
-          console.log('📂 Multiple images picked:', imageUris.length);
+          console.log('Multiple images picked:', imageUris.length);
           await processImageWithVision(imageUris);
         }
       } else {
@@ -403,12 +403,12 @@ export default function CameraScreen() {
 
         if (!result.canceled && result.assets[0]) {
           const imageUri = result.assets[0].uri;
-          console.log('📂 Image picked from gallery:', imageUri);
+          console.log('Image picked from gallery:', imageUri);
           await processImageWithVision(imageUri);
         }
       }
     } catch (error) {
-      console.error('❌ Error picking image:', error);
+      console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
@@ -788,7 +788,7 @@ export default function CameraScreen() {
               </View>
             ) : (
               <>
-                {/* Detected Items */}
+                                {/* Detected Items */}
                 {scanResult.data.items && scanResult.data.items.length > 0 && (
                   <View style={styles.itemsContainer}>
                     <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
@@ -977,14 +977,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Apple-style Mode Selector - MOBILE RESPONSIVE
+  // Apple-style Mode Selector
   appleModeContainer: {
     position: 'absolute',
     top: 60,
     left: 0,
     right: 0,
     zIndex: 100,
-    paddingHorizontal: 10, // ✅ MOBILE RESPONSIVE
+    paddingHorizontal: 10,
   },
   appleModeSelector: {
     flexGrow: 0,
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Apple-style Controls - MOBILE RESPONSIVE
+  // Apple-style Controls
   appleControls: {
     position: 'absolute',
     bottom: 40,
@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 30, // ✅ MOBILE RESPONSIVE (40 → 30)
+    paddingHorizontal: 30,
   },
   appleGalleryButton: {
     width: 50,
