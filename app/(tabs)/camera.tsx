@@ -659,7 +659,7 @@ export default function CameraScreen() {
             </View>
           )}
 
-          {/* Apple-style Mode Selector */}
+          {/* Apple-style Mode Selector - RESPONSIVE FIXED */}
           <View style={styles.appleModeContainer}>
             <ScrollView 
               horizontal 
@@ -706,7 +706,7 @@ export default function CameraScreen() {
             </View>
           )}
           
-          {/* Apple-style Controls */}
+          {/* Apple-style Controls - RESPONSIVE FIXED */}
           <View style={styles.appleControls}>
             {/* Gallery Button */}
             <TouchableOpacity style={styles.appleGalleryButton} onPress={pickImages}>
@@ -740,136 +740,150 @@ export default function CameraScreen() {
         </CameraView>
       </View>
 
-      {/* Results Display - Overlay */}
+      {/* Results Display - NOW AS MODAL! ✅ */}
       {scanResult && !showAddToInventoryModal && (
-        <View style={styles.resultsOverlay}>
-          <View style={styles.resultsDragHandle} />
-          <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
-            <View style={styles.resultHeader}>
-              <Text style={styles.resultTitle}>{scanResult.data.name}</Text>
-            </View>
+        <Modal
+          visible={true}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={clearResults}
+        >
+          <View style={styles.resultsModalOverlay}>
+            <TouchableOpacity 
+              style={styles.resultsModalBackground}
+              onPress={clearResults}
+              activeOpacity={1}
+            />
+            <View style={styles.resultsModalContainer}>
+              <View style={styles.resultsDragHandle} />
+              <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+                <View style={styles.resultHeader}>
+                  <Text style={styles.resultTitle}>{scanResult.data.name}</Text>
+                </View>
 
-            {/* Calorie & Nutrition Info */}
-            {scanResult.data.calories && (
-              <View style={styles.calorieContainer}>
-                <Text style={styles.calorieTitle}>🔥 Nutrition Analysis</Text>
-                <View style={styles.calorieGrid}>
-                  <View style={styles.calorieItem}>
-                    <Text style={styles.calorieNumber}>{scanResult.data.calories}</Text>
-                    <Text style={styles.calorieLabel}>Calories</Text>
+                {/* Calorie & Nutrition Info */}
+                {scanResult.data.calories && (
+                  <View style={styles.calorieContainer}>
+                    <Text style={styles.calorieTitle}>🔥 Nutrition Analysis</Text>
+                    <View style={styles.calorieGrid}>
+                      <View style={styles.calorieItem}>
+                        <Text style={styles.calorieNumber}>{scanResult.data.calories}</Text>
+                        <Text style={styles.calorieLabel}>Calories</Text>
+                      </View>
+                      {scanResult.data.nutrition && (
+                        <>
+                          <View style={styles.calorieItem}>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.protein}g</Text>
+                            <Text style={styles.calorieLabel}>Protein</Text>
+                          </View>
+                          <View style={styles.calorieItem}>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.carbs}g</Text>
+                            <Text style={styles.calorieLabel}>Carbs</Text>
+                          </View>
+                          <View style={styles.calorieItem}>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.fat}g</Text>
+                            <Text style={styles.calorieLabel}>Fat</Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
                   </View>
-                  {scanResult.data.nutrition && (
-                    <>
-                      <View style={styles.calorieItem}>
-                        <Text style={styles.calorieNumber}>{scanResult.data.nutrition.protein}g</Text>
-                        <Text style={styles.calorieLabel}>Protein</Text>
+                )}
+
+                                {scanResult.data.error ? (
+                  <View style={styles.errorContainer}>
+                    <AlertTriangle size={24} color={theme.colors.error} />
+                    <Text style={styles.errorText}>{scanResult.data.error}</Text>
+                    <TouchableOpacity style={styles.retryButton} onPress={clearResults}>
+                      <Text style={styles.retryButtonText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    {/* Detected Items */}
+                    {scanResult.data.items && scanResult.data.items.length > 0 && (
+                      <View style={styles.itemsContainer}>
+                        <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
+                        {scanResult.data.items.map((item: any, index: number) => (
+                          <View key={index} style={styles.detectedItem}>
+                            <Text style={styles.itemName}>{item.name || item.item}</Text>
+                            <Text style={styles.itemConfidence}>{item.confidence}%</Text>
+                          </View>
+                        ))}
                       </View>
-                      <View style={styles.calorieItem}>
-                        <Text style={styles.calorieNumber}>{scanResult.data.nutrition.carbs}g</Text>
-                        <Text style={styles.calorieLabel}>Carbs</Text>
+                    )}
+
+                    {/* Suggestions */}
+                    {scanResult.data.suggestions && scanResult.data.suggestions.length > 0 && (
+                      <View style={styles.suggestionsContainer}>
+                        <Text style={styles.suggestionsTitle}>💡 Suggestions</Text>
+                        {scanResult.data.suggestions.map((suggestion: string, index: number) => (
+                          <Text key={index} style={styles.suggestionText}>• {suggestion}</Text>
+                        ))}
                       </View>
-                      <View style={styles.calorieItem}>
-                        <Text style={styles.calorieNumber}>{scanResult.data.nutrition.fat}g</Text>
-                        <Text style={styles.calorieLabel}>Fat</Text>
+                    )}
+
+                    {/* Raw Text (for receipt scanner) */}
+                    {scanResult.data.text && scanMode === 'receipt-scanner' && (
+                      <View style={styles.textContainer}>
+                        <Text style={styles.textTitle}>📄 Extracted Text</Text>
+                        <ScrollView style={styles.textScroll} nestedScrollEnabled={true}>
+                          <Text style={styles.extractedText}>{scanResult.data.text}</Text>
+                        </ScrollView>
                       </View>
-                    </>
+                    )}
+                  </>
+                )}
+
+                {/* Action Buttons */}
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
+                    <X size={18} color={theme.colors.text} />
+                    <Text style={styles.clearButtonText}>Clear</Text>
+                  </TouchableOpacity>
+                  
+                  {scanResult.data.items && scanResult.data.items.length > 0 && (
+                    <TouchableOpacity 
+                      style={styles.addAllButton}
+                      onPress={() => {
+                        // Add all detected items to pantry
+                        Alert.alert(
+                          'Add All Items',
+                          `Add ${scanResult.data.items.length} items to your pantry?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { 
+                              text: 'Add All', 
+                              onPress: () => {
+                                // Convert to EnhancedParsedItem format
+                                const items: EnhancedParsedItem[] = scanResult.data.items.map((item: any, index: number) => ({
+                                  id: `scan_${Date.now()}_${index}`,
+                                  name: item.name || item.item || 'Unknown Item',
+                                  price: item.price,
+                                  quantity: item.quantity || 1,
+                                  category: 'food',
+                                  confidence: item.confidence || 70,
+                                  is_food: true,
+                                  user_action: 'confirmed'
+                                }));
+                                
+                                addToInventory(items);
+                                clearResults();
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Plus size={18} color="#FFFFFF" />
+                      <Text style={styles.addAllButtonText}>Add All</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
-              </View>
-            )}
-
-            {scanResult.data.error ? (
-              <View style={styles.errorContainer}>
-                <AlertTriangle size={24} color={theme.colors.error} />
-                <Text style={styles.errorText}>{scanResult.data.error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={clearResults}>
-                  <Text style={styles.retryButtonText}>Try Again</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                                {/* Detected Items */}
-                {scanResult.data.items && scanResult.data.items.length > 0 && (
-                  <View style={styles.itemsContainer}>
-                    <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
-                    {scanResult.data.items.map((item: any, index: number) => (
-                      <View key={index} style={styles.detectedItem}>
-                        <Text style={styles.itemName}>{item.name || item.item}</Text>
-                        <Text style={styles.itemConfidence}>{item.confidence}%</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Suggestions */}
-                {scanResult.data.suggestions && scanResult.data.suggestions.length > 0 && (
-                  <View style={styles.suggestionsContainer}>
-                    <Text style={styles.suggestionsTitle}>💡 Suggestions</Text>
-                    {scanResult.data.suggestions.map((suggestion: string, index: number) => (
-                      <Text key={index} style={styles.suggestionText}>• {suggestion}</Text>
-                    ))}
-                  </View>
-                )}
-
-                {/* Raw Text (for receipt scanner) */}
-                {scanResult.data.text && scanMode === 'receipt-scanner' && (
-                  <View style={styles.textContainer}>
-                    <Text style={styles.textTitle}>📄 Extracted Text</Text>
-                    <ScrollView style={styles.textScroll} nestedScrollEnabled={true}>
-                      <Text style={styles.extractedText}>{scanResult.data.text}</Text>
-                    </ScrollView>
-                  </View>
-                )}
-              </>
-            )}
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtonsContainer}>
-              <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
-                <X size={18} color={theme.colors.text} />
-                <Text style={styles.clearButtonText}>Clear</Text>
-              </TouchableOpacity>
-              
-              {scanResult.data.items && scanResult.data.items.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.addAllButton}
-                  onPress={() => {
-                    // Add all detected items to pantry
-                    Alert.alert(
-                      'Add All Items',
-                      `Add ${scanResult.data.items.length} items to your pantry?`,
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { 
-                          text: 'Add All', 
-                          onPress: () => {
-                            // Convert to EnhancedParsedItem format
-                            const items: EnhancedParsedItem[] = scanResult.data.items.map((item: any, index: number) => ({
-                              id: `scan_${Date.now()}_${index}`,
-                              name: item.name || item.item || 'Unknown Item',
-                              price: item.price,
-                              quantity: item.quantity || 1,
-                              category: 'food',
-                              confidence: item.confidence || 70,
-                              is_food: true,
-                              user_action: 'confirmed'
-                            }));
-                            
-                            addToInventory(items);
-                            clearResults();
-                          }
-                        }
-                      ]
-                    );
-                  }}
-                >
-                  <Plus size={18} color="#FFFFFF" />
-                  <Text style={styles.addAllButtonText}>Add All</Text>
-                </TouchableOpacity>
-              )}
+              </ScrollView>
             </View>
-          </ScrollView>
-        </View>
+          </View>
+        </Modal>
       )}
 
       {/* Add to Inventory Modal */}
@@ -977,21 +991,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Apple-style Mode Selector
+  // Apple-style Mode Selector - RESPONSIVE FIXED ✅
   appleModeContainer: {
     position: 'absolute',
     top: 60,
     left: 0,
     right: 0,
     zIndex: 100,
-    paddingHorizontal: 10,
+    paddingHorizontal: 15, // ✅ 10 → 15 artırıldı
   },
   appleModeSelector: {
     flexGrow: 0,
   },
   appleModeScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 15, // ✅ 20 → 15 azaltıldı
     alignItems: 'center',
+    justifyContent: 'center', // ✅ Merkezi hizalama eklendi
   },
   appleModeButton: {
     paddingHorizontal: 16,
@@ -1035,16 +1050,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Apple-style Controls
+  // Apple-style Controls - RESPONSIVE FIXED ✅
   appleControls: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 50, // ✅ 40 → 50 artırıldı
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 40, // ✅ 30 → 40 artırıldı
   },
   appleGalleryButton: {
     width: 50,
@@ -1091,16 +1106,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
 
-  // Results Overlay
-  resultsOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  // ✅ NEW MODAL STYLES FOR RESULTS
+  resultsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  resultsModalBackground: {
+    flex: 1,
+  },
+  resultsModalContainer: {
     backgroundColor: theme.colors.background,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    maxHeight: '60%',
+    maxHeight: '70%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
