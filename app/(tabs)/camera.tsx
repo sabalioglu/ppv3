@@ -690,15 +690,6 @@ export default function CameraScreen() {
               })}
             </ScrollView>
           </View>
-
-          {/* OCR Status Indicator */}
-          {scanMode === 'receipt-scanner' && !isLoading && (
-            <View style={styles.learningIndicator}>
-              <Text style={styles.learningText}>
-              </Text>
-            </View>
-          )}
-
           {/* Multiple Images Counter */}
           {scanMode === 'multiple-images' && multipleImages.length > 0 && (
             <View style={styles.multipleCounter}>
