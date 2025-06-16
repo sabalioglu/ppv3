@@ -68,7 +68,7 @@ export default function CameraScreen() {
   const [originalReceiptText, setOriginalReceiptText] = useState<string>('');
   const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
   
-  // 🆕 NEW OCR STATES
+  // OCR STATES
   const [lastScanImageUri, setLastScanImageUri] = useState<string | null>(null);
   const [lastOcrResult, setLastOcrResult] = useState<OCRParseResult | null>(null);
   
@@ -129,7 +129,7 @@ export default function CameraScreen() {
     }
   }, [showTutorial, tutorialOpacity]);
 
-  // 🔧 FIXED: Handle Item Action - Simplified without async calls
+  // Handle Item Action
   const handleItemAction = (itemId: string, action: 'confirm' | 'reject' | 'edit', newName?: string) => {
     console.log('🔘 Item action:', action, 'for item:', itemId);
     
@@ -159,7 +159,7 @@ export default function CameraScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // 🔧 ENHANCED: Add Items to Inventory Function with Learning Data
+  // Add Items to Inventory Function
   const addToInventory = async (items: EnhancedParsedItem[]) => {
     try {
       console.log('🏪 Adding items to inventory:', items);
@@ -298,7 +298,7 @@ export default function CameraScreen() {
           }
         };
         
-        // 🆕 ENHANCED: Receipt Scanner with RapidAPI OCR
+        // Receipt Scanner with RapidAPI OCR
         if (scanMode === 'receipt-scanner' && analysisResult.text) {
           setLearningStartTime(Date.now());
           setOriginalReceiptText(analysisResult.text);
@@ -424,7 +424,7 @@ export default function CameraScreen() {
     setMultipleImages([]);
   };
 
-  // 🔧 ENHANCED: Clear results with new OCR states
+  // Clear results
   const clearResults = () => {
     setScanResult(null);
     setMultipleImages([]);
@@ -445,7 +445,7 @@ export default function CameraScreen() {
     }).start(() => setShowTutorial(false));
   };
 
-  // 🔧 ENHANCED: Add to Inventory Modal with OCR confidence display
+  // Add to Inventory Modal
   const AddToInventoryModal = () => {
     const confirmedCount = parsedItems.filter(item => item.user_action === 'confirmed').length;
     
@@ -690,6 +690,7 @@ export default function CameraScreen() {
               })}
             </ScrollView>
           </View>
+
           {/* Multiple Images Counter */}
           {scanMode === 'multiple-images' && multipleImages.length > 0 && (
             <View style={styles.multipleCounter}>
@@ -776,7 +777,8 @@ export default function CameraScreen() {
                 </View>
               </View>
             )}
-                    {scanResult.data.error ? (
+
+            {scanResult.data.error ? (
               <View style={styles.errorContainer}>
                 <AlertTriangle size={24} color={theme.colors.error} />
                 <Text style={styles.errorText}>{scanResult.data.error}</Text>
@@ -788,7 +790,8 @@ export default function CameraScreen() {
               <>
                 {/* Confidence Score */}
                 <View style={styles.confidenceContainer}>
-                  <Text style={styles.confidenceLabel}>AI Confidence</Text>
+                  <Text style={styles.confidenceLabel}>
+                                      <Text style={styles.confidenceLabel}>AI Confidence</Text>
                   <View style={styles.confidenceBar}>
                     <View 
                       style={[
@@ -989,13 +992,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Apple-style Mode Selector
+  // Apple-style Mode Selector - ✅ RESPONSIVE UPDATE
   appleModeContainer: {
     position: 'absolute',
     top: 60,
     left: 0,
     right: 0,
     zIndex: 100,
+    paddingHorizontal: 10, // ✅ MOBILE RESPONSIVE
   },
   appleModeSelector: {
     flexGrow: 0,
@@ -1014,23 +1018,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
-  },
-
-  // Learning Indicator
-  learningIndicator: {
-    position: 'absolute',
-    top: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(30, 144, 255, 0.9)',
-    borderRadius: 10,
-    padding: 8,
-    alignItems: 'center',
-  },
-  learningText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
   },
 
   // Multiple Images Counter
@@ -1063,7 +1050,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Apple-style Controls
+  // Apple-style Controls - ✅ RESPONSIVE UPDATE
   appleControls: {
     position: 'absolute',
     bottom: 40,
@@ -1072,7 +1059,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 30, // ✅ MOBILE RESPONSIVE (40 → 30)
   },
   appleGalleryButton: {
     width: 50,
