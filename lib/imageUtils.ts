@@ -50,3 +50,8 @@ export const validateImageSize = (base64: string, maxSizeKB: number): boolean =>
     return false;
   }
 };
+
+export const cleanBase64 = (base64: string): string => {
+  // Remove data URL prefix if present
+  return base64.replace(/^data:image\/[a-z]+;base64,/, '');
+};
