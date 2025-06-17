@@ -45,17 +45,19 @@ export default function RootLayout() {
     'Poppins-Bold': Poppins_700Bold,
   });
 
-  // 🔧 CRITICAL FIX: Enhanced auth check with timeout protection
+  // 🔧 REFINED FIX: Enhanced auth check with proper timeout handling
   useEffect(() => {
     let mounted = true;
     let authTimeoutId: NodeJS.Timeout;
+    let authResolved = false;
     
     console.log('🔄 Starting auth check process...');
     
     // SAFETY TIMEOUT - Force resolution after 8 seconds
     authTimeoutId = setTimeout(() => {
-      if (mounted && authLoading) {
+      if (mounted && authLoading && !authResolved) {
         console.log('⏰ Auth check timeout - forcing login screen');
+        authResolved = true;
         setAuthLoading(false);
         setUser(null);
         setInitialRoute('/auth/welcome');
@@ -69,8 +71,9 @@ export default function RootLayout() {
         
         // Check for Google redirect result
         const result = await getRedirectResult(auth);
-        if (result && mounted) {
+        if (result && mounted && !authResolved) {
           console.log('🎉 Google redirect result found:', result.user.email);
+          authResolved = true;
           clearTimeout(authTimeoutId);
           setUser(result.user);
           setAuthLoading(false);
@@ -83,8 +86,9 @@ export default function RootLayout() {
         
         // Check current user state
         const currentUser = auth.currentUser;
-        if (currentUser && mounted) {
+        if (currentUser && mounted && !authResolved) {
           console.log('👤 Current user found:', currentUser.email);
+          authResolved = true;
           clearTimeout(authTimeoutId);
           setUser(currentUser);
           setAuthLoading(false);
@@ -97,9 +101,10 @@ export default function RootLayout() {
         
         // Set up auth state listener as final check
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-          if (!mounted) return;
+          if (!mounted || authResolved) return;
           
           console.log('🔥 Auth state listener fired:', user ? `User: ${user.email}` : 'No user');
+          authResolved = true;
           clearTimeout(authTimeoutId);
           
           if (user) {
@@ -115,23 +120,12 @@ export default function RootLayout() {
           }
         });
         
-        // Cleanup timeout after 3 seconds if no auth state change
-        setTimeout(() => {
-          if (mounted && authLoading) {
-            console.log('⏰ Auth state listener timeout - showing login');
-            clearTimeout(authTimeoutId);
-            setUser(null);
-            setAuthLoading(false);
-            setInitialRoute('/auth/welcome');
-            router.replace('/auth/welcome');
-          }
-        }, 3000);
-        
         return unsubscribe;
         
       } catch (error) {
         console.error('❌ Auth check failed:', error);
-        if (mounted) {
+        if (mounted && !authResolved) {
+          authResolved = true;
           clearTimeout(authTimeoutId);
           setUser(null);
           setAuthLoading(false);
@@ -145,6 +139,7 @@ export default function RootLayout() {
     
     return () => {
       mounted = false;
+      authResolved = true;
       if (authTimeoutId) {
         clearTimeout(authTimeoutId);
       }
