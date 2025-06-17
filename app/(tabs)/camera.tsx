@@ -1577,7 +1577,7 @@ const styles = StyleSheet.create({
   },
   modalFooterText: {
     fontSize: 12,
-    color: theme.colors.text
+    color: theme.colors.text,
       modalFooterText: {
     fontSize: 12,
     color: theme.colors.textSecondary,
