@@ -9,6 +9,8 @@ export interface OpenAIVisionResult {
     name: string;
     confidence: number;
     category: 'food' | 'drink' | 'unknown';
+    price?: number;
+    is_food?: boolean;
   }>;
   calories?: number;
   nutrition?: {
@@ -19,6 +21,7 @@ export interface OpenAIVisionResult {
   };
   text?: string;
   suggestions: string[];
+  store_name?: string;
 }
 
 export class OpenAIVisionService {
@@ -55,13 +58,14 @@ export class OpenAIVisionService {
                 {
                   type: 'image_url',
                   image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
+                    url: `data:image/jpeg;base64,${base64Image}`,
+                    detail: mode === 'receipt-scanner' ? 'high' : 'auto'
                   }
                 }
               ]
             }
           ],
-          max_tokens: 1000,
+          max_tokens: mode === 'receipt-scanner' ? 2000 : 1000,
           temperature: 0.1
         })
       });
@@ -112,14 +116,50 @@ export class OpenAIVisionService {
         }`;
         
       case 'receipt-scanner':
-        return `Extract all text from this receipt/document. Return ONLY JSON:
+        return `Analyze this receipt image and extract ONLY food and beverage items.
+
+        Return response in this EXACT JSON format:
         {
           "type": "receipt",
-          "text": "full extracted text",
-          "confidence": score,
-          "detectedItems": [{"name": "item or price", "confidence": score}],
-          "suggestions": ["receipt-related suggestions"]
-        }`;
+          "mainItem": "Receipt Analysis Complete",
+          "confidence": 85,
+          "store_name": "Store name if visible",
+          "detectedItems": [
+            {
+              "name": "PROPER ITEM NAME",
+              "price": 0.00,
+              "category": "food",
+              "confidence": 85,
+              "is_food": true
+            }
+          ],
+          "suggestions": ["Review items before adding", "Confirm food items only"],
+          "text": "raw extracted text if needed"
+        }
+
+        STRICT RULES:
+        1. ONLY include food, beverages, snacks, fresh produce
+        2. EXCLUDE: toiletries, cleaning products, medicine, household items
+        3. Clean item names: "MLK 2%" → "MILK 2%", "BRD WHL WHT" → "BREAD WHOLE WHEAT"
+        4. Include price if visible, use 0.00 if not found
+        5. Set confidence 70-95 based on image clarity
+        6. Maximum 50 items to prevent spam
+
+        EXAMPLES TO EXCLUDE:
+        - Toilet paper, tissues, paper towels
+        - Shampoo, soap, toothpaste, deodorant
+        - Detergent, fabric softener, bleach
+        - Medicine, vitamins, supplements
+        - Batteries, light bulbs, household tools
+
+        EXAMPLES TO INCLUDE:
+        - Milk, eggs, cheese, yogurt, butter
+        - Bread, cereal, pasta, rice
+        - Fruits, vegetables, herbs
+        - Meat, chicken, fish, seafood
+        - Snacks, chips, cookies, candy
+        - Beverages, juice, soda, water, coffee, tea
+        - Spices, sauces, condiments`;
         
       case 'multiple-images':
         return `Analyze this image as part of multiple food analysis. Return ONLY JSON:
@@ -162,7 +202,7 @@ export class OpenAIVisionService {
         type: this.validateType(parsed.type) || 'unknown',
         mainItem: typeof parsed.mainItem === 'string' ? parsed.mainItem : null,
         confidence: this.clampConfidence(parsed.confidence),
-        detectedItems: this.validateDetectedItems(parsed.detectedItems),
+        detectedItems: this.validateDetectedItems(parsed.detectedItems, mode),
         suggestions: this.validateSuggestions(parsed.suggestions)
       };
 
@@ -177,6 +217,11 @@ export class OpenAIVisionService {
 
       if (parsed.text && typeof parsed.text === 'string') {
         result.text = parsed.text;
+      }
+
+      // ✅ RECEIPT SCANNER SPECIFIC FIELDS
+      if (mode === 'receipt-scanner' && parsed.store_name && typeof parsed.store_name === 'string') {
+        result.store_name = parsed.store_name;
       }
 
       return result;
@@ -200,14 +245,30 @@ export class OpenAIVisionService {
     return Math.min(Math.max(Math.round(num), 0), 100);
   }
 
-  private static validateDetectedItems(items: any): Array<{name: string; confidence: number; category: 'food' | 'drink' | 'unknown'}> {
+  private static validateDetectedItems(items: any, mode: string): Array<{name: string; confidence: number; category: 'food' | 'drink' | 'unknown'; price?: number; is_food?: boolean}> {
     if (!Array.isArray(items)) return [];
     
-    return items.slice(0, 10).map(item => ({
-      name: typeof item.name === 'string' ? item.name : 'Unknown Item',
-      confidence: this.clampConfidence(item.confidence),
-      category: ['food', 'drink', 'unknown'].includes(item.category) ? item.category : 'unknown'
-    }));
+    return items.slice(0, 50).map(item => {
+      const validatedItem: any = {
+        name: typeof item.name === 'string' ? item.name : 'Unknown Item',
+        confidence: this.clampConfidence(item.confidence),
+        category: ['food', 'drink', 'unknown'].includes(item.category) ? item.category : 'unknown'
+      };
+
+      // ✅ RECEIPT SCANNER SPECIFIC FIELDS
+      if (mode === 'receipt-scanner') {
+        if (typeof item.price === 'number' && item.price > 0) {
+          validatedItem.price = Math.round(item.price * 100) / 100; // Round to 2 decimals
+        }
+        if (typeof item.is_food === 'boolean') {
+          validatedItem.is_food = item.is_food;
+        } else {
+          validatedItem.is_food = validatedItem.category === 'food' || validatedItem.category === 'drink';
+        }
+      }
+
+      return validatedItem;
+    });
   }
 
   private static validateSuggestions(suggestions: any): string[] {
@@ -240,8 +301,8 @@ export class OpenAIVisionService {
 
     if (mode === 'receipt-scanner' || hasText) {
       type = 'receipt';
-      mainItem = 'Text detected';
-      suggestions = ['Document processed', 'Check image quality'];
+      mainItem = 'Receipt processed';
+      suggestions = ['Receipt analyzed', 'Check image quality', 'Try better lighting'];
     } else if (hasFood || hasCalorie) {
       type = 'food';
       mainItem = 'Food detected';
