@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration with environment variables
 const firebaseConfig = {
@@ -14,23 +15,16 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Validate required environment variables
-const requiredEnvVars = [
-  'EXPO_PUBLIC_FIREBASE_API_KEY',
-  'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
-  'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'EXPO_PUBLIC_FIREBASE_APP_ID'
-];
-
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    console.error(`❌ Missing required environment variable: ${envVar}`);
-  }
+// Validate Firebase configuration
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+  console.error('❌ Missing Firebase environment variables');
+  console.error('API Key:', firebaseConfig.apiKey ? 'Present' : 'Missing');
+  console.error('Auth Domain:', firebaseConfig.authDomain ? 'Present' : 'Missing');
+  console.error('Project ID:', firebaseConfig.projectId ? 'Present' : 'Missing');
+  throw new Error('Missing Firebase environment variables. Please check your .env file.');
 }
 
-console.log('🔥 Firebase Config:', {
+console.log('✅ Firebase Config:', {
   apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'Missing',
   authDomain: firebaseConfig.authDomain || 'Missing',
   projectId: firebaseConfig.projectId || 'Missing',
@@ -45,14 +39,14 @@ if (Platform.OS === 'web') {
   // Web: Use simple getAuth (no AsyncStorage)
   auth = getAuth(app);
 } else {
-  // React Native: Use getAuth with AsyncStorage persistence
-  auth = getAuth(app);
+  // React Native: Use AsyncStorage for persistence
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+  });
 }
 
 // Initialize Firestore
 const db = getFirestore(app);
-
-console.log('✅ Firebase initialized successfully');
 
 export { auth, db };
 export default app;
