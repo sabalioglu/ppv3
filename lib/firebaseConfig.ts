@@ -1,5 +1,5 @@
-// lib/firebaseConfig.ts - ENHANCED VERSION
-import { initializeApp } from 'firebase/app';
+// lib/firebaseConfig.ts - DUPLICATE APP FIX
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
@@ -31,8 +31,8 @@ console.log('✅ Firebase Config:', {
   projectId: firebaseConfig.projectId || 'Missing',
 });
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase - Check if already exists
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // Platform-specific Auth initialization
 let auth;
@@ -41,9 +41,14 @@ if (Platform.OS === 'web') {
   auth = getAuth(app);
 } else {
   // React Native: Use AsyncStorage for persistence
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  } catch (error) {
+    // If already initialized, get existing auth instance
+    auth = getAuth(app);
+  }
 }
 
 // Initialize Firestore
