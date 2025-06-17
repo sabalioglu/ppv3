@@ -236,7 +236,7 @@ export default function SignupScreen() {
                   <Text style={styles.termsLink}>Terms of Service</Text>
                   {' '}and{' '}
                   <Text style={styles.termsLink}>Privacy Policy</Text>
-                  {' '}(I agree)
+                  {' (I agree)'}
                 </Text>
               </TouchableOpacity>
 
