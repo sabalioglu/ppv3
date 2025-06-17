@@ -17,7 +17,9 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { User } from 'firebase/auth';
+import { getRedirectResult } from 'firebase/auth';
 import { AuthService } from '@/lib/authService';
+import { auth } from '@/lib/firebaseConfig';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { colors, spacing, typography } from '@/lib/theme';
 import { ChefHat } from 'lucide-react-native';
@@ -60,38 +62,52 @@ export default function RootLayout() {
     handleRedirectResult();
   }, []);
 
-  // 🔧 FIXED: Enhanced auth state listener with infinite loop prevention
+  // 🔧 CRITICAL FIX: Check redirect result first, then set up auth listener
   useEffect(() => {
     let mounted = true;
-    let hasProcessedAuth = false;
     
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      if (!mounted || hasProcessedAuth) return;
-      
-      console.log('🔥 Auth state changed:', user ? `LOGGED IN: ${user.email}` : 'NOT LOGGED IN');
-      
-      if (user) {
-        hasProcessedAuth = true;
-        console.log('✅ User authenticated, setting up navigation...');
-        setUser(user);
-        setAuthLoading(false);
-        setInitialRoute('/(tabs)');
-        
-        // IMMEDIATE NAVIGATION - NO TIMEOUT
-        console.log('🚀 Navigating to tabs immediately...');
-        router.replace('/(tabs)');
-      } else {
-        console.log('❌ No user, redirecting to auth...');
-        setUser(null);
-        setAuthLoading(false);
-        setInitialRoute('/auth/welcome');
+    // 1. CHECK REDIRECT RESULT FIRST (CRITICAL!)
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && mounted) {
+          console.log('🎉 Google redirect successful:', result.user.email);
+          setUser(result.user);
+          setAuthLoading(false);
+          setInitialRoute('/(tabs)');
+          router.replace('/(tabs)');
+          return; // Exit early if redirect result found
+        }
+        console.log('ℹ️ No redirect result - normal app load');
+      } catch (error) {
+        console.error('❌ Redirect result error:', error);
       }
-    });
-
+      
+      // 2. THEN SET UP AUTH STATE LISTENER
+      const unsubscribe = AuthService.onAuthStateChanged((user) => {
+        if (!mounted) return;
+        
+        if (user) {
+          console.log('🔥 Auth state: LOGGED IN:', user.email);
+          setUser(user);
+          setAuthLoading(false);
+          setInitialRoute('/(tabs)');
+          router.replace('/(tabs)');
+        } else {
+          console.log('🔥 Auth state: NOT LOGGED IN');
+          setUser(null);
+          setAuthLoading(false);
+          setInitialRoute('/auth/welcome');
+        }
+      });
+      
+      return unsubscribe;
+    };
+    
+    checkRedirectResult();
+    
     return () => {
       mounted = false;
-      hasProcessedAuth = false;
-      unsubscribe();
     };
   }, []);
 
