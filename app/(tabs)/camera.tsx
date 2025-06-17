@@ -181,7 +181,8 @@ export default function CameraScreen() {
         
         return {
           ...item,
-          user_action: action,
+          user_action: action === 'confirm' ? 'confirmed' : action === 'reject' ? 'rejected' : 'edited',
+
           name: newName || item.name
         };
       }
