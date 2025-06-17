@@ -1,23 +1,26 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
 
-// Firebase configuration  
+// Firebase configuration (temporary demo values)
 const firebaseConfig = {
-  apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-  authDomain: "pantry-pal-app.firebaseapp.com", 
-  projectId: "pantry-pal-app",
-  storageBucket: "pantry-pal-app.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdefghijklmnopqrstuvwxyz"
+  apiKey: "AIzaSyDemo-Replace-With-Real-Firebase-Key",
+  authDomain: "demo-project.firebaseapp.com",
+  projectId: "demo-project",
+  storageBucket: "demo-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:demo-app-id"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth (Web için basit versiyon)
-const auth = getAuth(app);
+// Initialize Auth with AsyncStorage persistence (CRITICAL FIX)
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
 
 // Initialize Firestore
 const db = getFirestore(app);
