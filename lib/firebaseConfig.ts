@@ -1,4 +1,4 @@
-// lib/firebaseConfig.ts - Simple Web-Compatible Version
+// lib/firebaseConfig.ts - WEB-COMPATIBLE FIXED VERSION
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
@@ -14,6 +14,15 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-LSCCLT1QYQ"
 };
 
+// Validate Firebase configuration
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+  console.error('❌ Missing Firebase environment variables');
+  console.error('API Key:', firebaseConfig.apiKey ? 'Present' : 'Missing');
+  console.error('Auth Domain:', firebaseConfig.authDomain ? 'Present' : 'Missing');
+  console.error('Project ID:', firebaseConfig.projectId ? 'Present' : 'Missing');
+  throw new Error('Missing Firebase environment variables. Please check your .env file.');
+}
+
 console.log('✅ Firebase Config:', {
   apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : 'Missing',
   authDomain: firebaseConfig.authDomain || 'Missing',
@@ -23,9 +32,16 @@ console.log('✅ Firebase Config:', {
 // Initialize Firebase - Check if already exists
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Web-compatible auth initialization
-const auth = getAuth(app);
-console.log('✅ Firebase Auth initialized for Web platform');
+// WEB-COMPATIBLE Auth initialization
+let auth;
+try {
+  // Always use getAuth for web compatibility
+  auth = getAuth(app);
+  console.log('✅ Firebase Auth initialized for Web platform');
+} catch (error) {
+  console.error('❌ Firebase Auth initialization failed:', error);
+  throw error;
+}
 
 // Initialize Firestore
 const db = getFirestore(app);
