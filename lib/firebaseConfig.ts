@@ -1,8 +1,7 @@
-// lib/firebaseConfig.ts - DUPLICATE APP FIX
+// lib/firebaseConfig.ts - FIXED PLATFORM DETECTION
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration with environment variables + FALLBACKS
@@ -34,21 +33,21 @@ console.log('✅ Firebase Config:', {
 // Initialize Firebase - Check if already exists
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Platform-specific Auth initialization
+// FIXED Platform-specific Auth initialization
 let auth;
-if (Platform.OS === 'web') {
-  // Web: Use simple getAuth (no AsyncStorage)
-  auth = getAuth(app);
-} else {
-  // React Native: Use AsyncStorage for persistence
-  try {
+try {
+  if (typeof window !== 'undefined') {
+    // Web environment
+    auth = getAuth(app);
+  } else {
+    // React Native environment
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
-  } catch (error) {
-    // If already initialized, get existing auth instance
-    auth = getAuth(app);
   }
+} catch (error) {
+  // Fallback
+  auth = getAuth(app);
 }
 
 // Initialize Firestore
