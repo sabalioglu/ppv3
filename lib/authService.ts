@@ -6,8 +6,8 @@ import {
   User,
   GoogleAuthProvider,
   signInWithCredential,
-  signInWithRedirect, // ✅ ADD THIS
-  getRedirectResult,  // ✅ ADD THIS
+  signInWithRedirect,
+  getRedirectResult,
   updateProfile
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -62,7 +62,7 @@ export class AuthService {
     }
   }
 
-  // Google Authentication with Redirect (Web Compatible)
+  // Enhanced Google Authentication with better redirect handling
   static async signInWithGoogle(): Promise<User> {
     try {
       console.log('🔍 Starting Google sign in...');
@@ -71,25 +71,24 @@ export class AuthService {
         provider.addScope('email');
         provider.addScope('profile');
         
-        // Use redirect instead of popup to avoid popup-blocked errors
+        console.log('🌐 Using Google redirect flow...');
         await signInWithRedirect(auth, provider);
         
-        // The user will be redirected, so return a promise that will resolve after redirect
+        // Return a promise that resolves when auth state changes
         return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Google sign in timeout'));
+          }, 30000);
+          
           const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
+              clearTimeout(timeout);
               unsubscribe();
               await this.updateUserProfile(user, 'google');
               console.log('✅ Google redirect sign in successful');
               resolve(user);
             }
           });
-          
-          // Timeout after 30 seconds
-          setTimeout(() => {
-            unsubscribe();
-            reject(new Error('Google sign in timeout'));
-          }, 30000);
         });
       } else {
         // React Native Google Sign In would require additional setup
@@ -101,19 +100,24 @@ export class AuthService {
     }
   }
 
-  // Handle Google redirect result on app startup
+  // Enhanced redirect result handler
   static async handleGoogleRedirectResult(): Promise<User | null> {
     try {
+      console.log('🔍 Checking for Google redirect result...');
       const result = await getRedirectResult(auth);
       if (result) {
+        console.log('✅ Google redirect result found:', result.user.email);
         await this.updateUserProfile(result.user, 'google');
-        console.log('✅ Google redirect result processed');
+        console.log('✅ Google redirect result processed successfully');
         return result.user;
+      } else {
+        console.log('ℹ️ No Google redirect result found');
+        return null;
       }
-      return null;
     } catch (error: any) {
       console.error('❌ Google redirect result error:', error);
-      throw new Error('Google redirect failed: ' + error.message);
+      // Don't throw error here as it might be a normal case
+      return null;
     }
   }
 
@@ -154,7 +158,7 @@ export class AuthService {
     return auth.currentUser;
   }
 
-  // Auth State Listener
+  // Enhanced Auth State Listener with better logging
   static onAuthStateChanged(callback: (user: User | null) => void): () => void {
     return onAuthStateChanged(auth, (user) => {
       console.log('🔄 Auth state changed:', user ? `User: ${user.email}` : 'No user');

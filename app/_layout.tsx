@@ -31,6 +31,7 @@ export default function RootLayout() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
@@ -47,46 +48,73 @@ export default function RootLayout() {
   useEffect(() => {
     const handleRedirectResult = async () => {
       try {
-        await AuthService.handleGoogleRedirectResult();
+        console.log('🔍 Checking for Google redirect result...');
+        const user = await AuthService.handleGoogleRedirectResult();
+        if (user) {
+          console.log('✅ Google redirect result processed successfully:', user.email);
+        }
       } catch (error) {
-        console.error('Google redirect result error:', error);
+        console.error('❌ Google redirect result error:', error);
       }
     };
 
     handleRedirectResult();
   }, []);
 
-  // Handle authentication state changes
+  // Enhanced auth state listener with better handling
   useEffect(() => {
+    let mounted = true;
+    
     const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      console.log('Auth state changed:', user ? 'Authenticated' : 'Not authenticated');
-      setUser(user);
-      setAuthLoading(false);
+      if (!mounted) return;
       
-      // Set initial route based on auth state
+      console.log('🔥 Auth state changed:', user ? `LOGGED IN: ${user.email}` : 'NOT LOGGED IN');
+      
       if (user) {
+        console.log('✅ User authenticated, setting up navigation...');
+        setUser(user);
+        setAuthLoading(false);
         setInitialRoute('/(tabs)');
+        
+        // Force navigation to tabs if not already navigated
+        if (!hasNavigated) {
+          console.log('🚀 Navigating to tabs...');
+          setHasNavigated(true);
+          setTimeout(() => {
+            router.replace('/(tabs)');
+          }, 500);
+        }
       } else {
+        console.log('❌ No user, redirecting to auth...');
+        setUser(null);
+        setAuthLoading(false);
         setInitialRoute('/auth/welcome');
+        setHasNavigated(false);
       }
     });
 
-    return unsubscribe;
-  }, []);
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [hasNavigated]);
 
   // Navigate to appropriate route when auth state is determined
   useEffect(() => {
-    if (!authLoading && initialRoute) {
+    if (!authLoading && initialRoute && !hasNavigated) {
+      console.log('📍 Initial navigation to:', initialRoute);
       // Small delay to ensure navigation is ready
       setTimeout(() => {
         router.replace(initialRoute as any);
+        setHasNavigated(true);
       }, 100);
     }
-  }, [authLoading, initialRoute]);
+  }, [authLoading, initialRoute, hasNavigated]);
 
   // Hide splash screen when everything is ready
   useEffect(() => {
     if ((fontsLoaded || fontError) && !authLoading) {
+      console.log('🎨 Hiding splash screen...');
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError, authLoading]);
@@ -107,7 +135,7 @@ export default function RootLayout() {
             color={colors.primary[500]} 
             style={styles.loadingSpinner}
           />
-          <Text style={styles.loadingText}>Initializing your smart kitchen...</Text>
+          <Text style={styles.loadingText}>Checking authentication...</Text>
         </View>
       </View>
     );
