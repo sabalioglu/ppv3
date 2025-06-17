@@ -17,8 +17,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { User } from 'firebase/auth';
-import { getRedirectResult, onAuthStateChanged } from 'firebase/auth';
-import { AuthService } from '@/lib/authService';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebaseConfig';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { colors, spacing, typography } from '@/lib/theme';
@@ -32,7 +31,6 @@ export default function RootLayout() {
 
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [initialRoute, setInitialRoute] = useState<string>('/auth/welcome');
 
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
@@ -45,105 +43,25 @@ export default function RootLayout() {
     'Poppins-Bold': Poppins_700Bold,
   });
 
-  // 🔧 REFINED FIX: Enhanced auth check with proper timeout handling
+  // Simple Auth State Management
   useEffect(() => {
-    let mounted = true;
-    let authTimeoutId: NodeJS.Timeout;
-    let authResolved = false;
+    console.log('🔄 Setting up auth state listener...');
     
-    console.log('🔄 Starting auth check process...');
-    
-    // SAFETY TIMEOUT - Force resolution after 8 seconds
-    authTimeoutId = setTimeout(() => {
-      if (mounted && authLoading && !authResolved) {
-        console.log('⏰ Auth check timeout - forcing login screen');
-        authResolved = true;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log('✅ User authenticated:', user.email);
+        setUser(user);
         setAuthLoading(false);
+        router.replace('/(tabs)');
+      } else {
+        console.log('❌ No user - showing login');
         setUser(null);
-        setInitialRoute('/auth/welcome');
+        setAuthLoading(false);
         router.replace('/auth/welcome');
       }
-    }, 8000);
-    
-    const performAuthCheck = async () => {
-      try {
-        console.log('🔍 Step 1: Checking redirect result...');
-        
-        // Check for Google redirect result
-        const result = await getRedirectResult(auth);
-        if (result && mounted && !authResolved) {
-          console.log('🎉 Google redirect result found:', result.user.email);
-          authResolved = true;
-          clearTimeout(authTimeoutId);
-          setUser(result.user);
-          setAuthLoading(false);
-          setInitialRoute('/(tabs)');
-          router.replace('/(tabs)');
-          return;
-        }
-        
-        console.log('🔍 Step 2: Checking current user...');
-        
-        // Check current user state
-        const currentUser = auth.currentUser;
-        if (currentUser && mounted && !authResolved) {
-          console.log('👤 Current user found:', currentUser.email);
-          authResolved = true;
-          clearTimeout(authTimeoutId);
-          setUser(currentUser);
-          setAuthLoading(false);
-          setInitialRoute('/(tabs)');
-          router.replace('/(tabs)');
-          return;
-        }
-        
-        console.log('🔍 Step 3: Setting up auth state listener...');
-        
-        // Set up auth state listener as final check
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          if (!mounted || authResolved) return;
-          
-          console.log('🔥 Auth state listener fired:', user ? `User: ${user.email}` : 'No user');
-          authResolved = true;
-          clearTimeout(authTimeoutId);
-          
-          if (user) {
-            setUser(user);
-            setAuthLoading(false);
-            setInitialRoute('/(tabs)');
-            router.replace('/(tabs)');
-          } else {
-            setUser(null);
-            setAuthLoading(false);
-            setInitialRoute('/auth/welcome');
-            router.replace('/auth/welcome');
-          }
-        });
-        
-        return unsubscribe;
-        
-      } catch (error) {
-        console.error('❌ Auth check failed:', error);
-        if (mounted && !authResolved) {
-          authResolved = true;
-          clearTimeout(authTimeoutId);
-          setUser(null);
-          setAuthLoading(false);
-          setInitialRoute('/auth/welcome');
-          router.replace('/auth/welcome');
-        }
-      }
-    };
-    
-    performAuthCheck();
-    
-    return () => {
-      mounted = false;
-      authResolved = true;
-      if (authTimeoutId) {
-        clearTimeout(authTimeoutId);
-      }
-    };
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Hide splash screen when everything is ready
@@ -170,7 +88,7 @@ export default function RootLayout() {
             color={colors.primary[500]} 
             style={styles.loadingSpinner}
           />
-          <Text style={styles.loadingText}>Checking authentication...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </View>
     );
