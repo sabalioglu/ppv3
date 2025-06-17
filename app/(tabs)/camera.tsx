@@ -1571,17 +1571,14 @@ const styles = StyleSheet.create({
   },
 
   // Modal Footer
-  modalFooter: {
-    paddingHorizontal: 25,
-    paddingBottom: 25,
-  },
-  modalFooterText: {
-    fontSize: 12,
-    color: theme.colors.text,
-      modalFooterText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
+modalFooter: {
+  paddingHorizontal: 25,
+  paddingBottom: 25,
+},
+modalFooterText: {
+  fontSize: 12,
+  color: theme.colors.textSecondary,
+  textAlign: 'center',
+  fontStyle: 'italic',
+},
 });
