@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration with environment variables + FALLBACKS
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBt0Sgzj0snCECqrHUg5izY1nJIRQmRTik",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBt0Sgzj0snCECqrHUg5izYlnJIRQmRTik",
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "pantry-pal-production.firebaseapp.com",
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "pantry-pal-production",
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "pantry-pal-production.firebasestorage.app",
