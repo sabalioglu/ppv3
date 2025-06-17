@@ -72,6 +72,10 @@ export default function CameraScreen() {
   const [lastScanImageUri, setLastScanImageUri] = useState<string | null>(null);
   const [lastOcrResult, setLastOcrResult] = useState<OCRParseResult | null>(null);
   
+  // ✅ NEW SMART LOADING STATES
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  
   const cameraRef = useRef<CameraView>(null);
   const tutorialOpacity = useRef(new Animated.Value(1)).current;
 
@@ -113,6 +117,37 @@ export default function CameraScreen() {
       description: 'Smart inventory'
     },
   };
+
+  // ✅ SMART LOADING MESSAGES
+  const LOADING_STEPS = [
+    { message: '🔍 Scanning your receipt...', duration: 1000 },
+    { message: '🤖 Analyzing with AI...', duration: 2000 },
+    { message: '🍎 Finding food items...', duration: 1500 },
+    { message: '📦 Almost ready...', duration: 1000 },
+  ];
+
+  // ✅ SMART LOADING ANIMATION
+  useEffect(() => {
+    if (isLoading && scanMode === 'receipt-scanner') {
+      setLoadingStep(0);
+      setLoadingMessage(LOADING_STEPS[0].message);
+      
+      const interval = setInterval(() => {
+        setLoadingStep(prev => {
+          const nextStep = prev + 1;
+          if (nextStep < LOADING_STEPS.length) {
+            setLoadingMessage(LOADING_STEPS[nextStep].message);
+            return nextStep;
+          } else {
+            clearInterval(interval);
+            return prev;
+          }
+        });
+      }, 1500);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, scanMode]);
 
   // Hide tutorial after 4 seconds
   useEffect(() => {
@@ -222,10 +257,9 @@ export default function CameraScreen() {
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      const accuracy = lastOcrResult?.confidence || 0;
       Alert.alert(
         'Success! 🎉',
-        `Added ${confirmedFoodItems.length} food items to your pantry!\n\nOCR Accuracy: ${Math.round(accuracy)}%\nThanks for helping improve the AI! 🤖`,
+        `Added ${confirmedFoodItems.length} food items to your pantry!\n\nThanks for using our smart scanner! 🤖`,
         [{ text: 'Great!', style: 'default' }]
       );
       
@@ -347,6 +381,8 @@ export default function CameraScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setIsLoading(false);
+      setLoadingStep(0);
+      setLoadingMessage('');
     }
   };
 
@@ -434,6 +470,8 @@ export default function CameraScreen() {
     setOriginalReceiptText('');
     setLastScanImageUri(null);
     setLastOcrResult(null);
+    setLoadingStep(0);
+    setLoadingMessage('');
   };
 
   // Hide tutorial manually
@@ -445,7 +483,21 @@ export default function CameraScreen() {
     }).start(() => setShowTutorial(false));
   };
 
-  // Add to Inventory Modal
+  // ✅ ENHANCED PROGRESS INDICATOR
+  const renderProgressIndicator = () => {
+    const progress = ((loadingStep + 1) / LOADING_STEPS.length) * 100;
+    
+    return (
+      <View style={styles.progressContainer}>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
+        </View>
+        <Text style={styles.progressText}>{Math.round(progress)}% complete</Text>
+      </View>
+    );
+  };
+
+  // ✅ CLEANED UP ADD TO INVENTORY MODAL (NO CONFIDENCE SCORES)
   const AddToInventoryModal = () => {
     const confirmedCount = parsedItems.filter(item => item.user_action === 'confirmed').length;
     
@@ -469,14 +521,14 @@ export default function CameraScreen() {
             </View>
             
             <Text style={styles.modalMessage}>
-              {lastOcrResult?.method === 'rapidapi' ? 'OCR API' : 'AI'} found {parsedItems.length} items. Please review and confirm food items:
+              Found {parsedItems.length} food items. Please review and confirm:
             </Text>
             
-            {/* OCR Confidence Display */}
-            {lastOcrResult && (
-              <View style={styles.ocrStatsContainer}>
-                <Text style={styles.ocrStatsText}>
-                  📊 OCR Confidence: {lastOcrResult.confidence}% | Store: {lastOcrResult.store_name || 'Unknown'} | Processing: {lastOcrResult.processing_time}ms
+            {/* ✅ STORE INFO (NO CONFIDENCE) */}
+            {lastOcrResult?.store_name && (
+              <View style={styles.storeInfoContainer}>
+                <Text style={styles.storeInfoText}>
+                  🏪 Store: {lastOcrResult.store_name}
                 </Text>
               </View>
             )}
@@ -490,14 +542,9 @@ export default function CameraScreen() {
                 ]}>
                   <View style={styles.modalItemInfo}>
                     <Text style={styles.modalItemName}>{item.name}</Text>
-                    <View style={styles.modalItemMeta}>
-                      {item.price && (
-                        <Text style={styles.modalItemPrice}>${item.price.toFixed(2)}</Text>
-                      )}
-                      <Text style={styles.modalItemConfidence}>
-                        {item.confidence}% confidence
-                      </Text>
-                    </View>
+                    {item.price && (
+                      <Text style={styles.modalItemPrice}>${item.price.toFixed(2)}</Text>
+                    )}
                   </View>
                   
                   <View style={styles.modalItemActions}>
@@ -590,7 +637,7 @@ export default function CameraScreen() {
             
             <View style={styles.modalFooter}>
               <Text style={styles.modalFooterText}>
-                🧠 Your feedback helps improve AI accuracy
+                🧠 Your feedback helps improve our AI
               </Text>
             </View>
           </View>
@@ -614,7 +661,7 @@ export default function CameraScreen() {
     );
   }
 
-  return (
+    return (
     <View style={styles.container}>
       {/* Camera Full Screen */}
       <View style={styles.cameraContainer}>
@@ -642,19 +689,22 @@ export default function CameraScreen() {
             </Animated.View>
           )}
 
-          {/* Loading Overlay */}
+          {/* ✅ ENHANCED LOADING OVERLAY WITH SMART MESSAGES */}
           {isLoading && (
             <View style={styles.loadingOverlay}>
               <View style={styles.loadingContent}>
                 <ActivityIndicator size="large" color="#FFFFFF" />
                 <Text style={styles.loadingText}>
-                  {scanMode === 'receipt-scanner' ? 'Reading receipt with OCR...' : 
+                  {scanMode === 'receipt-scanner' ? loadingMessage : 
                    scanMode === 'food-recognition' ? 'Analyzing food...' :
                    scanMode === 'calorie-counter' ? 'Calculating nutrition...' :
                    scanMode === 'multiple-images' ? 'Processing images...' :
                    scanMode === 'barcode-scanner' ? 'Scanning barcode...' : 
                    'AI processing...'}
                 </Text>
+                
+                {/* ✅ PROGRESS INDICATOR FOR RECEIPT SCANNING */}
+                {scanMode === 'receipt-scanner' && renderProgressIndicator()}
               </View>
             </View>
           )}
@@ -740,7 +790,7 @@ export default function CameraScreen() {
         </CameraView>
       </View>
 
-      {/* Results Display - NOW AS MODAL! ✅ */}
+      {/* ✅ RESULTS DISPLAY - NOW AS MODAL WITH NO CONFIDENCE SCORES */}
       {scanResult && !showAddToInventoryModal && (
         <Modal
           visible={true}
@@ -790,7 +840,7 @@ export default function CameraScreen() {
                   </View>
                 )}
 
-                                {scanResult.data.error ? (
+                {scanResult.data.error ? (
                   <View style={styles.errorContainer}>
                     <AlertTriangle size={24} color={theme.colors.error} />
                     <Text style={styles.errorText}>{scanResult.data.error}</Text>
@@ -800,14 +850,14 @@ export default function CameraScreen() {
                   </View>
                 ) : (
                   <>
-                    {/* Detected Items */}
+                    {/* ✅ DETECTED ITEMS - NO CONFIDENCE SCORES */}
                     {scanResult.data.items && scanResult.data.items.length > 0 && (
                       <View style={styles.itemsContainer}>
                         <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
                         {scanResult.data.items.map((item: any, index: number) => (
                           <View key={index} style={styles.detectedItem}>
                             <Text style={styles.itemName}>{item.name || item.item}</Text>
-                            <Text style={styles.itemConfidence}>{item.confidence}%</Text>
+                            {/* ❌ CONFIDENCE SCORE REMOVED */}
                           </View>
                         ))}
                       </View>
@@ -991,22 +1041,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Apple-style Mode Selector - RESPONSIVE FIXED ✅
+  // ✅ NEW PROGRESS INDICATOR STYLES
+  progressContainer: {
+    marginTop: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
+  progressBar: {
+    width: '80%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 3,
+  },
+  progressText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+
+  // Apple-style Mode Selector - RESPONSIVE FIXED
   appleModeContainer: {
     position: 'absolute',
     top: 60,
     left: 0,
     right: 0,
     zIndex: 100,
-    paddingHorizontal: 15, // ✅ 10 → 15 artırıldı
+    paddingHorizontal: 15,
   },
   appleModeSelector: {
     flexGrow: 0,
   },
   appleModeScroll: {
-    paddingHorizontal: 15, // ✅ 20 → 15 azaltıldı
+    paddingHorizontal: 15,
     alignItems: 'center',
-    justifyContent: 'center', // ✅ Merkezi hizalama eklendi
+    justifyContent: 'center',
   },
   appleModeButton: {
     paddingHorizontal: 16,
@@ -1050,16 +1125,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Apple-style Controls - RESPONSIVE FIXED ✅
+  // Apple-style Controls - RESPONSIVE FIXED
   appleControls: {
     position: 'absolute',
-    bottom: 50, // ✅ 40 → 50 artırıldı
+    bottom: 50,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 40, // ✅ 30 → 40 artırıldı
+    paddingHorizontal: 40,
   },
   appleGalleryButton: {
     width: 50,
@@ -1207,7 +1282,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Items Styles
+  // ✅ ITEMS STYLES - NO CONFIDENCE SCORES
   itemsContainer: {
     marginBottom: 20,
   },
@@ -1221,7 +1296,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     backgroundColor: 'rgba(50, 205, 50, 0.1)',
     borderRadius: 10,
@@ -1233,11 +1308,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     flex: 1,
   },
-  itemConfidence: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#32CD32',
-  },
+  // ❌ itemConfidence style REMOVED
 
   // Suggestions Styles
   suggestionsContainer: {
@@ -1364,16 +1435,16 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // OCR Stats
-  ocrStatsContainer: {
+  // ✅ STORE INFO (NO CONFIDENCE)
+  storeInfoContainer: {
     backgroundColor: 'rgba(30, 144, 255, 0.1)',
     marginHorizontal: 20,
     marginBottom: 15,
     padding: 12,
     borderRadius: 10,
   },
-  ocrStatsText: {
-    fontSize: 12,
+  storeInfoText: {
+    fontSize: 14,
     color: '#1E90FF',
     textAlign: 'center',
     fontWeight: '500',
@@ -1414,20 +1485,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: 4,
   },
-  modalItemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   modalItemPrice: {
     fontSize: 14,
     fontWeight: '600',
     color: theme.colors.primary,
-    marginRight: 10,
   },
-  modalItemConfidence: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
+  // ❌ modalItemConfidence style REMOVED
   modalItemActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1513,6 +1576,9 @@ const styles = StyleSheet.create({
     paddingBottom: 25,
   },
   modalFooterText: {
+    fontSize: 12,
+    color: theme.colors.text
+      modalFooterText: {
     fontSize: 12,
     color: theme.colors.textSecondary,
     textAlign: 'center',
