@@ -37,7 +37,7 @@ export default function LoginScreen() {
 
   const handleEmailLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
@@ -46,7 +46,7 @@ export default function LoginScreen() {
       await AuthService.signInWithEmail(email, password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Giriş Hatası', error.message);
+      Alert.alert('Sign In Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function LoginScreen() {
       }
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Giriş Hatası', error.message);
+      Alert.alert('Sign In Error', error.message);
     } finally {
       setSocialLoading(null);
     }
@@ -102,9 +102,9 @@ export default function LoginScreen() {
                 <ChefHat size={48} color={colors.neutral[0]} />
               </View>
               
-              <Text style={styles.title}>Hoş Geldiniz</Text>
+              <Text style={styles.title}>Welcome Back</Text>
               <Text style={styles.subtitle}>
-                Hesabınıza giriş yapın
+                Sign in to your account
               </Text>
             </View>
 
@@ -117,7 +117,7 @@ export default function LoginScreen() {
                 </View>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Email adresiniz"
+                  placeholder="Your email address"
                   placeholderTextColor={colors.neutral[400]}
                   value={email}
                   onChangeText={setEmail}
@@ -134,7 +134,7 @@ export default function LoginScreen() {
                 </View>
                 <TextInput
                   style={[styles.textInput, styles.passwordInput]}
-                  placeholder="Şifreniz"
+                  placeholder="Your password"
                   placeholderTextColor={colors.neutral[400]}
                   value={password}
                   onChangeText={setPassword}
@@ -157,7 +157,7 @@ export default function LoginScreen() {
               {/* Forgot Password */}
               <TouchableOpacity style={styles.forgotPassword}>
                 <Text style={styles.forgotPasswordText}>
-                  Şifremi unuttum
+                  Forgot password?
                 </Text>
               </TouchableOpacity>
 
@@ -174,7 +174,7 @@ export default function LoginScreen() {
                   {loading ? (
                     <ActivityIndicator size="small" color={colors.neutral[0]} />
                   ) : (
-                    <Text style={styles.loginButtonText}>Giriş Yap</Text>
+                    <Text style={styles.loginButtonText}>Sign In</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -182,7 +182,7 @@ export default function LoginScreen() {
               {/* Divider */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>veya</Text>
+                <Text style={styles.dividerText}>or</Text>
                 <View style={styles.dividerLine} />
               </View>
 
@@ -237,10 +237,10 @@ export default function LoginScreen() {
               {/* Sign Up Link */}
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>
-                  Hesabınız yok mu?{' '}
+                  Don't have an account?{' '}
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-                  <Text style={styles.signupLink}>Kayıt olun</Text>
+                  <Text style={styles.signupLink}>Sign up</Text>
                 </TouchableOpacity>
               </View>
             </View>

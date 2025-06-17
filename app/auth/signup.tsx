@@ -45,22 +45,22 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!formData.displayName || !formData.email || !formData.password || !formData.confirmPassword) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor');
+      Alert.alert('Error', 'Passwords don\'t match');
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Hata', 'Şifre en az 6 karakter olmalı');
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
     if (!acceptTerms) {
-      Alert.alert('Hata', 'Kullanım şartlarını kabul etmelisiniz');
+      Alert.alert('Error', 'You must accept the terms of service');
       return;
     }
 
@@ -69,7 +69,7 @@ export default function SignupScreen() {
       await AuthService.signUpWithEmail(formData.email, formData.password, formData.displayName);
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Kayıt Hatası', error.message);
+      Alert.alert('Sign Up Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function SignupScreen() {
       }
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Giriş Hatası', error.message);
+      Alert.alert('Sign In Error', error.message);
     } finally {
       setSocialLoading(null);
     }
@@ -129,9 +129,9 @@ export default function SignupScreen() {
                 <ChefHat size={48} color={colors.neutral[0]} />
               </View>
               
-              <Text style={styles.title}>Hesap Oluştur</Text>
+              <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>
-                Akıllı mutfak deneyimine başlayın
+                Start your smart kitchen experience
               </Text>
             </View>
 
@@ -144,7 +144,7 @@ export default function SignupScreen() {
                 </View>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Adınız ve soyadınız"
+                  placeholder="Your full name"
                   placeholderTextColor={colors.neutral[400]}
                   value={formData.displayName}
                   onChangeText={(value) => updateFormData('displayName', value)}
@@ -160,7 +160,7 @@ export default function SignupScreen() {
                 </View>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Email adresiniz"
+                  placeholder="Your email address"
                   placeholderTextColor={colors.neutral[400]}
                   value={formData.email}
                   onChangeText={(value) => updateFormData('email', value)}
@@ -177,7 +177,7 @@ export default function SignupScreen() {
                 </View>
                 <TextInput
                   style={[styles.textInput, styles.passwordInput]}
-                  placeholder="Şifreniz (en az 6 karakter)"
+                  placeholder="Your password (min 6 characters)"
                   placeholderTextColor={colors.neutral[400]}
                   value={formData.password}
                   onChangeText={(value) => updateFormData('password', value)}
@@ -204,7 +204,7 @@ export default function SignupScreen() {
                 </View>
                 <TextInput
                   style={[styles.textInput, styles.passwordInput]}
-                  placeholder="Şifrenizi tekrar girin"
+                  placeholder="Confirm your password"
                   placeholderTextColor={colors.neutral[400]}
                   value={formData.confirmPassword}
                   onChangeText={(value) => updateFormData('confirmPassword', value)}
@@ -233,10 +233,10 @@ export default function SignupScreen() {
                   {acceptTerms && <Check size={16} color={colors.neutral[0]} />}
                 </View>
                 <Text style={styles.termsText}>
-                  <Text style={styles.termsLink}>Kullanım Şartları</Text>
-                  {' '}ve{' '}
-                  <Text style={styles.termsLink}>Gizlilik Politikası</Text>
-                  'nı kabul ediyorum
+                  <Text style={styles.termsLink}>Terms of Service</Text>
+                  {' '}and{' '}
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                  {' '}(I agree)
                 </Text>
               </TouchableOpacity>
 
@@ -253,7 +253,7 @@ export default function SignupScreen() {
                   {loading ? (
                     <ActivityIndicator size="small" color={colors.neutral[0]} />
                   ) : (
-                    <Text style={styles.signupButtonText}>Hesap Oluştur</Text>
+                    <Text style={styles.signupButtonText}>Create Account</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
@@ -261,7 +261,7 @@ export default function SignupScreen() {
               {/* Divider */}
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>veya</Text>
+                <Text style={styles.dividerText}>or</Text>
                 <View style={styles.dividerLine} />
               </View>
 
@@ -316,10 +316,10 @@ export default function SignupScreen() {
               {/* Login Link */}
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>
-                  Zaten hesabınız var mı?{' '}
+                  Already have an account?{' '}
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/auth/login')}>
-                  <Text style={styles.loginLink}>Giriş yapın</Text>
+                  <Text style={styles.loginLink}>Sign in</Text>
                 </TouchableOpacity>
               </View>
             </View>

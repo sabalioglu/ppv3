@@ -18,18 +18,18 @@ export default function WelcomeScreen() {
   const features = [
     {
       icon: ChefHat,
-      title: 'Akıllı Mutfak',
-      description: 'AI ile yemek tanıma ve beslenme takibi'
+      title: 'Smart Kitchen',
+      description: 'AI food recognition and nutrition tracking'
     },
     {
       icon: Sparkles,
-      title: 'Otomatik Envanter',
-      description: 'Fiş tarayarak otomatik ürün ekleme'
+      title: 'Auto Inventory',
+      description: 'Auto product addition by receipt scanning'
     },
     {
       icon: Shield,
-      title: 'Güvenli Depolama',
-      description: 'Verileriniz güvenli şekilde korunur'
+      title: 'Secure Storage',
+      description: 'Your data is securely protected'
     }
   ];
 
@@ -51,7 +51,7 @@ export default function WelcomeScreen() {
           </View>
           <Text style={styles.title}>Pantry Pal</Text>
           <Text style={styles.subtitle}>
-            Akıllı mutfak asistanınız
+            Your smart kitchen assistant
           </Text>
         </View>
 
@@ -82,7 +82,7 @@ export default function WelcomeScreen() {
               style={styles.buttonGradient}
             >
               <Zap size={20} color={colors.neutral[0]} style={styles.buttonIcon} />
-              <Text style={styles.primaryButtonText}>Hemen Başla</Text>
+              <Text style={styles.primaryButtonText}>Get Started</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -91,18 +91,17 @@ export default function WelcomeScreen() {
             onPress={() => router.push('/auth/login')}
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>Zaten hesabım var</Text>
+            <Text style={styles.secondaryButtonText}>I already have an account</Text>
           </TouchableOpacity>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Giriş yaparak{' '}
-            <Text style={styles.footerLink}>Kullanım Şartları</Text>
-            {' '}ve{' '}
-            <Text style={styles.footerLink}>Gizlilik Politikası</Text>
-            'nı kabul etmiş olursunuz
+            By signing in you agree to our{' '}
+            <Text style={styles.footerLink}>Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={styles.footerLink}>Privacy Policy</Text>
           </Text>
         </View>
       </LinearGradient>
