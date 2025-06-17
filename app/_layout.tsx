@@ -31,7 +31,6 @@ export default function RootLayout() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
-  const [hasNavigated, setHasNavigated] = useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
@@ -61,55 +60,40 @@ export default function RootLayout() {
     handleRedirectResult();
   }, []);
 
-  // Enhanced auth state listener with better handling
+  // 🔧 FIXED: Enhanced auth state listener with infinite loop prevention
   useEffect(() => {
     let mounted = true;
+    let hasProcessedAuth = false;
     
     const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      if (!mounted) return;
+      if (!mounted || hasProcessedAuth) return;
       
       console.log('🔥 Auth state changed:', user ? `LOGGED IN: ${user.email}` : 'NOT LOGGED IN');
       
       if (user) {
+        hasProcessedAuth = true;
         console.log('✅ User authenticated, setting up navigation...');
         setUser(user);
         setAuthLoading(false);
         setInitialRoute('/(tabs)');
         
-        // Force navigation to tabs if not already navigated
-        if (!hasNavigated) {
-          console.log('🚀 Navigating to tabs...');
-          setHasNavigated(true);
-          setTimeout(() => {
-            router.replace('/(tabs)');
-          }, 500);
-        }
+        // IMMEDIATE NAVIGATION - NO TIMEOUT
+        console.log('🚀 Navigating to tabs immediately...');
+        router.replace('/(tabs)');
       } else {
         console.log('❌ No user, redirecting to auth...');
         setUser(null);
         setAuthLoading(false);
         setInitialRoute('/auth/welcome');
-        setHasNavigated(false);
       }
     });
 
     return () => {
       mounted = false;
+      hasProcessedAuth = false;
       unsubscribe();
     };
-  }, [hasNavigated]);
-
-  // Navigate to appropriate route when auth state is determined
-  useEffect(() => {
-    if (!authLoading && initialRoute && !hasNavigated) {
-      console.log('📍 Initial navigation to:', initialRoute);
-      // Small delay to ensure navigation is ready
-      setTimeout(() => {
-        router.replace(initialRoute as any);
-        setHasNavigated(true);
-      }, 100);
-    }
-  }, [authLoading, initialRoute, hasNavigated]);
+  }, []);
 
   // Hide splash screen when everything is ready
   useEffect(() => {
