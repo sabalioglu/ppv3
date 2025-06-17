@@ -19,6 +19,7 @@ import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
 import { ReceiptLearningService } from '../../lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
+
 type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
 
 interface ScanResult {
@@ -66,9 +67,8 @@ export default function CameraScreen() {
   const [originalReceiptText, setOriginalReceiptText] = useState<string>('');
   const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
   
-  // OCR STATES
+  // ✅ STATES CLEANED - NO OCR
   const [lastScanImageUri, setLastScanImageUri] = useState<string | null>(null);
-  const [lastOcrResult, setLastOcrResult] = useState<OCRParseResult | null>(null);
   
   // ✅ NEW SMART LOADING STATES
   const [loadingStep, setLoadingStep] = useState(0);
@@ -192,7 +192,7 @@ export default function CameraScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  // Add Items to Inventory Function
+  // ✅ CLEANED - NO OCR REFERENCES
   const addToInventory = async (items: EnhancedParsedItem[]) => {
     try {
       console.log('Adding items to inventory:', items);
@@ -213,23 +213,23 @@ export default function CameraScreen() {
         throw new Error('Failed to add items to pantry');
       }
 
-      // Prepare learning data if we have OCR results
-      if (lastOcrResult && lastScanImageUri) {
+      // ✅ SIMPLIFIED LEARNING DATA - NO OCR
+      if (lastScanImageUri) {
         const confirmedItems = items.filter(item => item.user_action === 'confirmed');
         const rejectedItems = items.filter(item => item.user_action === 'rejected').map(item => item.name);
         const accuracy = confirmedItems.length > 0 ? (confirmedItems.length / items.length) * 100 : 0;
 
         const learningData: ReceiptLearning = {
           original_text: originalReceiptText,
-          store_name: lastOcrResult.store_name,
-          store_format: lastOcrResult.store_name || 'unknown',
+          store_name: 'AI Detected Store',
+          store_format: 'unknown',
           parsed_items: items,
           confirmed_items: confirmedItems,
           rejected_items: rejectedItems,
           accuracy_score: accuracy,
-          processing_time: lastOcrResult.processing_time,
+          processing_time: Math.round((Date.now() - learningStartTime) / 1000),
           items_count: items.length,
-          parsing_method: 'rapidapi_ocr'
+          parsing_method: 'pure_ai'
         };
 
         // Save learning data
@@ -267,7 +267,7 @@ export default function CameraScreen() {
     }
   };
 
-  // Process image with OpenAI Vision
+  // ✅ PURE AI PROCESSING - NO OCR
   const processImageWithVision = async (imageUri: string | string[]) => {
     try {
       setIsLoading(true);
@@ -330,39 +330,30 @@ export default function CameraScreen() {
           }
         };
         
-        // Receipt Scanner with RapidAPI OCR
-        if (scanMode === 'receipt-scanner' && analysisResult.text) {
+        // ✅ PURE AI RECEIPT SCANNER - NO OCR
+        if (scanMode === 'receipt-scanner' && analysisResult.detectedItems && analysisResult.detectedItems.length > 0) {
           setLearningStartTime(Date.now());
-          setOriginalReceiptText(analysisResult.text);
+          setOriginalReceiptText(analysisResult.text || 'AI Receipt Analysis');
           
-          try {
-            console.log('Using RapidAPI OCR directly...');
-            const ocrResult = await RapidApiOCRService.parseReceipt(base64);
-            setLastOcrResult(ocrResult);
-            
-            if (ocrResult.success && ocrResult.items.length > 0) {
-              console.log(`OCR parsing successful: ${ocrResult.items.length} items found`);
-              setParsedItems(ocrResult.items);
-              
-              setTimeout(() => {
-                setShowAddToInventoryModal(true);
-              }, 1000);
-              return; // ✅ AddToInventoryModal açıldı, Results Modal'a gitme
-            } else {
-              console.warn('OCR returned no items');
-              Alert.alert('OCR Result', 'No items detected. Please try again with better lighting.');
-              return; // ✅ OCR başarısız, Results Modal açılmasın
-            }
-          } catch (error) {
-            console.error('OCR API failed:', error);
-            Alert.alert('OCR Error', 'Receipt processing failed. Please try again.');
-            return; // ✅ OCR error, Results Modal açılmasın
-          }
+          // Convert AI results to EnhancedParsedItem format
+          const aiItems: EnhancedParsedItem[] = analysisResult.detectedItems.map((item: any, index: number) => ({
+            id: `ai_${Date.now()}_${index}`,
+            name: item.name || item.item || 'Unknown Item',
+            price: item.price || 0,
+            quantity: item.quantity || 1,
+            category: 'food',
+            confidence: item.confidence || 70,
+            is_food: true,
+            user_action: 'pending'
+          }));
           
-          // ✅ Final safety return - Receipt Scanner için Results Modal hiç açılmasın
-          return;
+          setParsedItems(aiItems);
+          
+          setTimeout(() => {
+            setShowAddToInventoryModal(true);
+          }, 1000);
+          return; // ✅ Go directly to AddToInventoryModal
         }
-
       }
       
       console.log('AI Vision processing successful:', result);
@@ -464,7 +455,7 @@ export default function CameraScreen() {
     setMultipleImages([]);
   };
 
-  // Clear results
+  // ✅ CLEANED - NO OCR REFERENCES
   const clearResults = () => {
     setScanResult(null);
     setMultipleImages([]);
@@ -473,7 +464,6 @@ export default function CameraScreen() {
     setCurrentReceiptLearningId(null);
     setOriginalReceiptText('');
     setLastScanImageUri(null);
-    setLastOcrResult(null);
     setLoadingStep(0);
     setLoadingMessage('');
   };
@@ -501,7 +491,7 @@ export default function CameraScreen() {
     );
   };
 
-  // ✅ CLEANED UP ADD TO INVENTORY MODAL (NO CONFIDENCE SCORES)
+  // ✅ CLEANED ADD TO INVENTORY MODAL - NO OCR REFERENCES
   const AddToInventoryModal = () => {
     const confirmedCount = parsedItems.filter(item => item.user_action === 'confirmed').length;
     
@@ -528,15 +518,6 @@ export default function CameraScreen() {
               Found {parsedItems.length} food items. Please review and confirm:
             </Text>
             
-            {/* ✅ STORE INFO (NO CONFIDENCE) */}
-            {lastOcrResult?.store_name && (
-              <View style={styles.storeInfoContainer}>
-                <Text style={styles.storeInfoText}>
-                  🏪 Store: {lastOcrResult.store_name}
-                </Text>
-              </View>
-            )}
-            
             <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
               {parsedItems.map((item) => (
                 <View key={item.id} style={[
@@ -546,7 +527,7 @@ export default function CameraScreen() {
                 ]}>
                   <View style={styles.modalItemInfo}>
                     <Text style={styles.modalItemName}>{item.name}</Text>
-                    {item.price && (
+                    {item.price && item.price > 0 && (
                       <Text style={styles.modalItemPrice}>${item.price.toFixed(2)}</Text>
                     )}
                   </View>
@@ -665,7 +646,7 @@ export default function CameraScreen() {
     );
   }
 
-    return (
+  return (
     <View style={styles.container}>
       {/* Camera Full Screen */}
       <View style={styles.cameraContainer}>
@@ -687,7 +668,7 @@ export default function CameraScreen() {
                   <Text style={styles.tutorialHighlight}>CALORIES:</Text> Accurate nutrition analysis{'\n'}
                   <Text style={styles.tutorialHighlight}>BARCODE:</Text> Product code scanning{'\n'}
                   <Text style={styles.tutorialHighlight}>MULTIPLE:</Text> Batch processing{'\n'}
-                  <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart OCR parsing
+                  <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart AI parsing
                 </Text>
               </View>
             </Animated.View>
@@ -815,7 +796,7 @@ export default function CameraScreen() {
                   <Text style={styles.resultTitle}>{scanResult.data.name}</Text>
                 </View>
 
-                {/* Calorie & Nutrition Info */}
+                               {/* Calorie & Nutrition Info */}
                 {scanResult.data.calories && (
                   <View style={styles.calorieContainer}>
                     <Text style={styles.calorieTitle}>🔥 Nutrition Analysis</Text>
@@ -861,7 +842,6 @@ export default function CameraScreen() {
                         {scanResult.data.items.map((item: any, index: number) => (
                           <View key={index} style={styles.detectedItem}>
                             <Text style={styles.itemName}>{item.name || item.item}</Text>
-                            {/* ❌ CONFIDENCE SCORE REMOVED */}
                           </View>
                         ))}
                       </View>
@@ -913,7 +893,7 @@ export default function CameraScreen() {
                                 const items: EnhancedParsedItem[] = scanResult.data.items.map((item: any, index: number) => ({
                                   id: `scan_${Date.now()}_${index}`,
                                   name: item.name || item.item || 'Unknown Item',
-                                  price: item.price,
+                                  price: item.price || 0,
                                   quantity: item.quantity || 1,
                                   category: 'food',
                                   confidence: item.confidence || 70,
@@ -1045,7 +1025,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // ✅ NEW PROGRESS INDICATOR STYLES
+  // ✅ PROGRESS INDICATOR STYLES
   progressContainer: {
     marginTop: 20,
     width: '100%',
@@ -1070,7 +1050,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // Apple-style Mode Selector - RESPONSIVE FIXED
+  // Apple-style Mode Selector
   appleModeContainer: {
     position: 'absolute',
     top: 60,
@@ -1129,7 +1109,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Apple-style Controls - RESPONSIVE FIXED
+  // Apple-style Controls
   appleControls: {
     position: 'absolute',
     bottom: 50,
@@ -1185,7 +1165,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
 
-  // ✅ NEW MODAL STYLES FOR RESULTS
+  // Results Modal Styles
   resultsModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1286,7 +1266,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ✅ ITEMS STYLES - NO CONFIDENCE SCORES
+  // Items Styles
   itemsContainer: {
     marginBottom: 20,
   },
@@ -1312,7 +1292,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     flex: 1,
   },
-  // ❌ itemConfidence style REMOVED
 
   // Suggestions Styles
   suggestionsContainer: {
@@ -1331,7 +1310,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Text Container (for receipts)
+  // Text Container
   textContainer: {
     marginBottom: 20,
   },
@@ -1439,21 +1418,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // ✅ STORE INFO (NO CONFIDENCE)
-  storeInfoContainer: {
-    backgroundColor: 'rgba(30, 144, 255, 0.1)',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    padding: 12,
-    borderRadius: 10,
-  },
-  storeInfoText: {
-    fontSize: 14,
-    color: '#1E90FF',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-
   // Items List
   itemsList: {
     maxHeight: 300,
@@ -1494,7 +1458,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.primary,
   },
-  // ❌ modalItemConfidence style REMOVED
   modalItemActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1575,14 +1538,14 @@ const styles = StyleSheet.create({
   },
 
   // Modal Footer
-modalFooter: {
-  paddingHorizontal: 25,
-  paddingBottom: 25,
-},
-modalFooterText: {
-  fontSize: 12,
-  color: theme.colors.textSecondary,
-  textAlign: 'center',
-  fontStyle: 'italic',
-},
+  modalFooter: {
+    paddingHorizontal: 25,
+    paddingBottom: 25,
+  },
+  modalFooterText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
 });
