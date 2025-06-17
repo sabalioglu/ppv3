@@ -43,6 +43,19 @@ export default function RootLayout() {
     'Poppins-Bold': Poppins_700Bold,
   });
 
+  // Handle Google redirect result on app startup
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        await AuthService.handleGoogleRedirectResult();
+      } catch (error) {
+        console.error('Google redirect result error:', error);
+      }
+    };
+
+    handleRedirectResult();
+  }, []);
+
   // Handle authentication state changes
   useEffect(() => {
     const unsubscribe = AuthService.onAuthStateChanged((user) => {
