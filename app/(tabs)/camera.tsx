@@ -19,8 +19,6 @@ import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
 import { ReceiptLearningService } from '../../lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
-import { RapidApiOCRService, OCRParseResult } from '../../lib/rapidApiOCRService';
-
 type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
 
 interface ScanResult {
