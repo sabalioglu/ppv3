@@ -1,8 +1,16 @@
-// lib/firebaseConfig.ts - FIXED PLATFORM DETECTION
+// lib/firebaseConfig.ts - COMPLETE FIXED VERSION
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import AsyncStorage with proper fallback handling
+let AsyncStorage: any;
+try {
+  AsyncStorage = require('@react-native-async-storage/async-storage').default;
+} catch (e) {
+  // AsyncStorage not available on web, will use web fallback
+  console.log('AsyncStorage not available, using web auth fallback');
+}
 
 // Firebase configuration with environment variables + FALLBACKS
 const firebaseConfig = {
@@ -33,20 +41,24 @@ console.log('✅ Firebase Config:', {
 // Initialize Firebase - Check if already exists
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// FIXED Platform-specific Auth initialization
+// FIXED Platform-specific Auth initialization with proper AsyncStorage handling
 let auth;
 try {
-  if (typeof window !== 'undefined') {
-    // Web environment
-    auth = getAuth(app);
-  } else {
-    // React Native environment
+  // Check if we're in React Native environment with AsyncStorage available
+  if (typeof window === 'undefined' && AsyncStorage) {
+    // React Native environment with AsyncStorage
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage)
     });
+    console.log('✅ Firebase Auth initialized for React Native with AsyncStorage');
+  } else {
+    // Web environment or React Native without AsyncStorage
+    auth = getAuth(app);
+    console.log('✅ Firebase Auth initialized for Web');
   }
 } catch (error) {
-  // Fallback
+  // Final fallback - always works
+  console.warn('⚠️ Auth initialization fallback:', error);
   auth = getAuth(app);
 }
 

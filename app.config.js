@@ -1,31 +1,36 @@
-// app.config.js - Tüm içeriği bununla değiştir:
+// app.config.js - COMPLETE FIXED VERSION WITH SCHEME
 export default {
   expo: {
     name: "Smart Pantry",
     slug: "smart-pantry",
     version: "1.0.0",
     orientation: "portrait",
-    // icon: "./assets/icon.png",  // ❌ KALDIR
+    scheme: "pantrypal", // ✅ ADDED SCHEME
     userInterfaceStyle: "light",
-    // splash: {  // ❌ KALDIR
-    //   image: "./assets/splash.png",
-    //   resizeMode: "contain",
-    //   backgroundColor: "#ffffff"
-    // },
     assetBundlePatterns: [
       "**/*"
     ],
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: "com.pantrypal.app"
     },
     android: {
       adaptiveIcon: {
-        // foregroundImage: "./assets/adaptive-icon.png",  // ❌ KALDIR
         backgroundColor: "#ffffff"
-      }
+      },
+      package: "com.pantrypal.app"
     },
     web: {
-      // favicon: "./assets/favicon.png"  // ❌ KALDIR
+      bundler: "metro",
+      output: "static"
+    },
+    plugins: [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    experiments: {
+      typedRoutes: true
     },
     extra: {
       rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY
