@@ -349,16 +349,22 @@ export default function CameraScreen() {
               setTimeout(() => {
                 setShowAddToInventoryModal(true);
               }, 1000);
-              return; // Exit early on OCR success
+              return; // ✅ AddToInventoryModal açıldı, Results Modal'a gitme
             } else {
               console.warn('OCR returned no items');
               Alert.alert('OCR Result', 'No items detected. Please try again with better lighting.');
+              return; // ✅ OCR başarısız, Results Modal açılmasın
             }
           } catch (error) {
             console.error('OCR API failed:', error);
             Alert.alert('OCR Error', 'Receipt processing failed. Please try again.');
+            return; // ✅ OCR error, Results Modal açılmasın
           }
+          
+          // ✅ Final safety return - Receipt Scanner için Results Modal hiç açılmasın
+          return;
         }
+
       }
       
       console.log('AI Vision processing successful:', result);
