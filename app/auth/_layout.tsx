@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
-import { User } from 'firebase/auth';
 import { AuthService } from '@/lib/authService';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '@/lib/theme';
