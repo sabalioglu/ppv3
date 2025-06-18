@@ -13,7 +13,7 @@ import {
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { Camera, Brain, Receipt, Image, FlipHorizontal, TriangleAlert as AlertTriangle, Images, Calculator, X, Scan, Check, Plus, Edit } from 'lucide-react-native';
+import { Camera, Brain, Receipt, Image, FlipHorizontal, TriangleAlert as AlertTriangle, Images, Calculator, X, Scan, Check, Plus, CreditCard as Edit } from 'lucide-react-native';
 import { theme } from '../../lib/theme';
 import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
