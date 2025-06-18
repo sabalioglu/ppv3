@@ -1,6 +1,4 @@
 // lib/openaiVisionService.ts
-import { API_CONFIG } from './apiConfig';
-
 export interface OpenAIVisionResult {
   type: 'food' | 'receipt' | 'multiple' | 'unknown';
   mainItem: string | null;
@@ -25,14 +23,18 @@ export interface OpenAIVisionResult {
 }
 
 export class OpenAIVisionService {
-  private static readonly API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  // 🔧 FIXED: Direct API key with fallback
+  private static readonly API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || 
+    'sk-proj-O2xzmTKT0mKow067leggZh7gf9RFHFMFj-QC9jqE8UDAFVYUC pp9fsVtfRGoOpI0I9zXSPbYOZT3BIbkFJEpIEuGCQe1F4DjRVHGC_jL6uEIVhRdOvP6rAjp_flU1iyoG2CoDED4qi9ro2OIgANgpk5COcwA';
+  
   private static readonly BASE_URL = 'https://api.openai.com/v1/chat/completions';
   private static readonly MAX_IMAGE_SIZE = 20000000; // ~15MB base64 limit
 
   static async analyzeImage(base64Image: string, mode: string): Promise<OpenAIVisionResult> {
     try {
       console.log('🤖 OpenAI Vision: Starting analysis...');
-      console.log('🔑 API Key loaded:', this.API_KEY ? 'YES' : 'NO');
+      console.log('🔑 Final API Key check:', this.API_KEY?.substring(0, 10) + '...');
+      console.log('🔑 API Key starts with sk-:', this.API_KEY?.startsWith('sk-'));
       console.log('🔑 API Key length:', this.API_KEY?.length || 0);
       
       if (!this.API_KEY) {
