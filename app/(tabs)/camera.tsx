@@ -19,8 +19,7 @@ import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
 import { ReceiptLearningService } from '../../lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
-// camera.tsx dosyasının en üstüne ekle
-import { showPrompt } from './lib/crossPlatformUtils'; // Relative path'e dikkat!
+import { showPrompt } from '../../lib/crossPlatformUtils';
 
 type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
 
@@ -192,7 +191,9 @@ export default function CameraScreen() {
     }));
     
     // Haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Haptics.impactAsync) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   // ✅ CLEANED - NO OCR REFERENCES
@@ -256,7 +257,9 @@ export default function CameraScreen() {
         }
       }
       
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Haptics.notificationAsync) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       
       Alert.alert(
         'Success! 🎉',
@@ -362,7 +365,9 @@ export default function CameraScreen() {
       console.log('AI Vision processing successful:', result);
       setScanResult(result);
       
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Haptics.notificationAsync) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       
     } catch (error) {
       console.error('AI Vision processing failed:', error);
@@ -376,7 +381,9 @@ export default function CameraScreen() {
         }
       });
       
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (Haptics.notificationAsync) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setIsLoading(false);
       setLoadingStep(0);
@@ -400,7 +407,9 @@ export default function CameraScreen() {
         
         if (scanMode === 'multiple-images') {
           setMultipleImages(prev => [...prev, photo.uri]);
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (Haptics.impactAsync) {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
         } else {
           await processImageWithVision(photo.uri);
         }
@@ -570,9 +579,7 @@ export default function CameraScreen() {
                             if (newName && newName.trim()) {
                               handleItemAction(item.id, 'edit', newName.trim().toUpperCase());
                             }
-                          },
-                          'plain-text',
-                          item.name
+                          }
                         );
                       }}
                       activeOpacity={0.7}
