@@ -1,138 +1,110 @@
-import { 
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User,
-  GoogleAuthProvider,
-  signInWithCredential,
-  signInWithRedirect,
-  getRedirectResult,
-  updateProfile
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from './firebaseConfig';
+// lib/authService.ts - SUPABASE-ONLY VERSION
+import { supabase } from './supabase';
 import { Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 
 // Complete WebBrowser session for OAuth
 WebBrowser.maybeCompleteAuthSession();
 
 export interface UserProfile {
-  uid: string;
+  id: string;
   email: string;
-  displayName?: string;
-  photoURL?: string;
-  createdAt: Date;
-  lastLoginAt: Date;
+  full_name?: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
   provider: 'email' | 'google' | 'apple' | 'amazon';
 }
 
 export class AuthService {
   // Email/Password Authentication
-  static async signInWithEmail(email: string, password: string): Promise<User> {
+  static async signInWithEmail(email: string, password: string): Promise<any> {
     try {
       console.log('🔐 Signing in with email:', email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await this.updateUserProfile(userCredential.user, 'email');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
       console.log('✅ Email sign in successful');
-      return userCredential.user;
+      return data.user;
     } catch (error: any) {
       console.error('❌ Email sign in failed:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
+      throw new Error(this.getAuthErrorMessage(error.message));
     }
   }
 
-  static async signUpWithEmail(email: string, password: string, displayName?: string): Promise<User> {
+  static async signUpWithEmail(email: string, password: string, displayName?: string): Promise<any> {
     try {
       console.log('📝 Creating account with email:', email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: displayName,
+          },
+        },
+      });
       
-      if (displayName) {
-        await updateProfile(userCredential.user, { displayName });
-      }
+      if (error) throw error;
       
-      await this.createUserProfile(userCredential.user, 'email');
       console.log('✅ Email sign up successful');
-      return userCredential.user;
+      return data.user;
     } catch (error: any) {
       console.error('❌ Email sign up failed:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
+      throw new Error(this.getAuthErrorMessage(error.message));
     }
   }
 
-  // Enhanced Google Authentication with better redirect handling
-  static async signInWithGoogle(): Promise<User> {
+  // Enhanced Google Authentication with Supabase
+  static async signInWithGoogle(): Promise<any> {
     try {
       console.log('🔍 Starting Google sign in...');
-      if (Platform.OS === 'web') {
-        const provider = new GoogleAuthProvider();
-        provider.addScope('email');
-        provider.addScope('profile');
-        
-        console.log('🌐 Using Google redirect flow...');
-        await signInWithRedirect(auth, provider);
-        
-        // Return a promise that resolves when auth state changes
-        return new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error('Google sign in timeout'));
-          }, 30000);
-          
-          const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-              clearTimeout(timeout);
-              unsubscribe();
-              await this.updateUserProfile(user, 'google');
-              console.log('✅ Google redirect sign in successful');
-              resolve(user);
-            }
-          });
-        });
-      } else {
-        // React Native Google Sign In would require additional setup
-        throw new Error('Google Sign In requires additional native configuration');
-      }
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: Platform.OS === 'web' ? window.location.origin : 'pantrypal://auth',
+        },
+      });
+      
+      if (error) throw error;
+      
+      console.log('✅ Google sign in initiated');
+      return data;
     } catch (error: any) {
       console.error('❌ Google sign in failed:', error);
       throw new Error('Google sign in failed: ' + error.message);
     }
   }
 
-  // Enhanced redirect result handler
-  static async handleGoogleRedirectResult(): Promise<User | null> {
+  // Apple Authentication (Supabase OAuth)
+  static async signInWithApple(): Promise<any> {
     try {
-      console.log('🔍 Checking for Google redirect result...');
-      const result = await getRedirectResult(auth);
-      if (result) {
-        console.log('✅ Google redirect result found:', result.user.email);
-        await this.updateUserProfile(result.user, 'google');
-        console.log('✅ Google redirect result processed successfully');
-        return result.user;
-      } else {
-        console.log('ℹ️ No Google redirect result found');
-        return null;
-      }
+      console.log('🍎 Starting Apple Sign In...');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: Platform.OS === 'web' ? window.location.origin : 'pantrypal://auth',
+        },
+      });
+      
+      if (error) throw error;
+      
+      console.log('✅ Apple sign in initiated');
+      return data;
     } catch (error: any) {
-      console.error('❌ Google redirect result error:', error);
-      // Don't throw error here as it might be a normal case
-      return null;
-    }
-  }
-
-  // Apple Authentication (placeholder - requires iOS setup)
-  static async signInWithApple(): Promise<User> {
-    try {
-      console.log('🍎 Apple Sign In not implemented yet');
-      throw new Error('Apple Sign In not implemented yet');
-    } catch (error: any) {
+      console.error('❌ Apple sign in failed:', error);
       throw new Error('Apple sign in failed: ' + error.message);
     }
   }
 
   // Amazon Authentication (placeholder - requires Amazon setup)
-  static async signInWithAmazon(): Promise<User> {
+  static async signInWithAmazon(): Promise<any> {
     try {
       console.log('📦 Amazon Sign In not implemented yet');
       throw new Error('Amazon Sign In not implemented yet');
@@ -145,7 +117,8 @@ export class AuthService {
   static async signOut(): Promise<void> {
     try {
       console.log('👋 Signing out...');
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       console.log('✅ Sign out successful');
     } catch (error: any) {
       console.error('❌ Sign out failed:', error);
@@ -154,33 +127,45 @@ export class AuthService {
   }
 
   // Get Current User
-  static getCurrentUser(): User | null {
-    return auth.currentUser;
-  }
-
-  // Enhanced Auth State Listener with better logging
-  static onAuthStateChanged(callback: (user: User | null) => void): () => void {
-    return onAuthStateChanged(auth, (user) => {
-      console.log('🔄 Auth state changed:', user ? `User: ${user.email}` : 'No user');
-      callback(user);
-    });
-  }
-
-  // Create User Profile in Firestore
-  private static async createUserProfile(user: User, provider: UserProfile['provider']): Promise<void> {
+  static async getCurrentUser(): Promise<any> {
     try {
-      const userProfile: UserProfile = {
-        uid: user.uid,
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return user;
+    } catch (error: any) {
+      console.error('❌ Get current user failed:', error);
+      return null;
+    }
+  }
+
+  // Enhanced Auth State Listener with Supabase
+  static onAuthStateChanged(callback: (user: any) => void): () => void {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state changed:', event, session?.user ? `User: ${session.user.email}` : 'No user');
+      callback(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  // Create User Profile in Supabase
+  private static async createUserProfile(user: any, provider: UserProfile['provider']): Promise<void> {
+    try {
+      const userProfile: Omit<UserProfile, 'id'> = {
         email: user.email!,
-        displayName: user.displayName || undefined,
-        photoURL: user.photoURL || undefined,
-        createdAt: new Date(),
-        lastLoginAt: new Date(),
+        full_name: user.user_metadata?.full_name || user.user_metadata?.name || undefined,
+        avatar_url: user.user_metadata?.avatar_url || undefined,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         provider
       };
 
-      await setDoc(doc(db, 'users', user.uid), userProfile);
-      console.log('✅ User profile created in Firestore');
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert([{ id: user.id, ...userProfile }]);
+
+      if (error) throw error;
+      console.log('✅ User profile created in Supabase');
     } catch (error) {
       console.error('❌ Failed to create user profile:', error);
       // Don't throw error here as auth was successful
@@ -188,16 +173,27 @@ export class AuthService {
   }
 
   // Update User Profile
-  private static async updateUserProfile(user: User, provider: UserProfile['provider']): Promise<void> {
+  private static async updateUserProfile(user: any, provider: UserProfile['provider']): Promise<void> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
       
-      if (userDoc.exists()) {
-        // Update last login
-        await setDoc(doc(db, 'users', user.uid), {
-          lastLoginAt: new Date()
-        }, { merge: true });
-        console.log('✅ User profile updated in Firestore');
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+
+      if (existingProfile) {
+        // Update existing profile
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+
+        if (error) throw error;
+        console.log('✅ User profile updated in Supabase');
       } else {
         // Create new profile
         await this.createUserProfile(user, provider);
@@ -209,29 +205,30 @@ export class AuthService {
   }
 
   // Error Message Helper
-  private static getAuthErrorMessage(errorCode: string): string {
-    switch (errorCode) {
-      case 'auth/user-not-found':
-        return 'No user found with this email address';
-      case 'auth/wrong-password':
-        return 'Incorrect password';
-      case 'auth/email-already-in-use':
-        return 'This email address is already in use';
-      case 'auth/weak-password':
-        return 'Password is too weak. Must be at least 6 characters';
-      case 'auth/invalid-email':
-        return 'Invalid email address';
-      case 'auth/network-request-failed':
-        return 'Network connection error';
-      case 'auth/too-many-requests':
-        return 'Too many failed attempts. Please try again later';
-      case 'auth/user-disabled':
-        return 'This account has been disabled';
-      case 'auth/invalid-credential':
-        return 'Invalid email or password';
-      default:
-        console.log('Unknown auth error code:', errorCode);
-        return 'Authentication error occurred';
+  private static getAuthErrorMessage(errorMessage: string): string {
+    if (errorMessage.includes('Invalid login credentials')) {
+      return 'Invalid email or password';
     }
+    if (errorMessage.includes('User already registered')) {
+      return 'This email address is already in use';
+    }
+    if (errorMessage.includes('Password should be at least')) {
+      return 'Password is too weak. Must be at least 6 characters';
+    }
+    if (errorMessage.includes('Invalid email')) {
+      return 'Invalid email address';
+    }
+    if (errorMessage.includes('Network request failed')) {
+      return 'Network connection error';
+    }
+    if (errorMessage.includes('Too many requests')) {
+      return 'Too many failed attempts. Please try again later';
+    }
+    if (errorMessage.includes('User not found')) {
+      return 'No user found with this email address';
+    }
+    
+    console.log('Unknown auth error:', errorMessage);
+    return 'Authentication error occurred';
   }
 }
