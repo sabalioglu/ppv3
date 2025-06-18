@@ -1,4 +1,4 @@
-// lib/learningService.ts - FIXED VERSION
+// lib/learningService.ts - ENHANCED ERROR LOGGING VERSION
 import { supabase } from './supabase';
 import { ReceiptLearning, UserFeedback, ParsedItem, FoodPattern } from '../types/learning';
 
@@ -118,34 +118,113 @@ export class ReceiptLearningService {
     }
   }
 
-  // 🆕 ADD TO PANTRY - Real Supabase Integration
+  // 🆕 ENHANCED ADD TO PANTRY - Real Supabase Integration with DETAILED ERROR LOGGING
   static async addItemsToPantry(items: ParsedItem[]): Promise<boolean> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+      console.log('📦 Starting pantry save process...');
+      console.log('📦 Items to save:', items.length);
+      console.log('📦 Items data:', JSON.stringify(items, null, 2));
+      
+      // Step 1: Check authentication
+      console.log('👤 Checking user authentication...');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error('❌ Auth error:', authError);
+        throw new Error(`Authentication error: ${authError.message}`);
+      }
+      
+      if (!user) {
+        console.error('❌ No authenticated user found');
+        throw new Error('No authenticated user found');
+      }
+      
+      console.log('✅ User authenticated:', user.id);
+      console.log('👤 User email:', user.email);
 
-      const pantryItems = items.map(item => ({
-        user_id: user.id,
-        name: item.name,
-        category: item.category || 'food',
-        quantity: item.quantity || 1,
-        cost: item.price,
-        purchase_date: new Date().toISOString().split('T')[0],
-        recognition_source: 'ai_receipt',
-        ai_confidence: item.confidence || 50,
-        location: 'pantry'
-      }));
+      // Step 2: Prepare pantry items data
+      console.log('🔄 Preparing pantry items data...');
+      const pantryItems = items.map((item, index) => {
+        const pantryItem = {
+          user_id: user.id,
+          name: item.name || `Unknown Item ${index + 1}`,
+          category: item.category || 'food',
+          quantity: item.quantity || 1,
+          unit: 'piece',
+          cost: item.price || null,
+          purchase_date: new Date().toISOString().split('T')[0],
+          location: 'pantry',
+          recognition_source: 'ai_receipt',
+          ai_confidence: item.confidence || 50,
+          is_opened: false,
+          is_favorite: false,
+          times_used: 0
+        };
+        
+        console.log(`📦 Item ${index + 1}:`, JSON.stringify(pantryItem, null, 2));
+        return pantryItem;
+      });
 
+      console.log('📦 Final pantry items array:', JSON.stringify(pantryItems, null, 2));
+
+      // Step 3: Insert into Supabase
+      console.log('💾 Inserting into Supabase pantry_items table...');
       const { data, error } = await supabase
         .from('pantry_items')
         .insert(pantryItems)
         .select();
 
-      if (error) throw error;
-      console.log('✅ Added to pantry:', data?.length || 0, 'items');
+      // Step 4: Handle response
+      if (error) {
+        console.error('❌ Supabase insert error occurred');
+        throw error; // This will be caught by our enhanced catch block
+      }
+
+      console.log('✅ Supabase insert successful!');
+      console.log('✅ Inserted data:', JSON.stringify(data, null, 2));
+      console.log('✅ Number of items inserted:', data?.length || 0);
+      
       return true;
+      
     } catch (error) {
-      console.error('❌ Error adding to pantry:', error);
+      // 🔍 ENHANCED ERROR LOGGING - COMPREHENSIVE DEBUGGING
+      console.error('❌ =================== PANTRY SAVE ERROR DETAILS ===================');
+      console.error('❌ Error occurred in addItemsToPantry function');
+      console.error('❌ Timestamp:', new Date().toISOString());
+      
+      // Basic error information
+      console.error('❌ Error message:', error?.message || 'No message available');
+      console.error('❌ Error name:', error?.name || 'No name available');
+      console.error('❌ Error type:', typeof error);
+      
+      // Supabase-specific error details
+      if (error?.code) {
+        console.error('🔍 Supabase error code:', error.code);
+      }
+      if (error?.details) {
+        console.error('🔍 Supabase error details:', error.details);
+      }
+      if (error?.hint) {
+        console.error('🔍 Supabase error hint:', error.hint);
+      }
+      if (error?.message?.includes('violates')) {
+        console.error('🔍 Possible constraint violation detected');
+      }
+      
+      // Full error object
+      console.error('❌ Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      
+      // Stack trace
+      if (error?.stack) {
+        console.error('❌ Error stack trace:', error.stack);
+      }
+      
+      // Additional debugging info
+      console.error('🔍 Items that failed to save:', items?.length || 0);
+      console.error('🔍 First item data:', items?.[0] ? JSON.stringify(items[0], null, 2) : 'No items');
+      
+      console.error('❌ ================================================================');
+      
       return false;
     }
   }
