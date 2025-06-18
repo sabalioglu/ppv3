@@ -19,7 +19,7 @@ export const API_CONFIG = {
   openAI: {
     apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY!,
     baseUrl: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-4-vision-preview'
+    model: 'gpt-4o'
   },
   
   rapidAPI: {

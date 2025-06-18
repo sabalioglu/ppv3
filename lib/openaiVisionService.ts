@@ -25,12 +25,19 @@ export interface OpenAIVisionResult {
 }
 
 export class OpenAIVisionService {
-  private static readonly config = API_CONFIG.openAI;
+  private static readonly API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  private static readonly BASE_URL = 'https://api.openai.com/v1/chat/completions';
   private static readonly MAX_IMAGE_SIZE = 20000000; // ~15MB base64 limit
 
   static async analyzeImage(base64Image: string, mode: string): Promise<OpenAIVisionResult> {
     try {
       console.log('🤖 OpenAI Vision: Starting analysis...');
+      console.log('🔑 API Key loaded:', this.API_KEY ? 'YES' : 'NO');
+      console.log('🔑 API Key length:', this.API_KEY?.length || 0);
+      
+      if (!this.API_KEY) {
+        throw new Error('OpenAI API key not found in environment variables');
+      }
       
       // Image size validation
       if (base64Image.length > this.MAX_IMAGE_SIZE) {
@@ -39,11 +46,11 @@ export class OpenAIVisionService {
       
       const prompt = this.getPromptForMode(mode);
       
-      const response = await fetch(this.config.baseUrl, {
+      const response = await fetch(this.BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.apiKey}`,
+          'Authorization': `Bearer ${this.API_KEY}`,
         },
         body: JSON.stringify({
           model: 'gpt-4o',
