@@ -19,6 +19,8 @@ import { OpenAIVisionService } from '../../lib/openaiVisionService';
 import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
 import { ReceiptLearningService } from '../../lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
+// camera.tsx dosyasının en üstüne ekle
+import { showPrompt } from './lib/crossPlatformUtils'; // Relative path'e dikkat!
 
 type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
 
@@ -561,7 +563,7 @@ export default function CameraScreen() {
                     <TouchableOpacity 
                       style={[styles.actionButton, styles.editButton]}
                       onPress={() => {
-                        Alert.prompt(
+                        showPrompt(
                           'Edit Item Name',
                           `Current: ${item.name}`,
                           (newName) => {
