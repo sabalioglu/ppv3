@@ -27,7 +27,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
     
     let mounted = true;
     
-    // 🔧 Refresh token hatalarını otomatik yakala ve temizle
+    // Refresh token hatalarını otomatik yakala ve temizle
     validateAndFixAuth();
 
     // Initial session check
@@ -48,14 +48,14 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       async (event, session) => {
         if (!mounted) return;
 
-        console.log('🔄 Auth event:', event, session?.user?.email || 'No user');
+        console.log('🔄 Auth state change:', event, session?.user?.email || 'No user');
         setUser(session?.user ?? null);
         
         if (session?.user) {
           await createUserProfileIfNeeded(session.user);
         }
         
-        // 🚨 Token refresh başarısızlığını yakala ve temizle
+        // Token refresh başarısızlığını yakala ve temizle
         if (event === 'TOKEN_REFRESHED' && !session) {
           console.log('🚨 Token refresh failed, clearing auth state...');
           validateAndFixAuth();
@@ -63,22 +63,13 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       }
     );
 
-    // 🛠️ Development debug helpers
+    // Development debug helpers
     if (__DEV__ && typeof window !== 'undefined') {
       (window as any).debugAuth = debugAuthState;
       (window as any).clearAuth = async () => {
         const { clearAuthState } = await import('../utils/authDebug');
         await clearAuthState();
         setUser(null);
-      };
-      (window as any).testUILogout = async () => {
-        try {
-          console.log('🚪 Testing logout from AuthWrapper...');
-          await signOut();
-          console.log('✅ AuthWrapper logout completed');
-        } catch (error) {
-          console.error('❌ AuthWrapper logout error:', error);
-        }
       };
     }
 
@@ -120,6 +111,10 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
               recipe_suggestions: true,
               shopping_reminders: true
             },
+            daily_calorie_goal: 2000,
+            daily_protein_goal: 120,
+            daily_carb_goal: 275,
+            daily_fat_goal: 85,
             streak_days: 0
           });
 
@@ -187,59 +182,6 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       Alert.alert('Authentication Error', errorMessage);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      console.log('🚪 Signing out from UI button...');
-      console.log('🔍 Current user before logout:', user?.email);
-      
-      // 1. Supabase logout
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('❌ Supabase logout error:', error);
-      } else {
-        console.log('✅ Supabase logout successful');
-      }
-      
-      // 2. Force local state clear
-      console.log('🧹 Force clearing user state...');
-      setUser(null);
-      
-      // 3. Storage temizle
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.clear();
-          sessionStorage.clear();
-          console.log('✅ Storage cleared');
-        } catch (storageError) {
-          console.log('⚠️ Storage clear error:', storageError);
-        }
-      }
-      
-      // 4. 🔥 WEB-SPECIFIC: Page reload for complete state reset
-      if (Platform.OS === 'web') {
-        console.log('🔄 Reloading page for complete logout on web...');
-        setTimeout(() => {
-          window.location.reload();
-        }, 500); // Small delay to allow console logs
-      }
-      
-      console.log('✅ Logout process completed');
-      
-    } catch (error: any) {
-      console.error('❌ Sign out error:', error);
-      
-      // Force logout even on error
-      console.log('🚨 Force logout due to error');
-      setUser(null);
-      
-      if (Platform.OS === 'web') {
-        window.location.reload();
-      }
-      
-      Alert.alert('Logout Notice', 'You have been signed out. Please refresh if needed.');
     }
   };
 
@@ -312,17 +254,9 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
     );
   }
 
+  // 🔥 CLEAN: Sadece children render et, welcome bar yok
   return (
     <View style={styles.appContainer}>
-      {/* 🔥 CONDITIONAL RENDERING: Welcome bar sadece user varsa göster */}
-      {user && (
-        <View style={styles.userBar}>
-          <Text style={styles.userInfo}>Welcome, {user.email}!</Text>
-          <TouchableOpacity onPress={signOut} style={styles.signOutButton}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       {children}
     </View>
   );
@@ -428,35 +362,5 @@ const styles = StyleSheet.create({
   },
   appContainer: {
     flex: 1,
-  },
-  userBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f0f9ff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  userInfo: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  signOutButton: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  signOutText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
   },
 });
