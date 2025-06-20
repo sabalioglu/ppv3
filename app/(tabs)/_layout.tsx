@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart } from 'lucide-react-native';
+import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart, Settings } from 'lucide-react-native';
 import { colors, components } from '@/lib/theme';
 
 export default function TabLayout() {
@@ -76,6 +76,15 @@ export default function TabLayout() {
           title: 'Shopping',
           tabBarIcon: ({ size, color }) => (
             <ShoppingCart size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ size, color }) => (
+            <Settings size={size} color={color} />
           ),
         }}
       />
