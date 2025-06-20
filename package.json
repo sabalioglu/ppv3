@@ -5,8 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
-    "web": "EXPO_NO_TELEMETRY=1 expo start --web --port 3000 --clear",
-    "web-fast": "EXPO_NO_TELEMETRY=1 expo start --web --port 3000",
+    "web": "EXPO_NO_TELEMETRY=1 expo start --web --port 3000 --no-tunnel --clear",
+    "web-fast": "EXPO_NO_TELEMETRY=1 expo start --web --port 3000 --no-tunnel",
+    "web-localhost": "EXPO_NO_TELEMETRY=1 expo start --web --port 3000 --localhost",
+    "web-8081": "EXPO_NO_TELEMETRY=1 expo start --web --port 8081",
     "build:web": "expo export --platform web",
     "lint": "expo lint",
     "android": "expo run:android",
