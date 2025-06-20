@@ -48,7 +48,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       async (event, session) => {
         if (!mounted) return;
 
-        console.log('🔄 Auth state change:', event, session?.user?.email || 'No user');
+        console.log('🔄 Auth event:', event, session?.user?.email || 'No user');
         setUser(session?.user ?? null);
         
         if (session?.user) {
@@ -70,6 +70,15 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
         const { clearAuthState } = await import('../utils/authDebug');
         await clearAuthState();
         setUser(null);
+      };
+      (window as any).testUILogout = async () => {
+        try {
+          console.log('🚪 Testing logout from AuthWrapper...');
+          await signOut();
+          console.log('✅ AuthWrapper logout completed');
+        } catch (error) {
+          console.error('❌ AuthWrapper logout error:', error);
+        }
       };
     }
 
@@ -110,7 +119,8 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
               expiry_alerts: true,
               recipe_suggestions: true,
               shopping_reminders: true
-            }
+            },
+            streak_days: 0
           });
 
         if (insertError) {
@@ -182,13 +192,54 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 Signing out...');
+      console.log('🚪 Signing out from UI button...');
+      console.log('🔍 Current user before logout:', user?.email);
+      
+      // 1. Supabase logout
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      console.log('✅ Sign out successful');
+      if (error) {
+        console.error('❌ Supabase logout error:', error);
+      } else {
+        console.log('✅ Supabase logout successful');
+      }
+      
+      // 2. Force local state clear
+      console.log('🧹 Force clearing user state...');
+      setUser(null);
+      
+      // 3. Storage temizle
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log('✅ Storage cleared');
+        } catch (storageError) {
+          console.log('⚠️ Storage clear error:', storageError);
+        }
+      }
+      
+      // 4. 🔥 WEB-SPECIFIC: Page reload for complete state reset
+      if (Platform.OS === 'web') {
+        console.log('🔄 Reloading page for complete logout on web...');
+        setTimeout(() => {
+          window.location.reload();
+        }, 500); // Small delay to allow console logs
+      }
+      
+      console.log('✅ Logout process completed');
+      
     } catch (error: any) {
       console.error('❌ Sign out error:', error);
-      Alert.alert('Error', error.message);
+      
+      // Force logout even on error
+      console.log('🚨 Force logout due to error');
+      setUser(null);
+      
+      if (Platform.OS === 'web') {
+        window.location.reload();
+      }
+      
+      Alert.alert('Logout Notice', 'You have been signed out. Please refresh if needed.');
     }
   };
 
@@ -263,12 +314,15 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
   return (
     <View style={styles.appContainer}>
-      <View style={styles.userBar}>
-        <Text style={styles.userInfo}>Welcome, {user.email}!</Text>
-        <TouchableOpacity onPress={signOut} style={styles.signOutButton}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
+      {/* 🔥 CONDITIONAL RENDERING: Welcome bar sadece user varsa göster */}
+      {user && (
+        <View style={styles.userBar}>
+          <Text style={styles.userInfo}>Welcome, {user.email}!</Text>
+          <TouchableOpacity onPress={signOut} style={styles.signOutButton}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {children}
     </View>
   );
