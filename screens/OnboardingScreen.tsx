@@ -92,35 +92,116 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
 
     setLoading(true);
     try {
+      // Build update data - only include fields that exist in database
+      const updateData: any = {
+        age: parseInt(formData.age),
+        gender: formData.gender,
+        height_cm: parseInt(formData.height),
+        weight_kg: parseFloat(formData.weight),
+        activity_level: formData.activityLevel,
+        health_goals: formData.healthGoals,
+        dietary_preferences: formData.dietaryPreferences,
+        dietary_restrictions: formData.allergies,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Try to include optional fields
+      if (formData.cuisines.length > 0) {
+        updateData.cuisine_preferences = formData.cuisines;
+      }
+      if (formData.cookingExperience) {
+        updateData.cooking_skill_level = formData.cookingExperience;
+      }
+
+      console.log('📤 Updating profile with:', updateData);
+
       const { data, error } = await supabase
         .from('user_profiles')
-        .update({
-          age: parseInt(formData.age),
-          gender: formData.gender,
-          height_cm: parseInt(formData.height),
-          weight_kg: parseFloat(formData.weight),
-          activity_level: formData.activityLevel,
-          health_goals: formData.healthGoals,
-          dietary_preferences: formData.dietaryPreferences,
-          dietary_restrictions: formData.allergies,
-          cuisine_preferences: formData.cuisines,
-          cooking_skill_level: formData.cookingExperience,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', userId)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        
+        // Check if it's a column error
+        if (error.message && error.message.includes('column')) {
+          // Try again without the problematic fields
+          console.log('🔄 Retrying without optional fields...');
+          
+          const basicUpdateData = {
+            age: parseInt(formData.age),
+            gender: formData.gender,
+            height_cm: parseInt(formData.height),
+            weight_kg: parseFloat(formData.weight),
+            activity_level: formData.activityLevel,
+            health_goals: formData.healthGoals,
+            dietary_preferences: formData.dietaryPreferences,
+            updated_at: new Date().toISOString(),
+          };
 
-      console.log('✅ Onboarding completed:', data);
-      Alert.alert(
-        '🎉 Welcome!', 
-        'Your profile is all set up. Let\'s start your nutrition journey!',
-        [{ text: 'Get Started', onPress: onComplete }]
-      );
+          const { data: retryData, error: retryError } = await supabase
+            .from('user_profiles')
+            .update(basicUpdateData)
+            .eq('id', userId)
+            .select();
+
+          if (retryError) {
+            throw retryError;
+          }
+
+          console.log('✅ Profile updated with basic fields:', retryData);
+          
+          // Still complete onboarding even with basic data
+          onComplete();
+          
+          setTimeout(() => {
+            Alert.alert(
+              '⚠️ Partial Save',
+              'Your basic profile was saved. Some preferences could not be saved due to system limitations.'
+            );
+          }, 100);
+          
+          return;
+        }
+        
+        throw error;
+      }
+
+      console.log('✅ Onboarding completed successfully:', data);
+      
+      // Complete onboarding
+      onComplete();
+      
+      // Show success message after navigation
+      setTimeout(() => {
+        Alert.alert(
+          '🎉 Welcome to AI Food Pantry!',
+          'Your profile is all set up. Let\'s start your nutrition journey!'
+        );
+      }, 100);
+      
     } catch (error: any) {
       console.error('❌ Error completing onboarding:', error);
-      Alert.alert('Error', `Could not save profile: ${error.message}`);
+      
+      // Offer to skip onboarding if there's a persistent error
+      Alert.alert(
+        'Setup Error',
+        'We couldn\'t save your profile completely. Would you like to continue anyway?',
+        [
+          {
+            text: 'Try Again',
+            style: 'cancel'
+          },
+          {
+            text: 'Continue Anyway',
+            onPress: () => {
+              console.log('⏭️ Skipping onboarding due to error');
+              onComplete();
+            }
+          }
+        ]
+      );
     } finally {
       setLoading(false);
     }
