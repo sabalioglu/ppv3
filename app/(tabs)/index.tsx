@@ -7,442 +7,458 @@ import {
   TouchableOpacity,
   Dimensions,
   Alert,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Calendar,
   TrendingUp,
   AlertTriangle,
   Target,
   Award,
-  Plus,
   ChevronRight,
   LogOut,
+  User,
+  Activity,
+  Heart,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// Mock data - replace with real data from Supabase
-const mockData = {
-  todayNutrition: {
-    calories: { current: 1850, target: 2200 },
-    protein: { current: 85, target: 120 },
-    carbs: { current: 180, target: 275 },
-    fat: { current: 75, target: 85 },
-  },
-  expiringItems: [
-    { name: 'Greek Yogurt', daysLeft: 2, category: 'Dairy' },
-    { name: 'Baby Spinach', daysLeft: 3, category: 'Vegetables' },
-    { name: 'Chicken Breast', daysLeft: 1, category: 'Proteins' },
-  ],
-  todaysMeals: [
-    { type: 'Breakfast', name: 'Overnight Oats with Berries', calories: 420 },
-    { type: 'Lunch', name: 'Grilled Chicken Salad', calories: 580 },
-    { type: 'Snack', name: 'Apple with Almonds', calories: 190 },
-  ],
-  achievements: [
-    { name: 'Nutrition Goal Streak', current: 7, target: 7, completed: true },
-    { name: 'Zero Waste Week', current: 6, target: 7, completed: false },
-    { name: 'Recipe Explorer', current: 3, target: 5, completed: false },
-  ],
-  insights: [
-    {
-      type: 'success',
-      title: 'Great Progress!',
-      message: 'You\'re 84% towards your daily calorie goal.',
-    },
-    {
-      type: 'warning',
-      title: 'Low Fiber',
-      message: 'Consider adding more vegetables to reach your fiber goal.',
-    },
-  ],
+// Nutrition calculation helpers
+const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
+  // Mifflin-St Jeor Equation
+  if (gender === 'male') {
+    return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+  } else {
+    return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+  }
 };
 
-interface ProgressRingProps {
-  progress: number;
-  size: number;
-  strokeWidth: number;
-  color: string;
-  backgroundColor?: string;
-}
-
-const ProgressRing: React.FC<ProgressRingProps> = ({
-  progress,
-  size,
-  strokeWidth,
-  color,
-  backgroundColor = colors.neutral[200],
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
-
-  return (
-    <View style={{ width: size, height: size }}>
-      {/* Background circle */}
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: backgroundColor,
-        }}
-      />
-      {/* Progress circle */}
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: color,
-          borderStyle: 'solid',
-          transform: [{ rotate: '-90deg' }],
-        }}
-      />
-    </View>
-  );
+const getActivityMultiplier = (activityLevel: string): number => {
+  const multipliers: { [key: string]: number } = {
+    'sedentary': 1.2,
+    'lightly_active': 1.375,
+    'moderately_active': 1.55,
+    'very_active': 1.725,
+    'extra_active': 1.9,
+  };
+  return multipliers[activityLevel] || 1.55;
 };
 
-interface StatCardProps {
-  title: string;
-  current: number;
-  target: number;
-  unit: string;
-  color: string;
-  icon: React.ReactNode;
-}
+const calculateDailyCalories = (bmr: number, activityLevel: string): number => {
+  return Math.round(bmr * getActivityMultiplier(activityLevel));
+};
 
-const StatCard: React.FC<StatCardProps> = ({
-  title,
-  current,
-  target,
-  unit,
-  color,
-  icon,
-}) => {
-  const progress = Math.min((current / target) * 100, 100);
+const calculateMacros = (calories: number, goals: string[]) => {
+  let proteinRatio = 0.25;
+  let carbRatio = 0.45;
+  let fatRatio = 0.30;
 
+  // Adjust based on goals
+  if (goals.includes('muscle_gain')) {
+    proteinRatio = 0.30;
+    carbRatio = 0.40;
+    fatRatio = 0.30;
+  } else if (goals.includes('weight_loss')) {
+    proteinRatio = 0.30;
+    carbRatio = 0.35;
+    fatRatio = 0.35;
+  }
+
+  return {
+    protein: Math.round((calories * proteinRatio) / 4), // 4 cal per gram
+    carbs: Math.round((calories * carbRatio) / 4), // 4 cal per gram
+    fat: Math.round((calories * fatRatio) / 9), // 9 cal per gram
+  };
+};
+
+// Components
+const StatCard = ({ title, current, target, color, unit }: any) => {
+  const percentage = Math.min((current / target) * 100, 100);
+  
   return (
     <View style={styles.statCard}>
       <View style={styles.statHeader}>
-        <View style={styles.statIcon}>
-          {icon}
-        </View>
         <Text style={styles.statTitle}>{title}</Text>
+        <TrendingUp size={16} color={color} />
       </View>
+      
       <View style={styles.statContent}>
-        <ProgressRing
-          progress={progress}
-          size={60}
-          strokeWidth={4}
-          color={color}
-        />
-        <View style={styles.statNumbers}>
-          <Text style={styles.statCurrent}>{current}</Text>
-          <Text style={styles.statTarget}>/ {target} {unit}</Text>
-        </View>
+        <Text style={styles.statValue}>{current}</Text>
+        <Text style={styles.statTarget}>/ {target} {unit}</Text>
       </View>
-      <View style={styles.progressBar}>
-        <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: color }]} />
+      
+      <View style={styles.progressContainer}>
+        <View style={[styles.progressBar, { backgroundColor: `${color}20` }]}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { width: `${percentage}%`, backgroundColor: color }
+            ]} 
+          />
+        </View>
       </View>
     </View>
   );
 };
 
-interface InsightCardProps {
-  type: 'success' | 'warning' | 'info';
-  title: string;
-  message: string;
-}
-
-const InsightCard: React.FC<InsightCardProps> = ({ type, title, message }) => {
-  const getInsightColors = (type: string) => {
+const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
+  const getColor = () => {
     switch (type) {
-      case 'success':
-        return { bg: colors.success[50], border: colors.success[200], text: colors.success[700] };
-      case 'warning':
-        return { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[700] };
-      default:
-        return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
+      case 'success': return colors.success;
+      case 'warning': return colors.warning;
+      case 'info': return colors.info;
+      default: return colors.primary;
     }
   };
 
-  const insightColors = getInsightColors(type);
-
   return (
-    <View style={[styles.insightCard, { backgroundColor: insightColors.bg, borderColor: insightColors.border }]}>
-      <Text style={[styles.insightTitle, { color: insightColors.text }]}>{title}</Text>
-      <Text style={styles.insightMessage}>{message}</Text>
+    <TouchableOpacity style={styles.insightCard}>
+      <View style={[styles.insightIcon, { backgroundColor: `${getColor()}20` }]}>
+        <Icon size={24} color={getColor()} />
+      </View>
+      <View style={styles.insightContent}>
+        <Text style={styles.insightTitle}>{title}</Text>
+        <Text style={styles.insightDescription}>{description}</Text>
+        {value && <Text style={[styles.insightValue, { color: getColor() }]}>{value}</Text>}
+      </View>
+      <ChevronRight size={16} color={colors.textSecondary} />
+    </TouchableOpacity>
+  );
+};
+
+const ProfileSummaryCard = ({ profile }: any) => {
+  const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
+  const tdee = calculateDailyCalories(bmr, profile.activity_level);
+  
+  return (
+    <View style={styles.profileCard}>
+      <View style={styles.profileHeader}>
+        <User size={20} color={colors.primary} />
+        <Text style={styles.profileTitle}>Your Profile Summary</Text>
+      </View>
+      
+      <View style={styles.profileGrid}>
+        <View style={styles.profileItem}>
+          <Text style={styles.profileLabel}>Age</Text>
+          <Text style={styles.profileValue}>{profile.age} years</Text>
+        </View>
+        <View style={styles.profileItem}>
+          <Text style={styles.profileLabel}>Height</Text>
+          <Text style={styles.profileValue}>{profile.height_cm} cm</Text>
+        </View>
+        <View style={styles.profileItem}>
+          <Text style={styles.profileLabel}>Weight</Text>
+          <Text style={styles.profileValue}>{profile.weight_kg} kg</Text>
+        </View>
+        <View style={styles.profileItem}>
+          <Text style={styles.profileLabel}>BMR</Text>
+          <Text style={styles.profileValue}>{Math.round(bmr)} cal</Text>
+        </View>
+      </View>
+      
+      <View style={styles.tdeeContainer}>
+        <Text style={styles.tdeeLabel}>Daily Calorie Target (TDEE)</Text>
+        <Text style={styles.tdeeValue}>{tdee} calories</Text>
+      </View>
     </View>
   );
 };
 
 export default function Dashboard() {
   const [greeting, setGreeting] = useState('');
-  const [user, setUser] = useState<any>(null);
+  const [userName, setUserName] = useState('');
+  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [nutritionTargets, setNutritionTargets] = useState({
+    calories: 2000,
+    protein: 120,
+    carbs: 250,
+    fat: 67,
+  });
+  const [todaysIntake, setTodaysIntake] = useState({
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  });
 
   useEffect(() => {
-    // Greeting setup based on time
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good Morning');
-    else if (hour < 17) setGreeting('Good Afternoon');
-    else setGreeting('Good Evening');
-
-    // ✨ USER DATA FETCH
-    const fetchUserData = async () => {
-      try {
-        console.log('📊 Dashboard: Fetching user data...');
-        
-        // Current user'ı al
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        
-        console.log('✅ Dashboard: User fetched:', user?.email);
-        setUser(user);
-
-        // User profile'ı al (daha detaylı bilgi için)
-        if (user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('full_name, email')
-            .eq('id', user.id)
-            .single();
-          
-          if (!profileError && profile) {
-            console.log('✅ Dashboard: Profile fetched:', profile.full_name);
-            setUserProfile(profile);
-          } else {
-            console.log('⚠️ Dashboard: Profile not found, using user email');
-          }
-        }
-      } catch (error) {
-        console.error('❌ Dashboard: Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
+    loadUserData();
   }, []);
 
-  // ✨ LOGOUT FUNCTION
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const loadUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Fetch complete profile
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error loading profile:', error);
+          setUserName(user.email?.split('@')[0] || 'User');
+        } else {
+          setUserProfile(profile);
+          setUserName(profile.full_name || user.email?.split('@')[0] || 'User');
+          
+          // Calculate nutrition targets based on profile
+          if (profile.age && profile.gender && profile.height_cm && profile.weight_kg && profile.activity_level) {
+            const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
+            const dailyCalories = calculateDailyCalories(bmr, profile.activity_level);
+            const macros = calculateMacros(dailyCalories, profile.health_goals || []);
+            
+            setNutritionTargets({
+              calories: dailyCalories,
+              protein: macros.protein,
+              carbs: macros.carbs,
+              fat: macros.fat,
+            });
+          }
+          
+          // Load today's intake (will be implemented with nutrition logs)
+          loadTodaysIntake(user.id);
+        }
+      }
+      
+      setGreeting(getTimeBasedGreeting());
+    } catch (error) {
+      console.error('Error in loadUserData:', error);
+      setUserName('User');
+      setGreeting(getTimeBasedGreeting());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadTodaysIntake = async (userId: string) => {
+    // For now, using mock data
+    // TODO: Implement real nutrition log fetching
+    const mockIntake = {
+      calories: Math.floor(Math.random() * 1000) + 800,
+      protein: Math.floor(Math.random() * 60) + 40,
+      carbs: Math.floor(Math.random() * 150) + 100,
+      fat: Math.floor(Math.random() * 40) + 30,
+    };
+    setTodaysIntake(mockIntake);
+  };
+
   const handleLogout = async () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      "Sign Out",
+      "Are you sure you want to sign out?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
-          style: 'destructive',
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Sign Out",
           onPress: async () => {
             try {
-              console.log('🚪 Dashboard: Logging out...');
               const { error } = await supabase.auth.signOut();
-              if (error) throw error;
-              
-              console.log('✅ Dashboard: Logout successful');
-              
-              // Web'de sayfa yenileme (clean transition için)
-              if (typeof window !== 'undefined') {
-                setTimeout(() => {
-                  window.location.reload();
-                }, 300);
+              if (error) {
+                Alert.alert('Logout Error', error.message);
               }
-            } catch (error) {
-              console.error('❌ Dashboard: Logout error:', error);
-              Alert.alert('Logout Error', 'An error occurred during logout. Please try again.');
+            } catch (error: any) {
+              Alert.alert('Logout Error', 'An error occurred during logout');
             }
-          }
-        }
-      ]
+          },
+          style: "destructive",
+        },
+      ],
+      { cancelable: true }
     );
   };
 
-  // ✨ PERSONALIZED GREETING LOGIC
-  const getPersonalizedGreeting = () => {
-    let name = 'there'; // Default fallback
+  const getHealthInsights = () => {
+    const insights = [];
     
-    if (userProfile?.full_name) {
-      // Profile'dan tam isim varsa, ilk kelimeyi al
-      name = userProfile.full_name.split(' ')[0];
-    } else if (user?.email) {
-      // Email'den isim çıkar (@ işaretinden önceki kısım)
-      name = user.email.split('@')[0];
-      // İlk harfi büyük yap
-      name = name.charAt(0).toUpperCase() + name.slice(1);
+    // Calorie insight
+    const caloriePercentage = (todaysIntake.calories / nutritionTargets.calories) * 100;
+    if (caloriePercentage < 50) {
+      insights.push({
+        icon: Target,
+        title: 'Calorie Intake Low',
+        description: `You've consumed ${todaysIntake.calories} calories today`,
+        type: 'warning',
+        value: `${Math.round(nutritionTargets.calories - todaysIntake.calories)} cal remaining`,
+      });
+    } else if (caloriePercentage > 90) {
+      insights.push({
+        icon: Award,
+        title: 'Almost There!',
+        description: 'You\'re close to your daily calorie goal',
+        type: 'success',
+        value: `${Math.round(caloriePercentage)}% complete`,
+      });
     }
-    
-    return `${greeting}, ${name}!`;
+
+    // Protein insight
+    const proteinPercentage = (todaysIntake.protein / nutritionTargets.protein) * 100;
+    if (proteinPercentage < 60) {
+      insights.push({
+        icon: Activity,
+        title: 'Boost Your Protein',
+        description: 'Consider adding protein-rich foods',
+        type: 'info',
+        value: `${nutritionTargets.protein - todaysIntake.protein}g needed`,
+      });
+    }
+
+    // Activity insight based on profile
+    if (userProfile?.activity_level === 'sedentary') {
+      insights.push({
+        icon: Heart,
+        title: 'Stay Active',
+        description: 'Try to add some physical activity today',
+        type: 'info',
+      });
+    }
+
+    return insights;
   };
 
-  const { todayNutrition, expiringItems, todaysMeals, achievements, insights } = mockData;
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* ✨ PERSONALIZED HEADER WITH LOGOUT */}
-      <LinearGradient colors={gradients.health} style={styles.header}>
+      {/* Header with Dynamic Greeting */}
+      <LinearGradient
+        colors={gradients.primary}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <View style={styles.headerContent}>
-          <View style={styles.greetingSection}>
-            <Text style={styles.greeting}>{getPersonalizedGreeting()}</Text>
-            <Text style={styles.subtitle}>Let's track your nutrition goals</Text>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>
+              {greeting}, {userName}!
+            </Text>
+            <Text style={styles.subtitle}>
+              {userProfile?.health_goals?.includes('weight_loss') 
+                ? "Let's achieve your weight loss goals"
+                : userProfile?.health_goals?.includes('muscle_gain')
+                ? "Time to build those muscles"
+                : "Let's track your nutrition goals"}
+            </Text>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.addButton}>
-              <Plus size={24} color={colors.neutral[0]} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <LogOut size={20} color={colors.neutral[0]} />
-            </TouchableOpacity>
-          </View>
+          
+          <TouchableOpacity 
+            style={styles.logoutButton}
+            onPress={handleLogout}
+          >
+            <LogOut size={24} color="white" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      <View style={styles.content}>
-        {/* Today's Nutrition Overview */}
+      {/* Profile Summary (if profile complete) */}
+      {userProfile && userProfile.age && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Target size={20} color={colors.primary[500]} />
-            <Text style={styles.sectionTitle}>Today's Progress</Text>
-          </View>
-          <View style={styles.statsGrid}>
-            <StatCard
-              title="Calories"
-              current={todayNutrition.calories.current}
-              target={todayNutrition.calories.target}
-              unit="kcal"
-              color={colors.primary[500]}
-              icon={<TrendingUp size={16} color={colors.primary[500]} />}
-            />
-            <StatCard
-              title="Protein"
-              current={todayNutrition.protein.current}
-              target={todayNutrition.protein.target}
-              unit="g"
-              color={colors.secondary[500]}
-              icon={<TrendingUp size={16} color={colors.secondary[500]} />}
-            />
-            <StatCard
-              title="Carbs"
-              current={todayNutrition.carbs.current}
-              target={todayNutrition.carbs.target}
-              unit="g"
-              color={colors.accent[500]}
-              icon={<TrendingUp size={16} color={colors.accent[500]} />}
-            />
-            <StatCard
-              title="Fat"
-              current={todayNutrition.fat.current}
-              target={todayNutrition.fat.target}
-              unit="g"
-              color={colors.error[500]}
-              icon={<TrendingUp size={16} color={colors.error[500]} />}
-            />
-          </View>
+          <ProfileSummaryCard profile={userProfile} />
         </View>
+      )}
 
-        {/* Expiring Items Alert */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <AlertTriangle size={20} color={colors.warning[500]} />
-            <Text style={styles.sectionTitle}>Expiring Soon</Text>
-            <TouchableOpacity style={styles.sectionAction}>
-              <ChevronRight size={16} color={colors.neutral[500]} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.expiringContainer}>
-            {expiringItems.map((item, index) => (
-              <View key={index} style={styles.expiringItem}>
-                <View style={styles.expiringInfo}>
-                  <Text style={styles.expiringName}>{item.name}</Text>
-                  <Text style={styles.expiringCategory}>{item.category}</Text>
-                </View>
-                <View style={[styles.expiringBadge, item.daysLeft <= 1 && styles.expiringUrgent]}>
-                  <Text style={[styles.expiringDays, item.daysLeft <= 1 && styles.expiringDaysUrgent]}>
-                    {item.daysLeft}d
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
+      {/* Today's Progress */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Target size={20} color={colors.primary} />
+          <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
-
-        {/* Today's Meals */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Calendar size={20} color={colors.accent[500]} />
-            <Text style={styles.sectionTitle}>Today's Meals</Text>
-            <TouchableOpacity style={styles.sectionAction}>
-              <ChevronRight size={16} color={colors.neutral[500]} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.mealsContainer}>
-            {todaysMeals.map((meal, index) => (
-              <View key={index} style={styles.mealItem}>
-                <View style={styles.mealInfo}>
-                  <Text style={styles.mealType}>{meal.type}</Text>
-                  <Text style={styles.mealName}>{meal.name}</Text>
-                </View>
-                <Text style={styles.mealCalories}>{meal.calories} kcal</Text>
-              </View>
-            ))}
-          </View>
+        
+        <View style={styles.statsGrid}>
+          <StatCard
+            title="Calories"
+            current={todaysIntake.calories}
+            target={nutritionTargets.calories}
+            color={colors.success}
+            unit="kcal"
+          />
+          <StatCard
+            title="Protein"
+            current={todaysIntake.protein}
+            target={nutritionTargets.protein}
+            color={colors.warning}
+            unit="g"
+          />
+          <StatCard
+            title="Carbs"
+            current={todaysIntake.carbs}
+            target={nutritionTargets.carbs}
+            color={colors.info}
+            unit="g"
+          />
+          <StatCard
+            title="Fat"
+            current={todaysIntake.fat}
+            target={nutritionTargets.fat}
+            color={colors.error}
+            unit="g"
+          />
         </View>
+      </View>
 
-        {/* Achievements */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Award size={20} color={colors.secondary[500]} />
-            <Text style={styles.sectionTitle}>Achievements</Text>
-            <TouchableOpacity style={styles.sectionAction}>
-              <ChevronRight size={16} color={colors.neutral[500]} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.achievementsContainer}>
-            {achievements.map((achievement, index) => (
-              <View key={index} style={styles.achievementItem}>
-                <View style={styles.achievementInfo}>
-                  <Text style={styles.achievementName}>{achievement.name}</Text>
-                  <Text style={styles.achievementProgress}>
-                    {achievement.current}/{achievement.target}
-                  </Text>
-                </View>
-                <View style={styles.achievementProgressBar}>
-                  <View
-                    style={[
-                      styles.achievementProgressFill,
-                      {
-                        width: `${(achievement.current / achievement.target) * 100}%`,
-                        backgroundColor: achievement.completed ? colors.success[500] : colors.neutral[300],
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            ))}
-          </View>
+      {/* Personalized Insights */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <TrendingUp size={20} color={colors.primary} />
+          <Text style={styles.sectionTitle}>Your Insights</Text>
         </View>
+        
+        <View style={styles.insightsList}>
+          {getHealthInsights().map((insight, index) => (
+            <InsightCard key={index} {...insight} />
+          ))}
+        </View>
+      </View>
 
-        {/* Insights */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Insights & Tips</Text>
-          <View style={styles.insightsContainer}>
-            {insights.map((insight, index) => (
-              <InsightCard
-                key={index}
-                type={insight.type as 'success' | 'warning' | 'info'}
-                title={insight.title}
-                message={insight.message}
-              />
-            ))}
-          </View>
+      {/* Quick Actions */}
+      <View style={[styles.section, { marginBottom: 100 }]}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionCard}>
+            <View style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}>
+              <Target size={24} color="#10b981" />
+            </View>
+            <Text style={styles.quickActionText}>Log Food</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.quickActionCard}>
+            <View style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}>
+              <AlertTriangle size={24} color="#f59319" />
+            </View>
+            <Text style={styles.quickActionText}>Add Item</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.quickActionCard}>
+            <View style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}>
+              <Award size={24} color="#6366f1" />
+            </View>
+            <Text style={styles.quickActionText}>Recipes</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -452,11 +468,22 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 12,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: spacing.xl,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
@@ -466,46 +493,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  greetingSection: {
+  greetingContainer: {
     flex: 1,
   },
   greeting: {
-    fontSize: typography.fontSize['3xl'],
-    fontFamily: 'Poppins-Bold',
-    color: colors.neutral[0],
-    marginBottom: spacing.xs,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[100],
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   logoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    padding: spacing.lg,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   section: {
-    marginBottom: spacing.xl,
+    padding: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -513,198 +520,175 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: 'Poppins-SemiBold',
-    color: colors.neutral[800],
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
     marginLeft: spacing.sm,
     flex: 1,
   },
-  sectionAction: {
-    padding: spacing.xs,
+  profileCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: spacing.lg,
+    ...shadows.sm,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  profileTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginLeft: spacing.sm,
+  },
+  profileGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.md,
+  },
+  profileItem: {
+    width: '50%',
+    paddingVertical: spacing.sm,
+  },
+  profileLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  profileValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  tdeeContainer: {
+    backgroundColor: '#10b98110',
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  tdeeLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  tdeeValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#10b981',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -spacing.xs,
+    gap: spacing.md,
   },
   statCard: {
-    width: (width - spacing.lg * 2 - spacing.xs * 2) / 2,
-    marginHorizontal: spacing.xs,
-    marginBottom: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: 'white',
     borderRadius: 16,
     padding: spacing.md,
-    ...shadows.md,
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    ...shadows.sm,
   },
   statHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  statIcon: {
-    marginRight: spacing.xs,
-  },
   statTitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[600],
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
   statContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     marginBottom: spacing.sm,
   },
-  statNumbers: {
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
-  statCurrent: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-Bold',
-    color: colors.neutral[800],
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
   },
   statTarget: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[500],
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  progressContainer: {
+    marginTop: spacing.xs,
   },
   progressBar: {
     height: 4,
-    backgroundColor: colors.neutral[200],
     borderRadius: 2,
     overflow: 'hidden',
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
     borderRadius: 2,
   },
-  expiringContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.md,
-    ...shadows.md,
-  },
-  expiringItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  expiringInfo: {
-    flex: 1,
-  },
-  expiringName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[800],
-  },
-  expiringCategory: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-  expiringBadge: {
-    backgroundColor: colors.warning[100],
-    borderRadius: 12,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  expiringUrgent: {
-    backgroundColor: colors.error[100],
-  },
-  expiringDays: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Bold',
-    color: colors.warning[700],
-  },
-  expiringDaysUrgent: {
-    color: colors.error[700],
-  },
-  mealsContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.md,
-    ...shadows.md,
-  },
-  mealItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  mealInfo: {
-    flex: 1,
-  },
-  mealType: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.accent[600],
-  },
-  mealName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[800],
-  },
-  mealCalories: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Bold',
-    color: colors.neutral[600],
-  },
-  achievementsContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.md,
-    ...shadows.md,
-  },
-  achievementItem: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  achievementInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  achievementName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[800],
-  },
-  achievementProgress: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Bold',
-    color: colors.neutral[600],
-  },
-  achievementProgressBar: {
-    height: 6,
-    backgroundColor: colors.neutral[200],
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  achievementProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  insightsContainer: {
-    gap: spacing.md,
+  insightsList: {
+    gap: spacing.sm,
   },
   insightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
     borderRadius: 12,
     padding: spacing.md,
-    borderWidth: 1,
+    ...shadows.sm,
+  },
+  insightIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  insightContent: {
+    flex: 1,
   },
   insightTitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
   },
-  insightMessage: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[600],
+  insightDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  insightValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: spacing.md,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
 });
