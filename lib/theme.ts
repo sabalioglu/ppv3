@@ -1,3 +1,4 @@
+// lib/theme.ts
 // Design system and theme configuration
 export const colors = {
   // Primary Colors
@@ -209,19 +210,115 @@ export const gradients = {
   health: [colors.primary[300], colors.accent[300]],
   sunset: [colors.secondary[300], colors.error[400]],
 };
-export const theme = {
+
+// Theme interface
+export interface Theme {
   colors: {
-    background: colors.neutral[0],
-    text: colors.neutral[900],
+    // Base colors
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    surface: string;
+    error: string;
+    warning: string;
+    success: string;
+    info: string;
+    
+    // Text colors
+    text: string;
+    textPrimary: string;
+    textSecondary: string;
+    textOnPrimary: string;
+    
+    // UI elements
+    border: string;
+    borderLight: string;
+    divider: string;
+    
+    // Special UI states
+    overlay: string;
+    shadow: string;
+    
+    // Component specific
+    inputBackground: string;
+    inputBorder: string;
+    inputPlaceholder: string;
+    surfaceVariant: string;
+    
+    // Button colors
+    buttonPrimary: string;
+    buttonSecondary: string;
+    
+    // Category colors
+    categoryActive: string;
+    categoryInactive: string;
+    categoryBadge: string;
+    
+    // Expiry colors
+    expiryUrgent: string;
+    expirySoon: string;
+    expiryOk: string;
+    expiryNeutral: string;
+  };
+  spacing: typeof spacing;
+  borderRadius: typeof borderRadius;
+  typography: typeof typography;
+  shadows: typeof shadows;
+  components: typeof components;
+  animations: typeof animations;
+  gradients: typeof gradients;
+}
+
+// Light Theme
+export const lightTheme: Theme = {
+  colors: {
+    // Base colors
     primary: colors.primary[500],
     secondary: colors.secondary[500],
-    surface: colors.neutral[50],
-    border: colors.neutral[300],
+    accent: colors.accent[500],
+    background: colors.neutral[50],
+    surface: colors.neutral[0],
     error: colors.error[500],
-    textSecondary: colors.neutral[600],
-    success: colors.success[500],
     warning: colors.warning[500],
-    info: colors.accent[500]
+    success: colors.success[500],
+    info: colors.accent[500],
+    
+    // Text colors
+    text: colors.neutral[900],
+    textPrimary: colors.neutral[900],
+    textSecondary: colors.neutral[600],
+    textOnPrimary: colors.neutral[0],
+    
+    // UI elements
+    border: colors.neutral[300],
+    borderLight: colors.neutral[200],
+    divider: colors.neutral[200],
+    
+    // Special UI states
+    overlay: 'rgba(0, 0, 0, 0.5)',
+    shadow: colors.neutral[900],
+    
+    // Component specific
+    inputBackground: colors.neutral[50],
+    inputBorder: colors.neutral[300],
+    inputPlaceholder: colors.neutral[500],
+    surfaceVariant: colors.neutral[100],
+    
+    // Button colors
+    buttonPrimary: colors.primary[500],
+    buttonSecondary: colors.secondary[500],
+    
+    // Category colors
+    categoryActive: colors.primary[500],
+    categoryInactive: colors.neutral[600],
+    categoryBadge: colors.neutral[200],
+    
+    // Expiry colors
+    expiryUrgent: colors.error[500],
+    expirySoon: colors.warning[500],
+    expiryOk: colors.success[500],
+    expiryNeutral: colors.neutral[500],
   },
   spacing,
   borderRadius,
@@ -229,7 +326,67 @@ export const theme = {
   shadows,
   components,
   animations,
-  gradients
+  gradients,
 };
 
-export type Theme = typeof theme;
+// Dark Theme
+export const darkTheme: Theme = {
+  colors: {
+    // Base colors
+    primary: colors.primary[400],
+    secondary: colors.secondary[400],
+    accent: colors.accent[400],
+    background: colors.neutral[950],
+    surface: colors.neutral[900],
+    error: colors.error[400],
+    warning: colors.warning[400],
+    success: colors.success[400],
+    info: colors.accent[400],
+    
+    // Text colors
+    text: colors.neutral[100],
+    textPrimary: colors.neutral[100],
+    textSecondary: colors.neutral[400],
+    textOnPrimary: colors.neutral[900],
+    
+    // UI elements
+    border: colors.neutral[700],
+    borderLight: colors.neutral[800],
+    divider: colors.neutral[800],
+    
+    // Special UI states
+    overlay: 'rgba(0, 0, 0, 0.7)',
+    shadow: colors.neutral[0],
+    
+    // Component specific
+    inputBackground: colors.neutral[800],
+    inputBorder: colors.neutral[700],
+    inputPlaceholder: colors.neutral[500],
+    surfaceVariant: colors.neutral[800],
+    
+    // Button colors
+    buttonPrimary: colors.primary[400],
+    buttonSecondary: colors.secondary[400],
+    
+    // Category colors
+    categoryActive: colors.primary[400],
+    categoryInactive: colors.neutral[400],
+    categoryBadge: colors.neutral[800],
+    
+    // Expiry colors
+    expiryUrgent: colors.error[400],
+    expirySoon: colors.warning[400],
+    expiryOk: colors.success[400],
+    expiryNeutral: colors.neutral[500],
+  },
+  spacing,
+  borderRadius,
+  typography,
+  shadows,
+  components,
+  animations,
+  gradients,
+};
+
+// Legacy theme export (for backward compatibility)
+export const theme = lightTheme;
