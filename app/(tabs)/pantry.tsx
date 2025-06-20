@@ -64,8 +64,6 @@ const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
 
 export default function PantryScreen() {
   const { theme, isDark } = useTheme();
-  const styles = createStyles(theme);
-
   const [items, setItems] = useState<PantryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -445,6 +443,387 @@ export default function PantryScreen() {
     </Modal>
   );
 
+  // Dynamic styles
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.background,
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: Platform.OS === 'ios' ? 50 : 30,
+      paddingBottom: theme.spacing.md,
+      backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: theme.colors.textPrimary,
+    },
+    headerAddButton: {
+      backgroundColor: theme.colors.buttonPrimary,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...theme.shadows.md,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: theme.spacing.lg,
+      marginTop: theme.spacing.md,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: 12,
+      ...theme.shadows.sm,
+    },
+    searchInput: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingLeft: 8,
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+    },
+    categoriesHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.lg,
+      marginTop: theme.spacing.md,
+      marginBottom: theme.spacing.xs,
+    },
+    categoriesTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    clearFilter: {
+      fontSize: 14,
+      color: theme.colors.primary,
+      fontWeight: '500',
+    },
+    categoriesContainer: {
+      paddingHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.sm,
+    },
+    categoryTab: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      marginRight: 8,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+      ...theme.shadows.sm,
+    },
+    categoryTabActive: {
+      backgroundColor: theme.colors.categoryActive,
+    },
+    categoryContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    categoryEmoji: {
+      fontSize: 16,
+      marginRight: 4,
+    },
+    categoryTabText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.categoryInactive,
+    },
+    categoryTabTextActive: {
+      color: theme.colors.textOnPrimary,
+    },
+    categoryBadge: {
+      backgroundColor: theme.colors.categoryBadge,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 10,
+      marginLeft: 6,
+      minWidth: 20,
+      alignItems: 'center',
+    },
+    categoryBadgeActive: {
+      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    },
+    categoryBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    categoryBadgeTextActive: {
+      color: theme.colors.textOnPrimary,
+    },
+    statsBar: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+      padding: theme.spacing.md,
+      borderRadius: 12,
+      ...theme.shadows.sm,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: theme.colors.borderLight,
+      marginHorizontal: theme.spacing.md,
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: theme.colors.textPrimary,
+      marginVertical: 4,
+    },
+    statLabel: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+    },
+    itemsList: {
+      flex: 1,
+      paddingHorizontal: theme.spacing.lg,
+    },
+    itemsGrid: {
+      paddingTop: theme.spacing.md,
+      paddingBottom: 100,
+    },
+    itemCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: theme.spacing.md,
+      marginBottom: theme.spacing.sm,
+      ...theme.shadows.sm,
+    },
+    itemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    itemName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    itemBrand: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    itemQuantity: {
+      backgroundColor: theme.colors.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    quantityText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.textPrimary,
+    },
+    itemDetails: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    itemMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    metaText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginLeft: 4,
+    },
+    expiryBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 100,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      marginTop: 16,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginTop: 8,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: theme.spacing.lg,
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: Platform.OS === 'ios' ? 34 : theme.spacing.lg,
+      maxHeight: '90%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.lg,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.textPrimary,
+    },
+    formGroup: {
+      marginBottom: theme.spacing.md,
+    },
+    formRow: {
+      flexDirection: 'row',
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      marginBottom: 8,
+    },
+    input: {
+      backgroundColor: theme.colors.inputBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+    },
+    pickerContainer: {
+      backgroundColor: theme.colors.inputBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    pickerText: {
+      fontSize: 16,
+      color: theme.colors.textPrimary,
+    },
+    categoryPicker: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surfaceVariant,
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+      marginRight: 8,
+    },
+    categoryChipActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    categoryLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: theme.colors.textSecondary,
+      marginLeft: 6,
+    },
+    categoryLabelActive: {
+      color: theme.colors.primary,
+    },
+    locationPicker: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    locationChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: theme.colors.surfaceVariant,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginRight: 8,
+    },
+    locationChipActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    locationText: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+    },
+    locationTextActive: {
+      color: theme.colors.primary,
+      fontWeight: '500',
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: theme.spacing.xl,
+    },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+    },
+    cancelButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+    },
+    addButton: {
+      flex: 1,
+      backgroundColor: theme.colors.buttonPrimary,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    addButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.textOnPrimary,
+    },
+  });
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -610,383 +989,3 @@ export default function PantryScreen() {
     </View>
   );
 }
-
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.sm,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-  },
-  headerAddButton: {
-    backgroundColor: theme.colors.buttonPrimary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...theme.shadows.md,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: 12,
-    ...theme.shadows.sm,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingLeft: 8,
-    fontSize: 16,
-    color: theme.colors.textPrimary,
-  },
-  categoriesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
-  },
-  categoriesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  clearFilter: {
-    fontSize: 14,
-    color: theme.colors.primary,
-    fontWeight: '500',
-  },
-  categoriesContainer: {
-    paddingHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-  },
-  categoryTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadows.sm,
-  },
-  categoryTabActive: {
-    backgroundColor: theme.colors.categoryActive,
-  },
-  categoryContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoryEmoji: {
-    fontSize: 16,
-    marginRight: 4,
-  },
-  categoryTabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.categoryInactive,
-  },
-  categoryTabTextActive: {
-    color: theme.colors.textOnPrimary,
-  },
-  categoryBadge: {
-    backgroundColor: theme.colors.categoryBadge,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 6,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  categoryBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  categoryBadgeTextActive: {
-    color: theme.colors.textOnPrimary,
-  },
-  statsBar: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.md,
-    borderRadius: 12,
-    ...theme.shadows.sm,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: theme.colors.borderLight,
-    marginHorizontal: theme.spacing.md,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-    marginVertical: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-  },
-  itemsList: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-  },
-  itemsGrid: {
-    paddingTop: theme.spacing.md,
-    paddingBottom: 100,
-  },
-  itemCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    ...theme.shadows.sm,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-  },
-  itemBrand: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  itemQuantity: {
-    backgroundColor: theme.colors.surfaceVariant,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  quantityText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.textPrimary,
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginLeft: 4,
-  },
-  expiryBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 8,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: Platform.OS === 'ios' ? 34 : theme.spacing.lg,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.textPrimary,
-  },
-  formGroup: {
-    marginBottom: theme.spacing.md,
-  },
-  formRow: {
-    flexDirection: 'row',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.textPrimary,
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: theme.colors.inputBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: theme.colors.textPrimary,
-  },
-  pickerContainer: {
-    backgroundColor: theme.colors.inputBackground,
-    borderWidth: 1,
-    borderColor: theme.colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  pickerText: {
-    fontSize: 16,
-    color: theme.colors.textPrimary,
-  },
-  categoryPicker: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surfaceVariant,
-    borderWidth: 2,
-    borderColor: theme.colors.border,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary + '10',
-  },
-  categoryLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.textSecondary,
-    marginLeft: 6,
-  },
-  categoryLabelActive: {
-    color: theme.colors.primary,
-  },
-  locationPicker: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  locationChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: theme.colors.surfaceVariant,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginRight: 8,
-  },
-  locationChipActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary + '10',
-  },
-  locationText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-  locationTextActive: {
-    color: theme.colors.primary,
-    fontWeight: '500',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: theme.spacing.xl,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
-  addButton: {
-    flex: 1,
-    backgroundColor: theme.colors.buttonPrimary,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textOnPrimary,
-  },
-});
