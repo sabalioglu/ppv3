@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -16,8 +17,10 @@ import {
   Award,
   Plus,
   ChevronRight,
+  LogOut,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
@@ -135,7 +138,6 @@ const StatCard: React.FC<StatCardProps> = ({
         </View>
         <Text style={styles.statTitle}>{title}</Text>
       </View>
-      
       <View style={styles.statContent}>
         <ProgressRing
           progress={progress}
@@ -148,7 +150,6 @@ const StatCard: React.FC<StatCardProps> = ({
           <Text style={styles.statTarget}>/ {target} {unit}</Text>
         </View>
       </View>
-      
       <View style={styles.progressBar}>
         <View style={[styles.progressBarFill, { width: `${progress}%`, backgroundColor: color }]} />
       </View>
@@ -186,28 +187,121 @@ const InsightCard: React.FC<InsightCardProps> = ({ type, title, message }) => {
 
 export default function Dashboard() {
   const [greeting, setGreeting] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
+    // Greeting setup based on time
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good Morning');
     else if (hour < 17) setGreeting('Good Afternoon');
     else setGreeting('Good Evening');
+
+    // ✨ USER DATA FETCH
+    const fetchUserData = async () => {
+      try {
+        console.log('📊 Dashboard: Fetching user data...');
+        
+        // Current user'ı al
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        
+        console.log('✅ Dashboard: User fetched:', user?.email);
+        setUser(user);
+
+        // User profile'ı al (daha detaylı bilgi için)
+        if (user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('full_name, email')
+            .eq('id', user.id)
+            .single();
+          
+          if (!profileError && profile) {
+            console.log('✅ Dashboard: Profile fetched:', profile.full_name);
+            setUserProfile(profile);
+          } else {
+            console.log('⚠️ Dashboard: Profile not found, using user email');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Dashboard: Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
   }, []);
+
+  // ✨ LOGOUT FUNCTION
+  const handleLogout = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🚪 Dashboard: Logging out...');
+              const { error } = await supabase.auth.signOut();
+              if (error) throw error;
+              
+              console.log('✅ Dashboard: Logout successful');
+              
+              // Web'de sayfa yenileme (clean transition için)
+              if (typeof window !== 'undefined') {
+                setTimeout(() => {
+                  window.location.reload();
+                }, 300);
+              }
+            } catch (error) {
+              console.error('❌ Dashboard: Logout error:', error);
+              Alert.alert('Logout Error', 'An error occurred during logout. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ✨ PERSONALIZED GREETING LOGIC
+  const getPersonalizedGreeting = () => {
+    let name = 'there'; // Default fallback
+    
+    if (userProfile?.full_name) {
+      // Profile'dan tam isim varsa, ilk kelimeyi al
+      name = userProfile.full_name.split(' ')[0];
+    } else if (user?.email) {
+      // Email'den isim çıkar (@ işaretinden önceki kısım)
+      name = user.email.split('@')[0];
+      // İlk harfi büyük yap
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+    }
+    
+    return `${greeting}, ${name}!`;
+  };
 
   const { todayNutrition, expiringItems, todaysMeals, achievements, insights } = mockData;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* ✨ PERSONALIZED HEADER WITH LOGOUT */}
       <LinearGradient colors={gradients.health} style={styles.header}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.greeting}>{greeting}!</Text>
+          <View style={styles.greetingSection}>
+            <Text style={styles.greeting}>{getPersonalizedGreeting()}</Text>
             <Text style={styles.subtitle}>Let's track your nutrition goals</Text>
           </View>
-          <TouchableOpacity style={styles.addButton}>
-            <Plus size={24} color={colors.neutral[0]} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.addButton}>
+              <Plus size={24} color={colors.neutral[0]} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <LogOut size={20} color={colors.neutral[0]} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -218,7 +312,6 @@ export default function Dashboard() {
             <Target size={20} color={colors.primary[500]} />
             <Text style={styles.sectionTitle}>Today's Progress</Text>
           </View>
-          
           <View style={styles.statsGrid}>
             <StatCard
               title="Calories"
@@ -264,7 +357,6 @@ export default function Dashboard() {
               <ChevronRight size={16} color={colors.neutral[500]} />
             </TouchableOpacity>
           </View>
-          
           <View style={styles.expiringContainer}>
             {expiringItems.map((item, index) => (
               <View key={index} style={styles.expiringItem}>
@@ -291,7 +383,6 @@ export default function Dashboard() {
               <ChevronRight size={16} color={colors.neutral[500]} />
             </TouchableOpacity>
           </View>
-          
           <View style={styles.mealsContainer}>
             {todaysMeals.map((meal, index) => (
               <View key={index} style={styles.mealItem}>
@@ -314,7 +405,6 @@ export default function Dashboard() {
               <ChevronRight size={16} color={colors.neutral[500]} />
             </TouchableOpacity>
           </View>
-          
           <View style={styles.achievementsContainer}>
             {achievements.map((achievement, index) => (
               <View key={index} style={styles.achievementItem}>
@@ -376,6 +466,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  greetingSection: {
+    flex: 1,
+  },
   greeting: {
     fontSize: typography.fontSize['3xl'],
     fontFamily: 'Poppins-Bold',
@@ -387,11 +480,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: colors.neutral[100],
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   addButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
