@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { validateAndFixAuth, debugAuthState } from '../utils/authDebug';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('password123');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
     console.log('🔐 AuthWrapper: Starting authentication check...');
@@ -36,11 +38,17 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
       if (error) {
         console.error('❌ Session check error:', error);
+        setLoading(false);
       } else {
         console.log('✅ Initial session:', session?.user?.email || 'No authenticated user');
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          checkProfileCompleteness(session.user.id, mounted);
+        } else {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
 
     // Auth state listener
@@ -53,6 +61,10 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
         
         if (session?.user) {
           await createUserProfileIfNeeded(session.user);
+          checkProfileCompleteness(session.user.id, mounted);
+        } else {
+          setIsProfileComplete(false);
+          setLoading(false);
         }
         
         // 🚨 Token refresh başarısızlığını yakala ve temizle
@@ -89,6 +101,40 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
     };
   }, []);
 
+  const checkProfileCompleteness = async (userId: string, mounted: boolean) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('age, gender, height_cm, weight_kg, activity_level')
+        .eq('id', userId)
+        .single();
+
+      if (!mounted) return;
+
+      if (error) {
+        console.error("Error checking profile completeness:", error);
+        setIsProfileComplete(false);
+      } else if (profile && 
+                 profile.age !== null && 
+                 profile.gender !== null &&
+                 profile.height_cm !== null &&
+                 profile.weight_kg !== null &&
+                 profile.activity_level !== null) {
+        console.log('✅ Profile is complete');
+        setIsProfileComplete(true);
+      } else {
+        console.log('📝 Profile incomplete, will show onboarding');
+        console.log('Profile data:', profile);
+        setIsProfileComplete(false);
+      }
+    } catch (err) {
+      console.error("Critical error checking profile completeness:", err);
+      setIsProfileComplete(false);
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  };
+
   const createUserProfileIfNeeded = async (user: any) => {
     try {
       console.log('🔍 Checking if user profile exists...');
@@ -114,16 +160,12 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
             email: user.email,
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
             created_at: new Date().toISOString(),
-            dietary_preferences: {},
+            dietary_preferences: [],
             notification_settings: {
               expiry_alerts: true,
               recipe_suggestions: true,
               shopping_reminders: true
             },
-            daily_calorie_goal: 2000,
-            daily_protein_goal: 120,
-            daily_carb_goal: 275,
-            daily_fat_goal: 85,
             streak_days: 0
           });
 
@@ -210,6 +252,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       // 2. Force local state clear
       console.log('🧹 Force clearing user state...');
       setUser(null);
+      setIsProfileComplete(false);
       
       // 3. Storage temizle
       if (typeof window !== 'undefined') {
@@ -238,6 +281,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       // Force logout even on error
       console.log('🚨 Force logout due to error');
       setUser(null);
+      setIsProfileComplete(false);
       
       if (Platform.OS === 'web') {
         window.location.reload();
@@ -316,7 +360,12 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
     );
   }
 
-  // 🔥 CLEAN RETURN - Welcome bar tamamen kaldırıldı
+  // User authenticated but profile incomplete - show onboarding
+  if (!isProfileComplete) {
+    return <OnboardingScreen userId={user.id} onComplete={() => setIsProfileComplete(true)} />;
+  }
+
+  // User authenticated and profile complete - show main app
   return (
     <View style={styles.appContainer}>
       {children}
