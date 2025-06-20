@@ -1,20 +1,39 @@
-// components/AuthWrapper.tsx - YENİ DOSYA OLUŞTUR
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { validateAndFixAuth, debugAuthState } from '../utils/authDebug';
 
-export default function AuthWrapper({ children }) {
-  const [user, setUser] = useState(null);
+interface AuthWrapperProps {
+  children: React.ReactNode;
+}
+
+const AuthLoadingScreen = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color="#22C55E" />
+    <Text style={styles.loadingText}>🔐 Checking authentication...</Text>
+    <Text style={styles.loadingSubtext}>Firebase-Free • Supabase-Powered</Text>
+  </View>
+);
+
+export default function AuthWrapper({ children }: AuthWrapperProps) {
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState('test@example.com'); // Quick test için
-  const [password, setPassword] = useState('password123'); // Quick test için
+  const [email, setEmail] = useState('test@example.com');
+  const [password, setPassword] = useState('password123');
   const [isSignUp, setIsSignUp] = useState(false);
 
   useEffect(() => {
     console.log('🔐 AuthWrapper: Starting authentication check...');
     
+    let mounted = true;
+    
+    // 🔧 Refresh token hatalarını otomatik yakala ve temizle
+    validateAndFixAuth();
+
     // Initial session check
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+
       if (error) {
         console.error('❌ Session check error:', error);
       } else {
@@ -27,22 +46,41 @@ export default function AuthWrapper({ children }) {
     // Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+
         console.log('🔄 Auth state change:', event, session?.user?.email || 'No user');
         setUser(session?.user ?? null);
         
         if (session?.user) {
           await createUserProfileIfNeeded(session.user);
         }
+        
+        // 🚨 Token refresh başarısızlığını yakala ve temizle
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.log('🚨 Token refresh failed, clearing auth state...');
+          validateAndFixAuth();
+        }
       }
     );
 
+    // 🛠️ Development debug helpers
+    if (__DEV__ && typeof window !== 'undefined') {
+      (window as any).debugAuth = debugAuthState;
+      (window as any).clearAuth = async () => {
+        const { clearAuthState } = await import('../utils/authDebug');
+        await clearAuthState();
+        setUser(null);
+      };
+    }
+
     return () => {
+      mounted = false;
       console.log('🧹 AuthWrapper: Cleaning up auth listener');
       subscription.unsubscribe();
     };
   }, []);
 
-  const createUserProfileIfNeeded = async (user) => {
+  const createUserProfileIfNeeded = async (user: any) => {
     try {
       console.log('🔍 Checking if user profile exists...');
       
@@ -53,7 +91,6 @@ export default function AuthWrapper({ children }) {
         .single();
 
       if (selectError && selectError.code !== 'PGRST116') {
-        // PGRST116 = no rows returned, bu normal
         console.error('❌ Profile check error:', selectError);
         return;
       }
@@ -115,7 +152,7 @@ export default function AuthWrapper({ children }) {
         
         if (data.user && !data.session) {
           Alert.alert('Success', 'Account created! You can now sign in.');
-          setIsSignUp(false); // Switch to sign in mode
+          setIsSignUp(false);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -126,10 +163,9 @@ export default function AuthWrapper({ children }) {
         if (error) throw error;
         console.log('✅ Sign in successful:', data.user?.email);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Authentication error:', error);
       
-      // User-friendly error messages
       let errorMessage = error.message;
       if (error.message.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please check your credentials.';
@@ -150,23 +186,16 @@ export default function AuthWrapper({ children }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       console.log('✅ Sign out successful');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Sign out error:', error);
       Alert.alert('Error', error.message);
     }
   };
 
-  // Loading state
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>🔐 Checking authentication...</Text>
-        <Text style={styles.loadingSubtext}>Firebase-Free • Supabase-Powered</Text>
-      </View>
-    );
+    return <AuthLoadingScreen />;
   }
 
-  // No user - show auth screen
   if (!user) {
     return (
       <View style={styles.authContainer}>
@@ -232,7 +261,6 @@ export default function AuthWrapper({ children }) {
     );
   }
 
-  // User authenticated - show main app
   return (
     <View style={styles.appContainer}>
       <View style={styles.userBar}>
