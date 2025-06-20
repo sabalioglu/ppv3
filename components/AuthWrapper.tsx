@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { validateAndFixAuth, debugAuthState } from '../utils/authDebug';
-import OnboardingScreen from '../screens/OnboardingScreen';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
 }
 
-// ✅ Cleaned loading screen - removed Firebase messaging
 const AuthLoadingScreen = () => (
   <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color="#22C55E" />
     <Text style={styles.loadingText}>🔐 Checking authentication...</Text>
+    <Text style={styles.loadingSubtext}>AI Food Pantry • Production-Ready</Text>
   </View>
 );
 
@@ -22,13 +21,13 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
   const [email, setEmail] = useState('test@example.com');
   const [password, setPassword] = useState('password123');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
     console.log('🔐 AuthWrapper: Starting authentication check...');
     
     let mounted = true;
     
+    // 🔧 Refresh token hatalarını otomatik yakala ve temizle
     validateAndFixAuth();
 
     // Initial session check
@@ -37,17 +36,11 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
       if (error) {
         console.error('❌ Session check error:', error);
-        setLoading(false);
       } else {
         console.log('✅ Initial session:', session?.user?.email || 'No authenticated user');
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          checkProfileCompleteness(session.user.id, mounted);
-        } else {
-          setLoading(false);
-        }
       }
+      setLoading(false);
     });
 
     // Auth state listener
@@ -60,12 +53,9 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
         
         if (session?.user) {
           await createUserProfileIfNeeded(session.user);
-          checkProfileCompleteness(session.user.id, mounted);
-        } else {
-          setIsProfileComplete(false);
-          setLoading(false);
         }
         
+        // 🚨 Token refresh başarısızlığını yakala ve temizle
         if (event === 'TOKEN_REFRESHED' && !session) {
           console.log('🚨 Token refresh failed, clearing auth state...');
           validateAndFixAuth();
@@ -73,13 +63,22 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       }
     );
 
-    // Development debug helpers
+    // 🛠️ Development debug helpers
     if (__DEV__ && typeof window !== 'undefined') {
       (window as any).debugAuth = debugAuthState;
       (window as any).clearAuth = async () => {
         const { clearAuthState } = await import('../utils/authDebug');
         await clearAuthState();
         setUser(null);
+      };
+      (window as any).testUILogout = async () => {
+        try {
+          console.log('🚪 Testing logout from AuthWrapper...');
+          await signOut();
+          console.log('✅ AuthWrapper logout completed');
+        } catch (error) {
+          console.error('❌ AuthWrapper logout error:', error);
+        }
       };
     }
 
@@ -89,37 +88,6 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       subscription.unsubscribe();
     };
   }, []);
-
-  const checkProfileCompleteness = async (userId: string, mounted: boolean) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('user_profiles')
-        .select('age, gender, height, weight, activity_level')
-        .eq('id', userId)
-        .single();
-
-      if (!mounted) return;
-
-      if (error) {
-        console.error("Error checking profile completeness:", error);
-        setIsProfileComplete(false);
-      } else if (profile && 
-                 profile.age !== null && 
-                 profile.gender !== null &&
-                 profile.height !== null &&
-                 profile.weight !== null &&
-                 profile.activity_level !== null) {
-        setIsProfileComplete(true);
-      } else {
-        setIsProfileComplete(false);
-      }
-    } catch (err) {
-      console.error("Critical error checking profile completeness:", err);
-      setIsProfileComplete(false);
-    } finally {
-      if (mounted) setLoading(false);
-    }
-  };
 
   const createUserProfileIfNeeded = async (user: any) => {
     try {
@@ -146,12 +114,16 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
             email: user.email,
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
             created_at: new Date().toISOString(),
-            dietary_preferences: [],
+            dietary_preferences: {},
             notification_settings: {
               expiry_alerts: true,
               recipe_suggestions: true,
               shopping_reminders: true
             },
+            daily_calorie_goal: 2000,
+            daily_protein_goal: 120,
+            daily_carb_goal: 275,
+            daily_fat_goal: 85,
             streak_days: 0
           });
 
@@ -224,8 +196,10 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 Signing out from AuthWrapper...');
+      console.log('🚪 Signing out from UI button...');
+      console.log('🔍 Current user before logout:', user?.email);
       
+      // 1. Supabase logout
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('❌ Supabase logout error:', error);
@@ -233,9 +207,11 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
         console.log('✅ Supabase logout successful');
       }
       
+      // 2. Force local state clear
+      console.log('🧹 Force clearing user state...');
       setUser(null);
-      setIsProfileComplete(false);
       
+      // 3. Storage temizle
       if (typeof window !== 'undefined') {
         try {
           localStorage.clear();
@@ -246,21 +222,28 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
         }
       }
       
+      // 4. 🔥 WEB-SPECIFIC: Page reload for complete state reset
       if (Platform.OS === 'web') {
         console.log('🔄 Reloading page for complete logout on web...');
         setTimeout(() => {
           window.location.reload();
-        }, 500);
+        }, 500); // Small delay to allow console logs
       }
+      
+      console.log('✅ Logout process completed');
       
     } catch (error: any) {
       console.error('❌ Sign out error:', error);
+      
+      // Force logout even on error
+      console.log('🚨 Force logout due to error');
       setUser(null);
-      setIsProfileComplete(false);
       
       if (Platform.OS === 'web') {
         window.location.reload();
       }
+      
+      Alert.alert('Logout Notice', 'You have been signed out. Please refresh if needed.');
     }
   };
 
@@ -273,7 +256,9 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       <View style={styles.authContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>🍽️ AI Food Pantry</Text>
-          {/* ✅ Removed Firebase messaging */}
+          <Text style={styles.subtitle}>
+            Smart Food Management • AI-Powered • Production-Ready
+          </Text>
           <Text style={styles.instruction}>
             {isSignUp 
               ? 'Create your account to start managing your food inventory'
@@ -320,17 +305,18 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
               {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
             </Text>
           </TouchableOpacity>
+
+          {Platform.OS === 'web' && (
+            <Text style={styles.webNote}>
+              💡 Running on web platform with full functionality
+            </Text>
+          )}
         </View>
       </View>
     );
   }
 
-  // User authenticated but profile incomplete - show onboarding
-  if (!isProfileComplete) {
-    return <OnboardingScreen userId={user.id} onComplete={() => setIsProfileComplete(true)} />;
-  }
-
-  // User authenticated and profile complete - show main app
+  // 🔥 CLEAN RETURN - Welcome bar tamamen kaldırıldı
   return (
     <View style={styles.appContainer}>
       {children}
@@ -350,6 +336,11 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontWeight: '600',
   },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
+  },
   authContainer: {
     flex: 1,
     padding: 24,
@@ -365,6 +356,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   instruction: {
     fontSize: 14,
@@ -417,6 +414,13 @@ const styles = StyleSheet.create({
     color: '#6366f1',
     fontSize: 14,
     fontWeight: '500',
+  },
+  webNote: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 16,
+    fontStyle: 'italic',
   },
   appContainer: {
     flex: 1,
