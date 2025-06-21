@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -8,9 +8,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [initialRoute, setInitialRoute] = useState<string | null>(null);
   const router = useRouter();
   const segments = useSegments();
-  const navigationState = useRootNavigationState();
   const { theme } = useTheme();
 
   useEffect(() => {
@@ -36,10 +36,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    // Navigation hazır olana kadar bekle
-    if (!navigationState?.key) return;
-
-    if (!isLoading) {
+    // Navigation logic - useRootNavigationState kullanmadan
+    if (!isLoading && initialRoute === null) {
       const inAuthGroup = segments[0] === '(auth)';
       const inTabsGroup = segments[0] === '(tabs)';
       
@@ -51,21 +49,34 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         inTabsGroup
       });
 
+      let targetRoute = null;
+
+      if (!isAuthenticated) {
+        // Giriş yapmamış
+        targetRoute = '/(auth)/login';
+      } else if (!isProfileComplete) {
+        // Profil eksik
+        targetRoute = '/(auth)/onboarding';
+      } else {
+        // Her şey tamam
+        targetRoute = '/(tabs)';
+      }
+
+      setInitialRoute(targetRoute);
+
+      // Sadece gerekli durumlarda yönlendir
       if (!isAuthenticated && !inAuthGroup) {
-        // Giriş yapmamış ve auth grubunda değil
         console.log('➡️ Redirecting to login');
         router.replace('/(auth)/login');
       } else if (isAuthenticated && !isProfileComplete && segments[1] !== 'onboarding') {
-        // Giriş yapmış ama profil eksik
         console.log('➡️ Redirecting to onboarding');
         router.replace('/(auth)/onboarding');
       } else if (isAuthenticated && isProfileComplete && !inTabsGroup) {
-        // Her şey tamam, ana uygulamaya git
         console.log('➡️ Redirecting to main app');
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isProfileComplete, isLoading, segments, navigationState, router]);
+  }, [isAuthenticated, isProfileComplete, isLoading, segments, router, initialRoute]);
 
   const checkAuth = async () => {
     try {
@@ -146,12 +157,13 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       }
 
       // Profil tamamlanmış mı kontrol et
+      // Not: Eski kodda height_cm ve weight_kg kullanılıyordu
       const isComplete = !!(
         profile && 
         profile.age && 
         profile.gender && 
-        profile.height && 
-        profile.weight &&
+        (profile.height || profile.height_cm) && 
+        (profile.weight || profile.weight_kg) &&
         profile.activity_level &&
         profile.health_goals
       );
@@ -175,7 +187,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
 
-  // Children'ı render et (navigation effect'ler halledecek)
+  // Children'ı render et
   return <>{children}</>;
 }
 
