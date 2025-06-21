@@ -38,11 +38,32 @@ export default function LoginScreen() {
         Alert.alert('Success', 'Check your email for confirmation!');
         setIsSignUp(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        // SIGN IN
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
         if (error) throw error;
+        
+        // ✅ LOGIN BAŞARILI - YÖNLENDİRME EKLE!
+        if (data.user) {
+          console.log('✅ Login successful!');
+          
+          // Profile kontrolü
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('age, gender, height_cm, weight_kg')
+            .eq('id', data.user.id)
+            .single();
+          
+          // Yönlendirme
+          if (!profile?.age || !profile?.gender) {
+            router.replace('/(auth)/onboarding');
+          } else {
+            router.replace('/(tabs)');
+          }
+        }
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
