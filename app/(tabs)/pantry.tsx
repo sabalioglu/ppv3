@@ -12,6 +12,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import {
   Plus,
@@ -24,10 +25,15 @@ import {
   Camera,
   Barcode,
   Clock,
+  MapPin,
+  TrendingUp,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
+import { colors } from '@/lib/theme';
 import type { Theme } from '@/lib/theme';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 interface PantryItem {
   id: string;
@@ -251,31 +257,33 @@ export default function PantryScreen() {
         key={item.id}
         style={styles.itemCard}
         onLongPress={() => handleDeleteItem(item.id)}
+        activeOpacity={0.7}
       >
         <View style={styles.itemHeader}>
-          <View>
+          <View style={styles.itemInfo}>
             <Text style={styles.itemName}>{item.name}</Text>
             {item.brand && <Text style={styles.itemBrand}>{item.brand}</Text>}
           </View>
           <View style={styles.itemQuantity}>
-            <Text style={styles.quantityText}>{item.quantity} {item.unit}</Text>
+            <Text style={styles.quantityText}>{item.quantity}</Text>
+            <Text style={styles.quantityUnit}>{item.unit}</Text>
           </View>
         </View>
 
         <View style={styles.itemDetails}>
           <View style={styles.itemMeta}>
-            <Package size={14} color={theme.colors.textSecondary} />
+            <MapPin size={12} color={theme.colors.textSecondary} />
             <Text style={styles.metaText}>{item.location}</Text>
           </View>
 
           {item.expiry_date && (
-            <View style={[styles.itemMeta, { marginLeft: 16 }]}>
-              <Calendar size={14} color={expiryColor} />
+            <View style={[styles.itemMeta, styles.expiryMeta]}>
+              <Calendar size={12} color={expiryColor} />
               <Text style={[styles.metaText, { color: expiryColor }]}>
                 {daysUntilExpiry === 0
                   ? 'Expires today'
                   : daysUntilExpiry === 1
-                  ? 'Expires tomorrow'
+                  ? 'Tomorrow'
                   : daysUntilExpiry && daysUntilExpiry > 0
                   ? `${daysUntilExpiry} days`
                   : 'Expired'}
@@ -284,10 +292,8 @@ export default function PantryScreen() {
           )}
         </View>
 
-        {daysUntilExpiry !== null && daysUntilExpiry <= 3 && (
-          <View style={[styles.expiryBadge, { backgroundColor: expiryColor }]}>
-            <AlertTriangle size={12} color="white" />
-          </View>
+        {daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry >= 0 && (
+          <View style={[styles.expiryIndicator, { backgroundColor: expiryColor }]} />
         )}
       </TouchableOpacity>
     );
@@ -307,7 +313,10 @@ export default function PantryScreen() {
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add New Item</Text>
-            <TouchableOpacity onPress={() => setShowAddModal(false)}>
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(false)}
+              style={styles.modalCloseButton}
+            >
               <X size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -459,60 +468,71 @@ export default function PantryScreen() {
       marginTop: 12,
       fontSize: 16,
       color: theme.colors.textSecondary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: Platform.OS === 'ios' ? 50 : 30,
-      paddingBottom: theme.spacing.md,
+      paddingHorizontal: 20,
+      paddingTop: Platform.OS === 'ios' ? 60 : 40,
+      paddingBottom: 20,
       backgroundColor: theme.colors.surface,
-      ...theme.shadows.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
     },
     headerTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
+      fontSize: 32,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
+      letterSpacing: -0.5,
     },
     headerAddButton: {
-      backgroundColor: theme.colors.buttonPrimary,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      backgroundColor: theme.colors.primary,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       justifyContent: 'center',
       alignItems: 'center',
-      ...theme.shadows.md,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
     },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-      marginHorizontal: theme.spacing.lg,
-      marginTop: theme.spacing.md,
-      paddingHorizontal: theme.spacing.md,
-      borderRadius: 12,
-      ...theme.shadows.sm,
+      backgroundColor: isDark ? theme.colors.surface : colors.neutral[100],
+      marginHorizontal: 20,
+      marginTop: 20,
+      paddingHorizontal: 16,
+      borderRadius: 16,
+      height: 48,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     searchInput: {
       flex: 1,
-      paddingVertical: 12,
-      paddingLeft: 8,
+      paddingVertical: 8,
+      paddingLeft: 12,
       fontSize: 16,
       color: theme.colors.textPrimary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     categoriesHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: theme.spacing.lg,
-      marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.xs,
+      paddingHorizontal: 20,
+      marginTop: 24,
+      marginBottom: 12,
     },
     categoriesTitle: {
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: '600',
       color: theme.colors.textPrimary,
+      letterSpacing: -0.3,
     },
     clearFilter: {
       fontSize: 14,
@@ -520,64 +540,78 @@ export default function PantryScreen() {
       fontWeight: '500',
     },
     categoriesContainer: {
-      paddingHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.sm,
+      paddingLeft: 20,
+      marginBottom: 16,
+      height: 44,
     },
     categoryTab: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      marginRight: 8,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surface,
-      ...theme.shadows.sm,
+      paddingHorizontal: 20,
+      marginRight: 12,
+      borderRadius: 22,
+      backgroundColor: isDark ? theme.colors.surface : colors.neutral[100],
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     categoryTabActive: {
-      backgroundColor: theme.colors.categoryActive,
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
     },
     categoryContent: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     categoryEmoji: {
-      fontSize: 16,
-      marginRight: 4,
+      fontSize: 18,
+      marginRight: 8,
     },
     categoryTabText: {
       fontSize: 14,
-      fontWeight: '500',
-      color: theme.colors.categoryInactive,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      letterSpacing: -0.2,
     },
     categoryTabTextActive: {
-      color: theme.colors.textOnPrimary,
+      color: '#FFFFFF',
     },
     categoryBadge: {
-      backgroundColor: theme.colors.categoryBadge,
-      paddingHorizontal: 6,
+      backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300],
+      paddingHorizontal: 8,
       paddingVertical: 2,
-      borderRadius: 10,
-      marginLeft: 6,
-      minWidth: 20,
+      borderRadius: 12,
+      marginLeft: 8,
+      minWidth: 24,
+      height: 20,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     categoryBadgeActive: {
-      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
     },
     categoryBadgeText: {
       fontSize: 11,
-      fontWeight: '600',
+      fontWeight: '700',
       color: theme.colors.textSecondary,
     },
     categoryBadgeTextActive: {
-      color: theme.colors.textOnPrimary,
+      color: '#FFFFFF',
     },
     statsBar: {
       flexDirection: 'row',
       backgroundColor: theme.colors.surface,
-      marginHorizontal: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-      padding: theme.spacing.md,
-      borderRadius: 12,
-      ...theme.shadows.sm,
+      marginHorizontal: 20,
+      marginBottom: 20,
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     statItem: {
       flex: 1,
@@ -586,59 +620,80 @@ export default function PantryScreen() {
     statDivider: {
       width: 1,
       backgroundColor: theme.colors.borderLight,
-      marginHorizontal: theme.spacing.md,
+      marginHorizontal: 16,
     },
     statValue: {
-      fontSize: 18,
-      fontWeight: 'bold',
+      fontSize: 24,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
-      marginVertical: 4,
+      marginTop: 4,
     },
     statLabel: {
       fontSize: 11,
       color: theme.colors.textSecondary,
+      marginTop: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontWeight: '600',
     },
     itemsList: {
       flex: 1,
-      paddingHorizontal: theme.spacing.lg,
+      paddingHorizontal: 20,
     },
     itemsGrid: {
-      paddingTop: theme.spacing.md,
+      paddingTop: 8,
       paddingBottom: 100,
     },
     itemCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.sm,
-      ...theme.shadows.sm,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      position: 'relative',
+      overflow: 'hidden',
     },
     itemHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 8,
+      marginBottom: 12,
+    },
+    itemInfo: {
+      flex: 1,
+      marginRight: 12,
     },
     itemName: {
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: '600',
       color: theme.colors.textPrimary,
+      letterSpacing: -0.3,
+      marginBottom: 2,
     },
     itemBrand: {
       fontSize: 14,
       color: theme.colors.textSecondary,
-      marginTop: 2,
+      letterSpacing: -0.2,
     },
     itemQuantity: {
-      backgroundColor: theme.colors.surfaceVariant,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: 8,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'baseline',
     },
     quantityText: {
-      fontSize: 14,
-      fontWeight: '500',
+      fontSize: 16,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
+    },
+    quantityUnit: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginLeft: 4,
+      fontWeight: '500',
     },
     itemDetails: {
       flexDirection: 'row',
@@ -648,65 +703,77 @@ export default function PantryScreen() {
       flexDirection: 'row',
       alignItems: 'center',
     },
+    expiryMeta: {
+      marginLeft: 16,
+    },
     metaText: {
       fontSize: 12,
       color: theme.colors.textSecondary,
-      marginLeft: 4,
+      marginLeft: 6,
+      fontWeight: '500',
     },
-    expiryBadge: {
+    expiryIndicator: {
       position: 'absolute',
-      top: 12,
-      right: 12,
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
+      top: 0,
+      right: 0,
+      width: 4,
+      height: '100%',
     },
     emptyState: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingTop: 100,
+      paddingTop: 60,
     },
     emptyText: {
       fontSize: 18,
       fontWeight: '600',
       color: theme.colors.textPrimary,
       marginTop: 16,
+      letterSpacing: -0.3,
     },
     emptySubtext: {
       fontSize: 14,
       color: theme.colors.textSecondary,
-      marginTop: 8,
+      marginTop: 6,
+      letterSpacing: -0.2,
     },
     modalContainer: {
       flex: 1,
-      backgroundColor: theme.colors.overlay,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
     },
     modalContent: {
       backgroundColor: theme.colors.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingTop: theme.spacing.lg,
-      paddingHorizontal: theme.spacing.lg,
-      paddingBottom: Platform.OS === 'ios' ? 34 : theme.spacing.lg,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingTop: 24,
+      paddingHorizontal: 24,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 24,
       maxHeight: '90%',
     },
     modalHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: theme.spacing.lg,
+      marginBottom: 24,
     },
     modalTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
+      fontSize: 24,
+      fontWeight: '700',
       color: theme.colors.textPrimary,
+      letterSpacing: -0.5,
+    },
+    modalCloseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     formGroup: {
-      marginBottom: theme.spacing.md,
+      marginBottom: 20,
     },
     formRow: {
       flexDirection: 'row',
@@ -715,25 +782,27 @@ export default function PantryScreen() {
       fontSize: 14,
       fontWeight: '600',
       color: theme.colors.textPrimary,
-      marginBottom: 8,
+      marginBottom: 10,
+      letterSpacing: -0.2,
     },
     input: {
-      backgroundColor: theme.colors.inputBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      borderRadius: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
       fontSize: 16,
       color: theme.colors.textPrimary,
+      fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
     pickerContainer: {
-      backgroundColor: theme.colors.inputBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      borderRadius: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
     },
     pickerText: {
       fontSize: 16,
@@ -741,86 +810,97 @@ export default function PantryScreen() {
     },
     categoryPicker: {
       flexDirection: 'row',
-      gap: 8,
+      paddingRight: 20,
     },
     categoryChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surfaceVariant,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderRadius: 24,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
       borderWidth: 2,
-      borderColor: theme.colors.border,
-      marginRight: 8,
+      borderColor: 'transparent',
+      marginRight: 10,
     },
     categoryChipActive: {
       borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary + '10',
+      backgroundColor: theme.colors.primary + '15',
     },
     categoryLabel: {
       fontSize: 14,
-      fontWeight: '500',
+      fontWeight: '600',
       color: theme.colors.textSecondary,
-      marginLeft: 6,
+      marginLeft: 8,
+      letterSpacing: -0.2,
     },
     categoryLabelActive: {
       color: theme.colors.primary,
     },
     locationPicker: {
       flexDirection: 'row',
-      gap: 8,
+      paddingRight: 20,
     },
     locationChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 8,
-      backgroundColor: theme.colors.surfaceVariant,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      marginRight: 8,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      marginRight: 10,
     },
     locationChipActive: {
       borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary + '10',
+      backgroundColor: theme.colors.primary + '15',
     },
     locationText: {
       fontSize: 14,
+      fontWeight: '500',
       color: theme.colors.textSecondary,
+      letterSpacing: -0.2,
     },
     locationTextActive: {
       color: theme.colors.primary,
-      fontWeight: '500',
+      fontWeight: '600',
     },
     modalActions: {
       flexDirection: 'row',
       gap: 12,
-      marginTop: theme.spacing.xl,
+      marginTop: 32,
     },
     cancelButton: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
-      borderWidth: 1,
+      paddingVertical: 16,
+      borderRadius: 14,
+      borderWidth: 1.5,
       borderColor: theme.colors.border,
       alignItems: 'center',
+      backgroundColor: 'transparent',
     },
     cancelButtonText: {
       fontSize: 16,
       fontWeight: '600',
       color: theme.colors.textSecondary,
+      letterSpacing: -0.3,
     },
     addButton: {
       flex: 1,
-      backgroundColor: theme.colors.buttonPrimary,
-      paddingVertical: 14,
-      borderRadius: 12,
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 16,
+      borderRadius: 14,
       alignItems: 'center',
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
     },
     addButtonText: {
       fontSize: 16,
       fontWeight: '600',
-      color: theme.colors.textOnPrimary,
+      color: '#FFFFFF',
+      letterSpacing: -0.3,
     },
   });
 
@@ -841,8 +921,9 @@ export default function PantryScreen() {
         <TouchableOpacity
           style={styles.headerAddButton}
           onPress={() => setShowAddModal(true)}
+          activeOpacity={0.8}
         >
-          <Plus size={20} color={theme.colors.textOnPrimary} />
+          <Plus size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -873,6 +954,7 @@ export default function PantryScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.categoriesContainer}
+        contentContainerStyle={{ paddingRight: 20 }}
       >
         {CATEGORIES.map((category) => {
           const count = categoryStats[category.key] || 0;
@@ -886,6 +968,7 @@ export default function PantryScreen() {
                 isActive && styles.categoryTabActive,
               ]}
               onPress={() => setSelectedCategory(category.key)}
+              activeOpacity={0.7}
             >
               <View style={styles.categoryContent}>
                 <Text style={styles.categoryEmoji}>{category.emoji}</Text>
@@ -919,28 +1002,28 @@ export default function PantryScreen() {
       {/* Quick Stats Bar */}
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
-          <Package size={16} color={theme.colors.primary} />
+          <Package size={18} color={theme.colors.primary} />
           <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
-          <Text style={styles.statLabel}>Total Items</Text>
+          <Text style={styles.statLabel}>Total</Text>
         </View>
         
         <View style={styles.statDivider} />
         
         <View style={styles.statItem}>
-          <AlertTriangle size={16} color={theme.colors.warning} />
+          <AlertTriangle size={18} color={theme.colors.warning} />
           <Text style={styles.statValue}>
             {items.filter(item => {
               const days = getDaysUntilExpiry(item.expiry_date || '');
               return days !== null && days <= 3 && days >= 0;
             }).length}
           </Text>
-          <Text style={styles.statLabel}>Expiring Soon</Text>
+          <Text style={styles.statLabel}>Expiring</Text>
         </View>
         
         <View style={styles.statDivider} />
         
         <View style={styles.statItem}>
-          <Clock size={16} color={theme.colors.error} />
+          <Clock size={18} color={theme.colors.error} />
           <Text style={styles.statValue}>
             {items.filter(item => {
               const days = getDaysUntilExpiry(item.expiry_date || '');
@@ -960,12 +1043,13 @@ export default function PantryScreen() {
             refreshing={refreshing}
             onRefresh={loadPantryItems}
             colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
       >
         {filteredItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <Package size={48} color={theme.colors.textSecondary} />
+            <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
               {searchQuery || selectedCategory !== 'all'
                 ? 'No items found'
