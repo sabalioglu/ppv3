@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
+import {
+  View,
+  Text,
   TextInput,
-  TouchableOpacity, 
-  StyleSheet, 
-  ScrollView, 
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
   Alert,
   Platform,
   ActivityIndicator,
@@ -28,6 +28,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   // Form data
   const [formData, setFormData] = useState({
     // Basic info
+    fullName: '', // 👈 YENİ ALAN
     age: '',
     gender: '',
     height: '',
@@ -83,8 +84,8 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   };
 
   const handleCompleteOnboarding = async () => {
-    // Validation
-    if (!formData.age || !formData.gender || !formData.height || !formData.weight || !formData.activityLevel) {
+    // Validation - fullName eklendi
+    if (!formData.fullName || !formData.age || !formData.gender || !formData.height || !formData.weight || !formData.activityLevel) {
       Alert.alert('Missing Information', 'Please complete all required fields.');
       setCurrentStep(0); // Go back to first step
       return;
@@ -92,8 +93,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
 
     setLoading(true);
     try {
-      // Build update data - only include fields that exist in database
+      // Build update data - full_name eklendi
       const updateData: any = {
+        full_name: formData.fullName.trim(), // 👈 YENİ
         age: parseInt(formData.age),
         gender: formData.gender,
         height_cm: parseInt(formData.height),
@@ -130,6 +132,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
           console.log('🔄 Retrying without optional fields...');
           
           const basicUpdateData = {
+            full_name: formData.fullName.trim(), // 👈 YENİ
             age: parseInt(formData.age),
             gender: formData.gender,
             height_cm: parseInt(formData.height),
@@ -226,6 +229,19 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   const renderPersonalInfo = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Let's get to know you! 👋</Text>
+      
+      {/* 👇 YENİ - Full Name Input */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Full Name *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your full name"
+          value={formData.fullName}
+          onChangeText={(value) => updateFormData('fullName', value)}
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      </View>
       
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Age *</Text>
@@ -539,7 +555,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
 
   const isStepValid = () => {
     switch (currentStep) {
-      case 0: return formData.age && formData.gender && formData.height && formData.weight;
+      case 0: return formData.fullName.trim().length >= 2 && formData.age && formData.gender && formData.height && formData.weight; // fullName validation eklendi
       case 1: return formData.activityLevel;
       default: return true; // Other steps are optional
     }
