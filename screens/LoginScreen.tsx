@@ -30,13 +30,38 @@ export default function LoginScreen() {
       setLoading(true);
 
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // SIGN UP
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
+        
         if (error) throw error;
-        Alert.alert('Success', 'Check your email for confirmation!');
-        setIsSignUp(false);
+        
+        // Email confirmation kontrolü
+        if (data?.user && !data.session) {
+          // Email confirmation gerekiyor
+          Alert.alert(
+            'Check Your Email! 📧',
+            'We sent you a confirmation link. Please check your email to activate your account.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Sign up modundan sign in moduna geç
+                  setIsSignUp(false);
+                  // Email ve password alanlarını temizle (opsiyonel)
+                  setEmail('');
+                  setPassword('');
+                }
+              }
+            ]
+          );
+        } else if (data?.user && data.session) {
+          // Email confirmation kapalı, direkt giriş yaptı
+          console.log('✅ Sign up successful, auto logged in');
+          router.replace('/(auth)/onboarding');
+        }
       } else {
         // SIGN IN
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -44,9 +69,34 @@ export default function LoginScreen() {
           password,
         });
         
-        if (error) throw error;
+        if (error) {
+          // Özel hata mesajları
+          if (error.message.includes('Email not confirmed')) {
+            Alert.alert(
+              'Email Not Confirmed',
+              'Please check your email and click the confirmation link before signing in.',
+              [
+                {
+                  text: 'Resend Email',
+                  onPress: async () => {
+                    const { error: resendError } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email,
+                    });
+                    if (!resendError) {
+                      Alert.alert('Email Sent', 'Confirmation email has been resent.');
+                    }
+                  }
+                },
+                { text: 'OK', style: 'cancel' }
+              ]
+            );
+            return;
+          }
+          throw error;
+        }
         
-        // ✅ LOGIN BAŞARILI - YÖNLENDİRME EKLE!
+        // ✅ LOGIN BAŞARILI
         if (data.user) {
           console.log('✅ Login successful!');
           
