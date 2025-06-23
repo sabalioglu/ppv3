@@ -13,10 +13,10 @@ export default function AuthCallback() {
   const handleCallback = async () => {
     try {
       console.log('🔄 Processing OAuth callback...');
-      console.log('📍 Current URL:', Platform.OS === 'web' ? window.location.href : 'mobile');
       
-      // Web'de URL fragment'ını kontrol et
-      if (Platform.OS === 'web') {
+      // Web'de ve client-side'da URL kontrolü
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        console.log('📍 Current URL:', window.location.href);
         const fragment = window.location.hash;
         console.log('🔍 URL Fragment:', fragment);
         
@@ -58,7 +58,7 @@ export default function AuthCallback() {
         console.log('⚠️ No session found');
         
         // URL'de access_token var mı kontrol et
-        if (Platform.OS === 'web' && window.location.hash.includes('access_token')) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
           console.log('🔄 Access token found in URL, waiting for Supabase to process...');
           
           // Supabase'in token'ı işlemesi için bekle
@@ -66,7 +66,9 @@ export default function AuthCallback() {
             const { data: { session: retrySession } } = await supabase.auth.getSession();
             if (retrySession) {
               console.log('✅ Session created on retry');
-              window.location.reload(); // Sayfayı yenile
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              }
             } else {
               console.log('❌ Still no session');
               router.replace('/(auth)/login');
