@@ -76,6 +76,38 @@ export const getCurrentUser = async () => {
   return { user, error };
 };
 
+// Google OAuth sign in
+export const signInWithGoogle = async () => {
+  try {
+    const redirectTo = Platform.select({
+      web: `${window.location.origin}/auth/callback`,
+      default: 'aifoodpantry://auth/callback'
+    });
+
+    console.log('🔗 Google OAuth redirect URL:', redirectTo);
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: Platform.OS !== 'web',
+      }
+    });
+
+    if (error) throw error;
+
+    // Web'de otomatik yönlendirme
+    if (Platform.OS === 'web' && data?.url) {
+      window.location.href = data.url;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('❌ Google sign in error:', error);
+    return { data: null, error };
+  }
+};
+
 // Database helper functions
 export const createUserProfile = async (profile: Database['public']['Tables']['user_profiles']['Insert']) => {
   const { data, error } = await supabase
