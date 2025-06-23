@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -11,34 +11,35 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
   const { theme } = useTheme();
 
   useEffect(() => {
-    // Callback route kontrolü - EN BAŞTA YAP
+    // Callback route kontrolü - pathname kullan
+    console.log('🔍 Current pathname:', pathname);
     console.log('🔍 Current segments:', segments);
     
-    // auth/callback route'undaysa hiçbir şey yapma
-    if (segments[0] === '(auth)' && segments[1] === 'callback') {
+    // Callback route'undaysa hiçbir şey yapma
+    if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In OAuth callback route, skipping auth check');
       setIsLoading(false);
       return;
     }
-    
+
     // İlk yüklemede auth durumunu kontrol et
     checkAuth();
-    
+
     // Auth state değişikliklerini dinle
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔐 Auth state changed:', _event, !!session);
       
       // Callback route'undaysa auth state değişikliklerini ignore et
-      if (segments[0] === '(auth)' && segments[1] === 'callback') {
+      if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
         console.log('🔄 Ignoring auth state change in callback route');
         return;
       }
-      
+
       setIsAuthenticated(!!session);
-      
       if (session) {
         await checkProfileCompleteness();
       } else {
@@ -50,24 +51,25 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       console.log('🧹 AuthWrapper: Cleaning up auth listener');
       authListener.subscription.unsubscribe();
     };
-  }, [segments]);
+  }, [pathname]);
 
   useEffect(() => {
     // Callback route'unda ise hiçbir şey yapma
-    if (segments[0] === '(auth)' && segments[1] === 'callback') {
+    if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In callback route, skipping navigation logic');
       return;
     }
 
     // Navigation logic
     if (!isLoading && initialRoute === null) {
-      const inAuthGroup = segments[0] === '(auth)';
-      const inTabsGroup = segments[0] === '(tabs)';
-      
+      const inAuthGroup = segments[0] === '(auth)' || segments[0] === 'auth';
+      const inTabsGroup = segments[0] === '(tabs)' || segments[0] === 'tabs';
+
       console.log('🧭 Navigation check:', {
         isAuthenticated,
         isProfileComplete,
         currentSegments: segments,
+        pathname,
         inAuthGroup,
         inTabsGroup
       });
@@ -99,7 +101,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isProfileComplete, isLoading, segments, router, initialRoute]);
+  }, [isAuthenticated, isProfileComplete, isLoading, segments, router, initialRoute, pathname]);
 
   const checkAuth = async () => {
     try {
@@ -116,7 +118,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       const isAuth = !!session;
       console.log('🔐 Auth check result:', isAuth);
       setIsAuthenticated(isAuth);
-      
+
       if (isAuth && session) {
         await checkProfileCompleteness();
       } else {
@@ -154,8 +156,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         if (profileError.code === 'PGRST116') {
           const { error: insertError } = await supabase
             .from('user_profiles')
-            .insert([{ 
-              id: user.id, 
+            .insert([{
+              id: user.id,
               email: user.email,
               full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
               created_at: new Date().toISOString(),
@@ -167,7 +169,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               },
               streak_days: 0
             }]);
-          
+
           if (insertError) {
             console.error('❌ Profile creation error:', insertError);
           } else {
@@ -181,10 +183,10 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       // Profil tamamlanmış mı kontrol et
       const isComplete = !!(
-        profile && 
-        profile.age && 
-        profile.gender && 
-        (profile.height || profile.height_cm) && 
+        profile &&
+        profile.age &&
+        profile.gender &&
+        (profile.height || profile.height_cm) &&
         (profile.weight || profile.weight_kg) &&
         profile.activity_level &&
         profile.health_goals
@@ -201,7 +203,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   };
 
   // Callback route'unda loading gösterme
-  if (isLoading && !(segments[0] === '(auth)' && segments[1] === 'callback')) {
+  if (isLoading && pathname !== '/auth/callback' && pathname !== '/(auth)/callback') {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
