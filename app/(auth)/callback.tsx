@@ -1,4 +1,3 @@
-// app/(auth)/callback.tsx
 import { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,18 +13,18 @@ export default function AuthCallback() {
   const handleCallback = async () => {
     try {
       console.log('🔄 Processing OAuth callback...');
+      console.log('📍 Current URL:', Platform.OS === 'web' ? window.location.href : 'mobile');
       
-      // Web'de hash parametrelerini kontrol et
+      // Web'de URL fragment'ını kontrol et
       if (Platform.OS === 'web') {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
+        const fragment = window.location.hash;
+        console.log('🔍 URL Fragment:', fragment);
         
-        if (accessToken) {
-          console.log('✅ Access token found in URL hash');
-        }
+        // Supabase'in session'ı URL'den almasını bekle
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      // Get the session from URL
+      // Session'ı kontrol et
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -34,10 +33,12 @@ export default function AuthCallback() {
         return;
       }
 
+      console.log('🔐 Session status:', session ? 'Found' : 'Not found');
+
       if (session) {
         console.log('✅ OAuth login successful!', session.user.email);
         
-        // Check if profile exists
+        // Profile kontrolü
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('age, gender, full_name')
@@ -54,19 +55,26 @@ export default function AuthCallback() {
           router.replace('/(tabs)/dashboard');
         }
       } else {
-        console.log('⚠️ No session found, checking auth state...');
+        console.log('⚠️ No session found');
         
-        // Biraz bekle ve tekrar kontrol et
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession) {
-            console.log('✅ Session found on retry');
-            router.replace('/(tabs)/dashboard');
-          } else {
-            console.log('❌ Still no session, redirecting to login');
-            router.replace('/(auth)/login');
-          }
-        }, 1000);
+        // URL'de access_token var mı kontrol et
+        if (Platform.OS === 'web' && window.location.hash.includes('access_token')) {
+          console.log('🔄 Access token found in URL, waiting for Supabase to process...');
+          
+          // Supabase'in token'ı işlemesi için bekle
+          setTimeout(async () => {
+            const { data: { session: retrySession } } = await supabase.auth.getSession();
+            if (retrySession) {
+              console.log('✅ Session created on retry');
+              window.location.reload(); // Sayfayı yenile
+            } else {
+              console.log('❌ Still no session');
+              router.replace('/(auth)/login');
+            }
+          }, 2000);
+        } else {
+          router.replace('/(auth)/login');
+        }
       }
     } catch (error) {
       console.error('❌ Auth callback error:', error);
