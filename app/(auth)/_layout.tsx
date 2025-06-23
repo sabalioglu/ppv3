@@ -27,6 +27,13 @@ export default function AuthLayout() {
           gestureEnabled: false,
         }}
       />
+      <Stack.Screen 
+        name="callback" 
+        options={{
+          title: 'Authenticating...',
+          gestureEnabled: false,
+        }}
+      />
     </Stack>
   );
 }
