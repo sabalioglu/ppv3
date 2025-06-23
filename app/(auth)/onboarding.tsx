@@ -1,6 +1,7 @@
 import React from 'react';
 import OnboardingScreen from '../../screens/OnboardingScreen';
 import { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
@@ -28,7 +29,12 @@ export default function OnboardingRoute() {
   };
 
   if (!userId) {
-    return <div>Loading user data...</div>;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#10b981" />
+        <Text style={{ marginTop: 10, color: '#6b7280' }}>Loading user data...</Text>
+      </View>
+    );
   }
 
   return <OnboardingScreen userId={userId} onComplete={handleComplete} />;
