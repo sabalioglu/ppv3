@@ -1,15 +1,19 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
-    "slug": "bolt-expo-nativewind",
+    "name": "AI Food Pantry",
+    "slug": "ai-food-pantry",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "pantrypal",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pantrypal.app"
+    },
+    "android": {
+      "package": "com.pantrypal.app"
     },
     "web": {
       "bundler": "metro",
@@ -23,9 +27,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "android": {
-      "package": "com.sabalioglu.boltexponativewind"
     }
   }
 }
