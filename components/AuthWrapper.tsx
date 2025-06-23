@@ -14,12 +14,29 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const { theme } = useTheme();
 
   useEffect(() => {
+    // Callback route kontrolü - EN BAŞTA YAP
+    console.log('🔍 Current segments:', segments);
+    
+    // auth/callback route'undaysa hiçbir şey yapma
+    if (segments[0] === '(auth)' && segments[1] === 'callback') {
+      console.log('🔄 In OAuth callback route, skipping auth check');
+      setIsLoading(false);
+      return;
+    }
+    
     // İlk yüklemede auth durumunu kontrol et
     checkAuth();
     
     // Auth state değişikliklerini dinle
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔐 Auth state changed:', _event, !!session);
+      
+      // Callback route'undaysa auth state değişikliklerini ignore et
+      if (segments[0] === '(auth)' && segments[1] === 'callback') {
+        console.log('🔄 Ignoring auth state change in callback route');
+        return;
+      }
+      
       setIsAuthenticated(!!session);
       
       if (session) {
@@ -33,13 +50,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       console.log('🧹 AuthWrapper: Cleaning up auth listener');
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [segments]);
 
   useEffect(() => {
     // Callback route'unda ise hiçbir şey yapma
-    if (segments.includes('callback')) {
-      console.log('🔄 In callback route, skipping navigation');
-      setIsLoading(false);
+    if (segments[0] === '(auth)' && segments[1] === 'callback') {
+      console.log('🔄 In callback route, skipping navigation logic');
       return;
     }
 
@@ -184,8 +200,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     }
   };
 
-  // Loading durumu
-  if (isLoading) {
+  // Callback route'unda loading gösterme
+  if (isLoading && !(segments[0] === '(auth)' && segments[1] === 'callback')) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
