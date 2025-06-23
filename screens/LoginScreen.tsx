@@ -34,6 +34,9 @@ export default function LoginScreen() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: 'https://warm-smakager-7badee.netlify.app/auth/callback'
+          }
         });
         
         if (error) throw error;
@@ -50,7 +53,7 @@ export default function LoginScreen() {
                 onPress: () => {
                   // Sign up modundan sign in moduna geç
                   setIsSignUp(false);
-                  // Email ve password alanlarını temizle (opsiyonel)
+                  // Email ve password alanlarını temizle
                   setEmail('');
                   setPassword('');
                 }
@@ -98,24 +101,33 @@ export default function LoginScreen() {
         
         // ✅ LOGIN BAŞARILI
         if (data.user) {
-          console.log('✅ Login successful!');
+          console.log('✅ Login successful for user:', data.user.id);
           
-          // Profile kontrolü
-          const { data: profile } = await supabase
+          // Profile kontrolü - maybeSingle() kullan
+          const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
-            .select('age, gender, height_cm, weight_kg')
+            .select('age, gender, height_cm, weight_kg, full_name')
             .eq('id', data.user.id)
-            .single();
+            .maybeSingle();
+          
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+          }
+          
+          console.log('Profile data:', profile);
           
           // Yönlendirme
-          if (!profile?.age || !profile?.gender) {
+          if (!profile || !profile.age || !profile.gender) {
+            console.log('➡️ Redirecting to onboarding...');
             router.replace('/(auth)/onboarding');
           } else {
-            router.replace('/(tabs)');
+            console.log('➡️ Redirecting to dashboard...');
+            router.replace('/(tabs)/dashboard');
           }
         }
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
