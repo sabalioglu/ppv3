@@ -155,18 +155,31 @@ export default function LoginScreen() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: Platform.select({
-            web: `${window.location.origin}/auth/callback`,
-            default: 'yourapp://auth/callback'
-          })
-        }
-      });
       
-      if (error) throw error;
+      // Web için özel handling
+      if (Platform.OS === 'web') {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+            skipBrowserRedirect: false
+          }
+        });
+        
+        if (error) throw error;
+      } else {
+        // Mobile için
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: 'pantrypal://auth/callback'
+          }
+        });
+        
+        if (error) throw error;
+      }
     } catch (error: any) {
+      console.error('Google sign in error:', error);
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
@@ -280,7 +293,7 @@ export default function LoginScreen() {
           disabled={loading}
         >
           <Image 
-            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
+            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png' }}
             style={styles.googleLogo}
             resizeMode="contain"
           />
