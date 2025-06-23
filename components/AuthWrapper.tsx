@@ -36,7 +36,14 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    // Navigation logic - useRootNavigationState kullanmadan
+    // Callback route'unda ise hiçbir şey yapma
+    if (segments.includes('callback')) {
+      console.log('🔄 In callback route, skipping navigation');
+      setIsLoading(false);
+      return;
+    }
+
+    // Navigation logic
     if (!isLoading && initialRoute === null) {
       const inAuthGroup = segments[0] === '(auth)';
       const inTabsGroup = segments[0] === '(tabs)';
@@ -157,7 +164,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       }
 
       // Profil tamamlanmış mı kontrol et
-      // Not: Eski kodda height_cm ve weight_kg kullanılıyordu
       const isComplete = !!(
         profile && 
         profile.age && 
