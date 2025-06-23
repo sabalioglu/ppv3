@@ -3,7 +3,10 @@ import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
+console.log('🎯 CALLBACK.TSX LOADED!');
+
 export default function AuthCallback() {
+  console.log('🎯 AuthCallback component rendered!');
   const router = useRouter();
 
   useEffect(() => {
