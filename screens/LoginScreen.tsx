@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
@@ -278,7 +279,11 @@ export default function LoginScreen() {
           onPress={handleGoogleSignIn}
           disabled={loading}
         >
-          <Text style={styles.googleIcon}>🔷</Text>
+          <Image 
+            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg' }}
+            style={styles.googleLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.googleText}>Continue with Google</Text>
         </TouchableOpacity>
 
@@ -389,21 +394,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#dadce0',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  googleIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  googleLogo: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
   },
   googleText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontWeight: '500',
+    color: '#3c4043',
   },
   switchButton: {
     marginTop: 16,
