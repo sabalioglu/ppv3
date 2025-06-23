@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -8,10 +10,17 @@ console.log('🎯 CALLBACK.TSX LOADED!');
 export default function AuthCallback() {
   console.log('🎯 AuthCallback component rendered!');
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    handleCallback();
+    setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      handleCallback();
+    }
+  }, [isClient]);
 
   const handleCallback = async () => {
     try {
@@ -24,7 +33,7 @@ export default function AuthCallback() {
         console.log('🔍 URL Fragment:', fragment);
         
         // Supabase'in session'ı URL'den almasını bekle
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
       
       // Session'ı kontrol et
@@ -86,6 +95,11 @@ export default function AuthCallback() {
       router.replace('/(auth)/login');
     }
   };
+
+  // SSR sırasında null döndür
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
