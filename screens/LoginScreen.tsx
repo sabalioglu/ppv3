@@ -18,16 +18,41 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isResetPassword, setIsResetPassword] = useState(false);
   const router = useRouter();
 
   const handleAuth = async () => {
-    if (!email || !password) {
+    if (!email || (!password && !isResetPassword)) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     try {
       setLoading(true);
+
+      if (isResetPassword) {
+        // PASSWORD RESET
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: 'https://warm-smakager-7badee.netlify.app/auth/reset-password',
+        });
+
+        if (error) throw error;
+
+        Alert.alert(
+          'Check Your Email! 📧',
+          'We sent you a password reset link. Please check your email.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setIsResetPassword(false);
+                setEmail('');
+              }
+            }
+          ]
+        );
+        return;
+      }
 
       if (isSignUp) {
         // SIGN UP
@@ -43,7 +68,6 @@ export default function LoginScreen() {
         
         // Email confirmation kontrolü
         if (data?.user && !data.session) {
-          // Email confirmation gerekiyor
           Alert.alert(
             'Check Your Email! 📧',
             'We sent you a confirmation link. Please check your email to activate your account.',
@@ -51,9 +75,7 @@ export default function LoginScreen() {
               {
                 text: 'OK',
                 onPress: () => {
-                  // Sign up modundan sign in moduna geç
                   setIsSignUp(false);
-                  // Email ve password alanlarını temizle
                   setEmail('');
                   setPassword('');
                 }
@@ -61,7 +83,6 @@ export default function LoginScreen() {
             ]
           );
         } else if (data?.user && data.session) {
-          // Email confirmation kapalı, direkt giriş yaptı
           console.log('✅ Sign up successful, auto logged in');
           router.replace('/(auth)/onboarding');
         }
@@ -73,7 +94,6 @@ export default function LoginScreen() {
         });
         
         if (error) {
-          // Özel hata mesajları
           if (error.message.includes('Email not confirmed')) {
             Alert.alert(
               'Email Not Confirmed',
@@ -99,11 +119,9 @@ export default function LoginScreen() {
           throw error;
         }
         
-        // ✅ LOGIN BAŞARILI
         if (data.user) {
           console.log('✅ Login successful for user:', data.user.id);
           
-          // Profile kontrolü - maybeSingle() kullan
           const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
             .select('age, gender, height_cm, weight_kg, full_name')
@@ -116,7 +134,6 @@ export default function LoginScreen() {
           
           console.log('Profile data:', profile);
           
-          // Yönlendirme
           if (!profile || !profile.age || !profile.gender) {
             console.log('➡️ Redirecting to onboarding...');
             router.replace('/(auth)/onboarding');
@@ -134,14 +151,73 @@ export default function LoginScreen() {
     }
   };
 
-  return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        <Text style={styles.title}>🍽️ AI Food Pantry</Text>
-        
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: Platform.select({
+            web: `${window.location.origin}/auth/callback`,
+            default: 'yourapp://auth/callback'
+          })
+        }
+      });
+      
+      if (error) throw error;
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderContent = () => {
+    if (isResetPassword) {
+      return (
+        <>
+          <Text style={styles.subtitle}>Reset Password</Text>
+          <Text style={styles.description}>
+            Enter your email and we'll send you a reset link
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#6b7280"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>Send Reset Link</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              setIsResetPassword(false);
+              setEmail('');
+            }}
+            style={styles.switchButton}
+          >
+            <Text style={styles.switchText}>Back to Sign In</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    return (
+      <>
         <Text style={styles.subtitle}>
           {isSignUp ? 'Create Account' : 'Welcome Back'}
         </Text>
@@ -165,6 +241,18 @@ export default function LoginScreen() {
           secureTextEntry
         />
 
+        {!isSignUp && (
+          <TouchableOpacity
+            onPress={() => {
+              setIsResetPassword(true);
+              setPassword('');
+            }}
+            style={styles.forgotButton}
+          >
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.button}
           onPress={handleAuth}
@@ -179,6 +267,21 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={handleGoogleSignIn}
+          disabled={loading}
+        >
+          <Text style={styles.googleIcon}>🔷</Text>
+          <Text style={styles.googleText}>Continue with Google</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => setIsSignUp(!isSignUp)}
           style={styles.switchButton}
@@ -187,6 +290,18 @@ export default function LoginScreen() {
             {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
           </Text>
         </TouchableOpacity>
+      </>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.content}>
+        <Text style={styles.title}>🍽️ AI Food Pantry</Text>
+        {renderContent()}
       </View>
     </KeyboardAvoidingView>
   );
@@ -215,6 +330,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     color: '#6b7280',
   },
+  description: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    marginTop: -20,
+    color: '#9ca3af',
+  },
   input: {
     backgroundColor: 'white',
     borderWidth: 1,
@@ -236,6 +358,52 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  forgotText: {
+    fontSize: 14,
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  googleIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  googleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
   },
   switchButton: {
     marginTop: 16,
