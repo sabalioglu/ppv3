@@ -91,6 +91,10 @@ export const signInWithGoogle = async () => {
       options: {
         redirectTo,
         skipBrowserRedirect: Platform.OS !== 'web',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
     });
 
@@ -98,7 +102,13 @@ export const signInWithGoogle = async () => {
 
     // Web'de otomatik yönlendirme
     if (Platform.OS === 'web' && data?.url) {
+      console.log('🌐 Redirecting to:', data.url);
       window.location.href = data.url;
+    }
+
+    // Mobil için URL'yi logla
+    if (Platform.OS !== 'web' && data?.url) {
+      console.log('📱 OAuth URL for mobile:', data.url);
     }
 
     return { data, error: null };
