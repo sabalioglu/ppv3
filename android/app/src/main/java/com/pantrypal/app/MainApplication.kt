@@ -1,4 +1,4 @@
-package com.smartpantry
+package com.pantrypal.app
 
 import android.app.Application
 import android.content.res.Configuration
