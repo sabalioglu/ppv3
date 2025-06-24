@@ -30,7 +30,7 @@ export default function AuthCallback() {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         const fragment = window.location.hash;
-        
+
         console.log('📍 Current URL:', window.location.href);
         console.log('📍 URL Params:', urlParams.toString());
         console.log('🔍 URL Fragment:', fragment);
@@ -42,17 +42,9 @@ export default function AuthCallback() {
       // Session'ı kontrol et
       const { data: { session }, error } = await supabase.auth.getSession();
 
-      if (error) {
-        console.error('❌ Callback error:', error);
-        router.replace('/(auth)/login');
-        return;
-      }
-
-      console.log('🔐 Session status:', session ? 'Found' : 'Not found');
-
-      if (!session) {
-        console.log('⚠️ No session found');
-        router.replace('/(auth)/login');
+      if (error || !session) {
+        console.error('❌ No session found or error:', error);
+        router.replace('/auth/login'); // Hata durumunda login'e yönlendirin
         return;
       }
 
@@ -67,7 +59,7 @@ export default function AuthCallback() {
 
       if (profileError) {
         console.error('❌ Profile fetch error:', profileError);
-        router.replace('/(auth)/login');
+        router.replace('/auth/login'); // Profil alınamazsa login'e yönlendir
         return;
       }
 
@@ -75,14 +67,14 @@ export default function AuthCallback() {
 
       if (!profile || !profile.age || !profile.gender) {
         console.log('➡️ Redirecting to onboarding...');
-        router.replace('/(auth)/onboarding');
+        router.replace('/auth/onboarding');
       } else {
         console.log('➡️ Redirecting to dashboard...');
-        router.replace('/(tabs)/dashboard');
+        router.replace('/tabs/dashboard');
       }
     } catch (error) {
       console.error('❌ Auth callback error:', error);
-      router.replace('/(auth)/login');
+      router.replace('/auth/login');
     }
   };
 
