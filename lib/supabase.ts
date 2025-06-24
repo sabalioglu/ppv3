@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -90,7 +90,7 @@ export const signInWithGoogle = async () => {
       provider: 'google',
       options: {
         redirectTo,
-        skipBrowserRedirect: Platform.OS !== 'web',
+        skipBrowserRedirect: true, // Mobil için her zaman true
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -106,9 +106,25 @@ export const signInWithGoogle = async () => {
       window.location.href = data.url;
     }
 
-    // Mobil için URL'yi logla
+    // Mobil için URL'yi aç
     if (Platform.OS !== 'web' && data?.url) {
-      console.log('📱 OAuth URL for mobile:', data.url);
+      console.log('📱 Opening OAuth URL in browser:', data.url);
+      
+      try {
+        const canOpen = await Linking.canOpenURL(data.url);
+        
+        if (canOpen) {
+          await Linking.openURL(data.url);
+          console.log('✅ Opened OAuth URL in browser');
+        } else {
+          console.error('❌ Cannot open URL:', data.url);
+          throw new Error('Cannot open authentication URL');
+        }
+      } catch (linkingError) {
+        console.error('❌ Linking error:', linkingError);
+        // Fallback: Try to open URL directly
+        await Linking.openURL(data.url);
+      }
     }
 
     return { data, error: null };
