@@ -3,7 +3,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 export default function AuthLayout() {
   const { theme } = useTheme();
-  
+
   return (
     <Stack
       screenOptions={{
@@ -32,6 +32,18 @@ export default function AuthLayout() {
         options={{
           title: 'Authenticating...',
           gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen 
+        name="home" 
+        options={{
+          title: 'Home',
+        }}
+      />
+      <Stack.Screen 
+        name="tabs" 
+        options={{
+          title: 'Tabs',
         }}
       />
     </Stack>
