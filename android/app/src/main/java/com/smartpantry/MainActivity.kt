@@ -1,4 +1,4 @@
-package com.helloworld
+package com.smartpantry
 
 import android.os.Build
 import android.os.Bundle
