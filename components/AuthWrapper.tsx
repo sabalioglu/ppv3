@@ -15,11 +15,11 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const { theme } = useTheme();
 
   useEffect(() => {
-    // Callback route kontrolü - pathname kullan
-    console.log('🔍 Current pathname:', pathname);
-    console.log('🔍 Current segments:', segments);
-    
-    // Callback route'undaysa hiçbir şey yapma
+    // Logları ekleyin
+    console.log('🔍 Current pathname:', pathname); // Mevcut pathname logu
+    console.log('🔍 Current segments:', segments); // Mevcut segments logu
+
+    // Callback route kontrolü
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In OAuth callback route, skipping auth check');
       setIsLoading(false);
@@ -32,7 +32,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     // Auth state değişikliklerini dinle
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔐 Auth state changed:', _event, !!session);
-      
+
       // Callback route'undaysa auth state değişikliklerini ignore et
       if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
         console.log('🔄 Ignoring auth state change in callback route');
@@ -40,6 +40,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       }
 
       setIsAuthenticated(!!session);
+
       if (session) {
         await checkProfileCompleteness();
       } else {
@@ -107,7 +108,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     try {
       console.log('🔍 Checking authentication...');
       const { data: { session }, error } = await supabase.auth.getSession();
-      
+
       if (error) {
         console.error('❌ Auth check error:', error);
         setIsAuthenticated(false);
@@ -135,7 +136,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     try {
       console.log('👤 Checking profile completeness...');
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         console.error('❌ User fetch error:', userError);
         setIsProfileComplete(false);
