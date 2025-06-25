@@ -23,7 +23,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In OAuth callback route, skipping auth check');
       setIsLoading(false);
-      return;
+      return <>{children}</>;
     }
 
     // İlk yüklemede auth durumunu kontrol et
