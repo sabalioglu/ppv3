@@ -16,19 +16,28 @@ import { supabase } from '../lib/supabase';
 
 interface OnboardingScreenProps {
   userId: string;
-  onComplete: () => void;
+  onComplete: (signupData?: any) => void;
+  isSignupFlow?: boolean;
 }
 
 const { width } = Dimensions.get('window');
 
-const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete }) => {
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ 
+  userId, 
+  onComplete,
+  isSignupFlow = false 
+}) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  
-  // Form data
+
+  // Form data - email ve password ekleyelim signup flow için
   const [formData, setFormData] = useState({
+    // Signup fields (only for signup flow)
+    email: '',
+    password: '',
+    
     // Basic info
-    fullName: '', // 👈 YENİ ALAN
+    fullName: '',
     age: '',
     gender: '',
     height: '',
@@ -46,8 +55,16 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
     preferredCookTime: ''
   });
 
-  // Quiz steps
-  const STEPS = [
+  // Quiz steps - signup flow için email/password adımı ekleyelim
+  const STEPS = isSignupFlow ? [
+    { id: 'account', title: 'Create Account', emoji: '📧' },
+    { id: 'personal', title: 'Personal Info', emoji: '👤' },
+    { id: 'activity', title: 'Activity Level', emoji: '🏃‍♂️' },
+    { id: 'goals', title: 'Health Goals', emoji: '🎯' },
+    { id: 'dietary', title: 'Dietary Preferences', emoji: '🍽️' },
+    { id: 'cooking', title: 'Cooking Style', emoji: '👩‍🍳' },
+    { id: 'cuisines', title: 'Favorite Cuisines', emoji: '🌍' }
+  ] : [
     { id: 'personal', title: 'Personal Info', emoji: '👤' },
     { id: 'activity', title: 'Activity Level', emoji: '🏃‍♂️' },
     { id: 'goals', title: 'Health Goals', emoji: '🎯' },
@@ -84,55 +101,45 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   };
 
   const handleCompleteOnboarding = async () => {
-    // Validation - fullName eklendi
-    if (!formData.fullName || !formData.age || !formData.gender || !formData.height || !formData.weight || !formData.activityLevel) {
+    // Validation
+    if (!formData.fullName || !formData.age || !formData.gender || 
+        !formData.height || !formData.weight || !formData.activityLevel) {
       Alert.alert('Missing Information', 'Please complete all required fields.');
-      setCurrentStep(0); // Go back to first step
+      setCurrentStep(isSignupFlow ? 1 : 0); // Go to personal info step
+      return;
+    }
+
+    // For signup flow, validate email and password
+    if (isSignupFlow && (!formData.email || !formData.password)) {
+      Alert.alert('Missing Information', 'Please provide email and password.');
+      setCurrentStep(0); // Go to account step
       return;
     }
 
     setLoading(true);
+
     try {
-      // Build update data - full_name eklendi
-      const updateData: any = {
-        full_name: formData.fullName.trim(), // 👈 YENİ
-        age: parseInt(formData.age),
-        gender: formData.gender,
-        height_cm: parseInt(formData.height),
-        weight_kg: parseFloat(formData.weight),
-        activity_level: formData.activityLevel,
-        health_goals: formData.healthGoals,
-        dietary_preferences: formData.dietaryPreferences,
-        dietary_restrictions: formData.allergies,
-        updated_at: new Date().toISOString(),
-      };
+      if (isSignupFlow) {
+        // Create account first
+        console.log('📝 Creating account...');
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName,
+            }
+          }
+        });
 
-      // Try to include optional fields
-      if (formData.cuisines.length > 0) {
-        updateData.cuisine_preferences = formData.cuisines;
-      }
-      if (formData.cookingExperience) {
-        updateData.cooking_skill_level = formData.cookingExperience;
-      }
+        if (authError) throw authError;
 
-      console.log('📤 Updating profile with:', updateData);
-
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .update(updateData)
-        .eq('id', userId)
-        .select();
-
-      if (error) {
-        console.error('❌ Supabase update error:', error);
-        
-        // Check if it's a column error
-        if (error.message && error.message.includes('column')) {
-          // Try again without the problematic fields
-          console.log('🔄 Retrying without optional fields...');
-          
-          const basicUpdateData = {
-            full_name: formData.fullName.trim(), // 👈 YENİ
+        if (authData.user) {
+          // Create profile
+          const profileData = {
+            id: authData.user.id,
+            email: formData.email,
+            full_name: formData.fullName.trim(),
             age: parseInt(formData.age),
             gender: formData.gender,
             height_cm: parseInt(formData.height),
@@ -140,57 +147,84 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
             activity_level: formData.activityLevel,
             health_goals: formData.healthGoals,
             dietary_preferences: formData.dietaryPreferences,
+            dietary_restrictions: formData.allergies,
+            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
 
-          const { data: retryData, error: retryError } = await supabase
+          const { error: profileError } = await supabase
             .from('user_profiles')
-            .update(basicUpdateData)
-            .eq('id', userId)
-            .select();
+            .insert([profileData]);
 
-          if (retryError) {
-            throw retryError;
+          if (profileError) {
+            console.error('❌ Profile creation error:', profileError);
+            // Continue anyway - profile can be updated later
           }
 
-          console.log('✅ Profile updated with basic fields:', retryData);
-          
-          // Still complete onboarding even with basic data
-          onComplete();
-          
-          setTimeout(() => {
-            Alert.alert(
-              '⚠️ Partial Save',
-              'Your basic profile was saved. Some preferences could not be saved due to system limitations.'
-            );
-          }, 100);
-          
-          return;
+          Alert.alert(
+            '🎉 Account Created!',
+            'Please check your email to verify your account, then sign in.',
+            [
+              {
+                text: 'OK',
+                onPress: () => onComplete({ email: formData.email })
+              }
+            ]
+          );
         }
-        
-        throw error;
-      }
+      } else {
+        // Update existing profile
+        const updateData: any = {
+          full_name: formData.fullName.trim(),
+          age: parseInt(formData.age),
+          gender: formData.gender,
+          height_cm: parseInt(formData.height),
+          weight_kg: parseFloat(formData.weight),
+          activity_level: formData.activityLevel,
+          health_goals: formData.healthGoals,
+          dietary_preferences: formData.dietaryPreferences,
+          dietary_restrictions: formData.allergies,
+          updated_at: new Date().toISOString(),
+        };
 
-      console.log('✅ Onboarding completed successfully:', data);
-      
-      // Complete onboarding
-      onComplete();
-      
-      // Show success message after navigation
-      setTimeout(() => {
+        // Add optional fields if available
+        if (formData.cuisines.length > 0) {
+          updateData.cuisine_preferences = formData.cuisines;
+        }
+        if (formData.cookingExperience) {
+          updateData.cooking_skill_level = formData.cookingExperience;
+        }
+
+        console.log('📤 Updating profile with:', updateData);
+
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(updateData)
+          .eq('id', userId);
+
+        if (error) {
+          console.error('❌ Profile update error:', error);
+          throw error;
+        }
+
+        console.log('✅ Profile updated successfully');
+        
         Alert.alert(
           '🎉 Welcome to AI Food Pantry!',
-          'Your profile is all set up. Let\'s start your nutrition journey!'
+          'Your profile is all set up. Let\'s start your nutrition journey!',
+          [
+            {
+              text: 'OK',
+              onPress: () => onComplete()
+            }
+          ]
         );
-      }, 100);
-      
+      }
     } catch (error: any) {
       console.error('❌ Error completing onboarding:', error);
-      
-      // Offer to skip onboarding if there's a persistent error
       Alert.alert(
         'Setup Error',
-        'We couldn\'t save your profile completely. Would you like to continue anyway?',
+        error.message || 'We couldn\'t save your profile. Please try again.',
         [
           {
             text: 'Try Again',
@@ -198,10 +232,8 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
           },
           {
             text: 'Continue Anyway',
-            onPress: () => {
-              console.log('⏭️ Skipping onboarding due to error');
-              onComplete();
-            }
+            onPress: () => onComplete(),
+            style: 'destructive'
           }
         ]
       );
@@ -213,11 +245,11 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   const renderProgressBar = () => (
     <View style={styles.progressContainer}>
       <View style={styles.progressBar}>
-        <View 
+        <View
           style={[
-            styles.progressFill, 
+            styles.progressFill,
             { width: `${((currentStep + 1) / STEPS.length) * 100}%` }
-          ]} 
+          ]}
         />
       </View>
       <Text style={styles.progressText}>
@@ -226,11 +258,46 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
     </View>
   );
 
+  const renderAccountCreation = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Create Your Account 📧</Text>
+      <Text style={styles.stepSubtitle}>Start your nutrition journey</Text>
+      
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Email *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter your email"
+          value={formData.email}
+          onChangeText={(value) => updateFormData('email', value)}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Password *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Create a password (min 6 characters)"
+          value={formData.password}
+          onChangeText={(value) => updateFormData('password', value)}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      </View>
+
+      <Text style={styles.helperText}>
+        You'll receive a confirmation email after signup
+      </Text>
+    </View>
+  );
+
   const renderPersonalInfo = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Let's get to know you! 👋</Text>
       
-      {/* 👇 YENİ - Full Name Input */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Full Name *</Text>
         <TextInput
@@ -242,7 +309,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
           autoCorrect={false}
         />
       </View>
-      
+
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Age *</Text>
         <TextInput
@@ -542,7 +609,13 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   );
 
   const renderCurrentStep = () => {
-    switch (currentStep) {
+    if (isSignupFlow && currentStep === 0) {
+      return renderAccountCreation();
+    }
+    
+    const adjustedStep = isSignupFlow ? currentStep - 1 : currentStep;
+    
+    switch (adjustedStep) {
       case 0: return renderPersonalInfo();
       case 1: return renderActivityLevel();
       case 2: return renderHealthGoals();
@@ -554,8 +627,16 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
   };
 
   const isStepValid = () => {
-    switch (currentStep) {
-      case 0: return formData.fullName.trim().length >= 2 && formData.age && formData.gender && formData.height && formData.weight; // fullName validation eklendi
+    if (isSignupFlow && currentStep === 0) {
+      // Email and password validation for signup
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return formData.email && emailRegex.test(formData.email) && formData.password && formData.password.length >= 6;
+    }
+    
+    const adjustedStep = isSignupFlow ? currentStep - 1 : currentStep;
+    
+    switch (adjustedStep) {
+      case 0: return formData.fullName.trim().length >= 2 && formData.age && formData.gender && formData.height && formData.weight;
       case 1: return formData.activityLevel;
       default: return true; // Other steps are optional
     }
@@ -565,11 +646,13 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🍽️ AI Food Pantry</Text>
-        <Text style={styles.headerSubtitle}>Let's personalize your experience</Text>
+        <Text style={styles.headerSubtitle}>
+          {isSignupFlow ? 'Create your account' : 'Let\'s personalize your experience'}
+        </Text>
         {renderProgressBar()}
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -579,7 +662,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
 
       <View style={styles.navigation}>
         {currentStep > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={prevStep}
           >
@@ -587,7 +670,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ userId, onComplete 
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.nextButton,
             !isStepValid() && styles.nextButtonDisabled,
@@ -693,6 +776,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 16,
     color: '#1f2937',
+  },
+  helperText: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 8,
+    textAlign: 'center',
   },
   pickerContainer: {
     backgroundColor: 'white',
