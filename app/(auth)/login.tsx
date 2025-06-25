@@ -41,17 +41,24 @@ export default function LoginScreen() {
       setIsLoading(true);
 
       if (isSignUpMode) {
-        // Sign up flow - SADECE email ve password
+        // Sign up flow
+        console.log('📝 [Login] Starting sign up process...');
+        console.log('⏰ [Login] Sign up start time:', new Date().toISOString());
+        
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          // options KALDIRILDI - full_name yok!
+        });
+
+        console.log('📋 [Login] Sign up result:', {
+          success: !!authData.user,
+          error: authError?.message || null,
+          userId: authData.user?.id
         });
 
         if (authError) throw authError;
 
         if (authData.user) {
-          // MANUEL PROFİL OLUŞTURMA KALDIRILDI - Trigger halledecek
           Alert.alert(
             '📧 Check Your Email!',
             'We\'ve sent you a verification email. Please verify your account before signing in.',
@@ -68,7 +75,18 @@ export default function LoginScreen() {
         }
       } else {
         // Sign in flow
+        console.log('🔐 [Login] Starting sign in process...');
+        console.log('⏰ [Login] Sign in start time:', new Date().toISOString());
+        
         const { data, error } = await signIn(email, password);
+        
+        console.log('📋 [Login] Sign in result:', {
+          success: !!data.session,
+          error: error?.message || null,
+          sessionId: data.session?.access_token ? 'Present' : 'Missing',
+          userId: data.session?.user?.id,
+          userEmail: data.session?.user?.email
+        });
 
         if (error) {
           // Email not confirmed hatası kontrolü
@@ -84,42 +102,71 @@ export default function LoginScreen() {
             Alert.alert('Error', error.message);
           }
         } else {
-          console.log('✅ Login successful');
+          console.log('✅ [Login] Login successful');
+          console.log('⏰ [Login] Before delay:', new Date().toISOString());
           
           // SESSION'IN HAZIR OLMASINI BEKLE
-          setTimeout(async () => {
-            // Session'ı manuel refresh et
-            await supabase.auth.refreshSession();
-          }, 100);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          console.log('⏰ [Login] After delay, before refresh:', new Date().toISOString());
+          
+          // Session'ı manuel refresh et
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          
+          console.log('📋 [Login] Refresh result:', {
+            success: !refreshError,
+            error: refreshError?.message || null
+          });
+          
+          if (!refreshError) {
+            console.log('✅ [Login] Session refreshed after login');
+          }
+          
+          console.log('⏰ [Login] Login process complete:', new Date().toISOString());
+          
+          // Verify session exists
+          const { data: { session } } = await supabase.auth.getSession();
+          console.log('🔍 [Login] Final session check:', {
+            hasSession: !!session,
+            userId: session?.user?.id,
+            email: session?.user?.email
+          });
           
           // Navigation will be handled by AuthWrapper
         }
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
+      console.error('❌ [Login] Auth error:', error);
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
+      console.log('🏁 [Login] Process finished, loading set to false');
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      console.log('🚀 Starting Google Sign In...');
-      console.log('📱 Platform:', Platform.OS);
+      console.log('🚀 [Login] Starting Google Sign In...');
+      console.log('📱 [Login] Platform:', Platform.OS);
+      console.log('⏰ [Login] Google sign in start:', new Date().toISOString());
 
       const { data, error } = await signInWithOAuth('google');
 
+      console.log('📋 [Login] Google sign in result:', {
+        success: !!data,
+        error: error?.message || null
+      });
+
       if (error) {
-        console.error('❌ Sign in error:', error);
+        console.error('❌ [Login] Sign in error:', error);
         Alert.alert('Sign In Error', error.message || 'Failed to sign in with Google');
       } else {
-        console.log('✅ Sign in initiated successfully');
+        console.log('✅ [Login] Sign in initiated successfully');
         // Navigation will be handled by AuthWrapper after callback
       }
     } catch (error: any) {
-      console.error('❌ Unexpected error:', error);
+      console.error('❌ [Login] Unexpected error:', error);
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -148,8 +195,6 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.form}>
-          {/* FULL NAME INPUT KALDIRILDI */}
-
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Ionicons
@@ -266,7 +311,6 @@ export default function LoginScreen() {
               onPress={() => {
                 setIsSignUpMode(!isSignUpMode);
                 setPassword('');
-                // fullName state'i kaldırıldı
               }}
             >
               <Text style={[styles.linkText, { color: theme.colors.primary }]}>
