@@ -35,15 +35,9 @@ export default function AuthLayout() {
         }}
       />
       <Stack.Screen 
-        name="home" 
+        name="reset-password" 
         options={{
-          title: 'Home',
-        }}
-      />
-      <Stack.Screen 
-        name="tabs" 
-        options={{
-          title: 'Tabs',
+          title: 'Reset Password',
         }}
       />
     </Stack>
