@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { signIn, signInWithGoogle } from '@/lib/supabase';
+import { signIn, signInWithOAuth } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function LoginScreen() {
@@ -39,7 +39,7 @@ export default function LoginScreen() {
         Alert.alert('Error', error.message);
       } else {
         console.log('✅ Login successful');
-        router.replace('/(tabs)/dashboard');
+        // Navigation will be handled by AuthWrapper
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -51,24 +51,22 @@ export default function LoginScreen() {
 
   const handleGoogleSignIn = async () => {
     try {
+      setIsLoading(true);
       console.log('🚀 Starting Google Sign In...');
       console.log('📱 Platform:', Platform.OS);
       
-      setIsLoading(true);
-      
-      const { data, error } = await signInWithGoogle();
-      
-      console.log('📊 Sign in result:', { data, error });
+      const { data, error } = await signInWithOAuth('google');
       
       if (error) {
         console.error('❌ Sign in error:', error);
-        Alert.alert('Error', error.message);
+        Alert.alert('Sign In Error', error.message || 'Failed to sign in with Google');
       } else {
-        console.log('✅ Sign in successful, data:', data);
+        console.log('✅ Sign in initiated successfully');
+        // Navigation will be handled by AuthWrapper after callback
       }
-    } catch (error) {
-      console.error('💥 Unexpected error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (error: any) {
+      console.error('❌ Unexpected error:', error);
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
