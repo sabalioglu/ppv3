@@ -41,6 +41,18 @@ const customStorage = {
   },
 };
 
+// Create redirect URL based on platform
+const getRedirectUrl = () => {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/auth/callback`;
+    }
+    return 'https://warm-smakager-7badee.netlify.app/auth/callback';
+  }
+  // For mobile, use the deep link
+  return Linking.createURL('auth/callback');
+};
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: customStorage,
@@ -76,15 +88,6 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
   const { data: { user }, error } = await supabase.auth.getUser();
   return { user, error };
-};
-
-// Create redirect URL based on platform
-const getRedirectUrl = () => {
-  if (Platform.OS === 'web') {
-    return `${window.location.origin}/auth/callback`;
-  }
-  // For mobile, use the deep link
-  return Linking.createURL('auth/callback');
 };
 
 // Custom sign in function for OAuth
@@ -129,20 +132,22 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
         redirectTo,
         {
           showInRecents: true,
-          createTask: true,
+          createTask: false,
         }
       );
 
       if (result.type === 'success' && result.url) {
         // Parse the URL to get tokens
         const parsedUrl = Linking.parse(result.url);
-        const params = parsedUrl.queryParams || {};
+        const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === 'callback' 
+          ? parsedUrl.queryParams 
+          : {};
         
-        if (params.access_token) {
+        if (fragment.access_token) {
           // Set the session manually
           await supabase.auth.setSession({
-            access_token: params.access_token as string,
-            refresh_token: (params.refresh_token as string) || '',
+            access_token: fragment.access_token as string,
+            refresh_token: (fragment.refresh_token as string) || '',
           });
         }
       }
@@ -155,7 +160,7 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   }
 };
 
-// Keep the old signInWithGoogle for backward compatibility
+// Keep the old function for backward compatibility
 export const signInWithGoogle = async () => {
   return signInWithOAuth('google');
 };
