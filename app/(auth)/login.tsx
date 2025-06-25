@@ -20,7 +20,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -33,11 +32,6 @@ export default function LoginScreen() {
       return;
     }
 
-    if (isSignUpMode && !fullName) {
-      Alert.alert('Error', 'Please enter your full name');
-      return;
-    }
-
     if (isSignUpMode && password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
@@ -47,42 +41,18 @@ export default function LoginScreen() {
       setIsLoading(true);
 
       if (isSignUpMode) {
-        // Sign up flow
+        // Sign up flow - SADECE email ve password
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              full_name: fullName,
-            }
-          }
+          // options KALDIRILDI - full_name yok!
         });
 
         if (authError) throw authError;
 
         if (authData.user) {
-          // Create initial profile
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert([{
-              id: authData.user.id,
-              email: email,
-              full_name: fullName.trim(),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              dietary_preferences: [],
-              notification_settings: {
-                expiry_alerts: true,
-                recipe_suggestions: true,
-                shopping_reminders: true
-              },
-              streak_days: 0
-            }]);
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
-
+          // MANUEL PROFİL OLUŞTURMA KALDIRILDI - Trigger halledecek
+          
           Alert.alert(
             '📧 Check Your Email!',
             'We\'ve sent you a verification email. Please verify your account before signing in.',
@@ -92,7 +62,6 @@ export default function LoginScreen() {
                 onPress: () => {
                   setIsSignUpMode(false);
                   setPassword('');
-                  setFullName('');
                 }
               }
             ]
@@ -162,27 +131,7 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.form}>
-          {/* Full Name Input (only for sign up) */}
-          {isSignUpMode && (
-            <View style={styles.inputContainer}>
-              <Ionicons
-                name="person-outline"
-                size={20}
-                color={theme.colors.textSecondary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="Full Name"
-                placeholderTextColor={theme.colors.textSecondary}
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
-          )}
+          {/* FULL NAME INPUT KALDIRILDI */}
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
@@ -300,7 +249,7 @@ export default function LoginScreen() {
               onPress={() => {
                 setIsSignUpMode(!isSignUpMode);
                 setPassword('');
-                setFullName('');
+                // fullName state'i kaldırıldı
               }}
             >
               <Text style={[styles.linkText, { color: theme.colors.primary }]}>
