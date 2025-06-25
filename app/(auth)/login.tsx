@@ -52,7 +52,6 @@ export default function LoginScreen() {
 
         if (authData.user) {
           // MANUEL PROFİL OLUŞTURMA KALDIRILDI - Trigger halledecek
-          
           Alert.alert(
             '📧 Check Your Email!',
             'We\'ve sent you a verification email. Please verify your account before signing in.',
@@ -73,7 +72,7 @@ export default function LoginScreen() {
 
         if (error) {
           // Email not confirmed hatası kontrolü
-          if (error.message.includes('Email not confirmed') || 
+          if (error.message.includes('Email not confirmed') ||
               error.message.includes('email_not_confirmed') ||
               error.message.includes('User account has not been verified')) {
             Alert.alert(
@@ -86,6 +85,13 @@ export default function LoginScreen() {
           }
         } else {
           console.log('✅ Login successful');
+          
+          // SESSION'IN HAZIR OLMASINI BEKLE
+          setTimeout(async () => {
+            // Session'ı manuel refresh et
+            await supabase.auth.refreshSession();
+          }, 100);
+          
           // Navigation will be handled by AuthWrapper
         }
       }
@@ -102,9 +108,9 @@ export default function LoginScreen() {
       setIsLoading(true);
       console.log('🚀 Starting Google Sign In...');
       console.log('📱 Platform:', Platform.OS);
-      
+
       const { data, error } = await signInWithOAuth('google');
-      
+
       if (error) {
         console.error('❌ Sign in error:', error);
         Alert.alert('Sign In Error', error.message || 'Failed to sign in with Google');
