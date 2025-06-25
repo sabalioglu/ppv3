@@ -30,6 +30,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     // Auth state değişikliklerini dinle
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔐 Auth state changed:', _event, !!session);
+      console.log('📊 Session details:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        email: session?.user?.email,
+        expiresAt: session?.expires_at
+      });
 
       // Callback route'undaysa auth state değişikliklerini ignore et
       if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
@@ -89,27 +95,41 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const checkAuth = async () => {
     try {
-      console.log('🔍 Checking authentication...');
+      console.log('🔍 [checkAuth] Starting authentication check...');
+      console.log('⏰ [checkAuth] Timestamp:', new Date().toISOString());
+      
       const { data: { session }, error } = await supabase.auth.getSession();
+      
+      console.log('📋 [checkAuth] Session check result:', {
+        hasSession: !!session,
+        error: error?.message || null,
+        sessionUserId: session?.user?.id,
+        sessionEmail: session?.user?.email,
+        accessToken: session?.access_token ? 'Present' : 'Missing',
+        refreshToken: session?.refresh_token ? 'Present' : 'Missing',
+        expiresAt: session?.expires_at
+      });
 
       if (error) {
-        console.error('❌ Auth check error:', error);
+        console.error('❌ [checkAuth] Auth check error:', error);
         setIsAuthenticated(false);
         setIsLoading(false);
         return;
       }
 
       const isAuth = !!session;
-      console.log('🔐 Auth check result:', isAuth);
+      console.log('🔐 [checkAuth] Setting isAuthenticated to:', isAuth);
       setIsAuthenticated(isAuth);
 
       if (isAuth && session) {
+        console.log('✅ [checkAuth] Session valid, checking profile...');
         await checkProfileCompleteness();
       } else {
+        console.log('🚫 [checkAuth] No session, setting loading to false');
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('❌ Error checking auth:', error);
+      console.error('❌ [checkAuth] Unexpected error:', error);
       setIsAuthenticated(false);
       setIsLoading(false);
     }
@@ -117,32 +137,55 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const checkProfileCompleteness = async () => {
     try {
-      console.log('👤 Checking profile completeness...');
+      console.log('👤 [checkProfile] Starting profile completeness check...');
+      console.log('⏰ [checkProfile] Timestamp:', new Date().toISOString());
       
       // ÖNCELİKLE SESSION'I KONTROL ET
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
+      console.log('📋 [checkProfile] Session status:', {
+        hasSession: !!session,
+        sessionError: sessionError?.message || null,
+        userId: session?.user?.id,
+        email: session?.user?.email
+      });
+      
       if (sessionError || !session) {
-        console.error('❌ Session error:', sessionError);
+        console.error('❌ [checkProfile] Session error:', sessionError || 'No session found');
         setIsProfileComplete(false);
         setIsLoading(false);
         return;
       }
 
+      console.log('🔍 [checkProfile] Getting user from session...');
       // SESSION VARSA USER'I AL
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      console.log('📋 [checkProfile] User fetch result:', {
+        hasUser: !!user,
+        userError: userError?.message || null,
+        userId: user?.id,
+        userEmail: user?.email
+      });
 
       if (userError || !user) {
-        console.error('❌ User fetch error:', userError);
+        console.error('❌ [checkProfile] User fetch error:', userError);
         
         // SESSION VAR AMA USER YOK - REFRESH ET
+        console.log('🔄 [checkProfile] Attempting session refresh...');
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         
+        console.log('📋 [checkProfile] Refresh result:', {
+          success: !!refreshData?.session,
+          error: refreshError?.message || null
+        });
+        
         if (!refreshError && refreshData.session) {
-          console.log('✅ Session refreshed successfully');
+          console.log('✅ [checkProfile] Session refreshed successfully');
           // Refresh sonrası tekrar dene
           const { data: { user: refreshedUser } } = await supabase.auth.getUser();
           if (refreshedUser) {
+            console.log('✅ [checkProfile] Got user after refresh:', refreshedUser.email);
             await checkUserProfile(refreshedUser);
             return;
           }
@@ -153,11 +196,12 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         return;
       }
 
+      console.log('✅ [checkProfile] User found, checking profile data...');
       // USER VARSA PROFILE KONTROL ET
       await checkUserProfile(user);
       
     } catch (error) {
-      console.error('❌ Error checking profile completeness:', error);
+      console.error('❌ [checkProfile] Unexpected error:', error);
       setIsProfileComplete(false);
       setIsLoading(false);
     }
@@ -166,16 +210,25 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   // Helper function - profile kontrolü için
   const checkUserProfile = async (user: any) => {
     try {
+      console.log('🔍 [checkUserProfile] Fetching profile for user:', user.id);
+      
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
+      console.log('📋 [checkUserProfile] Profile fetch result:', {
+        hasProfile: !!profile,
+        error: profileError?.message || null,
+        profileId: profile?.id
+      });
+
       if (profileError) {
-        console.warn('⚠️ Profile fetch warning:', profileError);
+        console.warn('⚠️ [checkUserProfile] Profile fetch warning:', profileError);
         // Profile yoksa oluştur
         if (profileError.code === 'PGRST116') {
+          console.log('📝 [checkUserProfile] Creating new profile...');
           const { error: insertError } = await supabase
             .from('user_profiles')
             .insert([{
@@ -193,9 +246,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
             }]);
 
           if (insertError) {
-            console.error('❌ Profile creation error:', insertError);
+            console.error('❌ [checkUserProfile] Profile creation error:', insertError);
           } else {
-            console.log('✅ User profile created successfully');
+            console.log('✅ [checkUserProfile] User profile created successfully');
           }
         }
         setIsProfileComplete(false);
@@ -213,9 +266,19 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         profile.health_goals
       );
 
-      console.log('✅ Profile completeness:', isComplete, profile);
+      console.log('✅ [checkUserProfile] Profile completeness check:', {
+        isComplete,
+        hasAge: !!profile?.age,
+        hasGender: !!profile?.gender,
+        hasHeight: !!(profile?.height || profile?.height_cm),
+        hasWeight: !!(profile?.weight || profile?.weight_kg),
+        hasActivityLevel: !!profile?.activity_level,
+        hasHealthGoals: !!profile?.health_goals
+      });
+      
       setIsProfileComplete(isComplete);
     } finally {
+      console.log('🏁 [checkUserProfile] Setting loading to false');
       setIsLoading(false);
     }
   };
