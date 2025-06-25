@@ -9,25 +9,32 @@ import { useTheme } from '@/contexts/ThemeContext';
 export default function OnboardingRoute() {
   const [userId, setUserId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
   const router = useRouter();
   const { theme } = useTheme();
 
   useEffect(() => {
-    checkUser();
+    checkAuthStatus();
   }, []);
 
-  const checkUser = async () => {
+  const checkAuthStatus = async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // First check if user is authenticated
+      const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error) {
-        console.error('❌ Error getting user:', error);
-        router.replace('/(auth)/login');
+      if (!session) {
+        // No session - this is a new user signup flow
+        console.log('📝 New user signup flow - no authentication required');
+        setIsSignupFlow(true);
+        setIsLoading(false);
         return;
       }
 
+      // User is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      
       if (user) {
-        console.log('📱 Onboarding for user:', user.id);
+        console.log('📱 Onboarding for authenticated user:', user.id);
         setUserId(user.id);
         
         // Check if profile already exists and is complete
@@ -46,51 +53,61 @@ export default function OnboardingRoute() {
           router.replace('/(tabs)');
           return;
         }
-      } else {
-        console.error('❌ No user found in onboarding');
-        router.replace('/(auth)/login');
       }
     } catch (error) {
-      console.error('❌ Error in checkUser:', error);
-      router.replace('/(auth)/login');
+      console.error('❌ Error in checkAuthStatus:', error);
+      // Don't redirect on error - allow signup flow to continue
+      setIsSignupFlow(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleComplete = async () => {
+  const handleComplete = async (signupData?: any) => {
     try {
-      console.log('✅ Onboarding completed, redirecting...');
+      console.log('✅ Onboarding completed');
       
-      // Force a session refresh to ensure profile completeness is updated
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Navigate to main app
-        router.replace('/(tabs)');
-      } else {
-        console.error('❌ No session found after onboarding');
+      if (isSignupFlow && signupData) {
+        // For new users, create account first
+        console.log('📝 Creating new account...');
+        
+        // Here you would typically create the account
+        // For now, just redirect to login
         router.replace('/(auth)/login');
+      } else {
+        // For authenticated users, go to main app
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          router.replace('/(tabs)');
+        } else {
+          console.error('❌ No session found after onboarding');
+          router.replace('/(auth)/login');
+        }
       }
     } catch (error) {
       console.error('❌ Error in handleComplete:', error);
-      // Try to navigate anyway
-      router.replace('/(tabs)');
+      router.replace('/(auth)/login');
     }
   };
 
-  if (isLoading || !userId) {
+  if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={[styles.loadingText, { color: theme.colors.text }]}>
-          Loading user data...
+          Loading...
         </Text>
       </View>
     );
   }
 
-  return <OnboardingScreen userId={userId} onComplete={handleComplete} />;
+  // For signup flow, we don't have a userId yet
+  return <OnboardingScreen 
+    userId={userId || 'signup-temp'} 
+    onComplete={handleComplete}
+    isSignupFlow={isSignupFlow}
+  />;
 }
 
 const styles = StyleSheet.create({
