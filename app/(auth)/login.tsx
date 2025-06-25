@@ -43,7 +43,6 @@ export default function LoginScreen() {
       if (isSignUpMode) {
         // Sign up flow
         console.log('📝 [Login] Starting sign up process...');
-        console.log('⏰ [Login] Sign up start time:', new Date().toISOString());
         
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
@@ -76,7 +75,6 @@ export default function LoginScreen() {
       } else {
         // Sign in flow
         console.log('🔐 [Login] Starting sign in process...');
-        console.log('⏰ [Login] Sign in start time:', new Date().toISOString());
         
         const { data, error } = await signIn(email, password);
         
@@ -103,35 +101,6 @@ export default function LoginScreen() {
           }
         } else {
           console.log('✅ [Login] Login successful');
-          console.log('⏰ [Login] Before delay:', new Date().toISOString());
-          
-          // SESSION'IN HAZIR OLMASINI BEKLE
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          console.log('⏰ [Login] After delay, before refresh:', new Date().toISOString());
-          
-          // Session'ı manuel refresh et
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          
-          console.log('📋 [Login] Refresh result:', {
-            success: !refreshError,
-            error: refreshError?.message || null
-          });
-          
-          if (!refreshError) {
-            console.log('✅ [Login] Session refreshed after login');
-          }
-          
-          console.log('⏰ [Login] Login process complete:', new Date().toISOString());
-          
-          // Verify session exists
-          const { data: { session } } = await supabase.auth.getSession();
-          console.log('🔍 [Login] Final session check:', {
-            hasSession: !!session,
-            userId: session?.user?.id,
-            email: session?.user?.email
-          });
-          
           // Navigation will be handled by AuthWrapper
         }
       }
@@ -149,7 +118,6 @@ export default function LoginScreen() {
       setIsLoading(true);
       console.log('🚀 [Login] Starting Google Sign In...');
       console.log('📱 [Login] Platform:', Platform.OS);
-      console.log('⏰ [Login] Google sign in start:', new Date().toISOString());
 
       const { data, error } = await signInWithOAuth('google');
 

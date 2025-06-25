@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { Session } from '@supabase/supabase-js';
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +47,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       setIsAuthenticated(!!session);
 
       if (session) {
-        await checkProfileCompleteness();
+        await checkProfileCompleteness(session);
       } else {
         setIsProfileComplete(false);
       }
@@ -123,7 +124,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       if (isAuth && session) {
         console.log('✅ [checkAuth] Session valid, checking profile...');
-        await checkProfileCompleteness();
+        await checkProfileCompleteness(session);
       } else {
         console.log('🚫 [checkAuth] No session, setting loading to false');
         setIsLoading(false);
@@ -135,69 +136,50 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     }
   };
 
-  const checkProfileCompleteness = async () => {
+  const checkProfileCompleteness = async (session?: Session) => {
     try {
       console.log('👤 [checkProfile] Starting profile completeness check...');
       console.log('⏰ [checkProfile] Timestamp:', new Date().toISOString());
       
-      // ÖNCELİKLE SESSION'I KONTROL ET
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      let currentSession = session;
       
-      console.log('📋 [checkProfile] Session status:', {
-        hasSession: !!session,
-        sessionError: sessionError?.message || null,
-        userId: session?.user?.id,
-        email: session?.user?.email
-      });
-      
-      if (sessionError || !session) {
-        console.error('❌ [checkProfile] Session error:', sessionError || 'No session found');
-        setIsProfileComplete(false);
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('🔍 [checkProfile] Getting user from session...');
-      // SESSION VARSA USER'I AL
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      console.log('📋 [checkProfile] User fetch result:', {
-        hasUser: !!user,
-        userError: userError?.message || null,
-        userId: user?.id,
-        userEmail: user?.email
-      });
-
-      if (userError || !user) {
-        console.error('❌ [checkProfile] User fetch error:', userError);
+      // If no session passed, get current session
+      if (!currentSession) {
+        console.log('🔍 [checkProfile] No session passed, fetching current session...');
+        const { data: { session: fetchedSession }, error: sessionError } = await supabase.auth.getSession();
         
-        // SESSION VAR AMA USER YOK - REFRESH ET
-        console.log('🔄 [checkProfile] Attempting session refresh...');
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        
-        console.log('📋 [checkProfile] Refresh result:', {
-          success: !!refreshData?.session,
-          error: refreshError?.message || null
+        console.log('📋 [checkProfile] Session fetch result:', {
+          hasSession: !!fetchedSession,
+          sessionError: sessionError?.message || null,
+          userId: fetchedSession?.user?.id,
+          email: fetchedSession?.user?.email
         });
         
-        if (!refreshError && refreshData.session) {
-          console.log('✅ [checkProfile] Session refreshed successfully');
-          // Refresh sonrası tekrar dene
-          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
-          if (refreshedUser) {
-            console.log('✅ [checkProfile] Got user after refresh:', refreshedUser.email);
-            await checkUserProfile(refreshedUser);
-            return;
-          }
+        if (sessionError || !fetchedSession) {
+          console.error('❌ [checkProfile] Session error:', sessionError || 'No session found');
+          setIsProfileComplete(false);
+          setIsLoading(false);
+          return;
         }
         
+        currentSession = fetchedSession;
+      }
+
+      console.log('✅ [checkProfile] Using session:', {
+        userId: currentSession.user?.id,
+        email: currentSession.user?.email
+      });
+
+      // Get user from session
+      const user = currentSession.user;
+      if (!user) {
+        console.error('❌ [checkProfile] No user in session');
         setIsProfileComplete(false);
         setIsLoading(false);
         return;
       }
 
       console.log('✅ [checkProfile] User found, checking profile data...');
-      // USER VARSA PROFILE KONTROL ET
       await checkUserProfile(user);
       
     } catch (error) {
