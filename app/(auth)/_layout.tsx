@@ -40,6 +40,12 @@ export default function AuthLayout() {
           title: 'Reset Password',
         }}
       />
+      <Stack.Screen 
+        name="email-confirmed" 
+        options={{
+          title: 'Email Confirmed',
+        }}
+      />
     </Stack>
   );
 }
