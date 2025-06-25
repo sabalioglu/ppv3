@@ -8,7 +8,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
-  const [initialRoute, setInitialRoute] = useState<string | null>(null);
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
@@ -60,8 +59,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Navigation logic
-    if (!isLoading && initialRoute === null) {
+    // Loading bittiyse navigation kontrolü yap
+    if (!isLoading) {
       const inAuthGroup = segments[0] === '(auth)' || segments[0] === 'auth';
       const inTabsGroup = segments[0] === '(tabs)' || segments[0] === 'tabs';
 
@@ -74,22 +73,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         inTabsGroup
       });
 
-      let targetRoute = null;
-
-      if (!isAuthenticated) {
-        // Giriş yapmamış
-        targetRoute = '/(auth)/login';
-      } else if (!isProfileComplete) {
-        // Profil eksik
-        targetRoute = '/(auth)/onboarding';
-      } else {
-        // Her şey tamam - index.tsx'e yönlendir
-        targetRoute = '/(tabs)';
-      }
-
-      setInitialRoute(targetRoute);
-
-      // Sadece gerekli durumlarda yönlendir
+      // Direkt yönlendir
       if (!isAuthenticated && !inAuthGroup) {
         console.log('➡️ Redirecting to login');
         router.replace('/(auth)/login');
@@ -101,7 +85,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isProfileComplete, isLoading, segments, router, initialRoute, pathname]);
+  }, [isAuthenticated, isProfileComplete, isLoading, segments, pathname]);
 
   const checkAuth = async () => {
     try {
