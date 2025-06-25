@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,7 +9,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
@@ -23,55 +22,28 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In OAuth callback route, skipping auth check');
       setIsLoading(false);
-      return <>{children}</>;
+      return;
     }
 
-    // İlk yüklemede auth durumunu kontrol et
+    // Initial auth check
     checkAuth();
 
-    // Auth state değişikliklerini dinle
+    // Listen to auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('🔐 Auth state changed:', _event, !!session);
-      console.log('📊 Session details:', {
-        hasSession: !!session,
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        emailVerified: !!session?.user?.email_confirmed_at,
-        expiresAt: session?.expires_at
-      });
-
+      
       // Callback route'undaysa auth state değişikliklerini ignore et
       if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
         console.log('🔄 Ignoring auth state change in callback route');
         return;
       }
+      
+      setIsAuthenticated(!!session);
 
-      // Email verification kontrolü
-      const verified = !!session?.user?.email_confirmed_at;
-      setIsEmailVerified(verified);
-      setIsAuthenticated(!!session && verified);
-
-      if (session && verified) {
+      if (session) {
         await checkProfileCompleteness(session);
       } else {
         setIsProfileComplete(false);
-        if (session && !verified) {
-          console.log('⚠️ Email not verified, showing alert');
-          // Sadece login sayfasında değilse alert göster
-          if (segments[0] !== '(auth)' || segments[1] !== 'login') {
-            Alert.alert(
-              'Email Verification Required',
-              'Please check your email and verify your account before continuing.',
-              [{ 
-                text: 'OK', 
-                onPress: () => {
-                  supabase.auth.signOut();
-                  router.replace('/(auth)/login');
-                }
-              }]
-            );
-          }
-        }
       }
     });
 
@@ -88,14 +60,13 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Loading bittiyse navigation kontrolü yap
+    // Navigation logic
     if (!isLoading) {
       const inAuthGroup = segments[0] === '(auth)' || segments[0] === 'auth';
       const inTabsGroup = segments[0] === '(tabs)' || segments[0] === 'tabs';
 
       console.log('🧭 Navigation check:', {
         isAuthenticated,
-        isEmailVerified,
         isProfileComplete,
         currentSegments: segments,
         pathname,
@@ -103,109 +74,57 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         inTabsGroup
       });
 
-      // Direkt yönlendir
       if (!isAuthenticated && !inAuthGroup) {
         console.log('➡️ Redirecting to login');
         router.replace('/(auth)/login');
-      } else if (isAuthenticated && isEmailVerified && !isProfileComplete && segments[1] !== 'onboarding') {
+      } else if (isAuthenticated && !isProfileComplete && segments[1] !== 'onboarding') {
         console.log('➡️ Redirecting to onboarding');
         router.replace('/(auth)/onboarding');
-      } else if (isAuthenticated && isEmailVerified && isProfileComplete && !inTabsGroup) {
+      } else if (isAuthenticated && isProfileComplete && !inTabsGroup) {
         console.log('➡️ Redirecting to main app');
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isEmailVerified, isProfileComplete, isLoading, segments, pathname]);
+  }, [isAuthenticated, isProfileComplete, isLoading, segments, pathname]);
 
   const checkAuth = async () => {
     try {
       console.log('🔍 [checkAuth] Starting authentication check...');
-      console.log('⏰ [checkAuth] Timestamp:', new Date().toISOString());
-      
       const { data: { session }, error } = await supabase.auth.getSession();
       
       console.log('📋 [checkAuth] Session check result:', {
         hasSession: !!session,
-        error: error?.message || null,
-        sessionUserId: session?.user?.id,
-        sessionEmail: session?.user?.email,
-        emailVerified: !!session?.user?.email_confirmed_at,
-        accessToken: session?.access_token ? 'Present' : 'Missing',
-        refreshToken: session?.refresh_token ? 'Present' : 'Missing',
-        expiresAt: session?.expires_at
+        error: error?.message || null
       });
 
       if (error) {
         console.error('❌ [checkAuth] Auth check error:', error);
         setIsAuthenticated(false);
-        setIsEmailVerified(false);
         setIsLoading(false);
         return;
       }
 
-      const isAuth = !!session;
-      const isVerified = !!session?.user?.email_confirmed_at;
-      
-      console.log('🔐 [checkAuth] Auth status:', { isAuth, isVerified });
-      
-      setIsEmailVerified(isVerified);
-      setIsAuthenticated(isAuth && isVerified);
+      setIsAuthenticated(!!session);
 
-      if (isAuth && isVerified && session) {
-        console.log('✅ [checkAuth] Session valid and email verified, checking profile...');
+      if (session) {
+        console.log('✅ [checkAuth] Session valid, checking profile...');
         await checkProfileCompleteness(session);
       } else {
-        console.log('🚫 [checkAuth] No valid verified session');
+        console.log('🚫 [checkAuth] No session');
         setIsLoading(false);
-        
-        if (isAuth && !isVerified) {
-          console.log('⚠️ [checkAuth] User authenticated but email not verified');
-        }
       }
     } catch (error) {
       console.error('❌ [checkAuth] Unexpected error:', error);
       setIsAuthenticated(false);
-      setIsEmailVerified(false);
       setIsLoading(false);
     }
   };
 
-  const checkProfileCompleteness = async (session?: Session) => {
+  const checkProfileCompleteness = async (session: Session) => {
     try {
       console.log('👤 [checkProfile] Starting profile completeness check...');
-      console.log('⏰ [checkProfile] Timestamp:', new Date().toISOString());
+      const user = session.user;
       
-      let currentSession = session;
-      
-      // If no session passed, get current session
-      if (!currentSession) {
-        console.log('🔍 [checkProfile] No session passed, fetching current session...');
-        const { data: { session: fetchedSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        console.log('📋 [checkProfile] Session fetch result:', {
-          hasSession: !!fetchedSession,
-          sessionError: sessionError?.message || null,
-          userId: fetchedSession?.user?.id,
-          email: fetchedSession?.user?.email
-        });
-        
-        if (sessionError || !fetchedSession) {
-          console.error('❌ [checkProfile] Session error:', sessionError || 'No session found');
-          setIsProfileComplete(false);
-          setIsLoading(false);
-          return;
-        }
-        
-        currentSession = fetchedSession;
-      }
-
-      console.log('✅ [checkProfile] Using session:', {
-        userId: currentSession.user?.id,
-        email: currentSession.user?.email
-      });
-
-      // Get user from session
-      const user = currentSession.user;
       if (!user) {
         console.error('❌ [checkProfile] No user in session');
         setIsProfileComplete(false);
@@ -213,44 +132,22 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         return;
       }
 
-      console.log('✅ [checkProfile] User found, checking profile data...');
-      await checkUserProfile(user);
-      
-    } catch (error) {
-      console.error('❌ [checkProfile] Unexpected error:', error);
-      setIsProfileComplete(false);
-      setIsLoading(false);
-    }
-  };
-
-  // Helper function - profile kontrolü için
-  const checkUserProfile = async (user: any) => {
-    try {
-      console.log('🔍 [checkUserProfile] Fetching profile for user:', user.id);
-      
-      const { data: profile, error: profileError } = await supabase
+      // Check if profile exists and is complete
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
 
-      console.log('📋 [checkUserProfile] Profile fetch result:', {
+      console.log('📋 [checkProfile] Profile fetch result:', {
         hasProfile: !!profile,
-        error: profileError?.message || null,
-        profileId: profile?.id
+        error: error?.message || null
       });
 
-      if (profileError) {
-        console.warn('⚠️ [checkUserProfile] Profile fetch warning:', profileError);
-        // Profile yoksa oluştur
-        if (profileError.code === 'PGRST116') {
-          console.log('📝 [checkUserProfile] No profile found, will be created during onboarding');
-        }
-        setIsProfileComplete(false);
-        return;
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ [checkProfile] Profile fetch error:', error);
       }
 
-      // Profil tamamlanmış mı kontrol et
       const isComplete = !!(
         profile &&
         profile.age &&
@@ -261,25 +158,20 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         profile.health_goals
       );
 
-      console.log('✅ [checkUserProfile] Profile completeness check:', {
-        isComplete,
-        hasAge: !!profile?.age,
-        hasGender: !!profile?.gender,
-        hasHeight: !!(profile?.height || profile?.height_cm),
-        hasWeight: !!(profile?.weight || profile?.weight_kg),
-        hasActivityLevel: !!profile?.activity_level,
-        hasHealthGoals: !!profile?.health_goals
-      });
-      
+      console.log('✅ [checkProfile] Profile completeness:', isComplete);
       setIsProfileComplete(isComplete);
     } finally {
-      console.log('🏁 [checkUserProfile] Setting loading to false');
+      console.log('🏁 [checkProfile] Setting loading to false');
       setIsLoading(false);
     }
   };
 
-  // Callback route'unda loading gösterme
-  if (isLoading && pathname !== '/auth/callback' && pathname !== '/(auth)/callback') {
+  // Callback route'unda loading gösterme, direkt children render et
+  if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
+    return <>{children}</>;
+  }
+
+  if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -287,7 +179,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     );
   }
 
-  // Children'ı render et
   return <>{children}</>;
 }
 
