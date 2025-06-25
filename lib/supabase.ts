@@ -26,7 +26,6 @@ const customStorage = {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       return window.localStorage.getItem(key);
     }
-    // Server-side rendering için null dön
     return null;
   },
   setItem: async (key: string, value: string) => {
@@ -49,8 +48,8 @@ const getRedirectUrl = () => {
     }
     return 'https://warm-smakager-7badee.netlify.app/auth/callback';
   }
-  // For mobile, use the deep link
-  return Linking.createURL('auth/callback');
+  // For mobile, use the consistent aifoodpantry scheme
+  return 'aifoodpantry://auth/callback';
 };
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -139,7 +138,7 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
       if (result.type === 'success' && result.url) {
         // Parse the URL to get tokens
         const parsedUrl = Linking.parse(result.url);
-        const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === 'callback' 
+        const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === '/callback' 
           ? parsedUrl.queryParams 
           : {};
         

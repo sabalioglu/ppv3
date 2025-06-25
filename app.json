@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pantrypal.app",
+      "bundleIdentifier": "com.aifoodpantry.app",
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "package": "com.pantrypal.app",
+      "package": "com.aifoodpantry.app",
       "intentFilters": [
         {
           "action": "VIEW",
