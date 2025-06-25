@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
-import { Platform, Linking } from 'react-native';
+import { Platform } from 'react-native';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -44,7 +46,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: customStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: Platform.OS === 'web',
     flowType: 'pkce',
   },
 });
@@ -76,62 +78,86 @@ export const getCurrentUser = async () => {
   return { user, error };
 };
 
-// Google OAuth sign in
-export const signInWithGoogle = async () => {
+// Create redirect URL based on platform
+const getRedirectUrl = () => {
+  if (Platform.OS === 'web') {
+    return `${window.location.origin}/auth/callback`;
+  }
+  // For mobile, use the deep link
+  return Linking.createURL('auth/callback');
+};
+
+// Custom sign in function for OAuth
+export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   try {
-    const redirectTo = Platform.select({
-      web: `${window.location.origin}/auth/callback`,
-      default: 'aifoodpantry://auth/callback'
-    });
+    const redirectTo = getRedirectUrl();
+    console.log('🔗 OAuth redirect URL:', redirectTo);
 
-    console.log('🔗 Google OAuth redirect URL:', redirectTo);
+    if (Platform.OS === 'web') {
+      // Web implementation
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      return { data, error };
+    } else {
+      // Mobile implementation
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
+      if (error) throw error;
+      if (!data.url) throw new Error('No URL returned from OAuth');
+
+      // Open in web browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
         redirectTo,
-        skipBrowserRedirect: true, // Mobil için her zaman true
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
+        {
+          showInRecents: true,
+          createTask: true,
         }
-      }
-    });
+      );
 
-    if (error) throw error;
-
-    // Web'de otomatik yönlendirme
-    if (Platform.OS === 'web' && data?.url) {
-      console.log('🌐 Redirecting to:', data.url);
-      window.location.href = data.url;
-    }
-
-    // Mobil için URL'yi aç
-    if (Platform.OS !== 'web' && data?.url) {
-      console.log('📱 Opening OAuth URL in browser:', data.url);
-      
-      try {
-        const canOpen = await Linking.canOpenURL(data.url);
+      if (result.type === 'success' && result.url) {
+        // Parse the URL to get tokens
+        const parsedUrl = Linking.parse(result.url);
+        const params = parsedUrl.queryParams || {};
         
-        if (canOpen) {
-          await Linking.openURL(data.url);
-          console.log('✅ Opened OAuth URL in browser');
-        } else {
-          console.error('❌ Cannot open URL:', data.url);
-          throw new Error('Cannot open authentication URL');
+        if (params.access_token) {
+          // Set the session manually
+          await supabase.auth.setSession({
+            access_token: params.access_token as string,
+            refresh_token: (params.refresh_token as string) || '',
+          });
         }
-      } catch (linkingError) {
-        console.error('❌ Linking error:', linkingError);
-        // Fallback: Try to open URL directly
-        await Linking.openURL(data.url);
       }
-    }
 
-    return { data, error: null };
+      return { data, error: null };
+    }
   } catch (error) {
-    console.error('❌ Google sign in error:', error);
+    console.error('OAuth error:', error);
     return { data: null, error };
   }
+};
+
+// Keep the old signInWithGoogle for backward compatibility
+export const signInWithGoogle = async () => {
+  return signInWithOAuth('google');
 };
 
 // Database helper functions
@@ -153,10 +179,16 @@ export const getUserProfile = async (userId: string) => {
   return { data, error };
 };
 
-export const updateUserProfile = async (userId: string, updates: Database['public']['Tables']['user_profiles']['Update']) => {
+export const updateUserProfile = async (
+  userId: string,
+  updates: Database['public']['Tables']['user_profiles']['Update']
+) => {
   const { data, error } = await supabase
     .from('user_profiles')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', userId)
     .select()
     .single();
