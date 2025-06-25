@@ -10,11 +10,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
 } from 'react-native';
-import { useRouter, Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { signIn, signInWithOAuth, supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function LoginScreen() {
@@ -26,7 +25,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
 
-  const handleEmailAuth = async () => {
+  const handleAuth = async () => {
+    // Simple validation
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -41,121 +41,43 @@ export default function LoginScreen() {
       setIsLoading(true);
 
       if (isSignUpMode) {
-        // Sign up flow
-        console.log('📝 [Login] Starting sign up process...');
-        
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // Sign up
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
 
-        console.log('📋 [Login] Sign up result:', {
-          success: !!authData.user,
-          error: authError?.message || null,
-          userId: authData.user?.id
+        if (error) throw error;
+
+        Alert.alert(
+          '📧 Check Your Email!',
+          'We\'ve sent you a verification email. Please verify your account before signing in.',
+          [{
+            text: 'OK',
+            onPress: () => {
+              setIsSignUpMode(false);
+              setPassword('');
+            }
+          }]
+        );
+      } else {
+        // Sign in
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
 
-        if (authError) throw authError;
+        if (error) throw error;
 
-        if (authData.user) {
-          Alert.alert(
-            '📧 Check Your Email!',
-            'We\'ve sent you a verification email. Please verify your account before signing in.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setIsSignUpMode(false);
-                  setPassword('');
-                }
-              }
-            ]
-          );
-        }
-      } else {
-        // Sign in flow
-        console.log('🔐 [Login] Starting sign in process...');
-        
-        const { data, error } = await signIn(email, password);
-        
-        console.log('📋 [Login] Sign in result:', {
-          success: !!data.session,
-          error: error?.message || null,
-          sessionId: data.session?.access_token ? 'Present' : 'Missing',
-          userId: data.session?.user?.id,
-          userEmail: data.session?.user?.email
-        });
-
-        if (error) {
-          // Email not confirmed hatası kontrolü
-          if (error.message.includes('Email not confirmed') ||
-              error.message.includes('email_not_confirmed') ||
-              error.message.includes('User account has not been verified')) {
-            Alert.alert(
-              'Email Not Verified',
-              'Please check your email and click the verification link first.',
-              [{ text: 'OK' }]
-            );
-          } else {
-            Alert.alert('Error', error.message);
-          }
-        } else {
-          console.log('✅ [Login] Login successful');
-          
-          // Email verification kontrolü
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          
-          if (!userError && user && !user.email_confirmed_at) {
-            console.log('⚠️ [Login] User logged in but email not verified');
-            Alert.alert(
-              'Verify Your Email',
-              'Please check your email and click the verification link to continue.',
-              [{ 
-                text: 'OK',
-                onPress: async () => {
-                  await supabase.auth.signOut();
-                  setPassword('');
-                }
-              }]
-            );
-            return;
-          }
-          
-          // Navigation will be handled by AuthWrapper
-        }
+        // Success - AuthWrapper will handle navigation
+        console.log('✅ Login successful');
       }
     } catch (error: any) {
-      console.error('❌ [Login] Auth error:', error);
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-      console.log('🏁 [Login] Process finished, loading set to false');
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      console.log('🚀 [Login] Starting Google Sign In...');
-      console.log('📱 [Login] Platform:', Platform.OS);
-
-      const { data, error } = await signInWithOAuth('google');
-
-      console.log('📋 [Login] Google sign in result:', {
-        success: !!data,
-        error: error?.message || null
-      });
-
-      if (error) {
-        console.error('❌ [Login] Sign in error:', error);
-        Alert.alert('Sign In Error', error.message || 'Failed to sign in with Google');
-      } else {
-        console.log('✅ [Login] Sign in initiated successfully');
-        // Navigation will be handled by AuthWrapper after callback
-      }
-    } catch (error: any) {
-      console.error('❌ [Login] Unexpected error:', error);
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
+      console.error('Auth error:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'An error occurred'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +99,7 @@ export default function LoginScreen() {
             AI Food Pantry
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            {isSignUpMode ? 'Create your account to get started' : 'Welcome back! Sign in to continue'}
+            {isSignUpMode ? 'Create your account' : 'Welcome back!'}
           </Text>
         </View>
 
@@ -233,21 +155,10 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Forgot Password Link (only for sign in) */}
-          {!isSignUpMode && (
-            <Link href="/(auth)/reset-password" asChild>
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-            </Link>
-          )}
-
           {/* Auth Button */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            onPress={handleEmailAuth}
+            onPress={handleAuth}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -257,37 +168,6 @@ export default function LoginScreen() {
                 {isSignUpMode ? 'Create Account' : 'Sign In'}
               </Text>
             )}
-          </TouchableOpacity>
-
-          {/* Terms Text (only for sign up) */}
-          {isSignUpMode && (
-            <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
-              By signing up, you agree to our Terms of Service and Privacy Policy
-            </Text>
-          )}
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-            <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>
-              OR
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-          </View>
-
-          {/* Google Sign In Button */}
-          <TouchableOpacity
-            style={[styles.socialButton, { backgroundColor: theme.colors.surface }]}
-            onPress={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            <Image
-              source={{ uri: 'https://www.google.com/favicon.ico' }}
-              style={styles.socialIcon}
-            />
-            <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
-              Continue with Google
-            </Text>
           </TouchableOpacity>
 
           {/* Toggle Sign Up/Sign In */}
@@ -360,70 +240,22 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 4,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
   button: {
     height: 56,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  termsText: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
-    lineHeight: 18,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  socialButton: {
-    height: 56,
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    marginBottom: 16,
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
-  },
-  socialButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
   },
   footerText: {
     fontSize: 14,
