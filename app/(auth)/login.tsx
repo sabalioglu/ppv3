@@ -145,7 +145,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Forgot Password Link */}
-          <Link href="(auth)/reset-password" asChild>
+          <Link href="(auth)reset-password" asChild>
             <TouchableOpacity style={styles.forgotPassword}>
               <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
                 Forgot Password?
