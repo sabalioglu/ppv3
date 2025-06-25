@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,6 +79,33 @@ export default function LoginScreen() {
         'Error',
         error.message || 'An error occurred'
       );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: Platform.OS === 'web' 
+            ? `${window.location.origin}/auth/callback`
+            : 'aifoodpantry://auth/callback',
+        }
+      });
+
+      if (error) throw error;
+
+      // Web will redirect, mobile needs to wait for auth state change
+      if (Platform.OS !== 'web') {
+        console.log('✅ OAuth initiated, waiting for callback...');
+      }
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      Alert.alert('Error', 'Failed to sign in with Google');
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +198,30 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+            <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>
+              OR
+            </Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+          </View>
+
+          {/* Google Sign In Button */}
+          <TouchableOpacity
+            style={[styles.socialButton, { backgroundColor: theme.colors.surface }]}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+          >
+            <Image
+              source={{ uri: 'https://www.google.com/favicon.ico' }}
+              style={styles.socialIcon}
+            />
+            <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
+              Continue with Google
+            </Text>
+          </TouchableOpacity>
+
           {/* Toggle Sign Up/Sign In */}
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
@@ -245,12 +297,44 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+  },
+  socialButton: {
+    height: 56,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    marginBottom: 24,
+  },
+  socialIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 12,
+  },
+  socialButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
