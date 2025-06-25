@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useRouter, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -9,6 +9,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
@@ -35,6 +36,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         hasSession: !!session,
         userId: session?.user?.id,
         email: session?.user?.email,
+        emailVerified: !!session?.user?.email_confirmed_at,
         expiresAt: session?.expires_at
       });
 
@@ -44,12 +46,32 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         return;
       }
 
-      setIsAuthenticated(!!session);
+      // Email verification kontrolü
+      const verified = !!session?.user?.email_confirmed_at;
+      setIsEmailVerified(verified);
+      setIsAuthenticated(!!session && verified);
 
-      if (session) {
+      if (session && verified) {
         await checkProfileCompleteness(session);
       } else {
         setIsProfileComplete(false);
+        if (session && !verified) {
+          console.log('⚠️ Email not verified, showing alert');
+          // Sadece login sayfasında değilse alert göster
+          if (segments[0] !== '(auth)' || segments[1] !== 'login') {
+            Alert.alert(
+              'Email Verification Required',
+              'Please check your email and verify your account before continuing.',
+              [{ 
+                text: 'OK', 
+                onPress: () => {
+                  supabase.auth.signOut();
+                  router.replace('/(auth)/login');
+                }
+              }]
+            );
+          }
+        }
       }
     });
 
@@ -73,6 +95,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       console.log('🧭 Navigation check:', {
         isAuthenticated,
+        isEmailVerified,
         isProfileComplete,
         currentSegments: segments,
         pathname,
@@ -84,15 +107,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       if (!isAuthenticated && !inAuthGroup) {
         console.log('➡️ Redirecting to login');
         router.replace('/(auth)/login');
-      } else if (isAuthenticated && !isProfileComplete && segments[1] !== 'onboarding') {
+      } else if (isAuthenticated && isEmailVerified && !isProfileComplete && segments[1] !== 'onboarding') {
         console.log('➡️ Redirecting to onboarding');
         router.replace('/(auth)/onboarding');
-      } else if (isAuthenticated && isProfileComplete && !inTabsGroup) {
+      } else if (isAuthenticated && isEmailVerified && isProfileComplete && !inTabsGroup) {
         console.log('➡️ Redirecting to main app');
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isProfileComplete, isLoading, segments, pathname]);
+  }, [isAuthenticated, isEmailVerified, isProfileComplete, isLoading, segments, pathname]);
 
   const checkAuth = async () => {
     try {
@@ -106,6 +129,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         error: error?.message || null,
         sessionUserId: session?.user?.id,
         sessionEmail: session?.user?.email,
+        emailVerified: !!session?.user?.email_confirmed_at,
         accessToken: session?.access_token ? 'Present' : 'Missing',
         refreshToken: session?.refresh_token ? 'Present' : 'Missing',
         expiresAt: session?.expires_at
@@ -114,24 +138,34 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       if (error) {
         console.error('❌ [checkAuth] Auth check error:', error);
         setIsAuthenticated(false);
+        setIsEmailVerified(false);
         setIsLoading(false);
         return;
       }
 
       const isAuth = !!session;
-      console.log('🔐 [checkAuth] Setting isAuthenticated to:', isAuth);
-      setIsAuthenticated(isAuth);
+      const isVerified = !!session?.user?.email_confirmed_at;
+      
+      console.log('🔐 [checkAuth] Auth status:', { isAuth, isVerified });
+      
+      setIsEmailVerified(isVerified);
+      setIsAuthenticated(isAuth && isVerified);
 
-      if (isAuth && session) {
-        console.log('✅ [checkAuth] Session valid, checking profile...');
+      if (isAuth && isVerified && session) {
+        console.log('✅ [checkAuth] Session valid and email verified, checking profile...');
         await checkProfileCompleteness(session);
       } else {
-        console.log('🚫 [checkAuth] No session, setting loading to false');
+        console.log('🚫 [checkAuth] No valid verified session');
         setIsLoading(false);
+        
+        if (isAuth && !isVerified) {
+          console.log('⚠️ [checkAuth] User authenticated but email not verified');
+        }
       }
     } catch (error) {
       console.error('❌ [checkAuth] Unexpected error:', error);
       setIsAuthenticated(false);
+      setIsEmailVerified(false);
       setIsLoading(false);
     }
   };
@@ -210,28 +244,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         console.warn('⚠️ [checkUserProfile] Profile fetch warning:', profileError);
         // Profile yoksa oluştur
         if (profileError.code === 'PGRST116') {
-          console.log('📝 [checkUserProfile] Creating new profile...');
-          const { error: insertError } = await supabase
-            .from('user_profiles')
-            .insert([{
-              id: user.id,
-              email: user.email,
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-              created_at: new Date().toISOString(),
-              dietary_preferences: [],
-              notification_settings: {
-                expiry_alerts: true,
-                recipe_suggestions: true,
-                shopping_reminders: true
-              },
-              streak_days: 0
-            }]);
-
-          if (insertError) {
-            console.error('❌ [checkUserProfile] Profile creation error:', insertError);
-          } else {
-            console.log('✅ [checkUserProfile] User profile created successfully');
-          }
+          console.log('📝 [checkUserProfile] No profile found, will be created during onboarding');
         }
         setIsProfileComplete(false);
         return;
