@@ -118,16 +118,54 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const checkProfileCompleteness = async () => {
     try {
       console.log('👤 Checking profile completeness...');
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        console.error('❌ User fetch error:', userError);
+      
+      // ÖNCELİKLE SESSION'I KONTROL ET
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('❌ Session error:', sessionError);
         setIsProfileComplete(false);
         setIsLoading(false);
         return;
       }
 
-      // Profile tablosundan kullanıcı bilgilerini çek
+      // SESSION VARSA USER'I AL
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error('❌ User fetch error:', userError);
+        
+        // SESSION VAR AMA USER YOK - REFRESH ET
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (!refreshError && refreshData.session) {
+          console.log('✅ Session refreshed successfully');
+          // Refresh sonrası tekrar dene
+          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+          if (refreshedUser) {
+            await checkUserProfile(refreshedUser);
+            return;
+          }
+        }
+        
+        setIsProfileComplete(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // USER VARSA PROFILE KONTROL ET
+      await checkUserProfile(user);
+      
+    } catch (error) {
+      console.error('❌ Error checking profile completeness:', error);
+      setIsProfileComplete(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function - profile kontrolü için
+  const checkUserProfile = async (user: any) => {
+    try {
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -161,7 +199,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           }
         }
         setIsProfileComplete(false);
-        setIsLoading(false);
         return;
       }
 
@@ -178,9 +215,6 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       console.log('✅ Profile completeness:', isComplete, profile);
       setIsProfileComplete(isComplete);
-    } catch (error) {
-      console.error('❌ Error checking profile completeness:', error);
-      setIsProfileComplete(false);
     } finally {
       setIsLoading(false);
     }
