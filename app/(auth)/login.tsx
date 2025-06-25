@@ -72,7 +72,18 @@ export default function LoginScreen() {
         const { data, error } = await signIn(email, password);
 
         if (error) {
-          Alert.alert('Error', error.message);
+          // Email not confirmed hatası kontrolü
+          if (error.message.includes('Email not confirmed') || 
+              error.message.includes('email_not_confirmed') ||
+              error.message.includes('User account has not been verified')) {
+            Alert.alert(
+              'Email Not Verified',
+              'Please check your email and click the verification link first.',
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert('Error', error.message);
+          }
         } else {
           console.log('✅ Login successful');
           // Navigation will be handled by AuthWrapper
