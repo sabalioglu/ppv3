@@ -101,6 +101,26 @@ export default function LoginScreen() {
           }
         } else {
           console.log('✅ [Login] Login successful');
+          
+          // Email verification kontrolü
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (!userError && user && !user.email_confirmed_at) {
+            console.log('⚠️ [Login] User logged in but email not verified');
+            Alert.alert(
+              'Verify Your Email',
+              'Please check your email and click the verification link to continue.',
+              [{ 
+                text: 'OK',
+                onPress: async () => {
+                  await supabase.auth.signOut();
+                  setPassword('');
+                }
+              }]
+            );
+            return;
+          }
+          
           // Navigation will be handled by AuthWrapper
         }
       }
