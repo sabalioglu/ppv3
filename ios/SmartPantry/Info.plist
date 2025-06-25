@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Smart Pantry</string>
+    <string>AI Food Pantry</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -27,8 +27,8 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>pantrypal</string>
-          <string>com.pantrypal.app</string>
+          <string>aifoodpantry</string>
+          <string>com.aifoodpantry.app</string>
         </array>
       </dict>
     </array>
