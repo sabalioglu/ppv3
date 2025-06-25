@@ -1,99 +1,162 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
+import * as Linking from 'expo-linking';
 
 export default function CallbackScreen() {
   const [isProcessing, setIsProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
+  const params = useLocalSearchParams();
 
   useEffect(() => {
     console.log('🎯 CALLBACK.TSX LOADED!');
-    handleCallback();
-  }, []);
+    console.log('📱 Platform:', Platform.OS);
+    console.log('🔗 Params:', params);
+    
+    if (Platform.OS === 'web') {
+      handleWebCallback();
+    } else {
+      handleMobileCallback();
+    }
+  }, [params]);
 
-  const handleCallback = async () => {
+  const handleWebCallback = async () => {
     try {
-      // Platform check - only process on web
       if (typeof window === 'undefined') {
         console.log('⏳ Waiting for client-side...');
         return;
       }
 
-      console.log('🔄 Processing OAuth callback...');
+      console.log('🌐 Processing Web OAuth callback...');
       
-      // Get URL parameters
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const searchParams = new URLSearchParams(window.location.search);
       
-      // Combine both hash and search params
       const allParams = new URLSearchParams();
       hashParams.forEach((value, key) => allParams.set(key, value));
       searchParams.forEach((value, key) => allParams.set(key, value));
       
-      const access_token = allParams.get('access_token');
-      const refresh_token = allParams.get('refresh_token');
-      const error_description = allParams.get('error_description');
+      await processAuthParams(allParams);
+    } catch (err) {
+      handleError(err);
+    }
+  };
+
+  const handleMobileCallback = async () => {
+    try {
+      console.log('📱 Processing Mobile OAuth callback...');
       
-      if (error_description) {
-        throw new Error(error_description);
-      }
+      // Try to get URL from Linking
+      const url = await Linking.getInitialURL();
+      console.log('📱 Initial URL:', url);
       
-      if (access_token) {
-        console.log('✅ OAuth tokens received');
+      if (url) {
+        const { queryParams } = Linking.parse(url);
+        console.log('📱 Query params:', queryParams);
         
-        // Set the session
-        const { data, error: sessionError } = await supabase.auth.setSession({
-          access_token,
-          refresh_token: refresh_token || '',
+        const urlParams = new URLSearchParams();
+        Object.entries(queryParams || {}).forEach(([key, value]) => {
+          if (value) urlParams.set(key, String(value));
         });
         
-        if (sessionError) throw sessionError;
+        // Also check route params
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value && !urlParams.has(key)) urlParams.set(key, String(value));
+        });
         
-        console.log('✅ Session set successfully');
-        
-        // Check if profile exists
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', data.user?.id)
-          .maybeSingle();
-        
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
-        }
-        
-        // Check profile completeness
-        const isProfileComplete = !!(
-          profile &&
-          profile.age &&
-          profile.gender &&
-          (profile.height || profile.height_cm) &&
-          (profile.weight || profile.weight_kg) &&
-          profile.activity_level &&
-          profile.health_goals
-        );
-        
-        // Navigate based on profile status
-        if (isProfileComplete) {
-          console.log('➡️ Profile complete, navigating to app');
-          router.replace('/(tabs)');
-        } else {
-          console.log('➡️ Profile incomplete, navigating to onboarding');
-          router.replace('/(auth)/onboarding');
-        }
+        await processAuthParams(urlParams);
       } else {
-        throw new Error('No access token received');
+        // If no URL, check if we have params from the route
+        if (params.access_token) {
+          const urlParams = new URLSearchParams();
+          Object.entries(params).forEach(([key, value]) => {
+            if (value) urlParams.set(key, String(value));
+          });
+          await processAuthParams(urlParams);
+        } else {
+          throw new Error('No authentication parameters received');
+        }
       }
     } catch (err) {
-      console.error('❌ Callback error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      setTimeout(() => router.replace('/(auth)/login'), 3000);
-    } finally {
-      setIsProcessing(false);
+      handleError(err);
     }
+  };
+
+  const processAuthParams = async (params: URLSearchParams) => {
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    const error_description = params.get('error_description');
+    
+    console.log('🔐 Processing auth params:', {
+      hasAccessToken: !!access_token,
+      hasRefreshToken: !!refresh_token,
+      error: error_description
+    });
+    
+    if (error_description) {
+      throw new Error(error_description);
+    }
+    
+    if (!access_token) {
+      throw new Error('No access token received');
+    }
+    
+    console.log('✅ OAuth tokens received');
+    
+    // Set the session
+    const { data, error: sessionError } = await supabase.auth.setSession({
+      access_token,
+      refresh_token: refresh_token || '',
+    });
+    
+    if (sessionError) throw sessionError;
+    
+    console.log('✅ Session set successfully');
+    
+    // Get user and check profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No user found after setting session');
+    
+    // Check if profile exists and is complete
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    const isProfileComplete = !!(
+      profile &&
+      profile.age &&
+      profile.gender &&
+      (profile.height || profile.height_cm) &&
+      (profile.weight || profile.weight_kg) &&
+      profile.activity_level &&
+      profile.health_goals
+    );
+    
+    console.log('👤 Profile status:', { exists: !!profile, complete: isProfileComplete });
+    
+    // Navigate based on profile status
+    if (isProfileComplete) {
+      console.log('➡️ Navigating to dashboard');
+      router.replace('/(tabs)');
+    } else {
+      console.log('➡️ Navigating to onboarding');
+      router.replace('/(auth)/onboarding');
+    }
+  };
+
+  const handleError = (err: any) => {
+    console.error('❌ Callback error:', err);
+    setError(err instanceof Error ? err.message : 'An error occurred');
+    setIsProcessing(false);
+    
+    setTimeout(() => {
+      router.replace('/(auth)/login');
+    }, 3000);
   };
 
   if (error) {
@@ -118,6 +181,9 @@ export default function CallbackScreen() {
         <Text style={[styles.processingText, { color: theme.colors.text }]}>
           Processing authentication...
         </Text>
+        <Text style={[styles.subText, { color: theme.colors.textSecondary }]}>
+          Please wait while we log you in...
+        </Text>
       </View>
     </View>
   );
@@ -136,6 +202,12 @@ const styles = StyleSheet.create({
   processingText: {
     fontSize: 16,
     marginTop: 16,
+    fontWeight: '600',
+  },
+  subText: {
+    fontSize: 14,
+    marginTop: 8,
+    opacity: 0.7,
   },
   errorText: {
     fontSize: 16,
