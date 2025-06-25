@@ -15,9 +15,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const { theme } = useTheme();
 
   useEffect(() => {
-    // Logları ekleyin
-    console.log('🔍 Current pathname:', pathname); // Mevcut pathname logu
-    console.log('🔍 Current segments:', segments); // Mevcut segments logu
+    console.log('🔍 Current pathname:', pathname);
+    console.log('🔍 Current segments:', segments);
 
     // Callback route kontrolü
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
@@ -84,7 +83,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         // Profil eksik
         targetRoute = '/(auth)/onboarding';
       } else {
-        // Her şey tamam
+        // Her şey tamam - index.tsx'e yönlendir
         targetRoute = '/(tabs)';
       }
 
