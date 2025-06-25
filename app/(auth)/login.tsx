@@ -14,36 +14,104 @@ import {
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { signIn, signInWithOAuth } from '@/lib/supabase';
+import { signIn, signInWithOAuth, supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
   const router = useRouter();
   const { theme } = useTheme();
 
-  const handleEmailSignIn = async () => {
+  const handleEmailAuth = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    if (isSignUpMode && !fullName) {
+      Alert.alert('Error', 'Please enter your full name');
+      return;
+    }
+
+    if (isSignUpMode && password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const { data, error } = await signIn(email, password);
 
-      if (error) {
-        Alert.alert('Error', error.message);
+      if (isSignUpMode) {
+        // Sign up flow
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+            }
+          }
+        });
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+          // Create initial profile
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert([{
+              id: authData.user.id,
+              email: email,
+              full_name: fullName.trim(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              dietary_preferences: [],
+              notification_settings: {
+                expiry_alerts: true,
+                recipe_suggestions: true,
+                shopping_reminders: true
+              },
+              streak_days: 0
+            }]);
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+          }
+
+          Alert.alert(
+            '📧 Check Your Email!',
+            'We\'ve sent you a verification email. Please verify your account before signing in.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setIsSignUpMode(false);
+                  setPassword('');
+                  setFullName('');
+                }
+              }
+            ]
+          );
+        }
       } else {
-        console.log('✅ Login successful');
-        // Navigation will be handled by AuthWrapper
+        // Sign in flow
+        const { data, error } = await signIn(email, password);
+
+        if (error) {
+          Alert.alert('Error', error.message);
+        } else {
+          console.log('✅ Login successful');
+          // Navigation will be handled by AuthWrapper
+        }
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -88,12 +156,34 @@ export default function LoginScreen() {
             AI Food Pantry
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Welcome back! Sign in to continue
+            {isSignUpMode ? 'Create your account to get started' : 'Welcome back! Sign in to continue'}
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
+          {/* Full Name Input (only for sign up) */}
+          {isSignUpMode && (
+            <View style={styles.inputContainer}>
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[styles.input, { color: theme.colors.text }]}
+                placeholder="Full Name"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!isLoading}
+              />
+            </View>
+          )}
+
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Ionicons
@@ -125,7 +215,7 @@ export default function LoginScreen() {
             />
             <TextInput
               style={[styles.input, { color: theme.colors.text }]}
-              placeholder="Password"
+              placeholder={isSignUpMode ? "Password (min 6 characters)" : "Password"}
               placeholderTextColor={theme.colors.textSecondary}
               value={password}
               onChangeText={setPassword}
@@ -144,27 +234,38 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Forgot Password Link */}
-          <Link href="/(auth)/reset-password" asChild>
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
-          </Link>
+          {/* Forgot Password Link (only for sign in) */}
+          {!isSignUpMode && (
+            <Link href="/(auth)/reset-password" asChild>
+              <TouchableOpacity style={styles.forgotPassword}>
+                <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          )}
 
-          {/* Sign In Button */}
+          {/* Auth Button */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.primary }]}
-            onPress={handleEmailSignIn}
+            onPress={handleEmailAuth}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.buttonText}>
+                {isSignUpMode ? 'Create Account' : 'Sign In'}
+              </Text>
             )}
           </TouchableOpacity>
+
+          {/* Terms Text (only for sign up) */}
+          {isSignUpMode && (
+            <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
+              By signing up, you agree to our Terms of Service and Privacy Policy
+            </Text>
+          )}
 
           {/* Divider */}
           <View style={styles.divider}>
@@ -190,18 +291,22 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Sign Up Link */}
+          {/* Toggle Sign Up/Sign In */}
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
-              Don't have an account?{' '}
+              {isSignUpMode ? 'Already have an account?' : "Don't have an account?"}{' '}
             </Text>
-            <Link href="/(auth)/onboarding" asChild>
-              <TouchableOpacity>
-                <Text style={[styles.linkText, { color: theme.colors.primary }]}>
-                  Sign Up
-                </Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity
+              onPress={() => {
+                setIsSignUpMode(!isSignUpMode);
+                setPassword('');
+                setFullName('');
+              }}
+            >
+              <Text style={[styles.linkText, { color: theme.colors.primary }]}>
+                {isSignUpMode ? 'Sign In' : 'Sign Up'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -230,6 +335,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     marginTop: 8,
+    textAlign: 'center',
   },
   form: {
     width: '100%',
@@ -269,12 +375,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  termsText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+    lineHeight: 18,
   },
   divider: {
     flexDirection: 'row',
