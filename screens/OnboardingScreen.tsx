@@ -801,8 +801,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   row: {
-    flexDirection: '
-row',
+    flexDirection: 'row',
   },
   optionCard: {
     flexDirection: 'row',
