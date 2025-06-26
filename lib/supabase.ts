@@ -44,9 +44,9 @@ const customStorage = {
 const getRedirectUrl = () => {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/auth/callback`;
+      return `${window.location.origin}/(auth)/callback`;
     }
-    return 'https://warm-smakager-7badee.netlify.app/auth/callback';
+    return 'https://warm-smakager-7badee.netlify.app/(auth)/callback';
   }
   // For mobile, use the consistent aifoodpantry scheme
   return 'aifoodpantry://auth/callback';
@@ -89,14 +89,14 @@ export const getCurrentUser = async () => {
   return { user, error };
 };
 
-// Custom sign in function for OAuth
+// Enhanced OAuth sign in function
 export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   try {
     const redirectTo = getRedirectUrl();
     console.log('🔗 OAuth redirect URL:', redirectTo);
 
     if (Platform.OS === 'web') {
-      // Web implementation
+      // Web implementation - let Supabase handle the redirect
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {

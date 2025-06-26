@@ -12,7 +12,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -68,7 +68,40 @@ export default function LoginScreen() {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          // Handle email not confirmed error
+          if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+            Alert.alert(
+              'Email Not Verified',
+              'Please check your email and click the verification link before signing in.',
+              [
+                {
+                  text: 'Resend Email',
+                  onPress: async () => {
+                    try {
+                      const { error: resendError } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: email,
+                      });
+                      
+                      if (resendError) {
+                        Alert.alert('Error', 'Failed to resend verification email. Please try again.');
+                      } else {
+                        Alert.alert('Email Sent', 'Verification email has been resent. Please check your inbox.');
+                      }
+                    } catch (resendErr) {
+                      Alert.alert('Error', 'Failed to resend verification email. Please try again.');
+                    }
+                  }
+                },
+                { text: 'OK', style: 'cancel' }
+              ]
+            );
+            return;
+          }
+          
+          throw error;
+        }
 
         // Success - AuthWrapper will handle navigation
         console.log('✅ Login successful');
@@ -92,7 +125,7 @@ export default function LoginScreen() {
         provider: 'google',
         options: {
           redirectTo: Platform.OS === 'web' 
-            ? `${window.location.origin}/auth/callback`
+            ? `${window.location.origin}/(auth)/callback`
             : 'aifoodpantry://auth/callback',
         }
       });
@@ -182,6 +215,19 @@ export default function LoginScreen() {
               />
             </TouchableOpacity>
           </View>
+
+          {/* Forgot Password Link */}
+          {!isSignUpMode && (
+            <View style={styles.forgotPasswordContainer}>
+              <Link href="/(auth)/reset-password" asChild>
+                <TouchableOpacity>
+                  <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          )}
 
           {/* Auth Button */}
           <TouchableOpacity
@@ -291,6 +337,14 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 4,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 16,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   button: {
     height: 56,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { useRouter, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -8,6 +8,7 @@ import type { Session } from '@supabase/supabase-js';
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const router = useRouter();
   const segments = useSegments();
@@ -18,7 +19,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     console.log('🔍 Current pathname:', pathname);
     console.log('🔍 Current segments:', segments);
 
-    // Callback route kontrolü
+    // Skip auth check for callback route
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In OAuth callback route, skipping auth check');
       setIsLoading(false);
@@ -29,21 +30,23 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     checkAuth();
 
     // Listen to auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('🔐 Auth state changed:', _event, !!session);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state changed:', event, !!session);
       
-      // Callback route'undaysa auth state değişikliklerini ignore et
+      // Skip auth state changes in callback route
       if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
         console.log('🔄 Ignoring auth state change in callback route');
         return;
       }
       
-      setIsAuthenticated(!!session);
-
       if (session) {
-        await checkProfileCompleteness(session);
+        setIsAuthenticated(true);
+        await checkEmailVerificationAndProfile(session);
       } else {
+        setIsAuthenticated(false);
+        setIsEmailVerified(false);
         setIsProfileComplete(false);
+        setIsLoading(false);
       }
     });
 
@@ -54,7 +57,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   }, [pathname]);
 
   useEffect(() => {
-    // Callback route'unda ise hiçbir şey yapma
+    // Skip navigation logic for callback route
     if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
       console.log('🔄 In callback route, skipping navigation logic');
       return;
@@ -67,6 +70,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
       console.log('🧭 Navigation check:', {
         isAuthenticated,
+        isEmailVerified,
         isProfileComplete,
         currentSegments: segments,
         pathname,
@@ -75,17 +79,20 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       });
 
       if (!isAuthenticated && !inAuthGroup) {
-        console.log('➡️ Redirecting to login');
+        console.log('➡️ Redirecting to login - not authenticated');
         router.replace('/(auth)/login');
-      } else if (isAuthenticated && !isProfileComplete && segments[1] !== 'onboarding') {
-        console.log('➡️ Redirecting to onboarding');
+      } else if (isAuthenticated && !isEmailVerified) {
+        console.log('➡️ User authenticated but email not verified');
+        handleUnverifiedEmail();
+      } else if (isAuthenticated && isEmailVerified && !isProfileComplete && segments[1] !== 'onboarding') {
+        console.log('➡️ Redirecting to onboarding - profile incomplete');
         router.replace('/(auth)/onboarding');
-      } else if (isAuthenticated && isProfileComplete && !inTabsGroup) {
-        console.log('➡️ Redirecting to main app');
+      } else if (isAuthenticated && isEmailVerified && isProfileComplete && !inTabsGroup) {
+        console.log('➡️ Redirecting to main app - all complete');
         router.replace('/(tabs)');
       }
     }
-  }, [isAuthenticated, isProfileComplete, isLoading, segments, pathname]);
+  }, [isAuthenticated, isEmailVerified, isProfileComplete, isLoading, segments, pathname]);
 
   const checkAuth = async () => {
     try {
@@ -100,39 +107,58 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       if (error) {
         console.error('❌ [checkAuth] Auth check error:', error);
         setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsAuthenticated(!!session);
-
-      if (session) {
-        console.log('✅ [checkAuth] Session valid, checking profile...');
-        await checkProfileCompleteness(session);
-      } else {
-        console.log('🚫 [checkAuth] No session');
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error('❌ [checkAuth] Unexpected error:', error);
-      setIsAuthenticated(false);
-      setIsLoading(false);
-    }
-  };
-
-  const checkProfileCompleteness = async (session: Session) => {
-    try {
-      console.log('👤 [checkProfile] Starting profile completeness check...');
-      const user = session.user;
-      
-      if (!user) {
-        console.error('❌ [checkProfile] No user in session');
+        setIsEmailVerified(false);
         setIsProfileComplete(false);
         setIsLoading(false);
         return;
       }
 
-      // Check if profile exists and is complete
+      if (session) {
+        console.log('✅ [checkAuth] Session valid, checking email and profile...');
+        setIsAuthenticated(true);
+        await checkEmailVerificationAndProfile(session);
+      } else {
+        console.log('🚫 [checkAuth] No session');
+        setIsAuthenticated(false);
+        setIsEmailVerified(false);
+        setIsProfileComplete(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ [checkAuth] Unexpected error:', error);
+      setIsAuthenticated(false);
+      setIsEmailVerified(false);
+      setIsProfileComplete(false);
+      setIsLoading(false);
+    }
+  };
+
+  const checkEmailVerificationAndProfile = async (session: Session) => {
+    try {
+      console.log('📧 [checkEmailVerification] Starting email verification check...');
+      const user = session.user;
+      
+      if (!user) {
+        console.error('❌ [checkEmailVerification] No user in session');
+        setIsEmailVerified(false);
+        setIsProfileComplete(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check email verification
+      const emailVerified = !!user.email_confirmed_at;
+      console.log('📧 [checkEmailVerification] Email verified:', emailVerified);
+      setIsEmailVerified(emailVerified);
+
+      if (!emailVerified) {
+        setIsProfileComplete(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check profile completeness
+      console.log('👤 [checkProfile] Starting profile completeness check...');
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -161,12 +187,63 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       console.log('✅ [checkProfile] Profile completeness:', isComplete);
       setIsProfileComplete(isComplete);
     } finally {
-      console.log('🏁 [checkProfile] Setting loading to false');
+      console.log('🏁 [checkEmailVerificationAndProfile] Setting loading to false');
       setIsLoading(false);
     }
   };
 
-  // Callback route'unda loading gösterme, direkt children render et
+  const handleUnverifiedEmail = async () => {
+    try {
+      console.log('📧 Handling unverified email - signing out user');
+      
+      Alert.alert(
+        'Email Verification Required',
+        'Please check your email and click the verification link before accessing the app. You will be signed out now.',
+        [
+          {
+            text: 'Resend Email',
+            onPress: async () => {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user?.email) {
+                  const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: user.email,
+                  });
+                  
+                  if (error) {
+                    Alert.alert('Error', 'Failed to resend verification email. Please try again.');
+                  } else {
+                    Alert.alert('Email Sent', 'Verification email has been resent. Please check your inbox.');
+                  }
+                }
+                
+                // Sign out after resending
+                await supabase.auth.signOut();
+                router.replace('/(auth)/login');
+              } catch (error) {
+                console.error('Error resending email:', error);
+                await supabase.auth.signOut();
+                router.replace('/(auth)/login');
+              }
+            }
+          },
+          {
+            text: 'OK',
+            onPress: async () => {
+              await supabase.auth.signOut();
+              router.replace('/(auth)/login');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error handling unverified email:', error);
+      router.replace('/(auth)/login');
+    }
+  };
+
+  // Skip loading screen for callback route
   if (pathname === '/auth/callback' || pathname === '/(auth)/callback') {
     return <>{children}</>;
   }
