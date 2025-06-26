@@ -1,10 +1,9 @@
-import React from 'react';
-import OnboardingScreen from '../../screens/OnboardingScreen';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
+import OnboardingScreen from '../../screens/OnboardingScreen';
 
 export default function OnboardingRoute() {
   const [userId, setUserId] = useState<string>('');
@@ -66,6 +65,10 @@ export default function OnboardingRoute() {
   const handleComplete = async (signupData?: any) => {
     try {
       console.log('✅ Onboarding completed');
+      
+      // ADD THESE 2 LINES HERE:
+      router.replace('/(tabs)');
+      return;
       
       if (isSignupFlow && signupData) {
         // For new users, create account first
