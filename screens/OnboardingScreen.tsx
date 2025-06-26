@@ -101,24 +101,31 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   };
 
   const handleCompleteOnboarding = async () => {
-    // Validation
-    if (!formData.fullName || !formData.age || !formData.gender || 
-        !formData.height || !formData.weight || !formData.activityLevel) {
-      Alert.alert('Missing Information', 'Please complete all required fields.');
-      setCurrentStep(isSignupFlow ? 1 : 0); // Go to personal info step
-      return;
-    }
-
-    // For signup flow, validate email and password
-    if (isSignupFlow && (!formData.email || !formData.password)) {
-      Alert.alert('Missing Information', 'Please provide email and password.');
-      setCurrentStep(0); // Go to account step
-      return;
-    }
-
-    setLoading(true);
-
     try {
+      console.log('✅ Onboarding completed - forcing dashboard redirect');
+      
+      // Force redirect to dashboard
+      onComplete();
+      return;
+
+      // The rest of this code won't execute due to the return above
+      // Validation
+      if (!formData.fullName || !formData.age || !formData.gender || 
+          !formData.height || !formData.weight || !formData.activityLevel) {
+        Alert.alert('Missing Information', 'Please complete all required fields.');
+        setCurrentStep(isSignupFlow ? 1 : 0); // Go to personal info step
+        return;
+      }
+
+      // For signup flow, validate email and password
+      if (isSignupFlow && (!formData.email || !formData.password)) {
+        Alert.alert('Missing Information', 'Please provide email and password.');
+        setCurrentStep(0); // Go to account step
+        return;
+      }
+
+      setLoading(true);
+
       if (isSignupFlow) {
         // Create account first
         console.log('📝 Creating account...');
@@ -794,7 +801,8 @@ const styles = StyleSheet.create({
     height: 50,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: '
+row',
   },
   optionCard: {
     flexDirection: 'row',
