@@ -16,6 +16,37 @@ export default function OnboardingRoute() {
     checkAuthStatus();
   }, []);
 
+  // Auto-navigate when profile is complete
+  useEffect(() => {
+    if (!userId) return;
+    
+    let checkCount = 0;
+    const checkInterval = setInterval(async () => {
+      checkCount++;
+      
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('age, gender, height_cm, weight_kg, activity_level, health_goals')
+        .eq('id', userId)
+        .single();
+      
+      // Check if all required fields are filled
+      if (profile?.age && profile?.gender && profile?.height_cm && 
+          profile?.weight_kg && profile?.activity_level && profile?.health_goals) {
+        console.log('🎯 Profile completion detected! Navigating to dashboard...');
+        clearInterval(checkInterval);
+        router.replace('/(tabs)');
+      }
+      
+      // Stop checking after 10 seconds
+      if (checkCount > 10) {
+        clearInterval(checkInterval);
+      }
+    }, 1000); // Check every second
+    
+    return () => clearInterval(checkInterval);
+  }, [userId, router]);
+
   const checkAuthStatus = async () => {
     try {
       // First check if user is authenticated
@@ -45,8 +76,8 @@ export default function OnboardingRoute() {
         
         // Check if profile is already complete
         if (profile && profile.age && profile.gender && 
-            (profile.height || profile.height_cm) && 
-            (profile.weight || profile.weight_kg) && 
+            profile.height_cm && 
+            profile.weight_kg && 
             profile.activity_level && profile.health_goals) {
           console.log('✅ Profile already complete, redirecting to app');
           router.replace('/(tabs)');
@@ -65,10 +96,6 @@ export default function OnboardingRoute() {
   const handleComplete = async (signupData?: any) => {
     try {
       console.log('✅ Onboarding completed');
-      
-      // ADD THESE 2 LINES HERE:
-      router.replace('/(tabs)');
-      return;
       
       if (isSignupFlow && signupData) {
         // For new users, create account first

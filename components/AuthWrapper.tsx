@@ -178,8 +178,8 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         profile &&
         profile.age &&
         profile.gender &&
-        (profile.height || profile.height_cm) &&
-        (profile.weight || profile.weight_kg) &&
+        profile.height_cm &&
+        profile.weight_kg &&
         profile.activity_level &&
         profile.health_goals
       );
