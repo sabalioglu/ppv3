@@ -49,27 +49,27 @@ export default function OnboardingRoute() {
 
   const validateForm = () => {
     if (!formData.fullName.trim()) {
-      Alert.alert('Hata', 'Lütfen adınızı ve soyadınızı girin.');
+      Alert.alert('Error', 'Please enter your full name.');
       return false;
     }
     if (!formData.age || isNaN(parseInt(formData.age)) || parseInt(formData.age) <= 0) {
-      Alert.alert('Hata', 'Lütfen geçerli bir yaş girin.');
+      Alert.alert('Error', 'Please enter a valid age.');
       return false;
     }
     if (!formData.gender) {
-      Alert.alert('Hata', 'Lütfen cinsiyetinizi seçin.');
+      Alert.alert('Error', 'Please select your gender.');
       return false;
     }
     if (!formData.height || isNaN(parseInt(formData.height)) || parseInt(formData.height) <= 0) {
-      Alert.alert('Hata', 'Lütfen geçerli bir boy (cm) girin.');
+      Alert.alert('Error', 'Please enter a valid height (cm).');
       return false;
     }
     if (!formData.weight || isNaN(parseFloat(formData.weight)) || parseFloat(formData.weight) <= 0) {
-      Alert.alert('Hata', 'Lütfen geçerli bir kilo (kg) girin.');
+      Alert.alert('Error', 'Please enter a valid weight (kg).');
       return false;
     }
     if (!userId) {
-      Alert.alert('Hata', 'Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.');
+      Alert.alert('Error', 'User session not found. Please sign in again.');
       router.replace('/(auth)/login');
       return false;
     }
@@ -128,12 +128,12 @@ export default function OnboardingRoute() {
     } catch (error: any) {
       console.error('❌ Onboarding completion error:', error);
       Alert.alert(
-        'Hata',
-        'Profil güncellenirken bir sorun oluştu. Tekrar deneyin.',
+        'Error',
+        'There was a problem updating your profile. Please try again.',
         [
-          { text: 'Tekrar Dene', style: 'cancel' },
+          { text: 'Try Again', style: 'cancel' },
           { 
-            text: 'Devam Et', 
+            text: 'Continue Anyway', 
             onPress: () => {
               // Fallback navigation (guaranteed to work)
               if (typeof window !== 'undefined') {
@@ -153,15 +153,15 @@ export default function OnboardingRoute() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>🍽 Profilinizi Tamamlayın</Text>
-      <Text style={styles.subtitle}>Kişiselleştirilmiş deneyim için birkaç bilgi daha</Text>
+      <Text style={styles.title}>🍽 Complete Your Profile</Text>
+      <Text style={styles.subtitle}>A few more details for personalized experience</Text>
 
       <View style={styles.form}>
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Ad Soyad *</Text>
+          <Text style={styles.label}>Full Name *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Adınızı ve soyadınızı girin"
+            placeholder="Enter your full name"
             value={formData.fullName}
             onChangeText={(text) => setFormData({...formData, fullName: text})}
             autoCapitalize="words"
@@ -169,10 +169,10 @@ export default function OnboardingRoute() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Yaş *</Text>
+          <Text style={styles.label}>Age *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Yaşınızı girin"
+            placeholder="Enter your age"
             value={formData.age}
             onChangeText={(text) => setFormData({...formData, age: text})}
             keyboardType="numeric"
@@ -181,24 +181,24 @@ export default function OnboardingRoute() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Cinsiyet *</Text>
+          <Text style={styles.label}>Gender *</Text>
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={formData.gender}
               style={styles.picker}
               onValueChange={(value) => setFormData({...formData, gender: value})}
             >
-              <Picker.Item label="Cinsiyet seçin" value="" />
-              <Picker.Item label="Erkek" value="male" />
-              <Picker.Item label="Kadın" value="female" />
-              <Picker.Item label="Belirtmek istemiyorum" value="prefer_not_to_say" />
+              <Picker.Item label="Select gender" value="" />
+              <Picker.Item label="Male" value="male" />
+              <Picker.Item label="Female" value="female" />
+              <Picker.Item label="Prefer not to say" value="prefer_not_to_say" />
             </Picker>
           </View>
         </View>
 
         <View style={styles.row}>
           <View style={[styles.inputGroup, styles.halfWidth]}>
-            <Text style={styles.label}>Boy (cm) *</Text>
+            <Text style={styles.label}>Height (cm) *</Text>
             <TextInput
               style={styles.input}
               placeholder="170"
@@ -210,7 +210,7 @@ export default function OnboardingRoute() {
           </View>
 
           <View style={[styles.inputGroup, styles.halfWidth]}>
-            <Text style={styles.label}>Kilo (kg) *</Text>
+            <Text style={styles.label}>Weight (kg) *</Text>
             <TextInput
               style={styles.input}
               placeholder="70"
@@ -223,18 +223,18 @@ export default function OnboardingRoute() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Aktivite Seviyesi</Text>
+          <Text style={styles.label}>Activity Level</Text>
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={formData.activityLevel}
               style={styles.picker}
               onValueChange={(value) => setFormData({...formData, activityLevel: value})}
             >
-              <Picker.Item label="Hareketsiz (az veya hiç egzersiz)" value="sedentary" />
-              <Picker.Item label="Hafif Aktif (haftada 1-3 gün)" value="lightly_active" />
-              <Picker.Item label="Orta Aktif (haftada 3-5 gün)" value="moderately_active" />
-              <Picker.Item label="Çok Aktif (haftada 6-7 gün)" value="very_active" />
-              <Picker.Item label="Ekstra Aktif (çok yoğun egzersiz)" value="extra_active" />
+              <Picker.Item label="Sedentary (little or no exercise)" value="sedentary" />
+              <Picker.Item label="Lightly Active (1-3 days/week)" value="lightly_active" />
+              <Picker.Item label="Moderately Active (3-5 days/week)" value="moderately_active" />
+              <Picker.Item label="Very Active (6-7 days/week)" value="very_active" />
+              <Picker.Item label="Extra Active (very intense exercise)" value="extra_active" />
             </Picker>
           </View>
         </View>
@@ -248,7 +248,7 @@ export default function OnboardingRoute() {
         {loading ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={styles.buttonText}>Profili Tamamla →</Text>
+          <Text style={styles.buttonText}>Complete Profile →</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -262,10 +262,10 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   title: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
     marginBottom: 40,
@@ -294,10 +294,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#d1d5db',
-    padding: 15,
+    padding: 12,
     borderRadius: 12,
     fontSize: 16,
     color: '#1f2937',
+    minHeight: 44,
   },
   pickerContainer: {
     backgroundColor: 'white',
@@ -322,6 +323,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 20,
+    minHeight: 50,
   },
   buttonDisabled: {
     backgroundColor: '#9ca3af',
