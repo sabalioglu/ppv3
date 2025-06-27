@@ -23,17 +23,29 @@ export default function OnboardingRoute() {
     checkAuth();
   }, []);
 
+  // CRITICAL FIX: getSession() → getUser() for reliable authentication
   const checkAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUserId(session.user.id);
+      console.log('🔍 Starting checkAuth in onboarding...');
+      
+      // Use getUser() instead of getSession() - more reliable for client-side auth
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error('❌ getUser error:', error);
+        router.replace('/(auth)/login');
+        return;
+      }
+      
+      if (user) {
+        console.log('✅ User found in onboarding:', user.id);
+        setUserId(user.id);
         
         // Check if profile is already complete
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('age, gender, height_cm, weight_kg, activity_level, health_goals')
-          .eq('id', session.user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (profile && profile.age && profile.gender && profile.height_cm && 
@@ -41,9 +53,13 @@ export default function OnboardingRoute() {
           console.log('✅ Profile already complete, redirecting to app');
           router.replace('/(tabs)');
         }
+      } else {
+        console.log('🚫 No user found in checkAuth, redirecting to login');
+        router.replace('/(auth)/login');
       }
     } catch (error) {
       console.error('❌ Auth check error:', error);
+      router.replace('/(auth)/login');
     }
   };
 
@@ -79,6 +95,20 @@ export default function OnboardingRoute() {
   const handleComplete = async () => {
     try {
       console.log('✅ Starting onboarding completion...');
+
+      // SAFETY CHECK: Double-check user authentication before proceeding
+      if (!userId) {
+        console.log('🔍 userId is empty, attempting to get user again...');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          console.log('✅ userId recovered:', user.id);
+        } else {
+          Alert.alert('Error', 'User session not found. Please sign in again.');
+          router.replace('/(auth)/login');
+          return;
+        }
+      }
 
       if (!validateForm()) {
         return;
