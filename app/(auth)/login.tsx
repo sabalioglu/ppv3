@@ -12,12 +12,13 @@ import {
   Platform 
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import { supabase, signInWithGoogle } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const router = useRouter();
 
@@ -73,7 +74,6 @@ export default function LoginPage() {
         }
 
         console.log('✅ Login successful');
-        // Navigation will be handled by TabsLayout auth guard
         router.replace('/(tabs)');
       }
     } catch (error: any) {
@@ -85,24 +85,28 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     try {
-      const redirectTo = Platform.OS === 'web'
-        ? `${window.location.origin}/(auth)/callback`
-        : 'aifoodpantry://auth/callback';
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo }
-      });
+      console.log('🔐 Starting Google OAuth...');
+      
+      // lib/supabase.ts'deki helper fonksiyonunu kullan
+      const { data, error } = await signInWithGoogle();
 
       if (error) throw error;
-      console.log('✅ OAuth initiated');
+      
+      console.log('✅ Google OAuth initiated successfully');
+      
+      // Web'de otomatik redirect olur, mobile'da WebBrowser handling zaten yapılmış
+      // TabsLayout auth guard navigation'ı handle edecek
+      
     } catch (error: any) {
-      console.error('Google sign in error:', error);
-      Alert.alert('Error', 'Failed to sign in with Google');
+      console.error('❌ Google OAuth error:', error);
+      Alert.alert(
+        'Google Sign In Failed', 
+        error.message || 'Failed to sign in with Google. Please try again.'
+      );
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -128,7 +132,7 @@ export default function LoginPage() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            editable={!loading}
+            editable={!loading && !googleLoading}
           />
 
           <TextInput
@@ -137,13 +141,13 @@ export default function LoginPage() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            editable={!loading}
+            editable={!loading && !googleLoading}
           />
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.button, (loading || googleLoading) && styles.buttonDisabled]}
             onPress={handleAuth}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             {loading ? (
               <ActivityIndicator color="white" />
@@ -161,11 +165,20 @@ export default function LoginPage() {
           </View>
 
           <TouchableOpacity
-            style={[styles.socialButton, loading && styles.buttonDisabled]}
+            style={[styles.socialButton, (loading || googleLoading) && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            {googleLoading ? (
+              <ActivityIndicator color="#1f2937" />
+            ) : (
+              <>
+                <View style={styles.googleIcon}>
+                  <Text style={styles.googleIconText}>G</Text>
+                </View>
+                <Text style={styles.socialButtonText}>Continue with Google</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.footer}>
@@ -177,8 +190,9 @@ export default function LoginPage() {
                 setIsSignUpMode(!isSignUpMode);
                 setPassword('');
               }}
+              disabled={loading || googleLoading}
             >
-              <Text style={styles.linkText}>
+              <Text style={[styles.linkText, (loading || googleLoading) && styles.linkTextDisabled]}>
                 {isSignUpMode ? 'Sign In' : 'Sign Up'}
               </Text>
             </TouchableOpacity>
@@ -236,6 +250,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
+    minHeight: 50,
+    justifyContent: 'center',
   },
   buttonDisabled: {
     backgroundColor: '#9ca3af',
@@ -268,10 +284,28 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
     alignItems: 'center',
     marginBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  googleIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#4285f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  googleIconText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   socialButtonText: {
     fontSize: 16,
     color: '#1f2937',
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -286,5 +320,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: '#10b981',
+  },
+  linkTextDisabled: {
+    color: '#9ca3af',
   },
 });
