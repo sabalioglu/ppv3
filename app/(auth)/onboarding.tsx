@@ -123,7 +123,6 @@ export default function OnboardingPage() {
       console.log('✅ Profile saved successfully');
       console.log('🚀 Navigating to dashboard...');
 
-      // Direct navigation - no session refresh needed
       router.replace('/(tabs)');
 
     } catch (error: any) {
