@@ -1,242 +1,152 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Image,
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  ActivityIndicator, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform 
 } from 'react-native';
-import { useRouter, Link } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { useTheme } from '@/contexts/ThemeContext';
 
-export default function LoginScreen() {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const router = useRouter();
-  const { theme } = useTheme();
 
   const handleAuth = async () => {
-    // Simple validation
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Please fill all fields');
       return;
     }
-
     if (isSignUpMode && password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
+    setLoading(true);
     try {
-      setIsLoading(true);
-
       if (isSignUpMode) {
-        // Sign up
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-
+        
         Alert.alert(
           '📧 Check Your Email!',
           'We\'ve sent you a verification email. Please verify your account before signing in.',
-          [{
-            text: 'OK',
-            onPress: () => {
-              setIsSignUpMode(false);
-              setPassword('');
-            }
-          }]
+          [{ text: 'OK', onPress: () => setIsSignUpMode(false) }]
         );
       } else {
-        // Sign in
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-          // Handle email not confirmed error
-          if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+          if (error.message.includes('Email not confirmed')) {
             Alert.alert(
               'Email Not Verified',
-              'Please check your email and click the verification link before signing in.',
+              'Please check your email and click the verification link.',
               [
                 {
                   text: 'Resend Email',
                   onPress: async () => {
-                    try {
-                      const { error: resendError } = await supabase.auth.resend({
-                        type: 'signup',
-                        email: email,
-                      });
-                      
-                      if (resendError) {
-                        Alert.alert('Error', 'Failed to resend verification email. Please try again.');
-                      } else {
-                        Alert.alert('Email Sent', 'Verification email has been resent. Please check your inbox.');
-                      }
-                    } catch (resendErr) {
-                      Alert.alert('Error', 'Failed to resend verification email. Please try again.');
+                    const { error: resendError } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email,
+                    });
+                    if (resendError) {
+                      Alert.alert('Error', 'Failed to resend verification email.');
+                    } else {
+                      Alert.alert('Email Sent', 'Verification email has been resent.');
                     }
-                  }
+                  },
                 },
-                { text: 'OK', style: 'cancel' }
+                { text: 'OK', style: 'cancel' },
               ]
             );
             return;
           }
-          
           throw error;
         }
 
-        // Success - AuthWrapper will handle navigation
         console.log('✅ Login successful');
+        // Navigation will be handled by TabsLayout auth guard
+        router.replace('/(tabs)');
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'An error occurred'
-      );
+      Alert.alert('Error', error.message || 'Authentication failed');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
-      setIsLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = Platform.OS === 'web'
+        ? `${window.location.origin}/(auth)/callback`
+        : 'aifoodpantry://auth/callback';
+
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: Platform.OS === 'web' 
-            ? `${window.location.origin}/(auth)/callback`
-            : 'aifoodpantry://auth/callback',
-        }
+        options: { redirectTo }
       });
 
       if (error) throw error;
-
-      // Web will redirect, mobile needs to wait for auth state change
-      if (Platform.OS !== 'web') {
-        console.log('✅ OAuth initiated, waiting for callback...');
-      }
+      console.log('✅ OAuth initiated');
     } catch (error: any) {
       console.error('Google sign in error:', error);
       Alert.alert('Error', 'Failed to sign in with Google');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Logo/Header */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Ionicons name="nutrition" size={80} color={theme.colors.primary} />
-          <Text style={[styles.title, { color: theme.colors.text }]}>
-            AI Food Pantry
-          </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+          <Text style={styles.title}>🍽 AI Food Pantry</Text>
+          <Text style={styles.subtitle}>
             {isSignUpMode ? 'Create your account' : 'Welcome back!'}
           </Text>
         </View>
 
-        {/* Form */}
         <View style={styles.form}>
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="mail-outline"
-              size={20}
-              color={theme.colors.textSecondary}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={[styles.input, { color: theme.colors.text }]}
-              placeholder="Email"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!isLoading}
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+          />
 
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color={theme.colors.textSecondary}
-              style={styles.inputIcon}
-            />
-            <TextInput
-              style={[styles.input, { color: theme.colors.text }]}
-              placeholder={isSignUpMode ? "Password (min 6 characters)" : "Password"}
-              placeholderTextColor={theme.colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={theme.colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder={isSignUpMode ? "Password (min 6 characters)" : "Password"}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            editable={!loading}
+          />
 
-          {/* Forgot Password Link */}
-          {!isSignUpMode && (
-            <View style={styles.forgotPasswordContainer}>
-              <Link href="/(auth)/reset-password" asChild>
-                <TouchableOpacity>
-                  <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                    Forgot Password?
-                  </Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-          )}
-
-          {/* Auth Button */}
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.colors.primary }]}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleAuth}
-            disabled={isLoading}
+            disabled={loading}
           >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
+            {loading ? (
+              <ActivityIndicator color="white" />
             ) : (
               <Text style={styles.buttonText}>
                 {isSignUpMode ? 'Create Account' : 'Sign In'}
@@ -244,34 +154,23 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
           <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-            <Text style={[styles.dividerText, { color: theme.colors.textSecondary }]}>
-              OR
-            </Text>
-            <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
           </View>
 
-          {/* Google Sign In Button */}
           <TouchableOpacity
-            style={[styles.socialButton, { backgroundColor: theme.colors.surface }]}
+            style={[styles.socialButton, loading && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={loading}
           >
-            <Image
-              source={{ uri: 'https://www.google.com/favicon.ico' }}
-              style={styles.socialIcon}
-            />
-            <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
-              Continue with Google
-            </Text>
+            <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          {/* Toggle Sign Up/Sign In */}
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
-              {isSignUpMode ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <Text style={styles.footerText}>
+              {isSignUpMode ? 'Already have an account?' : "Don't have an account? "}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -279,7 +178,7 @@ export default function LoginScreen() {
                 setPassword('');
               }}
             >
-              <Text style={[styles.linkText, { color: theme.colors.primary }]}>
+              <Text style={styles.linkText}>
                 {isSignUpMode ? 'Sign In' : 'Sign Up'}
               </Text>
             </TouchableOpacity>
@@ -293,6 +192,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     flexGrow: 1,
@@ -307,56 +207,43 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     marginTop: 16,
+    color: '#1f2937',
   },
   subtitle: {
     fontSize: 16,
     marginTop: 8,
     textAlign: 'center',
+    color: '#6b7280',
   },
   form: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
   input: {
-    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    padding: 15,
+    borderRadius: 12,
     fontSize: 16,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
+    color: '#1f2937',
+    backgroundColor: 'white',
     marginBottom: 16,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   button: {
-    height: 56,
+    backgroundColor: '#10b981',
+    padding: 15,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
   buttonText: {
-    color: '#FFFFFF',
+    color: 'white',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   divider: {
     flexDirection: 'row',
@@ -366,29 +253,25 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
+    backgroundColor: '#d1d5db',
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
+    color: '#6b7280',
   },
   socialButton: {
-    height: 56,
+    backgroundColor: 'white',
+    padding: 15,
     borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#d1d5db',
+    alignItems: 'center',
     marginBottom: 24,
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
   },
   socialButtonText: {
     fontSize: 16,
-    fontWeight: '500',
+    color: '#1f2937',
   },
   footer: {
     flexDirection: 'row',
@@ -397,9 +280,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
+    color: '#6b7280',
   },
   linkText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    color: '#10b981',
   },
 });
