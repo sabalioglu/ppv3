@@ -14,7 +14,8 @@
       "infoPlist": {
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["aifoodpantry"]
+             "CFBundleURLName": "aifoodpantry",
+             "CFBundleURLSchemes": ["aifoodpantry"]
           }
         ]
       }
