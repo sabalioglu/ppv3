@@ -15,6 +15,8 @@ import { Picker } from '@react-native-picker/picker';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
+console.log('🔥 YENİ ONBOARDING AKTIF - v2.0 STEP SYSTEM');
+
 interface FormData {
   fullName: string;
   age: string;
