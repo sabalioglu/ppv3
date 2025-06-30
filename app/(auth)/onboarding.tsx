@@ -117,7 +117,7 @@ export default function OnboardingPage() {
     dietaryRestrictions: [],
     dietaryPreferences: [],
     cuisinePreferences: [],
-    cookingSkillLevel: ''
+    cookingSkillLevel: '',
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
