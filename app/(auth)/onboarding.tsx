@@ -113,7 +113,7 @@ export default function OnboardingPage() {
     height: '',
     weight: '',
     activityLevel: '',
-    healthGoals: '' 
+    healthGoals: '', 
     dietaryRestrictions: [],
     dietaryPreferences: [],
     cuisinePreferences: [],
