@@ -68,7 +68,17 @@ const CUISINE_PREFERENCES = [
   { key: 'thai', label: '🇹🇭 Thai' },
   { key: 'greek', label: '🇬🇷 Greek' },
   { key: 'turkish', label: '🇹🇷 Turkish' },
-  { key: 'korean', label: '🇰🇷 Korean' }
+  { key: 'korean', label: '🇰🇷 Korean' },
+  { key: 'spanish', label: '🇪🇸 Spanish' },
+  { key: 'vietnamese', label: '🇻🇳 Vietnamese' },
+  { key: 'lebanese', label: '🇱🇧 Lebanese' },
+  { key: 'german', label: '🇩🇪 German' },
+  { key: 'brazilian', label: '🇧🇷 Brazilian' },
+  { key: 'moroccan', label: '🇲🇦 Moroccan' },
+  { key: 'ethiopian', label: '🇪🇹 Ethiopian' },
+  { key: 'russian', label: '🇷🇺 Russian' },
+  { key: 'american', label: '🇺🇸 American' },
+  { key: 'peruvian', label: '🇵🇪 Peruvian' }
 ];
 
 export default function OnboardingPage() {
