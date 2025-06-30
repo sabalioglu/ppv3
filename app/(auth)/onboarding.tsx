@@ -112,12 +112,12 @@ export default function OnboardingPage() {
     gender: '',
     height: '',
     weight: '',
-    activityLevel: 'moderately_active',
-    healthGoals: ['weight_loss'], // Default selection
+    activityLevel: '',
+    healthGoals: '' 
     dietaryRestrictions: [],
     dietaryPreferences: [],
     cuisinePreferences: [],
-    cookingSkillLevel: 'beginner'
+    cookingSkillLevel: ''
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
