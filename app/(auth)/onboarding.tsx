@@ -42,7 +42,19 @@ const HEALTH_GOALS = [
   { key: 'muscle_gain', label: '💪 Muscle Gain' },
   { key: 'maintain_weight', label: '⚖️ Maintain Weight' },
   { key: 'improve_health', label: '❤️ Improve Health' },
-  { key: 'energy_boost', label: '⚡ Energy Boost' }
+  { key: 'energy_boost', label: '⚡ Energy Boost' },
+  { key: 'better_sleep', label: '🛌 Better Sleep' },
+  { key: 'stress_relief', label: '🧘 Stress Relief' },
+  { key: 'digestive_health', label: '🌿 Digestive Health' },
+  { key: 'mental_clarity', label: '🧠 Mental Clarity' },
+  { key: 'skin_health', label: '✨ Skin Health' },
+  { key: 'hormonal_balance', label: '🔄 Hormonal Balance' },
+  { key: 'heart_health', label: '❤️‍🩹 Heart Health' },
+  { key: 'immune_support', label: '🛡️ Immune Support' },
+  { key: 'bone_strength', label: '🦴 Bone Strength' },
+  { key: 'anti_aging', label: '⏳ Anti-Aging' },
+  { key: 'blood_sugar_control', label: '🍭 Blood Sugar Control' },
+  { key: 'cholesterol_control', label: '🩸 Cholesterol Control' }
 ];
 
 const DIETARY_PREFERENCES = [
@@ -55,7 +67,17 @@ const DIETARY_PREFERENCES = [
   { key: 'low_carb', label: '🥩 Low Carb' },
   { key: 'gluten_free', label: '🌾 Gluten Free' },
   { key: 'dairy_free', label: '🥛 Dairy Free' },
-  { key: 'low_fat', label: '🍃 Low Fat' }
+  { key: 'low_fat', label: '🍃 Low Fat' },
+  { key: 'raw_food', label: '🥗 Raw Food' },
+  { key: 'flexitarian', label: '🍽️ Flexitarian' },
+  { key: 'whole30', label: '🧘 Whole30' },
+  { key: 'dash', label: '💓 DASH' },
+  { key: 'fodmap', label: '🚫 FODMAP' },
+  { key: 'carnivore', label: '🥓 Carnivore' },
+  { key: 'halal', label: '🕌 Halal' },
+  { key: 'kosher', label: '✡️ Kosher' },
+  { key: 'intermittent_fasting', label: '⏱️ Intermittent Fasting' },
+  { key: 'diabetic_friendly', label: '🩸 Diabetic-Friendly' }
 ];
 
 const CUISINE_PREFERENCES = [
