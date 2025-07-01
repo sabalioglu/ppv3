@@ -424,14 +424,15 @@ export default function OnboardingPage() {
         <Text style={styles.label}>Your Cooking Skill Level</Text>
         <View style={styles.pickerContainer}>
           <Picker
-            selectedValue={formData.cookingSkillLevel}
-            style={styles.picker}
-            onValueChange={(value) => setFormData({...formData, cookingSkillLevel: value})}
-          >
-            <Picker.Item label="🌱 Beginner" value="beginner" />
-            <Picker.Item label="🍳 Intermediate" value="intermediate" />
-            <Picker.Item label="👨‍🍳 Advanced" value="advanced" />
-            <Picker.Item label="⭐ Expert" value="expert" />
+           selectedValue={formData.cookingSkillLevel}
+  style={styles.picker}
+  onValueChange={(value) => setFormData({...formData, cookingSkillLevel: value})}
+>
+  <Picker.Item label="Select your skill level" value="" />
+  <Picker.Item label="🌱 Beginner" value="beginner" />
+  <Picker.Item label="🍳 Intermediate" value="intermediate" />
+  <Picker.Item label="👨‍🍳 Advanced" value="advanced" />
+  <Picker.Item label="⭐ Expert" value="expert" />
           </Picker>
         </View>
       </View>
