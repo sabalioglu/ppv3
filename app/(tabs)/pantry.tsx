@@ -760,7 +760,7 @@ export default function PantryScreen() {
     },
     modalTitle: {
       fontSize: 24
-fontWeight: '700',
+      fontWeight: '700',
       color: theme.colors.textPrimary,
       letterSpacing: -0.5,
     },
