@@ -259,7 +259,7 @@ export default function OnboardingPage() {
         <View style={[styles.inputGroup, styles.halfWidth]}>
           <Text style={styles.label}>Age *</Text>
           <TextInput
-            placeholder="25"
+            placeholder="Your Age"
             value={formData.age}
             onChangeText={(text) => setFormData({...formData, age: text})}
             style={styles.input}
@@ -295,7 +295,7 @@ export default function OnboardingPage() {
         <View style={[styles.inputGroup, styles.halfWidth]}>
           <Text style={styles.label}>Height (cm) *</Text>
           <TextInput
-            placeholder="170"
+            placeholder="Height in cm"
             value={formData.height}
             onChangeText={(text) => setFormData({...formData, height: text})}
             style={styles.input}
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
         <View style={[styles.inputGroup, styles.halfWidth]}>
           <Text style={styles.label}>Weight (kg) *</Text>
           <TextInput
-            placeholder="70"
+            placeholder="Weight in kg"
             value={formData.weight}
             onChangeText={(text) => setFormData({...formData, weight: text})}
             style={styles.input}
@@ -325,11 +325,13 @@ export default function OnboardingPage() {
             style={styles.picker}
             onValueChange={(value) => setFormData({...formData, activityLevel: value})}
           >
+            <Picker.Item label="Select activity level" value="" />
             <Picker.Item label="Sedentary (little exercise)" value="sedentary" />
             <Picker.Item label="Lightly Active (1-3 days/week)" value="lightly_active" />
             <Picker.Item label="Moderately Active (3-5 days/week)" value="moderately_active" />
             <Picker.Item label="Very Active (6-7 days/week)" value="very_active" />
             <Picker.Item label="Extra Active (very intense)" value="extra_active" />
+          </Picker>
           </Picker>
         </View>
       </View>
