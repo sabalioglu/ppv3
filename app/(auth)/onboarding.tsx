@@ -146,35 +146,46 @@ export default function OnboardingPage() {
   };
 
   const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.fullName.trim()) {
-          Alert.alert('Error', 'Please enter your full name');
-          return false;
-        }
-        if (!formData.age || isNaN(parseInt(formData.age))) {
-          Alert.alert('Error', 'Please enter a valid age');
-          return false;
-        }
-        if (!formData.gender) {
-          Alert.alert('Error', 'Please select your gender');
-          return false;
-        }
-        return true;
-      case 2:
-        if (!formData.height || isNaN(parseInt(formData.height))) {
-          Alert.alert('Error', 'Please enter a valid height');
-          return false;
-        }
-        if (!formData.weight || isNaN(parseFloat(formData.weight))) {
-          Alert.alert('Error', 'Please enter a valid weight');
-          return false;
-        }
-        return true;
-      default:
-        return true;
-    }
-  };
+  switch (step) {
+    case 1:
+      if (!formData.fullName.trim()) {
+        Alert.alert('Error', 'Please enter your full name');
+        return false;
+      }
+      if (!formData.age || isNaN(parseInt(formData.age))) {
+        Alert.alert('Error', 'Please enter a valid age');
+        return false;
+      }
+      if (!formData.gender) {
+        Alert.alert('Error', 'Please select your gender');
+        return false;
+      }
+      return true;
+    case 2:
+      if (!formData.height || isNaN(parseInt(formData.height))) {
+        Alert.alert('Error', 'Please enter a valid height');
+        return false;
+      }
+      if (!formData.weight || isNaN(parseFloat(formData.weight))) {
+        Alert.alert('Error', 'Please enter a valid weight');
+        return false;
+      }
+      if (!formData.activityLevel) {
+        Alert.alert('Error', 'Please select your activity level');
+        return false;
+      }
+      return true;
+    case 6:
+      if (!formData.cookingSkillLevel) {
+        Alert.alert('Error', 'Please select your cooking skill level');
+        return false;
+      }
+      return true;
+    default:
+      return true;
+  }
+};
+
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
