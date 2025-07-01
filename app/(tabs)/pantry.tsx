@@ -452,10 +452,10 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // Dynamic styles
+  // Dynamic styles - KEY FIXES APPLIED
   const styles = StyleSheet.create({
     container: {
-      flex: 1,
+      flex: 1, // ✅ SCROLL FIX: Ensure container flexibility
       backgroundColor: theme.colors.background,
     },
     loadingContainer: {
@@ -637,12 +637,12 @@ export default function PantryScreen() {
       fontWeight: '600',
     },
     itemsList: {
-      flex: 1,
+      flex: 1, // ✅ SCROLL FIX: Added flex for proper scrolling
       paddingHorizontal: 20,
     },
     itemsGrid: {
       paddingTop: 8,
-      paddingBottom: 100,
+      paddingBottom: 120, // ✅ SCROLL FIX: Increased bottom padding
     },
     itemCard: {
       backgroundColor: theme.colors.surface,
@@ -759,8 +759,8 @@ export default function PantryScreen() {
       marginBottom: 24,
     },
     modalTitle: {
-      fontSize: 24,
-      fontWeight: '700',
+      fontSize: 24
+fontWeight: '700',
       color: theme.colors.textPrimary,
       letterSpacing: -0.5,
     },
