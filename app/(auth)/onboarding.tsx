@@ -348,7 +348,6 @@ export default function OnboardingPage() {
             <Picker.Item label="Very Active (6-7 days/week)" value="very_active" />
             <Picker.Item label="Extra Active (very intense)" value="extra_active" />
           </Picker>
-          </Picker>
         </View>
       </View>
     </View>
