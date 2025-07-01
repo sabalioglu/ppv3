@@ -3,137 +3,43 @@ import { Database } from '@/types/database';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// AsyncStorage conditional import - SSR-safe
-let AsyncStorage: any = null;
-try {
-  if (Platform.OS !== 'web') {
-    AsyncStorage = require('@react-native-async-storage/async-storage').default;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+
+// Sade cross-platform storage
+const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
+
+export const supabase = createClient<Database>(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    auth: {
+      storage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: Platform.OS === 'web',
+      flowType: 'pkce',
+    },
   }
-} catch (error) {
-  console.log('📱 AsyncStorage not available:', error);
-}
-
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-// Validate required environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables');
-  console.error('EXPO_PUBLIC_SUPABASE_URL:', supabaseUrl ? 'Present' : 'Missing');
-  console.error('EXPO_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Present' : 'Missing');
-  throw new Error('Missing Supabase environment variables. Please check your .env file.');
-}
-
-console.log('✅ Supabase Config:', {
-  url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'Missing',
-  anonKey: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'Missing',
-});
-
-// Clean browser environment check
-const isBrowser = typeof window !== 'undefined';
-
-// SSR-safe cross-platform storage
-const customStorage = {
-  getItem: async (key: string) => {
-    try {
-      if (isBrowser) {
-        // Browser environment - use localStorage
-        return window.localStorage.getItem(key);
-      } else if (AsyncStorage) {
-        // Mobile environment - use AsyncStorage
-        const value = await AsyncStorage.getItem(key);
-        console.log('📱 Storage getItem:', key, value ? 'Found' : 'Not found');
-        return value;
-      } else {
-        // SSR or unsupported environment
-        console.log('🌐 Storage not available (SSR context)');
-        return null;
-      }
-    } catch (error) {
-      console.error('❌ Storage getItem error:', error);
-      return null;
-    }
-  },
-  
-  setItem: async (key: string, value: string) => {
-    try {
-      if (isBrowser) {
-        // Browser environment - use localStorage
-        window.localStorage.setItem(key, value);
-        console.log('🌐 Web storage setItem:', key, 'Saved');
-      } else if (AsyncStorage) {
-        // Mobile environment - use AsyncStorage
-        await AsyncStorage.setItem(key, value);
-        console.log('📱 Mobile storage setItem:', key, 'Saved');
-      } else {
-        // SSR or unsupported environment - skip silently
-        console.log('🌐 Storage setItem skipped (SSR context)');
-      }
-    } catch (error) {
-      console.error('❌ Storage setItem error:', error);
-    }
-  },
-  
-  removeItem: async (key: string) => {
-    try {
-      if (isBrowser) {
-        // Browser environment - use localStorage
-        window.localStorage.removeItem(key);
-        console.log('🌐 Web storage removeItem:', key, 'Removed');
-      } else if (AsyncStorage) {
-        // Mobile environment - use AsyncStorage
-        await AsyncStorage.removeItem(key);
-        console.log('📱 Mobile storage removeItem:', key, 'Removed');
-      } else {
-        // SSR or unsupported environment - skip silently
-        console.log('🌐 Storage removeItem skipped (SSR context)');
-      }
-    } catch (error) {
-      console.error('❌ Storage removeItem error:', error);
-    }
-  },
-};
-
-// Create redirect URL based on platform
-const getRedirectUrl = () => {
-  if (Platform.OS === 'web') {
-    if (isBrowser) {
-      return `${window.location.origin}/(auth)/callback`;
-    }
-    // SSR fallback
-    return 'https://warm-smakager-7badee.netlify.app/(auth)/callback';
-  }
-  // For mobile, use the consistent aifoodpantry scheme
-  return 'aifoodpantry://auth/callback';
-};
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: customStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
-    flowType: 'pkce',
-  },
-});
+);
 
 // Enhanced OAuth sign in function
 export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   try {
-    const redirectTo = getRedirectUrl();
+    const redirectTo = Platform.OS === 'web' 
+      ? `${window.location.origin}/(auth)/callback`
+      : 'aifoodpantry://auth/callback';
+    
     console.log('🔗 OAuth redirect URL:', redirectTo);
 
     if (Platform.OS === 'web') {
-      // Web implementation - let Supabase handle the redirect
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
       return { data, error };
@@ -144,42 +50,29 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
         options: {
           redirectTo,
           skipBrowserRedirect: true,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          queryParams: { access_type: 'offline', prompt: 'consent' },
         },
       });
 
       if (error) throw error;
       if (!data.url) throw new Error('No URL returned from OAuth');
 
-      console.log('📱 Opening OAuth URL in browser...');
-
-      // Open in web browser
+      console.log('📱 Opening OAuth URL...');
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
         redirectTo,
-        {
-          showInRecents: true,
-          createTask: false,
-        }
+        { showInRecents: true, createTask: false }
       );
 
-      console.log('📱 OAuth browser result:', result.type);
+      console.log('📱 OAuth result:', result.type);
 
       if (result.type === 'success' && result.url) {
-        console.log('✅ OAuth success, processing tokens...');
-        
-        // Parse the URL to get tokens
         const parsedUrl = Linking.parse(result.url);
         const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === '/callback' 
-          ? parsedUrl.queryParams 
-          : {};
+          ? parsedUrl.queryParams : {};
         
         if (fragment.access_token) {
-          console.log('🔑 Setting session with tokens...');
-          // Set the session manually
+          console.log('🔑 Setting session...');
           await supabase.auth.setSession({
             access_token: fragment.access_token as string,
             refresh_token: (fragment.refresh_token as string) || '',
@@ -187,7 +80,7 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
           
           // Session kontrolü
           const { data: sessionData } = await supabase.auth.getSession();
-          console.log('📱 Session established:', sessionData.session ? 'Active' : 'None');
+          console.log('📱 Session status:', sessionData.session ? 'Active' : 'None');
         }
       }
 
@@ -199,25 +92,19 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   }
 };
 
-// Keep the old function for backward compatibility
+// Keep backward compatibility
 export const signInWithGoogle = async () => {
   return signInWithOAuth('google');
 };
 
 // Auth helper functions
 export const signUp = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signUp({ email, password });
   return { data, error };
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   return { data, error };
 };
 
@@ -233,35 +120,16 @@ export const getCurrentUser = async () => {
 
 // Database helper functions
 export const createUserProfile = async (profile: Database['public']['Tables']['user_profiles']['Insert']) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .insert(profile)
-    .select()
-    .single();
+  const { data, error } = await supabase.from('user_profiles').insert(profile).select().single();
   return { data, error };
 };
 
 export const getUserProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  const { data, error } = await supabase.from('user_profiles').select('*').eq('id', userId).single();
   return { data, error };
 };
 
-export const updateUserProfile = async (
-  userId: string,
-  updates: Database['public']['Tables']['user_profiles']['Update']
-) => {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', userId)
-    .select()
-    .single();
+export const updateUserProfile = async (userId: string, updates: Database['public']['Tables']['user_profiles']['Update']) => {
+  const { data, error } = await supabase.from('user_profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', userId).select().single();
   return { data, error };
 };
