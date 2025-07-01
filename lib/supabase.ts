@@ -3,7 +3,16 @@ import { Database } from '@/types/database';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// AsyncStorage conditional import - SSR-safe
+let AsyncStorage: any = null;
+try {
+  if (Platform.OS !== 'web') {
+    AsyncStorage = require('@react-native-async-storage/async-storage').default;
+  }
+} catch (error) {
+  console.log('📱 AsyncStorage not available:', error);
+}
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,44 +30,64 @@ console.log('✅ Supabase Config:', {
   anonKey: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'Missing',
 });
 
-// Cross-platform storage - mobil session persistence için
+// Clean browser environment check
+const isBrowser = typeof window !== 'undefined';
+
+// SSR-safe cross-platform storage
 const customStorage = {
   getItem: async (key: string) => {
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (isBrowser) {
+        // Browser environment - use localStorage
         return window.localStorage.getItem(key);
-      } else {
-        // Mobile: AsyncStorage kullan
+      } else if (AsyncStorage) {
+        // Mobile environment - use AsyncStorage
         const value = await AsyncStorage.getItem(key);
         console.log('📱 Storage getItem:', key, value ? 'Found' : 'Not found');
         return value;
+      } else {
+        // SSR or unsupported environment
+        console.log('🌐 Storage not available (SSR context)');
+        return null;
       }
     } catch (error) {
       console.error('❌ Storage getItem error:', error);
       return null;
     }
   },
+  
   setItem: async (key: string, value: string) => {
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (isBrowser) {
+        // Browser environment - use localStorage
         window.localStorage.setItem(key, value);
-      } else {
-        // Mobile: AsyncStorage kullan
+        console.log('🌐 Web storage setItem:', key, 'Saved');
+      } else if (AsyncStorage) {
+        // Mobile environment - use AsyncStorage
         await AsyncStorage.setItem(key, value);
-        console.log('📱 Storage setItem:', key, 'Saved');
+        console.log('📱 Mobile storage setItem:', key, 'Saved');
+      } else {
+        // SSR or unsupported environment - skip silently
+        console.log('🌐 Storage setItem skipped (SSR context)');
       }
     } catch (error) {
       console.error('❌ Storage setItem error:', error);
     }
   },
+  
   removeItem: async (key: string) => {
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (isBrowser) {
+        // Browser environment - use localStorage
         window.localStorage.removeItem(key);
-      } else {
-        // Mobile: AsyncStorage kullan
+        console.log('🌐 Web storage removeItem:', key, 'Removed');
+      } else if (AsyncStorage) {
+        // Mobile environment - use AsyncStorage
         await AsyncStorage.removeItem(key);
-        console.log('📱 Storage removeItem:', key, 'Removed');
+        console.log('📱 Mobile storage removeItem:', key, 'Removed');
+      } else {
+        // SSR or unsupported environment - skip silently
+        console.log('🌐 Storage removeItem skipped (SSR context)');
       }
     } catch (error) {
       console.error('❌ Storage removeItem error:', error);
@@ -69,9 +98,10 @@ const customStorage = {
 // Create redirect URL based on platform
 const getRedirectUrl = () => {
   if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined') {
+    if (isBrowser) {
       return `${window.location.origin}/(auth)/callback`;
     }
+    // SSR fallback
     return 'https://warm-smakager-7badee.netlify.app/(auth)/callback';
   }
   // For mobile, use the consistent aifoodpantry scheme
@@ -87,33 +117,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce',
   },
 });
-
-// Auth helper functions
-export const signUp = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-  return { data, error };
-};
-
-export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  return { data, error };
-};
-
-export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  return { error };
-};
-
-export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  return { user, error };
-};
 
 // Enhanced OAuth sign in function
 export const signInWithOAuth = async (provider: 'google' | 'apple') => {
@@ -199,6 +202,33 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
 // Keep the old function for backward compatibility
 export const signInWithGoogle = async () => {
   return signInWithOAuth('google');
+};
+
+// Auth helper functions
+export const signUp = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+  return { data, error };
+};
+
+export const signIn = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  return { data, error };
+};
+
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  return { error };
+};
+
+export const getCurrentUser = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  return { user, error };
 };
 
 // Database helper functions
