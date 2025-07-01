@@ -1071,4 +1071,5 @@ export default function PantryScreen() {
       {/* Add Item Modal */}
       {renderAddItemModal()}
     </View>
-  )
+  );
+}
