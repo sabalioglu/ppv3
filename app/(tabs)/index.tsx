@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Alert,
   Platform,
   ActivityIndicator,
 } from 'react-native';
@@ -17,19 +16,20 @@ import {
   Target,
   Award,
   ChevronRight,
-  LogOut,
   User,
   Activity,
   Heart,
+  Coffee,
+  Plus,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-// Nutrition calculation helpers
+// Nutrition calculation helpers (AYNI KALIYOR)
 const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
-  // Mifflin-St Jeor Equation
   if (gender === 'male') {
     return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
   } else {
@@ -57,7 +57,6 @@ const calculateMacros = (calories: number, goals: string[]) => {
   let carbRatio = 0.45;
   let fatRatio = 0.30;
 
-  // Adjust based on goals
   if (goals.includes('muscle_gain')) {
     proteinRatio = 0.30;
     carbRatio = 0.40;
@@ -69,15 +68,45 @@ const calculateMacros = (calories: number, goals: string[]) => {
   }
 
   return {
-    protein: Math.round((calories * proteinRatio) / 4), // 4 cal per gram
-    carbs: Math.round((calories * carbRatio) / 4), // 4 cal per gram
-    fat: Math.round((calories * fatRatio) / 9), // 9 cal per gram
+    protein: Math.round((calories * proteinRatio) / 4),
+    carbs: Math.round((calories * carbRatio) / 4),
+    fat: Math.round((calories * fatRatio) / 9),
   };
 };
 
-// Components
+// YENİ: Empty State Component - Manifestoya Uygun
+const EmptyState = ({ 
+  icon: Icon, 
+  title, 
+  message, 
+  actionText, 
+  onAction 
+}: {
+  icon: any;
+  title: string;
+  message: string;
+  actionText?: string;
+  onAction?: () => void;
+}) => {
+  return (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIcon}>
+        <Icon size={48} color={colors.textSecondary} />
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyMessage}>{message}</Text>
+      {actionText && onAction && (
+        <TouchableOpacity style={styles.emptyAction} onPress={onAction}>
+          <Text style={styles.emptyActionText}>{actionText}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// StatCard Component - Empty State Desteği Eklendi
 const StatCard = ({ title, current, target, color, unit }: any) => {
-  const percentage = Math.min((current / target) * 100, 100);
+  const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
   
   return (
     <View style={styles.statCard}>
@@ -179,12 +208,15 @@ export default function Dashboard() {
     carbs: 250,
     fat: 67,
   });
+  
+  // TEMİZLENDİ: Mock data yerine gerçek veri tracking
   const [todaysIntake, setTodaysIntake] = useState({
     calories: 0,
     protein: 0,
     carbs: 0,
     fat: 0,
   });
+  const [hasNutritionData, setHasNutritionData] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -202,7 +234,6 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Fetch complete profile
         const { data: profile, error } = await supabase
           .from('user_profiles')
           .select('*')
@@ -216,7 +247,6 @@ export default function Dashboard() {
           setUserProfile(profile);
           setUserName(profile.full_name || user.email?.split('@')[0] || 'User');
           
-          // Calculate nutrition targets based on profile
           if (profile.age && profile.gender && profile.height_cm && profile.weight_kg && profile.activity_level) {
             const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
             const dailyCalories = calculateDailyCalories(bmr, profile.activity_level);
@@ -230,8 +260,7 @@ export default function Dashboard() {
             });
           }
           
-          // Load today's intake (will be implemented with nutrition logs)
-          loadTodaysIntake(user.id);
+          await loadTodaysIntake(user.id);
         }
       }
       
@@ -245,50 +274,49 @@ export default function Dashboard() {
     }
   };
 
+  // TEMİZLENDİ: Mock Data Kaldırıldı - Gerçek Supabase Entegrasyonu
   const loadTodaysIntake = async (userId: string) => {
-    // For now, using mock data
-    // TODO: Implement real nutrition log fetching
-    const mockIntake = {
-      calories: Math.floor(Math.random() * 1000) + 800,
-      protein: Math.floor(Math.random() * 60) + 40,
-      carbs: Math.floor(Math.random() * 150) + 100,
-      fat: Math.floor(Math.random() * 40) + 30,
-    };
-    setTodaysIntake(mockIntake);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data: nutritionLogs, error } = await supabase
+        .from('nutrition_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', today);
+
+      if (error) {
+        console.error('Error loading nutrition logs:', error);
+        setHasNutritionData(false);
+        return;
+      }
+
+      if (nutritionLogs && nutritionLogs.length > 0) {
+        const totals = nutritionLogs.reduce((acc, log) => ({
+          calories: acc.calories + (log.calories || 0),
+          protein: acc.protein + (log.protein || 0),
+          carbs: acc.carbs + (log.carbs || 0),
+          fat: acc.fat + (log.fat || 0),
+        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+        setTodaysIntake(totals);
+        setHasNutritionData(true);
+      } else {
+        setTodaysIntake({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+        setHasNutritionData(false);
+      }
+    } catch (error) {
+      console.error('Error in loadTodaysIntake:', error);
+      setHasNutritionData(false);
+    }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      "Sign Out",
-      "Are you sure you want to sign out?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Sign Out",
-          onPress: async () => {
-            try {
-              const { error } = await supabase.auth.signOut();
-              if (error) {
-                Alert.alert('Logout Error', error.message);
-              }
-            } catch (error: any) {
-              Alert.alert('Logout Error', 'An error occurred during logout');
-            }
-          },
-          style: "destructive",
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
+  // TEMİZLENDİ: Sadece gerçek veri varsa insights göster
   const getHealthInsights = () => {
+    if (!hasNutritionData) return [];
+    
     const insights = [];
     
-    // Calorie insight
     const caloriePercentage = (todaysIntake.calories / nutritionTargets.calories) * 100;
     if (caloriePercentage < 50) {
       insights.push({
@@ -308,7 +336,6 @@ export default function Dashboard() {
       });
     }
 
-    // Protein insight
     const proteinPercentage = (todaysIntake.protein / nutritionTargets.protein) * 100;
     if (proteinPercentage < 60) {
       insights.push({
@@ -320,7 +347,6 @@ export default function Dashboard() {
       });
     }
 
-    // Activity insight based on profile
     if (userProfile?.activity_level === 'sedentary') {
       insights.push({
         icon: Heart,
@@ -344,7 +370,7 @@ export default function Dashboard() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header with Dynamic Greeting */}
+      {/* Header - LOGOUT BUTTON KALDIRILDI */}
       <LinearGradient
         colors={gradients.primary}
         style={styles.header}
@@ -364,96 +390,110 @@ export default function Dashboard() {
                 : "Let's track your nutrition goals"}
             </Text>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.logoutButton}
-            onPress={handleLogout}
-          >
-            <LogOut size={24} color="white" />
-          </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {/* Profile Summary (if profile complete) */}
+      {/* Profile Summary */}
       {userProfile && userProfile.age && (
         <View style={styles.section}>
           <ProfileSummaryCard profile={userProfile} />
         </View>
       )}
 
-      {/* Today's Progress */}
+      {/* Today's Progress - MOCK DATA TEMİZLENDİ */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Target size={20} color={colors.primary} />
           <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
         
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Calories"
-            current={todaysIntake.calories}
-            target={nutritionTargets.calories}
-            color={colors.success}
-            unit="kcal"
+        {hasNutritionData ? (
+          <View style={styles.statsGrid}>
+            <StatCard
+              title="Calories"
+              current={todaysIntake.calories}
+              target={nutritionTargets.calories}
+              color={colors.success}
+              unit="kcal"
+            />
+            <StatCard
+              title="Protein"
+              current={todaysIntake.protein}
+              target={nutritionTargets.protein}
+              color={colors.warning}
+              unit="g"
+            />
+            <StatCard
+              title="Carbs"
+              current={todaysIntake.carbs}
+              target={nutritionTargets.carbs}
+              color={colors.info}
+              unit="g"
+            />
+            <StatCard
+              title="Fat"
+              current={todaysIntake.fat}
+              target={nutritionTargets.fat}
+              color={colors.error}
+              unit="g"
+            />
+          </View>
+        ) : (
+          <EmptyState
+            icon={Coffee}
+            title="No nutrition data logged today"
+            message="Start tracking your meals to see your progress here"
+            actionText="Log your first meal"
+            onAction={() => router.push('/(tabs)/nutrition')}
           />
-          <StatCard
-            title="Protein"
-            current={todaysIntake.protein}
-            target={nutritionTargets.protein}
-            color={colors.warning}
-            unit="g"
-          />
-          <StatCard
-            title="Carbs"
-            current={todaysIntake.carbs}
-            target={nutritionTargets.carbs}
-            color={colors.info}
-            unit="g"
-          />
-          <StatCard
-            title="Fat"
-            current={todaysIntake.fat}
-            target={nutritionTargets.fat}
-            color={colors.error}
-            unit="g"
-          />
-        </View>
+        )}
       </View>
 
-      {/* Personalized Insights */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <TrendingUp size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Your Insights</Text>
+      {/* Insights - SADECE VERİ VARSA GÖSTER */}
+      {hasNutritionData && getHealthInsights().length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <TrendingUp size={20} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Your Insights</Text>
+          </View>
+          
+          <View style={styles.insightsList}>
+            {getHealthInsights().map((insight, index) => (
+              <InsightCard key={index} {...insight} />
+            ))}
+          </View>
         </View>
-        
-        <View style={styles.insightsList}>
-          {getHealthInsights().map((insight, index) => (
-            <InsightCard key={index} {...insight} />
-          ))}
-        </View>
-      </View>
+      )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions - GERÇEK NAVİGATİON EKLENDİ */}
       <View style={[styles.section, { marginBottom: 100 }]}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/(tabs)/nutrition')}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}>
               <Target size={24} color="#10b981" />
             </View>
             <Text style={styles.quickActionText}>Log Food</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/(tabs)/pantry')}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}>
-              <AlertTriangle size={24} color="#f59319" />
+              <Plus size={24} color="#f59319" />
             </View>
             <Text style={styles.quickActionText}>Add Item</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.quickActionCard}>
+          <TouchableOpacity 
+            style={styles.quickActionCard}
+            onPress={() => router.push('/(tabs)/recipes')}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}>
               <Award size={24} color="#6366f1" />
             </View>
@@ -465,6 +505,7 @@ export default function Dashboard() {
   );
 }
 
+// Styles - Empty State Stilleri Eklendi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -505,11 +546,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
-  },
-  logoutButton: {
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   section: {
     padding: spacing.lg,
@@ -627,6 +663,48 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
+  },
+  // YENİ: Empty State Stilleri
+  emptyState: {
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    ...shadows.sm,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${colors.textSecondary}10`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyMessage: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  emptyAction: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+  },
+  emptyActionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   insightsList: {
     gap: spacing.sm,
