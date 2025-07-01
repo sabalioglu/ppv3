@@ -127,23 +127,28 @@ export default function OnboardingPage() {
   }, []);
 
   const checkUser = async () => {
-    try {
-      console.log('🔍 Checking user authentication...');
-      const { data: { user }, error } = await supabase.auth.getUser();
+  try {
+    console.log('🔍 Getting current user for onboarding...');
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-      if (error || !user) {
-        console.log('❌ No authenticated user, redirecting to login');
+    if (error || !user) {
+      console.log('⚠️ User not found in onboarding, redirecting...');
+      setTimeout(() => {
         router.replace('/(auth)/login');
-        return;
-      }
-
-      console.log('✅ User authenticated:', user.id);
-      setUser(user);
-    } catch (error) {
-      console.error('❌ Auth check failed:', error);
-      router.replace('/(auth)/login');
+      }, 1000);
+      return;
     }
-  };
+
+    console.log('✅ User found in onboarding:', user.id);
+    setUser(user);
+  } catch (error) {
+    console.error('❌ Auth check failed:', error);
+    setTimeout(() => {
+      router.replace('/(auth)/login');
+    }, 1000);
+  }
+};
+
 
   const validateStep = (step: number): boolean => {
   switch (step) {
