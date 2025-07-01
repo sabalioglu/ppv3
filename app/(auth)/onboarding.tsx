@@ -15,7 +15,7 @@ import { Picker } from '@react-native-picker/picker';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 
-console.log('🔥 YENİ ONBOARDING AKTIF - v2.0 STEP SYSTEM');
+console.log('🔥 YENİ ONBOARDING AKTIF - v2.1 ALLERGENS SYSTEM');
 
 interface FormData {
   fullName: string;
@@ -25,7 +25,7 @@ interface FormData {
   weight: string;
   activityLevel: string;
   healthGoals: string[];
-  dietaryRestrictions: string[];
+  dietaryRestrictions: string[]; // This will store selected allergens
   dietaryPreferences: string[];
   cuisinePreferences: string[];
   cookingSkillLevel: string;
@@ -36,7 +36,7 @@ interface User {
   email: string;
 }
 
-// Static data arrays - Top choices for better UX
+// Static data arrays
 const HEALTH_GOALS = [
   { key: 'weight_loss', label: '🏃‍♀️ Weight Loss' },
   { key: 'muscle_gain', label: '💪 Muscle Gain' },
@@ -55,6 +55,20 @@ const HEALTH_GOALS = [
   { key: 'anti_aging', label: '⏳ Anti-Aging' },
   { key: 'blood_sugar_control', label: '🍭 Blood Sugar Control' },
   { key: 'cholesterol_control', label: '🩸 Cholesterol Control' }
+];
+
+// ✅ Common allergens for Step 4
+const COMMON_ALLERGENS = [
+  { key: 'nuts', label: 'Tree Nuts', emoji: '🥜' },
+  { key: 'peanuts', label: 'Peanuts', emoji: '🥜' },
+  { key: 'dairy', label: 'Dairy/Lactose', emoji: '🥛' },
+  { key: 'eggs', label: 'Eggs', emoji: '🥚' },
+  { key: 'soy', label: 'Soy', emoji: '🫘' },
+  { key: 'wheat', label: 'Wheat/Gluten', emoji: '🌾' },
+  { key: 'fish', label: 'Fish', emoji: '🐟' },
+  { key: 'shellfish', label: 'Shellfish', emoji: '🦐' },
+  { key: 'sesame', label: 'Sesame', emoji: '🌰' },
+  { key: 'sulfites', label: 'Sulfites', emoji: '🍷' },
 ];
 
 const DIETARY_PREFERENCES = [
@@ -114,11 +128,12 @@ export default function OnboardingPage() {
     weight: '',
     activityLevel: '',
     healthGoals: [], 
-    dietaryRestrictions: [],
+    dietaryRestrictions: [], // ✅ This will store allergens directly
     dietaryPreferences: [],
     cuisinePreferences: [],
     cookingSkillLevel: '',
   });
+  
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -127,70 +142,69 @@ export default function OnboardingPage() {
   }, []);
 
   const checkUser = async () => {
-  try {
-    console.log('🔍 Getting current user for onboarding...');
-    const { data: { user }, error } = await supabase.auth.getUser();
+    try {
+      console.log('🔍 Getting current user for onboarding...');
+      const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (error || !user) {
-      console.log('⚠️ User not found in onboarding, redirecting...');
+      if (error || !user) {
+        console.log('⚠️ User not found in onboarding, redirecting...');
+        setTimeout(() => {
+          router.replace('/(auth)/login');
+        }, 1000);
+        return;
+      }
+
+      console.log('✅ User found in onboarding:', user.id);
+      setUser(user);
+    } catch (error) {
+      console.error('❌ Auth check failed:', error);
       setTimeout(() => {
         router.replace('/(auth)/login');
       }, 1000);
-      return;
     }
+  };
 
-    console.log('✅ User found in onboarding:', user.id);
-    setUser(user);
-  } catch (error) {
-    console.error('❌ Auth check failed:', error);
-    setTimeout(() => {
-      router.replace('/(auth)/login');
-    }, 1000);
-  }
-};
-
-
+  // ✅ UPDATED: Validation for 7 steps
   const validateStep = (step: number): boolean => {
-  switch (step) {
-    case 1:
-      if (!formData.fullName.trim()) {
-        Alert.alert('Error', 'Please enter your full name');
-        return false;
-      }
-      if (!formData.age || isNaN(parseInt(formData.age))) {
-        Alert.alert('Error', 'Please enter a valid age');
-        return false;
-      }
-      if (!formData.gender) {
-        Alert.alert('Error', 'Please select your gender');
-        return false;
-      }
-      return true;
-    case 2:
-      if (!formData.height || isNaN(parseInt(formData.height))) {
-        Alert.alert('Error', 'Please enter a valid height');
-        return false;
-      }
-      if (!formData.weight || isNaN(parseFloat(formData.weight))) {
-        Alert.alert('Error', 'Please enter a valid weight');
-        return false;
-      }
-      if (!formData.activityLevel) {
-        Alert.alert('Error', 'Please select your activity level');
-        return false;
-      }
-      return true;
-    case 6:
-      if (!formData.cookingSkillLevel) {
-        Alert.alert('Error', 'Please select your cooking skill level');
-        return false;
-      }
-      return true;
-    default:
-      return true;
-  }
-};
-
+    switch (step) {
+      case 1:
+        if (!formData.fullName.trim()) {
+          Alert.alert('Error', 'Please enter your full name');
+          return false;
+        }
+        if (!formData.age || isNaN(parseInt(formData.age))) {
+          Alert.alert('Error', 'Please enter a valid age');
+          return false;
+        }
+        if (!formData.gender) {
+          Alert.alert('Error', 'Please select your gender');
+          return false;
+        }
+        return true;
+      case 2:
+        if (!formData.height || isNaN(parseInt(formData.height))) {
+          Alert.alert('Error', 'Please enter a valid height');
+          return false;
+        }
+        if (!formData.weight || isNaN(parseFloat(formData.weight))) {
+          Alert.alert('Error', 'Please enter a valid weight');
+          return false;
+        }
+        if (!formData.activityLevel) {
+          Alert.alert('Error', 'Please select your activity level');
+          return false;
+        }
+        return true;
+      case 7: // Updated from 6 to 7
+        if (!formData.cookingSkillLevel) {
+          Alert.alert('Error', 'Please select your cooking skill level');
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
@@ -210,6 +224,20 @@ export default function OnboardingPage() {
     }
   };
 
+  // ✅ Clean allergen toggle function
+  const toggleAllergen = (allergenKey: string) => {
+    const newAllergens = formData.dietaryRestrictions.includes(allergenKey)
+      ? formData.dietaryRestrictions.filter(a => a !== allergenKey)
+      : [...formData.dietaryRestrictions, allergenKey];
+    
+    setFormData({ ...formData, dietaryRestrictions: newAllergens });
+  };
+
+  const clearAllAllergens = () => {
+    setFormData({ ...formData, dietaryRestrictions: [] });
+  };
+
+  // ✅ UPDATED: Save allergens to dietary_restrictions field
   const handleComplete = async () => {
     if (!user) {
       Alert.alert('Error', 'Please sign in again');
@@ -219,7 +247,7 @@ export default function OnboardingPage() {
 
     setLoading(true);
     try {
-      console.log('📝 Saving enhanced user profile...');
+      console.log('📝 Saving enhanced user profile with allergens...');
 
       const profileData = {
         id: user.id,
@@ -231,19 +259,17 @@ export default function OnboardingPage() {
         weight_kg: parseFloat(formData.weight),
         activity_level: formData.activityLevel,
         health_goals: formData.healthGoals,
-        dietary_restrictions: formData.dietaryRestrictions,
+        dietary_restrictions: formData.dietaryRestrictions, // ✅ Allergens saved here
         dietary_preferences: formData.dietaryPreferences,
         cuisine_preferences: formData.cuisinePreferences,
         cooking_skill_level: formData.cookingSkillLevel
-        // daily_calorie_goal, daily_protein_goal, etc. otomatik hesaplanacak (trigger ile)
-        // notification_settings, streak_days, created_at, updated_at otomatik atanacak
       };
 
       const { error } = await supabase.from('user_profiles').upsert(profileData);
 
       if (error) throw error;
 
-      console.log('✅ Enhanced profile saved successfully');
+      console.log('✅ Enhanced profile with allergens saved successfully');
       console.log('🚀 Navigating to dashboard...');
 
       router.replace('/(tabs)');
@@ -379,7 +405,52 @@ export default function OnboardingPage() {
     </View>
   );
 
+  // ✅ NEW: Step 4 - Food Allergies
   const renderStep4 = () => (
+    <View style={styles.form}>
+      <Text style={styles.stepTitle}>🛡️ Food Allergies & Intolerances</Text>
+      <Text style={styles.stepSubtitle}>Help us keep you safe by selecting any allergens you have</Text>
+      
+      <View style={styles.optionsGrid}>
+        {COMMON_ALLERGENS.map((allergen) => (
+          <TouchableOpacity
+            key={allergen.key}
+            style={[
+              styles.optionCard,
+              formData.dietaryRestrictions.includes(allergen.key) && styles.optionCardSelected
+            ]}
+            onPress={() => toggleAllergen(allergen.key)}
+          >
+            <Text style={styles.optionEmoji}>{allergen.emoji}</Text>
+            <Text style={[
+              styles.optionLabel,
+              formData.dietaryRestrictions.includes(allergen.key) && styles.optionLabelSelected,
+            ]}>
+              {allergen.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.noAllergiesOption,
+          formData.dietaryRestrictions.length === 0 && styles.noAllergiesOptionSelected,
+        ]}
+        onPress={clearAllAllergens}
+      >
+        <Text style={[
+          styles.noAllergiesText,
+          formData.dietaryRestrictions.length === 0 && styles.noAllergiesTextSelected,
+        ]}>
+          ✅ I don't have any food allergies or intolerances
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ✅ MOVED: Step 5 - Dietary Preferences (was Step 4)
+  const renderStep5 = () => (
     <View style={styles.form}>
       <Text style={styles.stepTitle}>🥗 Dietary Preferences</Text>
       <Text style={styles.stepSubtitle}>Select any that apply (optional)</Text>
@@ -405,7 +476,8 @@ export default function OnboardingPage() {
     </View>
   );
 
-  const renderStep5 = () => (
+  // ✅ MOVED: Step 6 - Cuisine Preferences (was Step 5)
+  const renderStep6 = () => (
     <View style={styles.form}>
       <Text style={styles.stepTitle}>🍽 Favorite Cuisines</Text>
       <Text style={styles.stepSubtitle}>What cuisines do you enjoy?</Text>
@@ -431,7 +503,8 @@ export default function OnboardingPage() {
     </View>
   );
 
-  const renderStep6 = () => (
+  // ✅ MOVED: Step 7 - Cooking Experience (was Step 6)
+  const renderStep7 = () => (
     <View style={styles.form}>
       <Text style={styles.stepTitle}>👨‍🍳 Cooking Experience</Text>
       
@@ -439,15 +512,15 @@ export default function OnboardingPage() {
         <Text style={styles.label}>Your Cooking Skill Level</Text>
         <View style={styles.pickerContainer}>
           <Picker
-           selectedValue={formData.cookingSkillLevel}
-  style={styles.picker}
-  onValueChange={(value) => setFormData({...formData, cookingSkillLevel: value})}
->
-  <Picker.Item label="Select your skill level" value="" />
-  <Picker.Item label="🌱 Beginner" value="beginner" />
-  <Picker.Item label="🍳 Intermediate" value="intermediate" />
-  <Picker.Item label="👨‍🍳 Advanced" value="advanced" />
-  <Picker.Item label="⭐ Expert" value="expert" />
+            selectedValue={formData.cookingSkillLevel}
+            style={styles.picker}
+            onValueChange={(value) => setFormData({...formData, cookingSkillLevel: value})}
+          >
+            <Picker.Item label="Select your skill level" value="" />
+            <Picker.Item label="🌱 Beginner" value="beginner" />
+            <Picker.Item label="🍳 Intermediate" value="intermediate" />
+            <Picker.Item label="👨‍🍳 Advanced" value="advanced" />
+            <Picker.Item label="⭐ Expert" value="expert" />
           </Picker>
         </View>
       </View>
@@ -455,7 +528,7 @@ export default function OnboardingPage() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>🎉 Almost Done!</Text>
         <Text style={styles.summaryText}>
-          We'll calculate your daily nutrition goals automatically based on your information.
+          We'll calculate your daily nutrition goals automatically based on your information and keep you safe from allergens.
         </Text>
       </View>
     </View>
@@ -478,18 +551,19 @@ export default function OnboardingPage() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>🍽 Complete Your Profile</Text>
-          <Text style={styles.subtitle}>Step {currentStep} of 6</Text>
+          <Text style={styles.subtitle}>Step {currentStep} of 7</Text>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${(currentStep / 6) * 100}%` }]} />
+            <View style={[styles.progressFill, { width: `${(currentStep / 7) * 100}%` }]} />
           </View>
         </View>
 
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
-        {currentStep === 5 && renderStep5()}
-        {currentStep === 6 && renderStep6()}
+        {currentStep === 4 && renderStep4()} {/* NEW: Allergens */}
+        {currentStep === 5 && renderStep5()} {/* MOVED: Dietary Preferences */}
+        {currentStep === 6 && renderStep6()} {/* MOVED: Cuisine Preferences */}
+        {currentStep === 7 && renderStep7()} {/* MOVED: Cooking Experience */}
 
         <View style={styles.buttonContainer}>
           {currentStep > 1 && (
@@ -498,7 +572,7 @@ export default function OnboardingPage() {
             </TouchableOpacity>
           )}
           
-          {currentStep < 6 ? (
+          {currentStep < 7 ? (
             <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
               <Text style={styles.nextButtonText}>Next →</Text>
             </TouchableOpacity>
@@ -577,7 +651,7 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20
   },
-  label: {
+    label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
@@ -632,6 +706,45 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1f2937',
     textAlign: 'center'
+  },
+  // ✅ NEW: Allergen-specific styles
+  optionEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  optionLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1f2937',
+    textAlign: 'center'
+  },
+  optionLabelSelected: {
+    color: '#10b981',
+    fontWeight: '600'
+  },
+  noAllergiesOption: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    width: '100%'
+  },
+  noAllergiesOptionSelected: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4',
+  },
+  noAllergiesText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  noAllergiesTextSelected: {
+    color: '#10b981',
+    fontWeight: '600',
   },
   summaryCard: {
     backgroundColor: '#f0fdf4',
