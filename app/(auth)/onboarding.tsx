@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20
   },
-    label: {
+  label: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     textAlign: 'center'
   },
-  // ✅ NEW: Allergen-specific styles
+  // ✅ FIXED: Critical missing styles for Step 4 allergens
   optionEmoji: {
     fontSize: 24,
     marginBottom: 8,
