@@ -3,6 +3,7 @@ import { Database } from '@/types/database';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -20,22 +21,47 @@ console.log('✅ Supabase Config:', {
   anonKey: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'Missing',
 });
 
-// Custom storage that works with SSR
+// Cross-platform storage - mobil session persistence için
 const customStorage = {
   getItem: async (key: string) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      return window.localStorage.getItem(key);
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        return window.localStorage.getItem(key);
+      } else {
+        // Mobile: AsyncStorage kullan
+        const value = await AsyncStorage.getItem(key);
+        console.log('📱 Storage getItem:', key, value ? 'Found' : 'Not found');
+        return value;
+      }
+    } catch (error) {
+      console.error('❌ Storage getItem error:', error);
+      return null;
     }
-    return null;
   },
   setItem: async (key: string, value: string) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.localStorage.setItem(key, value);
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.localStorage.setItem(key, value);
+      } else {
+        // Mobile: AsyncStorage kullan
+        await AsyncStorage.setItem(key, value);
+        console.log('📱 Storage setItem:', key, 'Saved');
+      }
+    } catch (error) {
+      console.error('❌ Storage setItem error:', error);
     }
   },
   removeItem: async (key: string) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      window.localStorage.removeItem(key);
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+      } else {
+        // Mobile: AsyncStorage kullan
+        await AsyncStorage.removeItem(key);
+        console.log('📱 Storage removeItem:', key, 'Removed');
+      }
+    } catch (error) {
+      console.error('❌ Storage removeItem error:', error);
     }
   },
 };
@@ -125,6 +151,8 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
       if (error) throw error;
       if (!data.url) throw new Error('No URL returned from OAuth');
 
+      console.log('📱 Opening OAuth URL in browser...');
+
       // Open in web browser
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
@@ -135,7 +163,11 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
         }
       );
 
+      console.log('📱 OAuth browser result:', result.type);
+
       if (result.type === 'success' && result.url) {
+        console.log('✅ OAuth success, processing tokens...');
+        
         // Parse the URL to get tokens
         const parsedUrl = Linking.parse(result.url);
         const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === '/callback' 
@@ -143,18 +175,23 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
           : {};
         
         if (fragment.access_token) {
+          console.log('🔑 Setting session with tokens...');
           // Set the session manually
           await supabase.auth.setSession({
             access_token: fragment.access_token as string,
             refresh_token: (fragment.refresh_token as string) || '',
           });
+          
+          // Session kontrolü
+          const { data: sessionData } = await supabase.auth.getSession();
+          console.log('📱 Session established:', sessionData.session ? 'Active' : 'None');
         }
       }
 
       return { data, error: null };
     }
   } catch (error) {
-    console.error('OAuth error:', error);
+    console.error('❌ OAuth error:', error);
     return { data: null, error };
   }
 };
