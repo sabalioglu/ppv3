@@ -25,6 +25,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { supabase } from '@/lib/supabase';
 import { spacing } from '@/lib/theme';
+import { router } from 'expo-router'; // ✅ YENİ: Navigation import
 
 interface SettingItem {
   icon: any;
@@ -64,6 +65,7 @@ export default function SettingsScreen() {
     }
   };
 
+  // ✅ GÜNCELLENMIŞ: Post-logout navigation eklendi
   const handleLogout = async () => {
     Alert.alert(
       'Sign Out',
@@ -75,9 +77,15 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase.auth.signOut();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to sign out');
+              const { error } = await supabase.auth.signOut();
+              if (error) {
+                Alert.alert('Logout Error', error.message);
+              } else {
+                // ✅ YENİ: Başarılı logout sonrası login ekranına yönlendirme
+                router.replace('/(auth)/login');
+              }
+            } catch (error: any) {
+              Alert.alert('Logout Error', 'An unexpected error occurred during logout');
             }
           },
         },
