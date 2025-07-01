@@ -144,6 +144,13 @@ export default function LoginPage() {
             editable={!loading && !googleLoading}
           />
 
+          {/* Email confirmation info note - only in signup mode */}
+          {isSignUpMode && (
+            <Text style={styles.infoNote}>
+              After creating your account, please check your email for verification.
+            </Text>
+          )}
+
           <TouchableOpacity
             style={[styles.button, (loading || googleLoading) && styles.buttonDisabled]}
             onPress={handleAuth}
@@ -243,6 +250,15 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     backgroundColor: 'white',
     marginBottom: 16,
+  },
+  infoNote: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 16,
+    marginTop: 4,
+    paddingHorizontal: 12,
+    lineHeight: 18,
   },
   button: {
     backgroundColor: '#10b981',
