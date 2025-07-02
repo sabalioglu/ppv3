@@ -649,37 +649,42 @@ export default function PantryScreen() {
       color: '#FFFFFF',
     },
     statsBar: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.surface,
-      marginHorizontal: 20,
-      marginBottom: 20,
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 20,
+    marginTop: 8, // ✅ YENİ: Categories'e yaklaştırma
+    marginBottom: 12, // ✅ DEĞİŞTİ: 20'den 12'ye (8px yukarı)
+    paddingHorizontal: 16,
+    paddingVertical: 8, // ✅ YENİ: Dikey padding azaltma
+    borderRadius: 12, // ✅ DEĞİŞTİ: 16'dan 12'ye (kompakt)
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     },
     statItem: {
-      flex: 1,
-      alignItems: 'center',
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 2,
     },
     statDivider: {
-      width: 1,
-      backgroundColor: theme.colors.borderLight,
-      marginHorizontal: 16,
+    width: 1,
+    backgroundColor: theme.colors.borderLight,
+    marginHorizontal: 10, // ✅ DEĞİŞTİ: 16'dan 10'a
+    height: '50%', // ✅ YENİ: Divider yükseklik sınırı
+    alignSelf: 'center',
     },
     statValue: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-      marginTop: 4,
+    fontSize: 18, // ✅ DEĞİŞTİ: 24'den 18'e (%25 küçültme)
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginTop: 1, // ✅ DEĞİŞTİ: 4'den 1'e
     },
     statLabel: {
-      fontSize: 11,
-      color: theme.colors.textSecondary,
-      marginTop: 4,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      fontWeight: '600',
+    fontSize: 9, // ✅ DEĞİŞTİ: 11'den 9'a (%18 küçültme)
+    color: theme.colors.textSecondary,
+    marginTop: 1, // ✅ DEĞİŞTİ: 4'den 1'e
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
     },
     // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
@@ -1052,7 +1057,7 @@ export default function PantryScreen() {
       {/* Quick Stats Bar */}
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
-          <Package size={18} color={theme.colors.primary} />
+          <Package size={14} color={theme.colors.primary} />
           <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
@@ -1060,7 +1065,7 @@ export default function PantryScreen() {
         <View style={styles.statDivider} />
         
         <View style={styles.statItem}>
-          <AlertTriangle size={18} color={theme.colors.warning} />
+          <AlertTriangle size={14} color={theme.colors.warning} />
           <Text style={styles.statValue}>
             {items.filter(item => {
               const days = getDaysUntilExpiry(item.expiry_date || '');
@@ -1073,7 +1078,7 @@ export default function PantryScreen() {
         <View style={styles.statDivider} />
         
         <View style={styles.statItem}>
-          <Clock size={18} color={theme.colors.error} />
+          <Clock size={14} color={theme.colors.error} />
           <Text style={styles.statValue}>
             {items.filter(item => {
               const days = getDaysUntilExpiry(item.expiry_date || '');
