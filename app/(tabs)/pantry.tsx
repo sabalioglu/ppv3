@@ -888,7 +888,7 @@ export default function PantryScreen() {
       paddingHorizontal: 20,
     },
     flatListContent: {
-      paddingTop: 4,
+      paddingTop: 0,
       paddingBottom: 120,
       flexGrow: 1,
     },
