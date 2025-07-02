@@ -13,6 +13,8 @@ import {
   KeyboardAvoidingView,
   RefreshControl,
   Dimensions,
+  FlatList, // ✅ YENİ: FlatList import edildi
+  ListRenderItem, // ✅ YENİ: TypeScript support için
 } from 'react-native';
 import {
   Plus,
@@ -32,8 +34,6 @@ import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
 import type { Theme } from '@/lib/theme';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 interface PantryItem {
   id: string;
@@ -65,7 +65,6 @@ const CATEGORIES = [
 ];
 
 const UNITS = ['pcs', 'kg', 'g', 'L', 'ml', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
-
 const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
 
 export default function PantryScreen() {
@@ -78,6 +77,35 @@ export default function PantryScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+
+  // ✅ RESPONSIVE FIX: Dynamic screen dimensions with listener
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+  
+  useEffect(() => {
+    const onChange = (result: any) => {
+      setScreenData(result.window);
+    };
+    
+    const subscription = Dimensions.addEventListener('change', onChange);
+    return () => subscription?.remove();
+  }, []);
+
+  // ✅ RESPONSIVE FIX: Smart grid calculation
+  const getGridLayout = () => {
+    const { width } = screenData;
+    const isTablet = width >= 768;
+    const isLargeScreen = width >= 1024;
+    
+    if (isLargeScreen) {
+      return { numColumns: 3, itemWidth: (width - 80) / 3 }; // 3 columns for large screens
+    } else if (isTablet) {
+      return { numColumns: 2, itemWidth: (width - 60) / 2 }; // 2 columns for tablets
+    } else {
+      return { numColumns: 1, itemWidth: width - 40 }; // 1 column for mobile
+    }
+  };
+
+  const { numColumns, itemWidth } = getGridLayout();
 
   // Form states for new item
   const [newItem, setNewItem] = useState({
@@ -248,21 +276,36 @@ export default function PantryScreen() {
     return theme.colors.expiryOk;
   };
 
-  const renderPantryItem = (item: PantryItem) => {
+  // ✅ RESPONSIVE FIX: Updated renderPantryItem with FlatList compatibility
+  const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
 
+    // ✅ RESPONSIVE FIX: Dynamic item styling with proper spacing
+    const itemStyle = [
+      styles.itemCard,
+      {
+        width: numColumns === 1 ? '100%' : itemWidth - 8,
+        marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
+      }
+    ];
+
     return (
       <TouchableOpacity
-        key={item.id}
-        style={styles.itemCard}
+        style={itemStyle}
         onLongPress={() => handleDeleteItem(item.id)}
         activeOpacity={0.7}
       >
         <View style={styles.itemHeader}>
           <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            {item.brand && <Text style={styles.itemBrand}>{item.brand}</Text>}
+            <Text style={styles.itemName} numberOfLines={numColumns > 1 ? 2 : 1}>
+              {item.name}
+            </Text>
+            {item.brand && (
+              <Text style={styles.itemBrand} numberOfLines={1}>
+                {item.brand}
+              </Text>
+            )}
           </View>
           <View style={styles.itemQuantity}>
             <Text style={styles.quantityText}>{item.quantity}</Text>
@@ -273,19 +316,21 @@ export default function PantryScreen() {
         <View style={styles.itemDetails}>
           <View style={styles.itemMeta}>
             <MapPin size={12} color={theme.colors.textSecondary} />
-            <Text style={styles.metaText}>{item.location}</Text>
+            <Text style={styles.metaText} numberOfLines={1}>
+              {item.location}
+            </Text>
           </View>
 
           {item.expiry_date && (
             <View style={[styles.itemMeta, styles.expiryMeta]}>
               <Calendar size={12} color={expiryColor} />
-              <Text style={[styles.metaText, { color: expiryColor }]}>
+              <Text style={[styles.metaText, { color: expiryColor }]} numberOfLines={1}>
                 {daysUntilExpiry === 0
-                  ? 'Expires today'
+                  ? 'Today'
                   : daysUntilExpiry === 1
                   ? 'Tomorrow'
                   : daysUntilExpiry && daysUntilExpiry > 0
-                  ? `${daysUntilExpiry} days`
+                  ? `${daysUntilExpiry}d`
                   : 'Expired'}
               </Text>
             </View>
@@ -452,10 +497,10 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // Dynamic styles - KEY FIXES APPLIED
+  // ✅ RESPONSIVE FIX: Updated styles with flexible layout support
   const styles = StyleSheet.create({
     container: {
-      flex: 1, // ✅ SCROLL FIX: Ensure container flexibility
+      flex: 1,
       backgroundColor: theme.colors.background,
     },
     loadingContainer: {
@@ -636,14 +681,7 @@ export default function PantryScreen() {
       letterSpacing: 0.5,
       fontWeight: '600',
     },
-    itemsList: {
-      flex: 1, // ✅ SCROLL FIX: Added flex for proper scrolling
-      paddingHorizontal: 20,
-    },
-    itemsGrid: {
-      paddingTop: 8,
-      paddingBottom: 120, // ✅ SCROLL FIX: Increased bottom padding
-    },
+    // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
@@ -653,6 +691,7 @@ export default function PantryScreen() {
       borderColor: theme.colors.border,
       position: 'relative',
       overflow: 'hidden',
+      minHeight: 120, // Ensure consistent height across grid
     },
     itemHeader: {
       flexDirection: 'row',
@@ -702,9 +741,11 @@ export default function PantryScreen() {
     itemMeta: {
       flexDirection: 'row',
       alignItems: 'center',
+      flex: 1,
     },
     expiryMeta: {
       marginLeft: 16,
+      flex: 1,
     },
     metaText: {
       fontSize: 12,
@@ -718,6 +759,15 @@ export default function PantryScreen() {
       right: 0,
       width: 4,
       height: '100%',
+    },
+    // ✅ RESPONSIVE FIX: FlatList container styles
+    flatListContainer: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    flatListContent: {
+      paddingTop: 8,
+      paddingBottom: 120,
     },
     emptyState: {
       flex: 1,
@@ -1034,9 +1084,15 @@ export default function PantryScreen() {
         </View>
       </View>
 
-      {/* Items List */}
-      <ScrollView
-        style={styles.itemsList}
+      {/* ✅ RESPONSIVE FIX: FlatList Implementation */}
+      <FlatList
+        data={filteredItems}
+        renderItem={renderPantryItem}
+        keyExtractor={(item) => item.id}
+        numColumns={numColumns}
+        key={numColumns} // Force re-render when columns change
+        style={styles.flatListContainer}
+        contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1046,8 +1102,7 @@ export default function PantryScreen() {
             tintColor={theme.colors.primary}
           />
         }
-      >
-        {filteredItems.length === 0 ? (
+        ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
@@ -1061,12 +1116,9 @@ export default function PantryScreen() {
                 : 'Tap the + button to add items'}
             </Text>
           </View>
-        ) : (
-          <View style={styles.itemsGrid}>
-            {filteredItems.map(renderPantryItem)}
-          </View>
         )}
-      </ScrollView>
+        columnWrapperStyle={numColumns > 1 ? { justifyContent: 'space-between' } : undefined}
+      />
 
       {/* Add Item Modal */}
       {renderAddItemModal()}
