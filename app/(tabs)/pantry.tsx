@@ -1,32 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput,
-  Modal, Alert, ActivityIndicator, Platform, KeyboardAvoidingView,
-  RefreshControl, Dimensions, FlatList, ListRenderItem, Image,
-} from 'react-native';
-import {
-  Plus, Search, Package, Calendar, AlertTriangle, X, Clock,
-  MapPin, ChevronDown,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
+  RefreshControl,
+  Dimensions,
+  FlatList, // ✅ YENİ: FlatList impoimport { Plus, Search, Package, Calendar, TriangleAlert as AlertTriangle, X, Clock, MapPin, ChevronDown } from 'lucide-react-native'r,
+  Package,
+  Calendar,
+  AlertTriangle,
+  X,
+  Camera,
+  Barcode,
+  Clock,
+  MapPin,
+  TrendingUp,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
-
-// ✅ UPDATED: Kategori görselleri (256x256 WebP format, optimize edilmiş görüntüleme)
-const categoryImages = {
-  dairy: require('../../assets/images/categoryImages/dairy.webp'),
-  meat: require('../../assets/images/categoryImages/meat.webp'),
-  vegetables: require('../../assets/images/categoryImages/vegetables.webp'),
-  fruits: require('../../assets/images/categoryImages/fruits.webp'),
-  grains: require('../../assets/images/categoryImages/grains.webp'),
-  snacks: require('../../assets/images/categoryImages/snacks.webp'),
-  beverages: require('../../assets/images/categoryImages/beverages.webp'),
-  condiments: require('../../assets/images/categoryImages/condiments.webp'),
-  frozen: require('../../assets/images/categoryImages/frozen.webp'),
-  canned: require('../../assets/images/categoryImages/canned.webp'),
-  bakery: require('../../assets/images/categoryImages/bakery.webp'),
-  default: require('../../assets/images/categoryImages/default.webp'),
-};
+import type { Theme } from '@/lib/theme';
 
 interface PantryItem {
   id: string;
@@ -57,19 +58,7 @@ const CATEGORIES = [
   { key: 'bakery', label: 'Bakery', emoji: '🥐' },
 ];
 
-const UNITS = [
-  { value: 'pcs', label: 'Pieces', category: 'Count' },
-  { value: 'kg', label: 'Kilograms', category: 'Weight' },
-  { value: 'g', label: 'Grams', category: 'Weight' },
-  { value: 'L', label: 'Liters', category: 'Volume' },
-  { value: 'ml', label: 'Milliliters', category: 'Volume' },
-  { value: 'oz', label: 'Ounces', category: 'Weight' },
-  { value: 'lb', label: 'Pounds', category: 'Weight' },
-  { value: 'cups', label: 'Cups', category: 'Volume' },
-  { value: 'tbsp', label: 'Tablespoons', category: 'Volume' },
-  { value: 'tsp', label: 'Teaspoons', category: 'Volume' },
-];
-
+const UNITS = ['pcs', 'kg', 'g', 'L', 'ml', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
 const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
 
 export default function PantryScreen() {
@@ -81,34 +70,33 @@ export default function PantryScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [categoryStats, setCategoryStats] = useState<{ [key: string]: number }>({});
-  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
-  
-  // ✅ Interactive Stats Bar State
-  const [activeExpiryFilter, setActiveExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
+  const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
 
-  // ✅ RESPONSIVE: Dynamic screen dimensions
+  // ✅ RESPONSIVE FIX: Dynamic screen dimensions with listener
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-
+  
   useEffect(() => {
     const onChange = (result: any) => {
       setScreenData(result.window);
     };
+    
     const subscription = Dimensions.addEventListener('change', onChange);
     return () => subscription?.remove();
   }, []);
 
-  // ✅ RESPONSIVE: Enhanced grid calculation
+  // ✅ RESPONSIVE FIX: Smart grid calculation
   const getGridLayout = () => {
     const { width } = screenData;
-    const horizontalPadding = 40;
-    const itemSpacing = 12;
+    const isTablet = width >= 768;
+    const isLargeScreen = width >= 1024;
     
-    let numColumns = width >= 1024 ? 3 : width >= 768 ? 2 : 1;
-    const availableWidth = width - horizontalPadding;
-    const itemWidth = (availableWidth - (numColumns - 1) * itemSpacing) / numColumns;
-    
-    return { numColumns, itemWidth };
+    if (isLargeScreen) {
+      return { numColumns: 3, itemWidth: (width - 80) / 3 }; // 3 columns for large screens
+    } else if (isTablet) {
+      return { numColumns: 2, itemWidth: (width - 60) / 2 }; // 2 columns for tablets
+    } else {
+      return { numColumns: 1, itemWidth: width - 40 }; // 1 column for mobile
+    }
   };
 
   const { numColumns, itemWidth } = getGridLayout();
@@ -128,10 +116,9 @@ export default function PantryScreen() {
     loadPantryItems();
   }, []);
 
-  // ✅ ENHANCED: Filter with expiry logic
   useEffect(() => {
     filterItems();
-  }, [items, searchQuery, selectedCategory, activeExpiryFilter]);
+  }, [items, searchQuery, selectedCategory]);
 
   const loadPantryItems = async () => {
     try {
@@ -149,7 +136,7 @@ export default function PantryScreen() {
       setItems(data || []);
       
       // Calculate category statistics
-      const stats: { [key: string]: number } = {};
+      const stats: {[key: string]: number} = {};
       data?.forEach(item => {
         stats[item.category] = (stats[item.category] || 0) + 1;
       });
@@ -165,29 +152,15 @@ export default function PantryScreen() {
     }
   };
 
-  // ✅ ENHANCED: Multi-filter logic
   const filterItems = () => {
     let filtered = items;
 
-    // 1. Apply Expiry Filter First
-    if (activeExpiryFilter === 'expiring') {
-      filtered = filtered.filter(item => {
-        const days = getDaysUntilExpiry(item.expiry_date || '');
-        return days !== null && days <= 3 && days >= 0;
-      });
-    } else if (activeExpiryFilter === 'expired') {
-      filtered = filtered.filter(item => {
-        const days = getDaysUntilExpiry(item.expiry_date || '');
-        return days !== null && days < 0;
-      });
-    }
-
-    // 2. Apply Category Filter (when expiry filter is 'all')
-    if (selectedCategory !== 'all' && activeExpiryFilter === 'all') {
+    // Category filter
+    if (selectedCategory !== 'all') {
       filtered = filtered.filter(item => item.category === selectedCategory);
     }
 
-    // 3. Apply Search Filter (always active)
+    // Search filter
     if (searchQuery) {
       filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,15 +171,8 @@ export default function PantryScreen() {
     setFilteredItems(filtered);
   };
 
-  // ✅ Expiry filter handler
-  const handleExpiryFilterChange = (filter: 'all' | 'expiring' | 'expired') => {
-    setActiveExpiryFilter(filter);
-    if (filter !== 'all') {
-      setSelectedCategory('all');
-    }
-  };
-
   const handleAddItem = async () => {
+    // Validation
     if (!newItem.name.trim()) {
       Alert.alert('Error', 'Please enter item name');
       return;
@@ -285,7 +251,6 @@ export default function PantryScreen() {
       expiry_date: '',
       location: 'Fridge',
     });
-    setShowUnitDropdown(false);
   };
 
   const getDaysUntilExpiry = (expiryDate: string) => {
@@ -305,31 +270,27 @@ export default function PantryScreen() {
     return theme.colors.expiryOk;
   };
 
-  // ✅ UPDATED: Kategori görsellerini getiren fonksiyon
-  const getItemImageSource = (category: string) => {
-    return categoryImages[category as keyof typeof categoryImages] || categoryImages.default;
-  };
-
-  // ✅ ENHANCED: Optimize edilmiş görsel ile ürün renderı
-  const renderPantryItem: ListRenderItem<PantryItem> = ({ item }) => {
+  // ✅ RESPONSIVE FIX: Updated renderPantryItem with FlatList compatibility
+  const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
 
+    // ✅ RESPONSIVE FIX: Dynamic item styling with proper spacing
+    const itemStyle = [
+      styles.itemCard,
+      {
+        width: numColumns === 1 ? '100%' : itemWidth - 8,
+        marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
+      }
+    ];
+
     return (
       <TouchableOpacity
-        style={[
-          styles.itemCard,
-          { width: numColumns === 1 ? '100%' : itemWidth }
-        ]}
+        style={itemStyle}
         onLongPress={() => handleDeleteItem(item.id)}
         activeOpacity={0.7}
       >
         <View style={styles.itemHeader}>
-          {/* ✅ OPTIMIZED: Kategori Görseli */}
-          <Image
-            source={getItemImageSource(item.category)}
-            style={styles.itemImage}
-          />
           <View style={styles.itemInfo}>
             <Text style={styles.itemName} numberOfLines={numColumns > 1 ? 2 : 1}>
               {item.name}
@@ -377,61 +338,6 @@ export default function PantryScreen() {
     );
   };
 
-  // Unit Dropdown Modal
-  const renderUnitDropdown = () => (
-    <Modal
-      visible={showUnitDropdown}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowUnitDropdown(false)}
-    >
-      <TouchableOpacity
-        style={styles.dropdownOverlay}
-        activeOpacity={1}
-        onPress={() => setShowUnitDropdown(false)}
-      >
-        <View style={styles.dropdownContainer}>
-          <View style={styles.dropdownHeader}>
-            <Text style={styles.dropdownTitle}>Select Unit</Text>
-            <TouchableOpacity
-              onPress={() => setShowUnitDropdown(false)}
-              style={styles.dropdownCloseButton}
-            >
-              <X size={20} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
-            {UNITS.map((unit) => (
-              <TouchableOpacity
-                key={unit.value}
-                style={[
-                  styles.dropdownItem,
-                  newItem.unit === unit.value && styles.dropdownItemSelected
-                ]}
-                onPress={() => {
-                  setNewItem({ ...newItem, unit: unit.value });
-                  setShowUnitDropdown(false);
-                }}
-              >
-                <Text style={[
-                  styles.dropdownItemText,
-                  newItem.unit === unit.value && styles.dropdownItemTextSelected
-                ]}>
-                  {unit.label} ({unit.value})
-                </Text>
-                <Text style={styles.dropdownItemCategory}>
-                  {unit.category}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-
-  // Add Item Modal
   const renderAddItemModal = () => (
     <Modal
       visible={showAddModal}
@@ -492,15 +398,9 @@ export default function PantryScreen() {
 
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.label}>Unit</Text>
-                <TouchableOpacity
-                  style={styles.unitDropdownButton}
-                  onPress={() => setShowUnitDropdown(true)}
-                >
-                  <Text style={styles.unitDropdownText}>
-                    {UNITS.find(u => u.value === newItem.unit)?.label || newItem.unit}
-                  </Text>
-                  <ChevronDown size={20} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerText}>{newItem.unit}</Text>
+                </View>
               </View>
             </View>
 
@@ -591,7 +491,7 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // ✅ OPTIMIZED STYLES - 256x256 WebP Desteği
+  // ✅ RESPONSIVE FIX: Updated styles with flexible layout support
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -659,61 +559,12 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    statsBar: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.surface,
-      marginHorizontal: 20,
-      marginTop: 16,
-      marginBottom: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    statItem: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 4,
-      paddingHorizontal: 8,
-      borderRadius: 8,
-    },
-    statItemActive: {
-      backgroundColor: theme.colors.primary + '15',
-      transform: [{ scale: 1.02 }],
-    },
-    statDivider: {
-      width: 1,
-      backgroundColor: theme.colors.borderLight,
-      marginHorizontal: 10,
-      height: '50%',
-      alignSelf: 'center',
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-      marginTop: 2,
-    },
-    statLabel: {
-      fontSize: 9,
-      color: theme.colors.textSecondary,
-      marginTop: 1,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      fontWeight: '600',
-    },
     categoriesHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
-      marginTop: 16,
+      marginTop: 24,
       marginBottom: 12,
     },
     categoriesTitle: {
@@ -729,7 +580,7 @@ export default function PantryScreen() {
     },
     categoriesContainer: {
       paddingLeft: 20,
-      marginBottom: 6,
+      marginBottom: 8,
       height: 44,
     },
     categoryTab: {
@@ -791,30 +642,55 @@ export default function PantryScreen() {
     categoryBadgeTextActive: {
       color: '#FFFFFF',
     },
+    statsBar: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 20,
+      marginTop: 8,
+      marginBottom: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 2,
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: theme.colors.borderLight,
+      marginHorizontal: 10,
+      height: '50%',
+      alignSelf: 'center',
+    },
+    statValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      marginTop: 1,
+    },
+    statLabel: {
+      fontSize: 9,
+      color: theme.colors.textSecondary,
+      marginTop: 1,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontWeight: '600',
+    },
+    // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
       padding: 16,
+      marginBottom: 12,
       borderWidth: 1,
       borderColor: theme.colors.border,
       position: 'relative',
       overflow: 'hidden',
-      minHeight: 120,
-    },
-    // ✅ OPTIMIZED: 256x256 WebP için optimize edilmiş görsel boyutu
-    itemImage: {
-      width: 64,               // ✅ Optimal visual impact için artırıldı
-      height: 64,              // ✅ 256x256 kaynak için ideal display size
-      borderRadius: 14,        // ✅ Proporsiyon için büyütüldü
-      marginRight: 12,
-      resizeMode: 'cover',     // ✅ Yüksek çözünürlük görseller için 'cover'
-      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
-      // ✅ Derinlik için subtle shadow eklendi
-      shadowColor: theme.colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      minHeight: 120, // Ensure consistent height across grid
     },
     itemHeader: {
       flexDirection: 'row',
@@ -883,19 +759,14 @@ export default function PantryScreen() {
       width: 4,
       height: '100%',
     },
+    // ✅ RESPONSIVE FIX: FlatList container styles
     flatListContainer: {
       flex: 1,
       paddingHorizontal: 20,
-      marginTop: 0,
     },
     flatListContent: {
-      paddingTop: 0,
+      paddingTop: 8,
       paddingBottom: 120,
-      flexGrow: 1,
-    },
-    columnWrapperStyle: {
-      justifyContent: 'space-between',
-      marginBottom: 12,
     },
     emptyState: {
       flex: 1,
@@ -974,84 +845,17 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    unitDropdownButton: {
+    pickerContainer: {
       backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
       borderWidth: 1.5,
       borderColor: theme.colors.border,
       borderRadius: 14,
       paddingHorizontal: 18,
       paddingVertical: 14,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
     },
-    unitDropdownText: {
+    pickerText: {
       fontSize: 16,
       color: theme.colors.textPrimary,
-      flex: 1,
-    },
-    dropdownOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 40,
-    },
-    dropdownContainer: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 20,
-      maxHeight: '70%',
-      width: '100%',
-      maxWidth: 320,
-    },
-    dropdownHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-    },
-    dropdownTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-    },
-    dropdownCloseButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    dropdownList: {
-      maxHeight: 300,
-    },
-    dropdownItem: {
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-    },
-    dropdownItemSelected: {
-      backgroundColor: theme.colors.primary + '15',
-    },
-    dropdownItemText: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: theme.colors.textPrimary,
-      marginBottom: 2,
-    },
-    dropdownItemTextSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
-    },
-    dropdownItemCategory: {
-      fontSize: 12,
-      color: theme.colors.textSecondary,
-      textTransform: 'capitalize',
     },
     categoryPicker: {
       flexDirection: 'row',
@@ -1184,62 +988,12 @@ export default function PantryScreen() {
         />
       </View>
 
-      {/* ✅ INTERACTIVE STATS BAR */}
-      <View style={styles.statsBar}>
-        <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'all' && styles.statItemActive]}
-          onPress={() => handleExpiryFilterChange('all')}
-          activeOpacity={0.7}
-        >
-          <Package size={14} color={activeExpiryFilter === 'all' ? theme.colors.primary : theme.colors.textSecondary} />
-          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
-          <Text style={styles.statLabel}>TOTAL</Text>
-        </TouchableOpacity>
-
-        <View style={styles.statDivider} />
-
-        <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'expiring' && styles.statItemActive]}
-          onPress={() => handleExpiryFilterChange(activeExpiryFilter === 'expiring' ? 'all' : 'expiring')}
-          activeOpacity={0.7}
-        >
-          <AlertTriangle size={14} color={activeExpiryFilter === 'expiring' ? theme.colors.warning : theme.colors.textSecondary} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days <= 3 && days >= 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>EXPIRING</Text>
-        </TouchableOpacity>
-
-        <View style={styles.statDivider} />
-
-        <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'expired' && styles.statItemActive]}
-          onPress={() => handleExpiryFilterChange(activeExpiryFilter === 'expired' ? 'all' : 'expired')}
-          activeOpacity={0.7}
-        >
-          <Clock size={14} color={activeExpiryFilter === 'expired' ? theme.colors.error : theme.colors.textSecondary} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days < 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>EXPIRED</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Categories Header */}
       <View style={styles.categoriesHeader}>
         <Text style={styles.categoriesTitle}>Categories</Text>
-        {(selectedCategory !== 'all' || activeExpiryFilter !== 'all') && (
-          <TouchableOpacity onPress={() => {
-            setSelectedCategory('all');
-            setActiveExpiryFilter('all');
-          }}>
-            <Text style={styles.clearFilter}>Clear Filters</Text>
+        {selectedCategory !== 'all' && (
+          <TouchableOpacity onPress={() => setSelectedCategory('all')}>
+            <Text style={styles.clearFilter}>Clear Filter</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1294,13 +1048,48 @@ export default function PantryScreen() {
         })}
       </ScrollView>
 
-      {/* ✅ FIXED: Items List with proper spacing */}
+      {/* Stats Bar - NEW POSITION: Right after categories */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Package size={14} color={theme.colors.primary} />
+          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <AlertTriangle size={14} color={theme.colors.warning} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days <= 3 && days >= 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expiring</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <Clock size={14} color={theme.colors.error} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days < 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expired</Text>
+        </View>
+      </View>
+
+      {/* ✅ RESPONSIVE FIX: FlatList Implementation */}
       <FlatList
         data={filteredItems}
         renderItem={renderPantryItem}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        key={numColumns}
+        key={numColumns} // Force re-render when columns change
         style={styles.flatListContainer}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
@@ -1316,25 +1105,22 @@ export default function PantryScreen() {
           <View style={styles.emptyState}>
             <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
-              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
+              {searchQuery || selectedCategory !== 'all'
                 ? 'No items found'
                 : 'Your pantry is empty'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
+              {searchQuery || selectedCategory !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Tap the + button to add items'}
             </Text>
           </View>
         )}
-        columnWrapperStyle={numColumns > 1 ? styles.columnWrapperStyle : undefined}
+        columnWrapperStyle={numColumns > 1 ? { justifyContent: 'space-between' } : undefined}
       />
 
       {/* Add Item Modal */}
       {renderAddItemModal()}
-
-      {/* Unit Dropdown Modal */}
-      {renderUnitDropdown()}
     </View>
   );
 }
