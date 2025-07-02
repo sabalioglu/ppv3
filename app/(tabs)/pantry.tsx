@@ -12,20 +12,20 @@ import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
 
-// ✅ NEW: Category Assets (Create these files in src/assets/categoryIcons/)
-const categoryIcons = {
-  dairy: require('@/assets/categoryIcons/dairy.png'),
-  meat: require('@/assets/categoryIcons/meat.png'),
-  vegetables: require('@/assets/categoryIcons/vegetables.png'),
-  fruits: require('@/assets/categoryIcons/fruits.png'),
-  grains: require('@/assets/categoryIcons/grains.png'),
-  snacks: require('@/assets/categoryIcons/snacks.png'),
-  beverages: require('@/assets/categoryIcons/beverages.png'),
-  condiments: require('@/assets/categoryIcons/condiments.png'),
-  frozen: require('@/assets/categoryIcons/frozen.png'),
-  canned: require('@/assets/categoryIcons/canned.png'),
-  bakery: require('@/assets/categoryIcons/bakery.png'),
-  default: require('@/assets/categoryIcons/default.png'),
+// ✅ UPDATED: Kategori görselleri (256x256 WebP format, optimize edilmiş görüntüleme)
+const categoryImages = {
+  dairy: require('@/assets/images/categoryImages/dairy.webp'),
+  meat: require('@/assets/images/categoryImages/meat.webp'),
+  vegetables: require('@/assets/images/categoryImages/vegetables.webp'),
+  fruits: require('@/assets/images/categoryImages/fruits.webp'),
+  grains: require('@/assets/images/categoryImages/grains.webp'),
+  snacks: require('@/assets/images/categoryImages/snacks.webp'),
+  beverages: require('@/assets/images/categoryImages/beverages.webp'),
+  condiments: require('@/assets/images/categoryImages/condiments.webp'),
+  frozen: require('@/assets/images/categoryImages/frozen.webp'),
+  canned: require('@/assets/images/categoryImages/canned.webp'),
+  bakery: require('@/assets/images/categoryImages/bakery.webp'),
+  default: require('@/assets/images/categoryImages/default.webp'),
 };
 
 interface PantryItem {
@@ -84,10 +84,10 @@ export default function PantryScreen() {
   const [categoryStats, setCategoryStats] = useState<{ [key: string]: number }>({});
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   
-  // ✅ NEW: Interactive Stats Bar State
+  // ✅ Interactive Stats Bar State
   const [activeExpiryFilter, setActiveExpiryFilter] = useState<'all' | 'expiring' | 'expired'>('all');
 
-  // ✅ RESPONSIVE FIX: Dynamic screen dimensions
+  // ✅ RESPONSIVE: Dynamic screen dimensions
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
 
   useEffect(() => {
@@ -98,10 +98,10 @@ export default function PantryScreen() {
     return () => subscription?.remove();
   }, []);
 
-  // ✅ RESPONSIVE FIX: Enhanced grid calculation
+  // ✅ RESPONSIVE: Enhanced grid calculation
   const getGridLayout = () => {
     const { width } = screenData;
-    const horizontalPadding = 40; // 20px left + 20px right
+    const horizontalPadding = 40;
     const itemSpacing = 12;
     
     let numColumns = width >= 1024 ? 3 : width >= 768 ? 2 : 1;
@@ -198,11 +198,11 @@ export default function PantryScreen() {
     setFilteredItems(filtered);
   };
 
-  // ✅ NEW: Expiry filter handler
+  // ✅ Expiry filter handler
   const handleExpiryFilterChange = (filter: 'all' | 'expiring' | 'expired') => {
     setActiveExpiryFilter(filter);
     if (filter !== 'all') {
-      setSelectedCategory('all'); // Reset category when expiry filter is active
+      setSelectedCategory('all');
     }
   };
 
@@ -305,12 +305,12 @@ export default function PantryScreen() {
     return theme.colors.expiryOk;
   };
 
-  // ✅ NEW: Image source helper
+  // ✅ UPDATED: Kategori görsellerini getiren fonksiyon
   const getItemImageSource = (category: string) => {
-    return categoryIcons[category as keyof typeof categoryIcons] || categoryIcons.default;
+    return categoryImages[category as keyof typeof categoryImages] || categoryImages.default;
   };
 
-  // ✅ ENHANCED: Item rendering with image
+  // ✅ ENHANCED: Optimize edilmiş görsel ile ürün renderı
   const renderPantryItem: ListRenderItem<PantryItem> = ({ item }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
@@ -325,7 +325,7 @@ export default function PantryScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.itemHeader}>
-          {/* ✅ NEW: Item Image */}
+          {/* ✅ OPTIMIZED: Kategori Görseli */}
           <Image
             source={getItemImageSource(item.category)}
             style={styles.itemImage}
@@ -377,7 +377,7 @@ export default function PantryScreen() {
     );
   };
 
-  // Unit Dropdown Modal (keeping existing implementation)
+  // Unit Dropdown Modal
   const renderUnitDropdown = () => (
     <Modal
       visible={showUnitDropdown}
@@ -431,7 +431,7 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // Add Item Modal (keeping existing implementation with unit dropdown)
+  // Add Item Modal
   const renderAddItemModal = () => (
     <Modal
       visible={showAddModal}
@@ -591,7 +591,7 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // ✅ ENHANCED STYLES
+  // ✅ OPTIMIZED STYLES - 256x256 WebP Desteği
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -659,7 +659,6 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    // ✅ ENHANCED: Interactive Stats Bar
     statsBar: {
       flexDirection: 'row',
       backgroundColor: theme.colors.surface,
@@ -684,7 +683,6 @@ export default function PantryScreen() {
       paddingHorizontal: 8,
       borderRadius: 8,
     },
-    // ✅ NEW: Active stat item
     statItemActive: {
       backgroundColor: theme.colors.primary + '15',
       transform: [{ scale: 1.02 }],
@@ -793,7 +791,6 @@ export default function PantryScreen() {
     categoryBadgeTextActive: {
       color: '#FFFFFF',
     },
-    // ✅ FIXED: Item card without marginBottom
     itemCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
@@ -803,16 +800,21 @@ export default function PantryScreen() {
       position: 'relative',
       overflow: 'hidden',
       minHeight: 120,
-      // marginBottom removed - handled by columnWrapperStyle
     },
-    // ✅ NEW: Item image styling
+    // ✅ OPTIMIZED: 256x256 WebP için optimize edilmiş görsel boyutu
     itemImage: {
-      width: 48,
-      height: 48,
-      borderRadius: 12,
+      width: 64,               // ✅ Optimal visual impact için artırıldı
+      height: 64,              // ✅ 256x256 kaynak için ideal display size
+      borderRadius: 14,        // ✅ Proporsiyon için büyütüldü
       marginRight: 12,
-      resizeMode: 'contain',
+      resizeMode: 'cover',     // ✅ Yüksek çözünürlük görseller için 'cover'
       backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      // ✅ Derinlik için subtle shadow eklendi
+      shadowColor: theme.colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
     },
     itemHeader: {
       flexDirection: 'row',
@@ -885,13 +887,11 @@ export default function PantryScreen() {
       flex: 1,
       paddingHorizontal: 20,
     },
-    // ✅ FIXED: Content padding
     flatListContent: {
       paddingTop: 8,
       paddingBottom: 120,
       flexGrow: 1,
     },
-    // ✅ NEW: Column wrapper for spacing
     columnWrapperStyle: {
       justifyContent: 'space-between',
       marginBottom: 12,
