@@ -729,7 +729,7 @@ export default function PantryScreen() {
     },
     categoriesContainer: {
       paddingLeft: 20,
-      marginBottom: 4,
+      marginBottom: 6,
       height: 44,
     },
     categoryTab: {
@@ -886,6 +886,7 @@ export default function PantryScreen() {
     flatListContainer: {
       flex: 1,
       paddingHorizontal: 20,
+      marginTop: 0,
     },
     flatListContent: {
       paddingTop: 0,
