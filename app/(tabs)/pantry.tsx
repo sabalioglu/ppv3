@@ -13,10 +13,24 @@ import {
   KeyboardAvoidingView,
   RefreshControl,
   Dimensions,
-  FlatList, // ✅ YENİ: FlatList import edildi
-  ListRenderItem, // ✅ YENİ: TypeScript support için
+  FlatList,
+  ListRenderItem,
 } from 'react-native';
-import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp } from 'lucide-react-native';
+import {
+  Plus,
+  Search,
+  Filter,
+  Package,
+  Calendar,
+  AlertTriangle,
+  X,
+  Camera,
+  Barcode,
+  Clock,
+  MapPin,
+  TrendingUp,
+  ChevronDown, // ✅ YENİ: Dropdown için icon
+} from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
@@ -51,7 +65,20 @@ const CATEGORIES = [
   { key: 'bakery', label: 'Bakery', emoji: '🥐' },
 ];
 
-const UNITS = ['pcs', 'kg', 'g', 'L', 'ml', 'oz', 'lb', 'cups', 'tbsp', 'tsp'];
+// ✅ ENHANCED: Kategorize edilmiş unit seçenekleri
+const UNITS = [
+  { value: 'pcs', label: 'Pieces', category: 'Count' },
+  { value: 'kg', label: 'Kilograms', category: 'Weight' },
+  { value: 'g', label: 'Grams', category: 'Weight' },
+  { value: 'L', label: 'Liters', category: 'Volume' },
+  { value: 'ml', label: 'Milliliters', category: 'Volume' },
+  { value: 'oz', label: 'Ounces', category: 'Weight' },
+  { value: 'lb', label: 'Pounds', category: 'Weight' },
+  { value: 'cups', label: 'Cups', category: 'Volume' },
+  { value: 'tbsp', label: 'Tablespoons', category: 'Volume' },
+  { value: 'tsp', label: 'Teaspoons', category: 'Volume' },
+];
+
 const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
 
 export default function PantryScreen() {
@@ -64,6 +91,7 @@ export default function PantryScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false); // ✅ YENİ: Unit dropdown state
 
   // ✅ RESPONSIVE FIX: Dynamic screen dimensions with listener
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
@@ -84,11 +112,11 @@ export default function PantryScreen() {
     const isLargeScreen = width >= 1024;
     
     if (isLargeScreen) {
-      return { numColumns: 3, itemWidth: (width - 80) / 3 }; // 3 columns for large screens
+      return { numColumns: 3, itemWidth: (width - 80) / 3 };
     } else if (isTablet) {
-      return { numColumns: 2, itemWidth: (width - 60) / 2 }; // 2 columns for tablets
+      return { numColumns: 2, itemWidth: (width - 60) / 2 };
     } else {
-      return { numColumns: 1, itemWidth: width - 40 }; // 1 column for mobile
+      return { numColumns: 1, itemWidth: width - 40 };
     }
   };
 
@@ -244,6 +272,7 @@ export default function PantryScreen() {
       expiry_date: '',
       location: 'Fridge',
     });
+    setShowUnitDropdown(false); // ✅ Reset dropdown state
   };
 
   const getDaysUntilExpiry = (expiryDate: string) => {
@@ -268,7 +297,6 @@ export default function PantryScreen() {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
 
-    // ✅ RESPONSIVE FIX: Dynamic item styling with proper spacing
     const itemStyle = [
       styles.itemCard,
       {
@@ -331,6 +359,60 @@ export default function PantryScreen() {
     );
   };
 
+  // ✅ NEW: Professional Unit Dropdown Modal
+  const renderUnitDropdown = () => (
+    <Modal
+      visible={showUnitDropdown}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowUnitDropdown(false)}
+    >
+      <TouchableOpacity
+        style={styles.dropdownOverlay}
+        activeOpacity={1}
+        onPress={() => setShowUnitDropdown(false)}
+      >
+        <View style={styles.dropdownContainer}>
+          <View style={styles.dropdownHeader}>
+            <Text style={styles.dropdownTitle}>Select Unit</Text>
+            <TouchableOpacity
+              onPress={() => setShowUnitDropdown(false)}
+              style={styles.dropdownCloseButton}
+            >
+              <X size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+            {UNITS.map((unit) => (
+              <TouchableOpacity
+                key={unit.value}
+                style={[
+                  styles.dropdownItem,
+                  newItem.unit === unit.value && styles.dropdownItemSelected
+                ]}
+                onPress={() => {
+                  setNewItem({ ...newItem, unit: unit.value });
+                  setShowUnitDropdown(false);
+                }}
+              >
+                <Text style={[
+                  styles.dropdownItemText,
+                  newItem.unit === unit.value && styles.dropdownItemTextSelected
+                ]}>
+                  {unit.label} ({unit.value})
+                </Text>
+                <Text style={styles.dropdownItemCategory}>
+                  {unit.category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   const renderAddItemModal = () => (
     <Modal
       visible={showAddModal}
@@ -389,11 +471,18 @@ export default function PantryScreen() {
                 />
               </View>
 
+              {/* ✅ NEW: Interactive Unit Dropdown */}
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.label}>Unit</Text>
-                <View style={styles.pickerContainer}>
-                  <Text style={styles.pickerText}>{newItem.unit}</Text>
-                </View>
+                <TouchableOpacity
+                  style={styles.unitDropdownButton}
+                  onPress={() => setShowUnitDropdown(true)}
+                >
+                  <Text style={styles.unitDropdownText}>
+                    {UNITS.find(u => u.value === newItem.unit)?.label || newItem.unit}
+                  </Text>
+                  <ChevronDown size={20} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -484,7 +573,7 @@ export default function PantryScreen() {
     </Modal>
   );
 
-  // ✅ RESPONSIVE FIX: Updated styles with flexible layout support
+  // ✅ UPDATED: Dynamic styles with repositioned stats bar and unit dropdown
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -552,12 +641,51 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
+    // ✅ REPOSITIONED: Compact Stats Bar Styles
+    statsBar: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 20,
+      marginTop: 16, // ✅ After search bar
+      marginBottom: 8, // ✅ Minimal space to categories
+      paddingHorizontal: 16,
+      paddingVertical: 8, // ✅ Compact vertical padding
+      borderRadius: 12, // ✅ Smaller radius
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 2,
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: theme.colors.borderLight,
+      marginHorizontal: 10, // ✅ Reduced spacing
+      height: '50%',
+      alignSelf: 'center',
+    },
+    statValue: {
+      fontSize: 18, // ✅ Reduced from 24
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      marginTop: 1,
+    },
+    statLabel: {
+      fontSize: 9, // ✅ Reduced from 11
+      color: theme.colors.textSecondary,
+      marginTop: 1,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontWeight: '600',
+    },
     categoriesHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 20,
-      marginTop: 24,
+      marginTop: 16, // ✅ After stats bar
       marginBottom: 12,
     },
     categoriesTitle: {
@@ -573,7 +701,7 @@ export default function PantryScreen() {
     },
     categoriesContainer: {
       paddingLeft: 20,
-      marginBottom: 8,
+      marginBottom: 16,
       height: 44,
     },
     categoryTab: {
@@ -635,45 +763,6 @@ export default function PantryScreen() {
     categoryBadgeTextActive: {
       color: '#FFFFFF',
     },
-    statsBar: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.surface,
-      marginHorizontal: 20,
-      marginTop: 8,
-      marginBottom: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    statItem: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 2,
-    },
-    statDivider: {
-      width: 1,
-      backgroundColor: theme.colors.borderLight,
-      marginHorizontal: 10,
-      height: '50%',
-      alignSelf: 'center',
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-      marginTop: 1,
-    },
-    statLabel: {
-      fontSize: 9,
-      color: theme.colors.textSecondary,
-      marginTop: 1,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      fontWeight: '600',
-    },
-    // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
@@ -683,7 +772,7 @@ export default function PantryScreen() {
       borderColor: theme.colors.border,
       position: 'relative',
       overflow: 'hidden',
-      minHeight: 120, // Ensure consistent height across grid
+      minHeight: 120,
     },
     itemHeader: {
       flexDirection: 'row',
@@ -752,7 +841,6 @@ export default function PantryScreen() {
       width: 4,
       height: '100%',
     },
-    // ✅ RESPONSIVE FIX: FlatList container styles
     flatListContainer: {
       flex: 1,
       paddingHorizontal: 20,
@@ -838,17 +926,86 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    pickerContainer: {
+    // ✅ NEW: Unit Dropdown Button Styles
+    unitDropdownButton: {
       backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
       borderWidth: 1.5,
       borderColor: theme.colors.border,
       borderRadius: 14,
       paddingHorizontal: 18,
       paddingVertical: 14,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     },
-    pickerText: {
+    unitDropdownText: {
       fontSize: 16,
       color: theme.colors.textPrimary,
+      flex: 1,
+    },
+    // ✅ NEW: Unit Dropdown Modal Styles
+    dropdownOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 40,
+    },
+    dropdownContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 20,
+      maxHeight: '70%',
+      width: '100%',
+      maxWidth: 320,
+    },
+    dropdownHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    dropdownTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+    },
+    dropdownCloseButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dropdownList: {
+      maxHeight: 300,
+    },
+    dropdownItem: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    dropdownItemSelected: {
+      backgroundColor: theme.colors.primary + '15',
+    },
+    dropdownItemText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: theme.colors.textPrimary,
+      marginBottom: 2,
+    },
+    dropdownItemTextSelected: {
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
+    dropdownItemCategory: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      textTransform: 'capitalize',
     },
     categoryPicker: {
       flexDirection: 'row',
@@ -981,6 +1138,41 @@ export default function PantryScreen() {
         />
       </View>
 
+      {/* ✅ REPOSITIONED: Stats Bar moved here */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Package size={14} color={theme.colors.primary} />
+          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <AlertTriangle size={14} color={theme.colors.warning} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days <= 3 && days >= 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expiring</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <Clock size={14} color={theme.colors.error} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days < 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expired</Text>
+        </View>
+      </View>
+
       {/* Categories Header */}
       <View style={styles.categoriesHeader}>
         <Text style={styles.categoriesTitle}>Categories</Text>
@@ -1041,48 +1233,13 @@ export default function PantryScreen() {
         })}
       </ScrollView>
 
-      {/* Stats Bar - NEW POSITION: Right after categories */}
-      <View style={styles.statsBar}>
-        <View style={styles.statItem}>
-          <Package size={14} color={theme.colors.primary} />
-          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        
-        <View style={styles.statDivider} />
-        
-        <View style={styles.statItem}>
-          <AlertTriangle size={14} color={theme.colors.warning} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days <= 3 && days >= 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>Expiring</Text>
-        </View>
-        
-        <View style={styles.statDivider} />
-        
-        <View style={styles.statItem}>
-          <Clock size={14} color={theme.colors.error} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days < 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>Expired</Text>
-        </View>
-      </View>
-
-      {/* ✅ RESPONSIVE FIX: FlatList Implementation */}
+      {/* Items List */}
       <FlatList
         data={filteredItems}
         renderItem={renderPantryItem}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        key={numColumns} // Force re-render when columns change
+        key={numColumns}
         style={styles.flatListContainer}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
@@ -1114,6 +1271,9 @@ export default function PantryScreen() {
 
       {/* Add Item Modal */}
       {renderAddItemModal()}
+
+      {/* ✅ NEW: Unit Dropdown Modal */}
+      {renderUnitDropdown()}
     </View>
   );
 }
