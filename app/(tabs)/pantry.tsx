@@ -586,7 +586,7 @@ export default function PantryScreen() {
     },
     categoriesContainer: {
       paddingLeft: 20,
-      marginBottom: 16,
+      marginBottom: 8,
       height: 44,
     },
     categoryTab: {
@@ -649,42 +649,42 @@ export default function PantryScreen() {
       color: '#FFFFFF',
     },
     statsBar: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: 20,
-    marginTop: 8, // ✅ YENİ: Categories'e yaklaştırma
-    marginBottom: 12, // ✅ DEĞİŞTİ: 20'den 12'ye (8px yukarı)
-    paddingHorizontal: 16,
-    paddingVertical: 8, // ✅ YENİ: Dikey padding azaltma
-    borderRadius: 12, // ✅ DEĞİŞTİ: 16'dan 12'ye (kompakt)
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 20,
+      marginTop: 8,
+      marginBottom: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     statItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 2,
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 2,
     },
     statDivider: {
-    width: 1,
-    backgroundColor: theme.colors.borderLight,
-    marginHorizontal: 10, // ✅ DEĞİŞTİ: 16'dan 10'a
-    height: '50%', // ✅ YENİ: Divider yükseklik sınırı
-    alignSelf: 'center',
+      width: 1,
+      backgroundColor: theme.colors.borderLight,
+      marginHorizontal: 10,
+      height: '50%',
+      alignSelf: 'center',
     },
     statValue: {
-    fontSize: 18, // ✅ DEĞİŞTİ: 24'den 18'e (%25 küçültme)
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
-    marginTop: 1, // ✅ DEĞİŞTİ: 4'den 1'e
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+      marginTop: 1,
     },
     statLabel: {
-    fontSize: 9, // ✅ DEĞİŞTİ: 11'den 9'a (%18 küçültme)
-    color: theme.colors.textSecondary,
-    marginTop: 1, // ✅ DEĞİŞTİ: 4'den 1'e
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontWeight: '600',
+      fontSize: 9,
+      color: theme.colors.textSecondary,
+      marginTop: 1,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontWeight: '600',
     },
     // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
@@ -1054,7 +1054,7 @@ export default function PantryScreen() {
         })}
       </ScrollView>
 
-      {/* Quick Stats Bar */}
+      {/* Stats Bar - NEW POSITION: Right after categories */}
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
           <Package size={14} color={theme.colors.primary} />
