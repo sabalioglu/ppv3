@@ -13,7 +13,13 @@ import {
   KeyboardAvoidingView,
   RefreshControl,
   Dimensions,
-  FlatList, // ✅ YENİ: FlatList impoimport { Plus, Search, Package, Calendar, TriangleAlert as AlertTriangle, X, Clock, MapPin, ChevronDown } from 'lucide-react-native'r,
+  FlatList,
+  ListRenderItem,
+} from 'react-native';
+import {
+  Plus,
+  Search,
+  Filter,
   Package,
   Calendar,
   AlertTriangle,
@@ -68,6 +74,7 @@ export default function PantryScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeExpiryFilter, setActiveExpiryFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
@@ -118,7 +125,7 @@ export default function PantryScreen() {
 
   useEffect(() => {
     filterItems();
-  }, [items, searchQuery, selectedCategory]);
+  }, [items, searchQuery, selectedCategory, activeExpiryFilter]);
 
   const loadPantryItems = async () => {
     try {
@@ -166,6 +173,28 @@ export default function PantryScreen() {
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.brand?.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+
+    // Expiry filter
+    if (activeExpiryFilter !== 'all') {
+      const today = new Date();
+      filtered = filtered.filter(item => {
+        if (!item.expiry_date) return activeExpiryFilter === 'no_expiry';
+        
+        const expiryDate = new Date(item.expiry_date);
+        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (activeExpiryFilter) {
+          case 'expired':
+            return daysUntilExpiry < 0;
+          case 'expiring_soon':
+            return daysUntilExpiry >= 0 && daysUntilExpiry <= 3;
+          case 'fresh':
+            return daysUntilExpiry > 7;
+          default:
+            return true;
+        }
+      });
     }
 
     setFilteredItems(filtered);
@@ -269,6 +298,109 @@ export default function PantryScreen() {
     if (days <= 7) return theme.colors.info;
     return theme.colors.expiryOk;
   };
+
+  // ✅ NEW: Categories Header Component for FlatList
+  const renderCategoriesHeader = () => (
+    <View>
+      {/* Categories Header */}
+      <View style={styles.categoriesHeaderInList}>
+        <Text style={styles.categoriesTitle}>Categories</Text>
+        {(selectedCategory !== 'all' || activeExpiryFilter !== 'all') && (
+          <TouchableOpacity onPress={() => {
+            setSelectedCategory('all');
+            setActiveExpiryFilter('all');
+          }}>
+            <Text style={styles.clearFilter}>Clear Filters</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Categories ScrollView */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriesScrollViewInList}
+        contentContainerStyle={{ paddingRight: 20 }}
+      >
+        {CATEGORIES.map((category) => {
+          const count = categoryStats[category.key] || 0;
+          const isActive = selectedCategory === category.key;
+          
+          return (
+            <TouchableOpacity
+              key={category.key}
+              style={[
+                styles.categoryTab,
+                isActive && styles.categoryTabActive,
+              ]}
+              onPress={() => setSelectedCategory(category.key)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.categoryContent}>
+                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                <Text
+                  style={[
+                    styles.categoryTabText,
+                    isActive && styles.categoryTabTextActive,
+                  ]}
+                >
+                  {category.label}
+                </Text>
+                {count > 0 && (
+                  <View style={[
+                    styles.categoryBadge,
+                    isActive && styles.categoryBadgeActive
+                  ]}>
+                    <Text style={[
+                      styles.categoryBadgeText,
+                      isActive && styles.categoryBadgeTextActive
+                    ]}>
+                      {count}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Stats Bar - Integrated into header */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Package size={14} color={theme.colors.primary} />
+          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <AlertTriangle size={14} color={theme.colors.warning} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days <= 3 && days >= 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expiring</Text>
+        </View>
+        
+        <View style={styles.statDivider} />
+        
+        <View style={styles.statItem}>
+          <Clock size={14} color={theme.colors.error} />
+          <Text style={styles.statValue}>
+            {items.filter(item => {
+              const days = getDaysUntilExpiry(item.expiry_date || '');
+              return days !== null && days < 0;
+            }).length}
+          </Text>
+          <Text style={styles.statLabel}>Expired</Text>
+        </View>
+      </View>
+    </View>
+  );
 
   // ✅ RESPONSIVE FIX: Updated renderPantryItem with FlatList compatibility
   const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
@@ -559,13 +691,19 @@ export default function PantryScreen() {
       color: theme.colors.textPrimary,
       fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     },
-    categoriesHeader: {
+    // ✅ NEW: Categories Header in List styles
+    categoriesHeaderInList: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      marginTop: 24,
+      paddingHorizontal: 0,
+      marginTop: 16,
       marginBottom: 12,
+    },
+    categoriesScrollViewInList: {
+      paddingLeft: 0,
+      marginBottom: 8,
+      height: 44,
     },
     categoriesTitle: {
       fontSize: 18,
@@ -577,11 +715,6 @@ export default function PantryScreen() {
       fontSize: 14,
       color: theme.colors.primary,
       fontWeight: '500',
-    },
-    categoriesContainer: {
-      paddingLeft: 20,
-      marginBottom: 8,
-      height: 44,
     },
     categoryTab: {
       paddingHorizontal: 20,
@@ -645,7 +778,7 @@ export default function PantryScreen() {
     statsBar: {
       flexDirection: 'row',
       backgroundColor: theme.colors.surface,
-      marginHorizontal: 20,
+      marginHorizontal: 0,
       marginTop: 8,
       marginBottom: 16,
       paddingHorizontal: 16,
@@ -679,6 +812,16 @@ export default function PantryScreen() {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       fontWeight: '600',
+    },
+    // ✅ RESPONSIVE FIX: Updated FlatList container styles
+    flatListContainer: {
+      flex: 1,
+      paddingHorizontal: 20,
+    },
+    flatListContent: {
+      paddingTop: 0,
+      paddingBottom: 120,
+      flexGrow: 1,
     },
     // ✅ RESPONSIVE FIX: Updated itemCard with flexible width support
     itemCard: {
@@ -759,15 +902,6 @@ export default function PantryScreen() {
       width: 4,
       height: '100%',
     },
-    // ✅ RESPONSIVE FIX: FlatList container styles
-    flatListContainer: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    flatListContent: {
-      paddingTop: 8,
-      paddingBottom: 120,
-    },
     emptyState: {
       flex: 1,
       justifyContent: 'center',
@@ -786,6 +920,9 @@ export default function PantryScreen() {
       color: theme.colors.textSecondary,
       marginTop: 6,
       letterSpacing: -0.2,
+    },
+    columnWrapperStyle: {
+      justifyContent: 'space-between',
     },
     modalContainer: {
       flex: 1,
@@ -988,102 +1125,7 @@ export default function PantryScreen() {
         />
       </View>
 
-      {/* Categories Header */}
-      <View style={styles.categoriesHeader}>
-        <Text style={styles.categoriesTitle}>Categories</Text>
-        {selectedCategory !== 'all' && (
-          <TouchableOpacity onPress={() => setSelectedCategory('all')}>
-            <Text style={styles.clearFilter}>Clear Filter</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Categories */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={{ paddingRight: 20 }}
-      >
-        {CATEGORIES.map((category) => {
-          const count = categoryStats[category.key] || 0;
-          const isActive = selectedCategory === category.key;
-          
-          return (
-            <TouchableOpacity
-              key={category.key}
-              style={[
-                styles.categoryTab,
-                isActive && styles.categoryTabActive,
-              ]}
-              onPress={() => setSelectedCategory(category.key)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.categoryContent}>
-                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    isActive && styles.categoryTabTextActive,
-                  ]}
-                >
-                  {category.label}
-                </Text>
-                {count > 0 && (
-                  <View style={[
-                    styles.categoryBadge,
-                    isActive && styles.categoryBadgeActive
-                  ]}>
-                    <Text style={[
-                      styles.categoryBadgeText,
-                      isActive && styles.categoryBadgeTextActive
-                    ]}>
-                      {count}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* Stats Bar - NEW POSITION: Right after categories */}
-      <View style={styles.statsBar}>
-        <View style={styles.statItem}>
-          <Package size={14} color={theme.colors.primary} />
-          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        
-        <View style={styles.statDivider} />
-        
-        <View style={styles.statItem}>
-          <AlertTriangle size={14} color={theme.colors.warning} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days <= 3 && days >= 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>Expiring</Text>
-        </View>
-        
-        <View style={styles.statDivider} />
-        
-        <View style={styles.statItem}>
-          <Clock size={14} color={theme.colors.error} />
-          <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days < 0;
-            }).length}
-          </Text>
-          <Text style={styles.statLabel}>Expired</Text>
-        </View>
-      </View>
-
-      {/* ✅ RESPONSIVE FIX: FlatList Implementation */}
+      {/* ✅ UPDATED: FlatList with integrated Categories and Stats */}
       <FlatList
         data={filteredItems}
         renderItem={renderPantryItem}
@@ -1093,6 +1135,10 @@ export default function PantryScreen() {
         style={styles.flatListContainer}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
+        
+        // ✅ CRITICAL: Add this prop for integrated Categories
+        ListHeaderComponent={renderCategoriesHeader}
+        
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1105,18 +1151,18 @@ export default function PantryScreen() {
           <View style={styles.emptyState}>
             <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
-              {searchQuery || selectedCategory !== 'all'
+              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
                 ? 'No items found'
                 : 'Your pantry is empty'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {searchQuery || selectedCategory !== 'all'
+              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Tap the + button to add items'}
             </Text>
           </View>
         )}
-        columnWrapperStyle={numColumns > 1 ? { justifyContent: 'space-between' } : undefined}
+        columnWrapperStyle={numColumns > 1 ? styles.columnWrapperStyle : undefined}
       />
 
       {/* Add Item Modal */}
