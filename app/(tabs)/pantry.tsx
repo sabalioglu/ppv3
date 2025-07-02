@@ -14,18 +14,18 @@ import { colors } from '@/lib/theme';
 
 // ✅ UPDATED: Kategori görselleri (256x256 WebP format, optimize edilmiş görüntüleme)
 const categoryImages = {
-  dairy: require('@/assets/images/categoryImages/dairy.webp'),
-  meat: require('@/assets/images/categoryImages/meat.webp'),
-  vegetables: require('@/assets/images/categoryImages/vegetables.webp'),
-  fruits: require('@/assets/images/categoryImages/fruits.webp'),
-  grains: require('@/assets/images/categoryImages/grains.webp'),
-  snacks: require('@/assets/images/categoryImages/snacks.webp'),
-  beverages: require('@/assets/images/categoryImages/beverages.webp'),
-  condiments: require('@/assets/images/categoryImages/condiments.webp'),
-  frozen: require('@/assets/images/categoryImages/frozen.webp'),
-  canned: require('@/assets/images/categoryImages/canned.webp'),
-  bakery: require('@/assets/images/categoryImages/bakery.webp'),
-  default: require('@/assets/images/categoryImages/default.webp'),
+  dairy: require('../../../assets/images/categoryImages/dairy.webp'),
+  meat: require('../../../assets/images/categoryImages/meat.webp'),
+  vegetables: require('../../../assets/images/categoryImages/vegetables.webp'),
+  fruits: require('../../../assets/images/categoryImages/fruits.webp'),
+  grains: require('../../../assets/images/categoryImages/grains.webp'),
+  snacks: require('../../../assets/images/categoryImages/snacks.webp'),
+  beverages: require('../../../assets/images/categoryImages/beverages.webp'),
+  condiments: require('../../../assets/images/categoryImages/condiments.webp'),
+  frozen: require('../../../assets/images/categoryImages/frozen.webp'),
+  canned: require('../../../assets/images/categoryImages/canned.webp'),
+  bakery: require('../../../assets/images/categoryImages/bakery.webp'),
+  default: require('../../../assets/images/categoryImages/default.webp'),
 };
 
 interface PantryItem {
