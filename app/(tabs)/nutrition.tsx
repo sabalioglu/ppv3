@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Modal,
 } from 'react-native';
 import {
   Target,
@@ -21,6 +22,7 @@ import {
   Clock,
   Award,
   ChevronRight,
+  X,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
@@ -246,6 +248,9 @@ export default function Nutrition() {
   const [waterIntake, setWaterIntake] = useState(0);
   const [quickAddCalories, setQuickAddCalories] = useState('');
 
+  // **FIX 1: Calendar Modal States**
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+
   // **Celebration Animation States**
   const [showCelebration, setShowCelebration] = useState(false);
   const [waterGoalCelebrated, setWaterGoalCelebrated] = useState(false);
@@ -262,6 +267,16 @@ export default function Nutrition() {
     return new Date(isoString).toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
+    });
+  };
+
+  // **Helper function: Format date for display**
+  const formatDateForDisplay = (date: Date): string => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
     });
   };
 
@@ -438,7 +453,7 @@ export default function Nutrition() {
     setMeals(formattedMeals);
   };
 
-  // **FIXED: Load weekly progress with correct calendar**
+  // **Load weekly progress with correct calendar**
   const loadWeeklyProgress = async (userId: string, targetCalories: number) => {
     const today = new Date();
     const weekDays = [];
@@ -472,7 +487,7 @@ export default function Nutrition() {
       dailyTotals[log.date] += log.calories || 0;
     });
 
-    // **FIXED: Correct day name mapping**
+    // **Correct day name mapping**
     const chartData = weekDays.map((dateString, index) => {
       const dateObj = new Date(dateString);
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -543,7 +558,7 @@ export default function Nutrition() {
     setInsights(insights);
   };
 
-  // **OPTIMIZED: Water intake function (No page refresh)**
+  // **FIX 2: Water intake function (Always accepts input)**
   const addWater = async (amount: number) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -551,7 +566,7 @@ export default function Nutrition() {
     try {
       // **Immediate UI update (Optimistic UI)**
       const newWaterIntake = waterIntake + amount;
-      const newPercentage = Math.min(Math.round((newWaterIntake / todaysNutrition.water.target) * 100), 100);
+      const newPercentage = Math.round((newWaterIntake / todaysNutrition.water.target) * 100);
       
       setWaterIntake(newWaterIntake);
       setTodaysNutrition(prev => ({
@@ -563,7 +578,7 @@ export default function Nutrition() {
         }
       }));
 
-      // **Check for goal completion and trigger celebration**
+      // **Check for goal completion and trigger celebration (only first time)**
       if (!waterGoalCelebrated && newWaterIntake >= todaysNutrition.water.target && waterIntake < todaysNutrition.water.target) {
         triggerCelebration();
         setWaterGoalCelebrated(true);
@@ -592,14 +607,14 @@ export default function Nutrition() {
           water: {
             ...prev.water,
             current: waterIntake,
-            percentage: Math.min(Math.round((waterIntake / prev.water.target) * 100), 100)
+            percentage: Math.round((waterIntake / prev.water.target) * 100)
           }
         }));
         Alert.alert('Error', 'Failed to add water');
         return;
       }
 
-      // **Success feedback (no intrusive alert)**
+      // **Success feedback**
       console.log(`✅ ${amount}ml water added successfully`);
       
     } catch (error) {
@@ -682,6 +697,13 @@ export default function Nutrition() {
     }
   };
 
+  // **FIX 1: Calendar date change handler**
+  const handleDateChange = (newDate: Date) => {
+    setSelectedDate(newDate);
+    setShowCalendarModal(false);
+    setWaterGoalCelebrated(false); // Reset celebration for new date
+  };
+
   // **Component lifecycle**
   useEffect(() => {
     loadNutritionData();
@@ -699,20 +721,26 @@ export default function Nutrition() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* **Header** */}
+      {/* **FIX 1: Enhanced Header with Working Calendar** */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Nutrition Tracker</Text>
           <Text style={styles.headerSubtitle}>
             {Math.round(todaysNutrition.calories.current)} / {todaysNutrition.calories.target} calories today
           </Text>
+          <Text style={styles.headerDate}>
+            {formatDateForDisplay(selectedDate)}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.calendarButton}>
+        <TouchableOpacity 
+          style={styles.calendarButton}
+          onPress={() => setShowCalendarModal(true)}
+        >
           <Calendar size={24} color={colors.primary[500]} />
         </TouchableOpacity>
       </View>
 
-      {/* **Daily Overview** */}
+      {/* **FIX 3: Enhanced Daily Overview with Better Spacing** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Target size={20} color={colors.primary[500]} />
@@ -733,6 +761,8 @@ export default function Nutrition() {
               </Text>
             </View>
           </ProgressBar>
+          
+          {/* **FIX 3: Improved Macros Grid Layout** */}
           <View style={styles.macrosGrid}>
             <MacroCard
               title="Protein"
@@ -770,7 +800,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **ENHANCED: Water Intake with Celebration** */}
+      {/* **FIX 2: Enhanced Water Intake (Always Accepts Input)** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Droplets size={20} color={colors.accent[500]} />
@@ -784,7 +814,7 @@ export default function Nutrition() {
         <View style={styles.waterContainer}>
           <View style={styles.waterProgress}>
             <ProgressBar
-              percentage={todaysNutrition.water.percentage}
+              percentage={Math.min(todaysNutrition.water.percentage, 100)}
               color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]}
               size="small"
             >
@@ -800,19 +830,13 @@ export default function Nutrition() {
           </View>
           <View style={styles.waterButtons}>
             <TouchableOpacity
-              style={[
-                styles.waterButton,
-                todaysNutrition.water.percentage >= 100 && styles.waterButtonComplete
-              ]}
+              style={styles.waterButton}
               onPress={() => addWater(250)}
             >
               <Text style={styles.waterButtonText}>+250ml</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.waterButton,
-                todaysNutrition.water.percentage >= 100 && styles.waterButtonComplete
-              ]}
+              style={styles.waterButton}
               onPress={() => addWater(500)}
             >
               <Text style={styles.waterButtonText}>+500ml</Text>
@@ -869,7 +893,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **FIXED: Weekly Progress** */}
+      {/* **Weekly Progress** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <TrendingUp size={20} color={colors.success[500]} />
@@ -951,6 +975,69 @@ export default function Nutrition() {
         </View>
       </View>
 
+      {/* **FIX 1: Calendar Modal** */}
+      <Modal
+        visible={showCalendarModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCalendarModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModal}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.calendarTitle}>Select Date</Text>
+              <TouchableOpacity
+                style={styles.calendarCloseButton}
+                onPress={() => setShowCalendarModal(false)}
+              >
+                <X size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.calendarContent}>
+              <Text style={styles.calendarCurrentDate}>
+                Current: {formatDateForDisplay(selectedDate)}
+              </Text>
+              
+              <View style={styles.quickDateButtons}>
+                <TouchableOpacity
+                  style={styles.quickDateButton}
+                  onPress={() => handleDateChange(new Date())}
+                >
+                  <Text style={styles.quickDateButtonText}>Today</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.quickDateButton}
+                  onPress={() => {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    handleDateChange(yesterday);
+                  }}
+                >
+                  <Text style={styles.quickDateButtonText}>Yesterday</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.quickDateButton}
+                  onPress={() => {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    handleDateChange(weekAgo);
+                  }}
+                >
+                  <Text style={styles.quickDateButtonText}>Week Ago</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.calendarNote}>
+                📅 Full calendar picker coming soon!
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* **Celebration Animation Overlay** */}
       {showCelebration && (
         <Animated.View style={[
@@ -988,10 +1075,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     fontFamily: 'Inter-Regular',
   },
+  // **FIX 1 & 3: Enhanced Header Styles**
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
@@ -999,16 +1087,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
+  headerLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
   headerTitle: {
-    fontSize: typography.fontSize['3xl'],
+    fontSize: 28,
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[600],
+    marginBottom: 4,
+  },
+  headerDate: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: colors.primary[600],
   },
   calendarButton: {
     width: 48,
@@ -1017,6 +1115,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
   },
   section: {
     padding: spacing.lg,
@@ -1067,25 +1166,28 @@ const styles = StyleSheet.create({
     color: colors.primary[600],
     marginTop: spacing.xs,
   },
+  // **FIX 3: Improved Macros Grid Layout**
   macrosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: spacing.xl,
-    gap: spacing.md,
+    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
   macroCard: {
-    width: (width - spacing.lg * 2 - spacing.lg * 2 - spacing.md) / 2,
+    width: (width - spacing.lg * 2 - spacing.sm) / 2,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.neutral[50],
     borderRadius: 12,
-    padding: spacing.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
   },
   macroContent: {
     alignItems: 'center',
   },
   macroPercentage: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 12,
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
   },
@@ -1094,19 +1196,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   macroTitle: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 13,
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[700],
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   macroValues: {
-    fontSize: typography.fontSize.xs,
+    fontSize: 11,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   macroProgressBar: {
-    height: 4,
+    height: 3,
     backgroundColor: colors.neutral[200],
     borderRadius: 2,
     overflow: 'hidden',
@@ -1161,16 +1263,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  // **FIX 2: Removed waterButtonComplete style**
   waterButton: {
     flex: 1,
     backgroundColor: colors.accent[500],
     borderRadius: 12,
     paddingVertical: spacing.md,
     alignItems: 'center',
-  },
-  waterButtonComplete: {
-    backgroundColor: colors.neutral[300],
-    opacity: 0.6,
   },
   waterButtonText: {
     fontSize: typography.fontSize.base,
@@ -1337,6 +1436,71 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
+  },
+  // **FIX 1: Calendar Modal Styles**
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarModal: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 20,
+    padding: spacing.lg,
+    margin: spacing.lg,
+    width: '85%',
+    maxWidth: 400,
+    ...shadows.lg,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  calendarTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    color: colors.neutral[800],
+  },
+  calendarCloseButton: {
+    padding: spacing.xs,
+  },
+  calendarContent: {
+    alignItems: 'center',
+  },
+  calendarCurrentDate: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  quickDateButton: {
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  quickDateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  calendarNote: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   // **Celebration Animation Styles**
   celebrationOverlay: {
