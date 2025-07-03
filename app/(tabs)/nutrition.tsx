@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  TextInput,
   ActivityIndicator,
   Alert,
   Animated,
@@ -19,15 +18,16 @@ import {
   Calendar,
   Plus,
   Droplets,
-  Activity,
   Clock,
   Award,
-  ChevronRight,
-  Trash2,
+  Camera,
   X,
+  Trash2,
+  HelpCircle,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
+import { router, useLocalSearchParams } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -77,7 +77,7 @@ const calculateMacros = (calories: number, goals: string[]) => {
   };
 };
 
-// **FIXED: Enhanced Progress Bar Component - Mobile Optimized**
+// **Enhanced Progress Bar Component**
 interface ProgressBarProps {
   percentage: number;
   color: string;
@@ -87,8 +87,8 @@ interface ProgressBarProps {
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'large', children }) => {
   const isLarge = size === 'large';
-  const containerSize = isLarge ? 100 : 70; // Reduced size for mobile
-  const strokeWidth = isLarge ? 6 : 4; // Reduced stroke width
+  const containerSize = isLarge ? 120 : 80;
+  const strokeWidth = isLarge ? 8 : 6;
 
   return (
     <View style={{
@@ -98,7 +98,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'la
       alignItems: 'center',
       position: 'relative',
     }}>
-      {/* Background Circle */}
       <View style={{
         position: 'absolute',
         width: containerSize,
@@ -107,8 +106,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'la
         borderWidth: strokeWidth,
         borderColor: `${color}20`,
       }} />
-
-      {/* Progress Circle */}
       <View style={{
         position: 'absolute',
         width: containerSize,
@@ -119,8 +116,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'la
         borderTopColor: color,
         transform: [{ rotate: `${(percentage * 3.6) - 90}deg` }],
       }} />
-
-      {/* Content */}
       <View style={{
         position: 'absolute',
         top: 0,
@@ -136,7 +131,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'la
   );
 };
 
-// **FIXED: Mobile Optimized Macro Card**
+// **FIXED: Mobile-Optimized Macro Card**
 interface MacroCardProps {
   title: string;
   current: number;
@@ -156,28 +151,22 @@ const MacroCard: React.FC<MacroCardProps> = ({
 }) => {
   return (
     <View style={styles.macroCard}>
-      <ProgressBar percentage={percentage} color={color} size="small">
-        <Text style={styles.macroPercentage}>{percentage}%</Text>
-      </ProgressBar>
+      <View style={styles.macroCircle}>
+        <ProgressBar percentage={percentage} color={color} size="small">
+          <Text style={styles.macroPercentage}>{percentage}%</Text>
+        </ProgressBar>
+      </View>
       <View style={styles.macroInfo}>
         <Text style={styles.macroTitle}>{title}</Text>
         <Text style={styles.macroValues}>
           {Math.round(current)} / {target} {unit}
         </Text>
-        <View style={styles.macroProgressBar}>
-          <View
-            style={[
-              styles.macroProgressFill,
-              { width: `${Math.min(percentage, 100)}%`, backgroundColor: color }
-            ]}
-          />
-        </View>
       </View>
     </View>
   );
 };
 
-// **Enhanced Meal Card with Delete Functionality**
+// **Enhanced Meal Card with Delete & AI Badge**
 interface MealCardProps {
   meal: {
     id: string;
@@ -198,8 +187,8 @@ interface MealCardProps {
 const MealCard: React.FC<MealCardProps> = ({ meal, onPress, onDelete }) => {
   const handleDelete = () => {
     Alert.alert(
-      'Delete Entry',
-      `Are you sure you want to delete "${meal.food_name}"?`,
+      'Delete Meal',
+      `Are you sure you want to delete ${meal.food_name}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -214,16 +203,19 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onPress, onDelete }) => {
   return (
     <TouchableOpacity style={styles.mealCard} onPress={onPress}>
       <View style={styles.mealHeader}>
-        <View style={styles.mealTypeContainer}>
+        <View style={styles.mealHeaderLeft}>
           <Text style={styles.mealType}>
             {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)}
           </Text>
           <Text style={styles.mealTime}>{meal.time}</Text>
           {meal.source === 'camera_ai' && (
-            <Text style={styles.aiSourceBadge}>📸 AI</Text>
+            <View style={styles.aiTag}>
+              <Camera size={12} color={colors.primary[600]} />
+              <Text style={styles.aiTagText}>AI</Text>
+            </View>
           )}
         </View>
-        <View style={styles.mealActions}>
+        <View style={styles.mealHeaderRight}>
           <View style={styles.mealCalories}>
             <Text style={styles.mealCaloriesText}>{Math.round(meal.calories)}</Text>
             <Text style={styles.mealCaloriesLabel}>kcal</Text>
@@ -256,162 +248,11 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onPress, onDelete }) => {
   );
 };
 
-// **Full Calendar Picker Component**
-const CalendarPicker: React.FC<{
-  visible: boolean;
-  selectedDate: Date;
-  onDateSelect: (date: Date) => void;
-  onClose: () => void;
-}> = ({ visible, selectedDate, onDateSelect, onClose }) => {
-  const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
-  const [currentYear, setCurrentYear] = useState(selectedDate.getFullYear());
-
-  const getDaysInMonth = (month: number, year: number) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (month: number, year: number) => {
-    return new Date(year, month, 1).getDay();
-  };
-
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
-    const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
-    const days = [];
-
-    // Empty cells for days before month starts
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
-    }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentYear, currentMonth, day);
-      const isSelected = date.toDateString() === selectedDate.toDateString();
-      const isToday = date.toDateString() === new Date().toDateString();
-
-      days.push(
-        <TouchableOpacity
-          key={day}
-          style={[
-            styles.calendarDay,
-            isSelected && styles.selectedDay,
-            isToday && styles.todayDay,
-          ]}
-          onPress={() => {
-            onDateSelect(date);
-            onClose();
-          }}
-        >
-          <Text style={[
-            styles.calendarDayText,
-            isSelected && styles.selectedDayText,
-            isToday && styles.todayDayText,
-          ]}>
-            {day}
-          </Text>
-        </TouchableOpacity>
-      );
-    }
-
-    return days;
-  };
-
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.calendarOverlay}>
-        <View style={styles.calendarContainer}>
-          <View style={styles.calendarHeader}>
-            <Text style={styles.calendarTitle}>Select Date</Text>
-            <TouchableOpacity onPress={onClose} style={styles.calendarCloseButton}>
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.monthNavigation}>
-            <TouchableOpacity
-              onPress={() => {
-                if (currentMonth === 0) {
-                  setCurrentMonth(11);
-                  setCurrentYear(currentYear - 1);
-                } else {
-                  setCurrentMonth(currentMonth - 1);
-                }
-              }}
-              style={styles.navButton}
-            >
-              <Text style={styles.navButtonText}>‹</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.monthYearText}>
-              {monthNames[currentMonth]} {currentYear}
-            </Text>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (currentMonth === 11) {
-                  setCurrentMonth(0);
-                  setCurrentYear(currentYear + 1);
-                } else {
-                  setCurrentMonth(currentMonth + 1);
-                }
-              }}
-              style={styles.navButton}
-            >
-              <Text style={styles.navButtonText}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.weekDaysHeader}>
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <Text key={day} style={styles.weekDayText}>{day}</Text>
-            ))}
-          </View>
-
-          <View style={styles.calendarGrid}>
-            {renderCalendar()}
-          </View>
-
-          <View style={styles.quickDateActions}>
-            <TouchableOpacity
-              onPress={() => {
-                onDateSelect(new Date());
-                onClose();
-              }}
-              style={styles.quickDateButton}
-            >
-              <Text style={styles.quickDateButtonText}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                onDateSelect(yesterday);
-                onClose();
-              }}
-              style={styles.quickDateButton}
-            >
-              <Text style={styles.quickDateButtonText}>Yesterday</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 export default function Nutrition() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [showCalendar, setShowCalendar] = useState(false);
   
-  // **Real nutrition data states**
   const [todaysNutrition, setTodaysNutrition] = useState({
     calories: { current: 0, target: 2000, percentage: 0 },
     protein: { current: 0, target: 120, percentage: 0 },
@@ -425,7 +266,10 @@ export default function Nutrition() {
   const [weeklyProgress, setWeeklyProgress] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
   const [waterIntake, setWaterIntake] = useState(0);
-  const [quickAddCalories, setQuickAddCalories] = useState('');
+
+  // **Calendar & Modal States**
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTdeeTooltip, setShowTdeeTooltip] = useState(false);
 
   // **Celebration Animation States**
   const [showCelebration, setShowCelebration] = useState(false);
@@ -433,12 +277,14 @@ export default function Nutrition() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  // **Helper function: Format date to YYYY-MM-DD**
+  // **ENHANCED: Camera Return Data Handling**
+  const params = useLocalSearchParams();
+
+  // **Helper Functions**
   const formatDate = (date: Date): string => {
     return date.toISOString().split('T')[0];
   };
 
-  // **Helper function: Format time from ISO string**
   const formatTime = (isoString: string): string => {
     return new Date(isoString).toLocaleTimeString('en-US', { 
       hour: '2-digit', 
@@ -446,27 +292,69 @@ export default function Nutrition() {
     });
   };
 
-  // **Helper function: Format date for display**
   const formatDateForDisplay = (date: Date): string => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
 
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+  // **ENHANCED: Smart Meal Type Detection**
+  const getSmartMealType = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 11) return 'breakfast';
+    if (hour < 16) return 'lunch';
+    if (hour < 20) return 'dinner';
+    return 'snacks';
+  };
+
+  // **CRITICAL: Process Camera AI Data**
+  const processCameraData = async (cameraData: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const mealType = getSmartMealType();
+      const foodName = cameraData.name || 'Unknown Food';
+      const calories = cameraData.calories || 0;
+      const nutrition = cameraData.nutrition || {};
+
+      const { error } = await supabase.from('nutrition_logs').insert({
+        user_id: user.id,
+        date: formatDate(new Date()),
+        meal_type: mealType,
+        food_name: foodName, // **AI detected food name (Pizza, Burger, etc.)**
+        quantity: 1,
+        unit: 'serving',
+        calories: calories,
+        protein: nutrition.protein || 0,
+        carbs: nutrition.carbs || 0,
+        fat: nutrition.fat || 0,
+        fiber: nutrition.fiber || 0,
+        source: 'camera_ai',
       });
+
+      if (error) {
+        Alert.alert('Error', 'Failed to log food from camera');
+        return;
+      }
+
+      Alert.alert(
+        'Success! 🎉', 
+        `${foodName} (${calories} calories) added to your nutrition tracker!`
+      );
+
+      await loadNutritionData();
+
+    } catch (error) {
+      console.error('Error processing camera data:', error);
+      Alert.alert('Error', 'Failed to process camera data');
     }
   };
 
-  // **Main data loading function**
+  // **Main Data Loading Function**
   const loadNutritionData = async () => {
     try {
       setLoading(true);
@@ -477,7 +365,6 @@ export default function Nutrition() {
         return;
       }
 
-      // **Load user profile for targets**
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -492,7 +379,6 @@ export default function Nutrition() {
 
       setUserProfile(profile);
 
-      // **Calculate user's nutrition targets**
       let nutritionTargets = {
         calories: 2000,
         protein: 120,
@@ -513,16 +399,11 @@ export default function Nutrition() {
         };
       }
 
-      // **Load today's nutrition data**
       await loadTodaysNutrition(user.id, nutritionTargets);
-      
-      // **Load meals and weekly progress**
       await Promise.all([
         loadTodaysMeals(user.id),
         loadWeeklyProgress(user.id, nutritionTargets.calories)
       ]);
-
-      // **Generate insights**
       generateInsights(nutritionTargets);
 
     } catch (error) {
@@ -533,7 +414,7 @@ export default function Nutrition() {
     }
   };
 
-  // **Load today's nutrition totals**
+  // **Load Today's Nutrition Totals**
   const loadTodaysNutrition = async (userId: string, targets: any) => {
     const today = formatDate(selectedDate);
     
@@ -548,7 +429,6 @@ export default function Nutrition() {
       return;
     }
 
-    // **Calculate totals**
     const totals = nutritionLogs?.reduce((acc, log) => ({
       calories: acc.calories + (log.calories || 0),
       protein: acc.protein + (log.protein || 0),
@@ -558,11 +438,9 @@ export default function Nutrition() {
     }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }) || 
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
 
-    // **Calculate water intake**
     const waterLogs = nutritionLogs?.filter(log => log.meal_type === 'water') || [];
     const totalWater = waterLogs.reduce((sum, log) => sum + (log.quantity || 0), 0);
 
-    // **Calculate percentages**
     const calculatePercentage = (current: number, target: number) => 
       target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
 
@@ -601,13 +479,10 @@ export default function Nutrition() {
 
     setTodaysNutrition(nutritionData);
     setWaterIntake(totalWater);
-    
-    // **Reset celebration flag for new day**
-    const isToday = formatDate(new Date()) === formatDate(selectedDate);
-    setWaterGoalCelebrated(!isToday || totalWater >= 2000);
+    setWaterGoalCelebrated(totalWater >= 2000);
   };
 
-  // **Load today's meals**
+  // **Load Today's Meals**
   const loadTodaysMeals = async (userId: string) => {
     const today = formatDate(selectedDate);
     
@@ -624,12 +499,11 @@ export default function Nutrition() {
       return;
     }
 
-    // **Format meals for display**
     const formattedMeals = nutritionLogs?.map(log => ({
       id: log.id,
       meal_type: log.meal_type,
       time: formatTime(log.created_at),
-      food_name: log.food_name,
+      food_name: log.food_name, // **Real AI detected food name**
       calories: log.calories || 0,
       protein: log.protein || 0,
       carbs: log.carbs || 0,
@@ -641,19 +515,17 @@ export default function Nutrition() {
     setMeals(formattedMeals);
   };
 
-  // **Load weekly progress with correct calendar**
+  // **FIXED: Load Weekly Progress with Correct Calendar**
   const loadWeeklyProgress = async (userId: string, targetCalories: number) => {
-    const today = new Date();
+    const today = new Date(selectedDate);
     const weekDays = [];
     
-    // **Generate last 7 days correctly**
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       weekDays.push(formatDate(date));
     }
 
-    // **Single query for all week data**
     const { data: weeklyLogs, error } = await supabase
       .from('nutrition_logs')
       .select('date, calories')
@@ -666,7 +538,6 @@ export default function Nutrition() {
       return;
     }
 
-    // **Calculate daily totals**
     const dailyTotals: { [key: string]: number } = {};
     weeklyLogs?.forEach(log => {
       if (!dailyTotals[log.date]) {
@@ -675,14 +546,12 @@ export default function Nutrition() {
       dailyTotals[log.date] += log.calories || 0;
     });
 
-    // **Correct day name mapping**
     const chartData = weekDays.map((dateString, index) => {
       const dateObj = new Date(dateString);
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       
-      // **Check if it's today**
-      const isToday = formatDate(new Date()) === dateString;
-      const dayName = isToday ? 'Today' : dayNames[dateObj.getDay()];
+      const isSelectedDate = formatDate(selectedDate) === dateString;
+      const dayName = isSelectedDate ? 'Today' : dayNames[dateObj.getDay()];
       
       return {
         day: dayName,
@@ -694,7 +563,7 @@ export default function Nutrition() {
     setWeeklyProgress(chartData);
   };
 
-  // **Generate smart insights**
+  // **Generate Smart Insights**
   const generateInsights = (targets: any) => {
     const insights = [];
     const { calories, protein, fiber } = todaysNutrition;
@@ -746,15 +615,14 @@ export default function Nutrition() {
     setInsights(insights);
   };
 
-  // **FIXED: Water intake function (Always allows input)**
+  // **ENHANCED: Water Intake with 4 Options & Continuous Input**
   const addWater = async (amount: number) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     try {
-      // **Immediate UI update (Optimistic UI)**
       const newWaterIntake = waterIntake + amount;
-      const newPercentage = Math.round((newWaterIntake / todaysNutrition.water.target) * 100);
+      const newPercentage = Math.min(Math.round((newWaterIntake / todaysNutrition.water.target) * 100), 100);
       
       setWaterIntake(newWaterIntake);
       setTodaysNutrition(prev => ({
@@ -766,14 +634,11 @@ export default function Nutrition() {
         }
       }));
 
-      // **Check for goal completion and trigger celebration**
-      const isToday = formatDate(new Date()) === formatDate(selectedDate);
-      if (isToday && !waterGoalCelebrated && newWaterIntake >= todaysNutrition.water.target && waterIntake < todaysNutrition.water.target) {
+      if (!waterGoalCelebrated && newWaterIntake >= todaysNutrition.water.target && waterIntake < todaysNutrition.water.target) {
         triggerCelebration();
         setWaterGoalCelebrated(true);
       }
 
-      // **Background database update**
       const { error } = await supabase.from('nutrition_logs').insert({
         user_id: user.id,
         date: formatDate(selectedDate),
@@ -789,14 +654,13 @@ export default function Nutrition() {
       });
 
       if (error) {
-        // **Rollback on error**
         setWaterIntake(waterIntake);
         setTodaysNutrition(prev => ({
           ...prev,
           water: {
             ...prev.water,
             current: waterIntake,
-            percentage: Math.round((waterIntake / prev.water.target) * 100)
+            percentage: Math.min(Math.round((waterIntake / prev.water.target) * 100), 100)
           }
         }));
         Alert.alert('Error', 'Failed to add water');
@@ -811,29 +675,7 @@ export default function Nutrition() {
     }
   };
 
-  // **Delete meal entry function**
-  const deleteMealEntry = async (entryId: string) => {
-    try {
-      const { error } = await supabase
-        .from('nutrition_logs')
-        .delete()
-        .eq('id', entryId);
-
-      if (error) {
-        Alert.alert('Error', 'Failed to delete entry');
-        return;
-      }
-
-      Alert.alert('Success', 'Entry deleted successfully');
-      await loadNutritionData();
-      
-    } catch (error) {
-      console.error('Error deleting entry:', error);
-      Alert.alert('Error', 'Failed to delete entry');
-    }
-  };
-
-  // **Celebration Animation Function**
+  // **Simple Celebration Animation**
   const triggerCelebration = () => {
     setShowCelebration(true);
     
@@ -866,54 +708,64 @@ export default function Nutrition() {
     });
   };
 
-  // **Quick add calories function**
-  const handleQuickAdd = async () => {
-    if (!quickAddCalories || parseFloat(quickAddCalories) <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid calorie value');
-      return;
-    }
+  // **ENHANCED: Camera Integration**
+  const handleQuickAdd = () => {
+    router.push({
+      pathname: '/(tabs)/camera',
+      params: { 
+        mode: 'calorie-counter',
+        returnTo: 'nutrition',
+        timestamp: Date.now().toString()
+      }
+    });
+  };
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
+  // **Delete Meal Function**
+  const deleteMeal = async (mealId: string) => {
     try {
-      const calories = parseFloat(quickAddCalories);
-      const { error } = await supabase.from('nutrition_logs').insert({
-        user_id: user.id,
-        date: formatDate(selectedDate),
-        meal_type: 'snacks',
-        food_name: 'Quick Add',
-        quantity: 1,
-        unit: 'serving',
-        calories: calories,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
-        fiber: 0,
-        source: 'manual',
-      });
+      const { error } = await supabase
+        .from('nutrition_logs')
+        .delete()
+        .eq('id', mealId);
 
       if (error) {
-        Alert.alert('Error', 'Failed to add calories');
+        Alert.alert('Error', 'Failed to delete meal');
         return;
       }
 
-      Alert.alert('Success! 🎯', `${calories} calories added`);
-      setQuickAddCalories('');
+      Alert.alert('Success', 'Meal deleted successfully');
       await loadNutritionData();
       
     } catch (error) {
-      console.error('Error adding quick calories:', error);
-      Alert.alert('Error', 'Failed to add calories');
+      console.error('Error deleting meal:', error);
+      Alert.alert('Error', 'Failed to delete meal');
     }
   };
 
-  // **Component lifecycle**
+  // **Date Selection Functions**
+  const selectDate = (date: Date) => {
+    setSelectedDate(date);
+    setShowDatePicker(false);
+  };
+
+  // **ENHANCED: Handle Camera Return Data**
+  useEffect(() => {
+    if (params.scanResult) {
+      try {
+        const scanResultData = JSON.parse(params.scanResult as string);
+        if (scanResultData.type === 'calorie-counter' && scanResultData.data) {
+          processCameraData(scanResultData.data);
+        }
+      } catch (error) {
+        console.error('Error parsing camera data:', error);
+      }
+    }
+  }, [params.scanResult]);
+
   useEffect(() => {
     loadNutritionData();
   }, [selectedDate]);
 
-  // **Loading state**
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -925,30 +777,33 @@ export default function Nutrition() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* **FIXED: Header with Working Calendar** */}
+      {/* **ENHANCED: Header with Functional Calendar** */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Nutrition Tracker</Text>
           <Text style={styles.headerSubtitle}>
             {Math.round(todaysNutrition.calories.current)} / {todaysNutrition.calories.target} calories today
           </Text>
-          <Text style={styles.dateDisplay}>
+          <Text style={styles.headerDate}>
             {formatDateForDisplay(selectedDate)}
           </Text>
         </View>
         <TouchableOpacity 
-          style={styles.calendarButton} 
-          onPress={() => setShowCalendar(true)}
+          style={styles.calendarButton}
+          onPress={() => setShowDatePicker(true)}
         >
           <Calendar size={24} color={colors.primary[500]} />
         </TouchableOpacity>
       </View>
 
-      {/* **FIXED: Mobile Optimized Daily Overview** */}
+      {/* **FIXED: Mobile-Optimized Daily Overview** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Target size={20} color={colors.primary[500]} />
           <Text style={styles.sectionTitle}>Today's Progress</Text>
+          <TouchableOpacity onPress={() => setShowTdeeTooltip(true)}>
+            <HelpCircle size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
         <View style={styles.caloriesOverview}>
           <ProgressBar
@@ -965,6 +820,8 @@ export default function Nutrition() {
               </Text>
             </View>
           </ProgressBar>
+          
+          {/* **FIXED: Mobile-Optimized Macros Grid** */}
           <View style={styles.macrosGrid}>
             <MacroCard
               title="Protein"
@@ -1002,7 +859,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **FIXED: Water Intake (Always accepts input)** */}
+      {/* **ENHANCED: Water Intake with 4 Options** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Droplets size={20} color={colors.accent[500]} />
@@ -1016,7 +873,7 @@ export default function Nutrition() {
         <View style={styles.waterContainer}>
           <View style={styles.waterProgress}>
             <ProgressBar
-              percentage={Math.min(todaysNutrition.water.percentage, 100)}
+              percentage={todaysNutrition.water.percentage}
               color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]}
               size="small"
             >
@@ -1033,6 +890,18 @@ export default function Nutrition() {
           <View style={styles.waterButtons}>
             <TouchableOpacity
               style={styles.waterButton}
+              onPress={() => addWater(50)}
+            >
+              <Text style={styles.waterButtonText}>+50ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() => addWater(100)}
+            >
+              <Text style={styles.waterButtonText}>+100ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.waterButton}
               onPress={() => addWater(250)}
             >
               <Text style={styles.waterButtonText}>+250ml</Text>
@@ -1047,36 +916,34 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **Quick Add (Keep for manual calorie entries)** */}
+      {/* **ENHANCED: Camera-Only Quick Add** */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Add Calories</Text>
-        <Text style={styles.sectionSubtitle}>
-          For detailed nutrition tracking, use the Camera tab to scan food photos
-        </Text>
+        <Text style={styles.sectionTitle}>Quick Add Food</Text>
         <View style={styles.quickAddContainer}>
-          <TextInput
-            style={styles.quickAddInput}
-            placeholder="Enter calories..."
-            value={quickAddCalories}
-            onChangeText={setQuickAddCalories}
-            keyboardType="numeric"
-            placeholderTextColor={colors.neutral[400]}
-          />
+          <View style={styles.quickAddContent}>
+            <Camera size={24} color={colors.primary[500]} />
+            <View style={styles.quickAddText}>
+              <Text style={styles.quickAddTitle}>Scan Food with AI Camera</Text>
+              <Text style={styles.quickAddSubtitle}>Take a photo to automatically detect food and calories</Text>
+            </View>
+          </View>
           <TouchableOpacity
             style={styles.quickAddButton}
             onPress={handleQuickAdd}
           >
-            <Plus size={20} color={colors.neutral[0]} />
+            <Camera size={20} color={colors.neutral[0]} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* **Enhanced Today's Meals with Delete Function** */}
+      {/* **ENHANCED: Today's Meals with Delete & AI Badge** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Clock size={20} color={colors.secondary[500]} />
           <Text style={styles.sectionTitle}>Today's Meals</Text>
-          <Text style={styles.mealCount}>{meals.length} entries</Text>
+          <TouchableOpacity style={styles.sectionAction} onPress={handleQuickAdd}>
+            <Plus size={16} color={colors.primary[500]} />
+          </TouchableOpacity>
         </View>
         <View style={styles.mealsContainer}>
           {meals.length > 0 ? (
@@ -1085,21 +952,19 @@ export default function Nutrition() {
                 key={meal.id}
                 meal={meal}
                 onPress={() => console.log('Meal pressed:', meal.food_name)}
-                onDelete={deleteMealEntry}
+                onDelete={deleteMeal}
               />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No meals logged today</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Use the Camera tab to scan food photos or Quick Add for manual entries
-              </Text>
+              <Text style={styles.emptyStateSubtext}>Start tracking your nutrition!</Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* **Weekly Progress** */}
+      {/* **FIXED: Weekly Progress** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <TrendingUp size={20} color={colors.success[500]} />
@@ -1181,15 +1046,104 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **Full Calendar Picker** */}
-      <CalendarPicker
-        visible={showCalendar}
-        selectedDate={selectedDate}
-        onDateSelect={setSelectedDate}
-        onClose={() => setShowCalendar(false)}
-      />
+      {/* **ENHANCED: Date Picker Modal** */}
+      <Modal
+        transparent
+        visible={showDatePicker}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <View style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>Select Date</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <X size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.currentDateText}>
+              Current: {formatDateForDisplay(selectedDate)}
+            </Text>
+            <View style={styles.datePickerButtons}>
+              <TouchableOpacity 
+                style={styles.datePickerButton}
+                onPress={() => selectDate(new Date())}
+              >
+                <Text style={styles.datePickerButtonText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.datePickerButton}
+                onPress={() => {
+                  const yesterday = new Date();
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  selectDate(yesterday);
+                }}
+              >
+                <Text style={styles.datePickerButtonText}>Yesterday</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.datePickerButton}
+                onPress={() => {
+                  const weekAgo = new Date();
+                  weekAgo.setDate(weekAgo.getDate() - 7);
+                  selectDate(weekAgo);
+                }}
+              >
+                <Text style={styles.datePickerButtonText}>Week Ago</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.fullCalendarNote}>
+              📅 Full calendar picker coming soon!
+            </Text>
+          </View>
+        </View>
+      </Modal>
 
-      {/* **Celebration Animation Overlay** */}
+      {/* **TDEE Tooltip Modal** */}
+      <Modal
+        transparent
+        visible={showTdeeTooltip}
+        animationType="fade"
+        onRequestClose={() => setShowTdeeTooltip(false)}
+      >
+        <View style={styles.tooltipOverlay}>
+          <View style={styles.tooltipContainer}>
+            <View style={styles.tooltipHeader}>
+              <Text style={styles.tooltipTitle}>TDEE (Total Daily Energy Expenditure)</Text>
+              <TouchableOpacity onPress={() => setShowTdeeTooltip(false)}>
+                <X size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.tooltipText}>
+              TDEE is the total number of calories you burn in a day, including your BMR plus calories burned through physical activity and digestion.
+            </Text>
+            <View style={styles.tooltipFormula}>
+              <Text style={styles.tooltipFormulaTitle}>Formula:</Text>
+              <Text style={styles.tooltipFormulaText}>
+                TDEE = BMR × Activity Level Multiplier
+                {'\n\n'}Activity Levels:
+                {'\n'}• Sedentary: 1.2
+                {'\n'}• Lightly Active: 1.375
+                {'\n'}• Moderately Active: 1.55
+                {'\n'}• Very Active: 1.725
+                {'\n'}• Extra Active: 1.9
+              </Text>
+            </View>
+            {userProfile && (
+              <View style={styles.tooltipUserData}>
+                <Text style={styles.tooltipUserTitle}>Your Data:</Text>
+                <Text style={styles.tooltipUserText}>
+                  BMR: {Math.round(calculateBMR(userProfile.age, userProfile.gender, userProfile.height_cm, userProfile.weight_kg))} calories
+                  {'\n'}Activity Level: {userProfile.activity_level?.replace('_', ' ')}
+                  {'\n'}TDEE: {todaysNutrition.calories.target} calories
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* **Simple Celebration Animation** */}
       {showCelebration && (
         <Animated.View style={[
           styles.celebrationOverlay,
@@ -1230,7 +1184,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     backgroundColor: colors.neutral[0],
@@ -1238,21 +1192,21 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.neutral[200],
   },
   headerTitle: {
-    fontSize: typography.fontSize['2xl'],
+    fontSize: typography.fontSize['3xl'],
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.base,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[600],
+    marginBottom: 4,
   },
-  dateDisplay: {
+  headerDate: {
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Medium',
     color: colors.primary[600],
-    marginTop: 4,
   },
   calendarButton: {
     width: 48,
@@ -1277,27 +1231,18 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     flex: 1,
   },
-  sectionSubtitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[500],
-    marginBottom: spacing.md,
-    lineHeight: 20,
+  sectionAction: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  mealCount: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[500],
-    backgroundColor: colors.neutral[100],
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  // **FIXED: Mobile Optimized Calories Overview**
   caloriesOverview: {
     backgroundColor: colors.neutral[0],
     borderRadius: 20,
-    padding: spacing.md,
+    padding: spacing.lg,
     alignItems: 'center',
     ...shadows.md,
   },
@@ -1305,12 +1250,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   caloriesCurrent: {
-    fontSize: typography.fontSize.xl,
+    fontSize: typography.fontSize['2xl'],
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
   },
   caloriesLabel: {
-    fontSize: typography.fontSize.xs,
+    fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
   },
@@ -1318,58 +1263,44 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     fontFamily: 'Inter-Medium',
     color: colors.primary[600],
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
-  // **FIXED: Mobile Optimized Macros Grid**
+  // **FIXED: Mobile-Optimized Macros Grid**
   macrosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: spacing.xl,
   },
   macroCard: {
-    width: (width - spacing.lg * 2 - spacing.sm) / 2,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.neutral[0],
     borderRadius: 12,
-    padding: spacing.sm,
-    minHeight: 80,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    width: '100%',
+    ...shadows.sm,
   },
-  macroContent: {
-    alignItems: 'center',
+  macroCircle: {
+    marginRight: spacing.md,
   },
   macroPercentage: {
-    fontSize: typography.fontSize.xs,
+    fontSize: typography.fontSize.sm,
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
   },
   macroInfo: {
-    marginLeft: spacing.sm,
     flex: 1,
   },
   macroTitle: {
-    fontSize: typography.fontSize.xs,
+    fontSize: typography.fontSize.base,
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[700],
-    marginBottom: 2,
-  },
-  macroValues: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[500],
     marginBottom: 4,
   },
-  macroProgressBar: {
-    height: 3,
-    backgroundColor: colors.neutral[200],
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  macroProgressFill: {
-    height: '100%',
-    borderRadius: 2,
+  macroValues: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
   },
   waterContainer: {
     backgroundColor: colors.neutral[0],
@@ -1413,52 +1344,63 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  // **ENHANCED: Water Buttons (4 options)**
   waterButtons: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   waterButton: {
     flex: 1,
     backgroundColor: colors.accent[500],
     borderRadius: 12,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   waterButtonText: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[0],
   },
+  // **ENHANCED: Camera-Only Quick Add**
   quickAddContainer: {
     flexDirection: 'row',
     backgroundColor: colors.neutral[0],
     borderRadius: 12,
-    padding: spacing.sm,
-    gap: spacing.sm,
+    padding: spacing.lg,
+    alignItems: 'center',
     ...shadows.md,
   },
-  quickAddInput: {
+  quickAddContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  },
+  quickAddText: {
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  quickAddTitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Inter-SemiBold',
     color: colors.neutral[800],
+    marginBottom: 2,
+  },
+  quickAddSubtitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
   },
   quickAddButton: {
     backgroundColor: colors.primary[500],
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mealsContainer: {
     gap: spacing.md,
   },
-  // **Enhanced Meal Card with Delete Button**
   mealCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -1471,8 +1413,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
-  mealTypeContainer: {
+  mealHeaderLeft: {
     flex: 1,
+  },
+  mealHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   mealType: {
     fontSize: typography.fontSize.base,
@@ -1485,27 +1432,27 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     marginTop: 2,
   },
-  aiSourceBadge: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Medium',
-    color: colors.accent[600],
-    backgroundColor: colors.accent[50],
+  aiTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
     marginTop: 4,
     alignSelf: 'flex-start',
   },
-  mealActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  aiTagText: {
+    fontSize: 10,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[600],
+    marginLeft: 2,
   },
   mealCalories: {
     alignItems: 'center',
   },
   mealCaloriesText: {
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.xl,
     fontFamily: 'Poppins-Bold',
     color: colors.neutral[800],
   },
@@ -1515,12 +1462,10 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
   },
   deleteButton: {
-    padding: spacing.xs,
-    backgroundColor: colors.error[50],
-    borderRadius: 8,
+    padding: 4,
   },
   mealName: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.lg,
     fontFamily: 'Inter-Medium',
     color: colors.neutral[800],
     marginBottom: spacing.md,
@@ -1533,7 +1478,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   mealMacroValue: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.base,
     fontFamily: 'Poppins-SemiBold',
     color: colors.neutral[700],
   },
@@ -1615,126 +1560,133 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
-    textAlign: 'center',
-    lineHeight: 20,
   },
-  // **Full Calendar Picker Styles**
-  calendarOverlay: {
+  // **Date Picker Modal Styles**
+  datePickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  calendarContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 20,
+  datePickerContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
     padding: spacing.lg,
-    margin: spacing.lg,
     width: '90%',
     maxWidth: 400,
     ...shadows.lg,
   },
-  calendarHeader: {
+  datePickerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
-  calendarTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-Bold',
-    color: colors.neutral[800],
-  },
-  calendarCloseButton: {
-    padding: spacing.xs,
-  },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navButtonText: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-Bold',
-    color: colors.primary[600],
-  },
-  monthYearText: {
+  datePickerTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Poppins-SemiBold',
     color: colors.neutral[800],
   },
-  weekDaysHeader: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-  },
-  weekDayText: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
+  currentDateText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
     color: colors.neutral[600],
-    paddingVertical: spacing.sm,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    textAlign: 'center',
     marginBottom: spacing.lg,
   },
-  calendarDay: {
-    width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    margin: 1,
-  },
-  selectedDay: {
-    backgroundColor: colors.primary[500],
-  },
-  todayDay: {
-    backgroundColor: colors.accent[100],
-    borderWidth: 2,
-    borderColor: colors.accent[500],
-  },
-  calendarDayText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[700],
-  },
-  selectedDayText: {
-    color: colors.neutral[0],
-    fontFamily: 'Inter-SemiBold',
-  },
-  todayDayText: {
-    color: colors.accent[700],
-    fontFamily: 'Inter-SemiBold',
-  },
-  quickDateActions: {
+  datePickerButtons: {
     flexDirection: 'row',
-    gap: spacing.md,
+    justifyContent: 'space-around',
+    marginBottom: spacing.lg,
   },
-  quickDateButton: {
-    flex: 1,
-    backgroundColor: colors.neutral[100],
+  datePickerButton: {
+    backgroundColor: colors.primary[500],
     borderRadius: 12,
     paddingVertical: spacing.md,
-    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
   },
-  quickDateButtonText: {
+  datePickerButtonText: {
     fontSize: typography.fontSize.base,
     fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[700],
+    color: colors.neutral[0],
   },
-  // **Celebration Animation Styles**
+  fullCalendarNote: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  // **Tooltip Styles**
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tooltipContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: spacing.lg,
+    width: '90%',
+    maxHeight: '80%',
+    ...shadows.lg,
+  },
+  tooltipHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  tooltipTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
+    flex: 1,
+  },
+  tooltipText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[600],
+    lineHeight: 22,
+    marginBottom: spacing.md,
+  },
+  tooltipFormula: {
+    backgroundColor: colors.neutral[50],
+    borderRadius: 8,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  tooltipFormulaTitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  tooltipFormulaText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.neutral[700],
+    lineHeight: 18,
+  },
+  tooltipUserData: {
+    backgroundColor: colors.primary[50],
+    borderRadius: 8,
+    padding: spacing.md,
+  },
+  tooltipUserTitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[700],
+    marginBottom: spacing.xs,
+  },
+  tooltipUserText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.primary[600],
+    lineHeight: 18,
+  },
+  // **Simple Celebration Animation**
   celebrationOverlay: {
     position: 'absolute',
     top: '40%',
