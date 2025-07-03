@@ -21,7 +21,6 @@ import {
   Grid,
   List,
   Link,
-  Camera,
   Heart,
   Clock,
   Users,
@@ -30,8 +29,10 @@ import {
   Edit3,
   ExternalLink,
   BookOpen,
-  Tag,
   X,
+  Flame,
+  ChevronDown,
+  Check,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
@@ -63,33 +64,325 @@ interface Recipe {
   is_favorite: boolean;
   is_ai_generated: boolean;
   source_url?: string;
+  ai_match_score?: number;
   created_at: string;
   updated_at: string;
 }
 
-// **Category Interface**
-interface Category {
+// **Enhanced Filter Categories (Samsung Food Style)**
+interface FilterCategory {
   id: string;
-  name: string;
-  color: string;
-  icon: string;
-  count: number;
+  title: string;
+  options: Array<{ id: string; label: string; count?: number }>;
 }
 
-// **Recipe Categories (Database + User Defined)**
-const systemCategories = [
-  { name: 'All', color: colors.neutral[500], icon: 'grid' },
-  { name: 'Meat', color: colors.error[500], icon: 'beef' },
-  { name: 'Fish', color: colors.primary[500], icon: 'fish' },
-  { name: 'Veggies', color: colors.success[500], icon: 'carrot' },
-  { name: 'Breakfast', color: colors.warning[500], icon: 'coffee' },
-  { name: 'Lunch', color: colors.accent[500], icon: 'sandwich' },
-  { name: 'Dinner', color: colors.secondary[500], icon: 'utensils' },
-  { name: 'Desserts', color: colors.error[400], icon: 'cake' },
-  { name: 'Quick Meals', color: colors.primary[400], icon: 'zap' },
+const filterCategories: FilterCategory[] = [
+  {
+    id: 'meal_type',
+    title: 'Meal Type',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'breakfast', label: 'Breakfast' },
+      { id: 'lunch', label: 'Lunch' },
+      { id: 'dinner', label: 'Dinner' },
+      { id: 'snacks', label: 'Snacks' },
+      { id: 'desserts', label: 'Desserts' },
+    ]
+  },
+  {
+    id: 'diet',
+    title: 'Diet',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'vegetarian', label: 'Vegetarian' },
+      { id: 'vegan', label: 'Vegan' },
+      { id: 'keto', label: 'Keto' },
+      { id: 'low_carb', label: 'Low Carb' },
+      { id: 'high_protein', label: 'High Protein' },
+      { id: 'gluten_free', label: 'Gluten Free' },
+    ]
+  },
+  {
+    id: 'cook_time',
+    title: 'Cook Time',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'under_15', label: 'Under 15 min' },
+      { id: 'under_30', label: 'Under 30 min' },
+      { id: 'under_60', label: 'Under 60 min' },
+      { id: 'over_60', label: 'Over 60 min' },
+    ]
+  },
+  {
+    id: 'difficulty',
+    title: 'Difficulty',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'easy', label: 'Easy' },
+      { id: 'medium', label: 'Medium' },
+      { id: 'hard', label: 'Hard' },
+    ]
+  },
+  {
+    id: 'cuisine',
+    title: 'Cuisine',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'american', label: 'American' },
+      { id: 'asian', label: 'Asian' },
+      { id: 'mediterranean', label: 'Mediterranean' },
+      { id: 'italian', label: 'Italian' },
+      { id: 'mexican', label: 'Mexican' },
+      { id: 'indian', label: 'Indian' },
+    ]
+  }
 ];
 
-// **Recipe Card Component**
+// **Enhanced Filter Modal Component**
+const FilterModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  filters: { [key: string]: string };
+  onFiltersChange: (filters: { [key: string]: string }) => void;
+  recipeCount: number;
+}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {
+  const [localFilters, setLocalFilters] = useState(filters);
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+    meal_type: true, // Default expanded
+  });
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
+
+  const updateFilter = (categoryId: string, optionId: string) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      [categoryId]: optionId
+    }));
+  };
+
+  const applyFilters = () => {
+    onFiltersChange(localFilters);
+    onClose();
+  };
+
+  const clearAllFilters = () => {
+    const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
+      acc[key] = 'all';
+      return acc;
+    }, {} as { [key: string]: string });
+    
+    setLocalFilters(clearedFilters);
+    onFiltersChange(clearedFilters);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.filterModalContainer}>
+        {/* Header */}
+        <View style={styles.filterModalHeader}>
+          <TouchableOpacity onPress={onClose}>
+            <X size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
+          <TouchableOpacity onPress={clearAllFilters}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Filter Categories */}
+        <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
+          {filterCategories.map((category) => (
+            <View key={category.id} style={styles.filterCategoryContainer}>
+              <TouchableOpacity
+                style={styles.filterCategoryHeader}
+                onPress={() => toggleCategory(category.id)}
+              >
+                <Text style={styles.filterCategoryTitle}>{category.title}</Text>
+                <ChevronDown
+                  size={20}
+                  color={colors.neutral[600]}
+                  style={[
+                    styles.chevronIcon,
+                    expandedCategories[category.id] && styles.chevronIconExpanded
+                  ]}
+                />
+              </TouchableOpacity>
+
+              {expandedCategories[category.id] && (
+                <View style={styles.filterOptionsContainer}>
+                  {category.options.map((option) => {
+                    const isSelected = localFilters[category.id] === option.id;
+                    return (
+                      <TouchableOpacity
+                        key={option.id}
+                        style={[
+                          styles.filterOption,
+                          isSelected && styles.filterOptionSelected
+                        ]}
+                        onPress={() => updateFilter(category.id, option.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterOptionText,
+                            isSelected && styles.filterOptionTextSelected
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                        {isSelected && (
+                          <Check size={16} color={colors.primary[500]} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Apply Button */}
+        <View style={styles.filterModalFooter}>
+          <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
+            <Text style={styles.applyFiltersText}>
+              Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// **Enhanced URL Import Modal Component**
+const URLImportModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onImport: (url: string) => void;
+}> = ({ visible, onClose, onImport }) => {
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleImport = async () => {
+    if (!url.trim()) {
+      Alert.alert('Error', 'Please enter a valid URL');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onImport(url.trim());
+      setUrl('');
+      onClose();
+    } catch (error) {
+      console.error('Import error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearInput = () => {
+    setUrl('');
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.urlModalOverlay}>
+        <View style={styles.urlModalContainer}>
+          {/* Header */}
+          <View style={styles.urlModalHeader}>
+            <View style={styles.urlModalTitleContainer}>
+              <View style={styles.urlModalIconContainer}>
+                <Link size={24} color={colors.primary[500]} />
+              </View>
+              <View>
+                <Text style={styles.urlModalTitle}>Import Recipe</Text>
+                <Text style={styles.urlModalSubtitle}>From any website or social media</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.urlModalCloseButton}>
+              <X size={20} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Description */}
+          <Text style={styles.urlModalDescription}>
+            Paste a link from TikTok, Instagram, Facebook, YouTube, or any recipe website. 
+            Our AI will automatically extract the recipe details.
+          </Text>
+
+          {/* URL Input */}
+          <View style={styles.urlInputWrapper}>
+            <View style={styles.urlInputContainer}>
+              <TextInput
+                style={styles.urlInput}
+                placeholder="https://www.example.com/recipe"
+                value={url}
+                onChangeText={setUrl}
+                placeholderTextColor={colors.neutral[400]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                multiline={false}
+                returnKeyType="done"
+              />
+              {url.length > 0 && (
+                <TouchableOpacity onPress={clearInput} style={styles.clearInputButton}>
+                  <X size={16} color={colors.neutral[400]} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Popular Sources */}
+          <View style={styles.popularSourcesContainer}>
+            <Text style={styles.popularSourcesTitle}>Popular Sources</Text>
+            <View style={styles.popularSourcesList}>
+              {['TikTok', 'Instagram', 'YouTube', 'AllRecipes'].map((source) => (
+                <View key={source} style={styles.popularSourceChip}>
+                  <Text style={styles.popularSourceText}>{source}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.urlModalActions}>
+            <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
+              <Text style={styles.urlCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.urlImportButton, 
+                (!url.trim() || loading) && styles.urlImportButtonDisabled
+              ]} 
+              onPress={handleImport}
+              disabled={!url.trim() || loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.neutral[0]} />
+              ) : (
+                <>
+                  <Link size={16} color={colors.neutral[0]} />
+                  <Text style={styles.urlImportButtonText}>Import Recipe</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// **Recipe Card Component (Keeping existing implementation)**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -189,7 +482,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
 
-        {/* Action Buttons */}
         <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
           <Heart
             size={18}
@@ -198,7 +490,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           />
         </TouchableOpacity>
 
-        {/* Badges */}
         <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
           <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
         </View>
@@ -212,6 +503,12 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         {recipe.source_url && (
           <View style={styles.sourceBadge}>
             <ExternalLink size={12} color={colors.neutral[0]} />
+          </View>
+        )}
+
+        {recipe.ai_match_score !== undefined && (
+          <View style={styles.matchScore}>
+            <Text style={styles.matchScoreText}>{recipe.ai_match_score}%</Text>
           </View>
         )}
       </View>
@@ -233,9 +530,14 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             <Users size={12} color={colors.neutral[500]} />
             <Text style={styles.gridMetaText}>{recipe.servings}</Text>
           </View>
+          {recipe.nutrition?.calories && (
+            <View style={styles.gridMetaItem}>
+              <Flame size={12} color={colors.neutral[500]} />
+              <Text style={styles.gridMetaText}>{recipe.nutrition.calories} cal</Text>
+            </View>
+          )}
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.gridActions}>
           <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
             <Edit3 size={14} color={colors.primary[500]} />
@@ -249,115 +551,44 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   );
 };
 
-// **URL Import Modal Component**
-const URLImportModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  onImport: (url: string) => void;
-}> = ({ visible, onClose, onImport }) => {
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleImport = async () => {
-    if (!url.trim()) {
-      Alert.alert('Error', 'Please enter a valid URL');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await onImport(url.trim());
-      setUrl('');
-      onClose();
-    } catch (error) {
-      console.error('Import error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Import Recipe from URL</Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.modalDescription}>
-            Paste a link from TikTok, Instagram, Facebook, or any recipe website. 
-            Our AI will extract the recipe details automatically.
-          </Text>
-
-          <View style={styles.urlInputContainer}>
-            <Link size={20} color={colors.neutral[400]} />
-            <TextInput
-              style={styles.urlInput}
-              placeholder="https://www.example.com/recipe"
-              value={url}
-              onChangeText={setUrl}
-              placeholderTextColor={colors.neutral[400]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
-          </View>
-
-          <View style={styles.modalActions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.importButton, loading && styles.importButtonDisabled]} 
-              onPress={handleImport}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color={colors.neutral[0]} />
-              ) : (
-                <Text style={styles.importButtonText}>Import Recipe</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// **Empty State Component**
+// **Enhanced Empty State Component**
 const EmptyState: React.FC<{
-  selectedCategory: string;
+  hasFilters: boolean;
   onAddRecipe: () => void;
   onImportURL: () => void;
-}> = ({ selectedCategory, onAddRecipe, onImportURL }) => {
-  const getEmptyContent = () => {
-    if (selectedCategory === 'All') {
-      return {
-        title: 'Build Your Recipe Library',
-        subtitle: 'Start collecting your favorite recipes in one place',
-        icon: BookOpen,
-      };
-    } else {
-      return {
-        title: `No ${selectedCategory} Recipes`,
-        subtitle: `Add recipes to your ${selectedCategory.toLowerCase()} collection`,
-        icon: ChefHat,
-      };
-    }
-  };
+  onClearFilters: () => void;
+}> = ({ hasFilters, onAddRecipe, onImportURL, onClearFilters }) => {
+  if (hasFilters) {
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Filter size={64} color={colors.neutral[400]} />
+        <Text style={styles.emptyStateTitle}>No Recipes Found</Text>
+        <Text style={styles.emptyStateSubtitle}>
+          Try adjusting your filters or add new recipes to your collection
+        </Text>
 
-  const content = getEmptyContent();
+        <View style={styles.emptyStateActions}>
+          <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
+            <X size={20} color={colors.primary[500]} />
+            <Text style={styles.emptyActionText}>Clear Filters</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
+            <Plus size={20} color={colors.neutral[600]} />
+            <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.emptyStateContainer}>
-      <content.icon size={64} color={colors.primary[500]} />
-      <Text style={styles.emptyStateTitle}>{content.title}</Text>
-      <Text style={styles.emptyStateSubtitle}>{content.subtitle}</Text>
+      <BookOpen size={64} color={colors.primary[500]} />
+      <Text style={styles.emptyStateTitle}>Build Your Recipe Library</Text>
+      <Text style={styles.emptyStateSubtitle}>
+        Start collecting your favorite recipes in one place
+      </Text>
 
       <View style={styles.emptyStateActions}>
         <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
@@ -377,13 +608,20 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // **Enhanced Filter State**
+  const [filters, setFilters] = useState<{ [key: string]: string }>({
+    meal_type: 'all',
+    diet: 'all',
+    cook_time: 'all',
+    difficulty: 'all',
+    cuisine: 'all',
+  });
 
   // **Load Data from Supabase**
   const loadLibraryData = async () => {
@@ -392,11 +630,10 @@ export default function Library() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.replace('/auth');
+        Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
         return;
       }
 
-      // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
         .from('user_recipes')
         .select('*')
@@ -409,7 +646,6 @@ export default function Library() {
         return;
       }
 
-      // Format recipes
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
         id: dbRecipe.id,
         title: dbRecipe.title,
@@ -427,36 +663,12 @@ export default function Library() {
         is_favorite: dbRecipe.is_favorite || false,
         is_ai_generated: dbRecipe.is_ai_generated || false,
         source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
         created_at: dbRecipe.created_at,
         updated_at: dbRecipe.updated_at,
       }));
 
       setRecipes(formattedRecipes);
-
-      // Generate categories with counts
-      const categoryMap = new Map();
-      systemCategories.forEach(cat => {
-        categoryMap.set(cat.name, { ...cat, count: 0 });
-      });
-
-      formattedRecipes.forEach(recipe => {
-        const category = recipe.category || 'General';
-        if (categoryMap.has(category)) {
-          categoryMap.get(category).count++;
-        } else {
-          categoryMap.set(category, {
-            name: category,
-            color: colors.neutral[500],
-            icon: 'tag',
-            count: 1
-          });
-        }
-      });
-
-      // Set "All" count
-      categoryMap.get('All').count = formattedRecipes.length;
-
-      setCategories(Array.from(categoryMap.values()));
 
     } catch (error) {
       console.error('Error loading library data:', error);
@@ -470,13 +682,43 @@ export default function Library() {
     loadLibraryData();
   }, []);
 
-  // **Filter Recipes**
+  // **Enhanced Filter Logic**
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || recipe.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+
+    const matchesMealType = filters.meal_type === 'all' || 
+      recipe.category.toLowerCase() === filters.meal_type.toLowerCase();
+
+    const matchesDiet = filters.diet === 'all' || 
+      recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()));
+
+    const totalTime = recipe.prep_time + recipe.cook_time;
+    const matchesCookTime = filters.cook_time === 'all' ||
+      (filters.cook_time === 'under_15' && totalTime < 15) ||
+      (filters.cook_time === 'under_30' && totalTime < 30) ||
+      (filters.cook_time === 'under_60' && totalTime < 60) ||
+      (filters.cook_time === 'over_60' && totalTime >= 60);
+
+    const matchesDifficulty = filters.difficulty === 'all' || 
+      recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
+
+    return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty;
   });
+
+  // **Check if any filters are active**
+  const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all');
+
+  // **Clear all filters**
+  const clearAllFilters = () => {
+    setFilters({
+      meal_type: 'all',
+      diet: 'all',
+      cook_time: 'all',
+      difficulty: 'all',
+      cuisine: 'all',
+    });
+  };
 
   // **Toggle Favorite**
   const handleFavorite = async (recipeId: string) => {
@@ -531,7 +773,6 @@ export default function Library() {
               }
 
               setRecipes(prev => prev.filter(r => r.id !== recipeId));
-              await loadLibraryData(); // Refresh categories
             } catch (error) {
               console.error('Error deleting recipe:', error);
               Alert.alert('Error', 'Failed to delete recipe');
@@ -542,23 +783,16 @@ export default function Library() {
     );
   };
 
-  // **URL Import Handler (OpenAI Integration)**
+  // **URL Import Handler**
   const handleURLImport = async (url: string) => {
     try {
-      // TODO: Implement OpenAI URL import
-      // This is a placeholder for the OpenAI integration
       Alert.alert(
-        'Import Feature',
-        'URL import with AI extraction will be implemented in the next update. For now, please add recipes manually.',
-        [{ text: 'OK' }]
+        'Coming Soon! 🚀',
+        'URL import with AI extraction will be implemented in the next update. This feature will support TikTok, Instagram, Facebook, and any recipe website.',
+        [{ text: 'Got it!' }]
       );
       
-      console.log('URL Import requested:', url);
-      // Future implementation:
-      // 1. Call OpenAI API with URL
-      // 2. Extract recipe data
-      // 3. Show preview modal
-      // 4. Save to database
+      console.log('URL Import requested for future implementation:', url);
     } catch (error) {
       console.error('URL import error:', error);
       Alert.alert('Error', 'Failed to import recipe from URL');
@@ -585,22 +819,21 @@ export default function Library() {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>My Recipe Library</Text>
           <Text style={styles.headerSubtitle}>
-            {recipes.length} recipe{recipes.length !== 1 ? 's' : ''} in your collection
+            {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} 
+            {hasActiveFilters ? ' filtered' : ' in your collection'}
           </Text>
         </View>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerActionButton} 
-            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          >
-            {viewMode === 'grid' ? (
-              <List size={20} color={colors.neutral[600]} />
-            ) : (
-              <Grid size={20} color={colors.neutral[600]} />
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={styles.viewToggleButton} 
+          onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+        >
+          {viewMode === 'grid' ? (
+            <List size={20} color={colors.neutral[600]} />
+          ) : (
+            <Grid size={20} color={colors.neutral[600]} />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Search and Controls */}
@@ -615,48 +848,23 @@ export default function Library() {
             placeholderTextColor={colors.neutral[400]}
           />
         </View>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilters(!showFilters)}
+
+        <TouchableOpacity 
+          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+          onPress={() => setShowFilters(true)}
         >
-          <Filter size={20} color={colors.primary[500]} />
+          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
+          {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
-
-      {/* Categories */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}
-      >
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.name}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.name && styles.categoryChipActive
-            ]}
-            onPress={() => setSelectedCategory(category.name)}
-          >
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === category.name && styles.categoryChipTextActive
-              ]}
-            >
-              {category.name} ({category.count})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       {/* Add Recipe Actions */}
       <View style={styles.addActions}>
         <TouchableOpacity 
           style={styles.addActionButton}
-          onPress={() => router.push('/recipe-form')}
+          onPress={() => {
+            Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
+          }}
         >
           <Plus size={18} color={colors.primary[500]} />
           <Text style={styles.addActionText}>Add Recipe</Text>
@@ -688,9 +896,13 @@ export default function Library() {
                   <RecipeCard
                     recipe={recipe}
                     viewMode="grid"
-                    onPress={() => console.log('Recipe pressed:', recipe.title)}
+                    onPress={() => {
+                      console.log('Recipe detail view coming soon:', recipe.title);
+                    }}
                     onFavorite={() => handleFavorite(recipe.id)}
-                    onEdit={() => console.log('Edit recipe:', recipe.id)}
+                    onEdit={() => {
+                      console.log('Recipe edit form coming soon:', recipe.id);
+                    }}
                     onDelete={() => handleDelete(recipe.id)}
                   />
                 </View>
@@ -702,23 +914,39 @@ export default function Library() {
                 key={recipe.id}
                 recipe={recipe}
                 viewMode="list"
-                onPress={() => console.log('Recipe pressed:', recipe.title)}
+                onPress={() => {
+                  console.log('Recipe detail view coming soon:', recipe.title);
+                }}
                 onFavorite={() => handleFavorite(recipe.id)}
-                onEdit={() => console.log('Edit recipe:', recipe.id)}
+                onEdit={() => {
+                  console.log('Recipe edit form coming soon:', recipe.id);
+                }}
                 onDelete={() => handleDelete(recipe.id)}
               />
             ))
           )
         ) : (
           <EmptyState
-            selectedCategory={selectedCategory}
-            onAddRecipe={() => router.push('/recipe-form')}
+            hasFilters={hasActiveFilters}
+            onAddRecipe={() => {
+              Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
+            }}
             onImportURL={() => setShowURLImport(true)}
+            onClearFilters={clearAllFilters}
           />
         )}
       </ScrollView>
 
-      {/* URL Import Modal */}
+      {/* Enhanced Filter Modal */}
+      <FilterModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+        recipeCount={filteredRecipes.length}
+      />
+
+      {/* Enhanced URL Import Modal */}
       <URLImportModal
         visible={showURLImport}
         onClose={() => setShowURLImport(false)}
@@ -728,7 +956,9 @@ export default function Library() {
       {/* Floating Add Button */}
       <TouchableOpacity 
         style={styles.floatingAddButton}
-        onPress={() => router.push('/recipe-form')}
+        onPress={() => {
+          Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
+        }}
       >
         <Plus size={28} color={colors.neutral[0]} />
       </TouchableOpacity>
@@ -786,11 +1016,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: colors.neutral[600],
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  headerActionButton: {
+  viewToggleButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -826,36 +1052,22 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  categoriesContainer: {
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+  filterButtonActive: {
+    backgroundColor: colors.primary[50],
   },
-  categoriesContent: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  categoryChip: {
-    backgroundColor: colors.neutral[100],
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  categoryChipActive: {
+  filterDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary[500],
-  },
-  categoryChipText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[600],
-  },
-  categoryChipTextActive: {
-    color: colors.neutral[0],
   },
   addActions: {
     flexDirection: 'row',
@@ -903,7 +1115,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   recipesGridContent: {
-    paddingBottom: 100, // Space for floating button
+    paddingBottom: 100,
   },
   recipesGrid: {
     flexDirection: 'row',
@@ -914,7 +1126,247 @@ const styles = StyleSheet.create({
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.md) / 2,
   },
-  // Grid Card Styles
+  
+  // **Enhanced Filter Modal Styles**
+  filterModalContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral[0],
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  filterModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
+  },
+  clearAllText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[500],
+  },
+  filterModalContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  filterCategoryContainer: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  filterCategoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  filterCategoryTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[800],
+  },
+  chevronIcon: {
+    transform: [{ rotate: '0deg' }],
+  },
+  chevronIconExpanded: {
+    transform: [{ rotate: '180deg' }],
+  },
+  filterOptionsContainer: {
+    paddingTop: spacing.sm,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginVertical: 2,
+    borderRadius: 8,
+  },
+  filterOptionSelected: {
+    backgroundColor: colors.primary[50],
+  },
+  filterOptionText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[700],
+  },
+  filterOptionTextSelected: {
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[600],
+  },
+  filterModalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  applyFiltersButton: {
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  applyFiltersText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[0],
+  },
+
+  // **Enhanced URL Import Modal Styles**
+  urlModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  urlModalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+    maxHeight: '80%',
+  },
+  urlModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
+  },
+  urlModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  urlModalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  urlModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
+  },
+  urlModalSubtitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
+  },
+  urlModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  urlModalDescription: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[600],
+    lineHeight: 22,
+    marginBottom: spacing.xl,
+  },
+  urlInputWrapper: {
+    marginBottom: spacing.lg,
+  },
+  urlInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[50],
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.neutral[200],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  urlInput: {
+    flex: 1,
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[800],
+    paddingVertical: spacing.md,
+  },
+  clearInputButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  popularSourcesContainer: {
+    marginBottom: spacing.xl,
+  },
+  popularSourcesTitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[600],
+    marginBottom: spacing.md,
+  },
+  popularSourcesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  popularSourceChip: {
+    backgroundColor: colors.neutral[100],
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  popularSourceText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
+  },
+  urlModalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  urlCancelButton: {
+    flex: 1,
+    backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  urlCancelButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[600],
+  },
+  urlImportButton: {
+    flex: 2,
+    flexDirection: 'row',
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  urlImportButtonDisabled: {
+    backgroundColor: colors.neutral[300],
+  },
+  urlImportButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[0],
+  },
+
+  // **Existing Recipe Card Styles (keeping all previous styles)**
   gridCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -978,13 +1430,29 @@ const styles = StyleSheet.create({
   sourceBadge: {
     position: 'absolute',
     bottom: spacing.sm,
-    right: spacing.sm,
+    left: spacing.sm,
     backgroundColor: colors.accent[500],
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  matchScore: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.success[500],
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  matchScoreText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Bold',
+    color: colors.neutral[0],
   },
   gridContent: {
     padding: spacing.md,
@@ -1030,7 +1498,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // List Card Styles
   listCard: {
     flexDirection: 'row',
     backgroundColor: colors.neutral[0],
@@ -1126,7 +1593,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     color: colors.neutral[0],
   },
-  // Empty State Styles
   emptyStateContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
@@ -1178,86 +1644,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[600],
-  },
-  // URL Import Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 20,
-    padding: spacing.lg,
-    margin: spacing.lg,
-    width: width - (spacing.lg * 2),
-    ...shadows.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: 'Poppins-SemiBold',
-    color: colors.neutral[800],
-  },
-  modalDescription: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[600],
-    marginBottom: spacing.lg,
-    lineHeight: 22,
-  },
-  urlInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  urlInput: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[800],
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[600],
-  },
-  importButton: {
-    flex: 1,
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  importButtonDisabled: {
-    backgroundColor: colors.neutral[300],
-  },
-  importButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[0],
   },
   floatingAddButton: {
     position: 'absolute',
