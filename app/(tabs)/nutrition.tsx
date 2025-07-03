@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Dimensions,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
   Target,
@@ -20,140 +22,98 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// Mock data
-const mockNutritionData = {
-  today: {
-    calories: { current: 1850, target: 2200, percentage: 84 },
-    protein: { current: 85, target: 120, percentage: 71 },
-    carbs: { current: 180, target: 275, percentage: 65 },
-    fat: { current: 75, target: 85, percentage: 88 },
-    fiber: { current: 18, target: 25, percentage: 72 },
-    water: { current: 1600, target: 2000, percentage: 80 },
-  },
-  meals: [
-    {
-      id: '1',
-      type: 'Breakfast',
-      time: '08:30',
-      name: 'Overnight Oats with Berries',
-      calories: 420,
-      protein: 15,
-      carbs: 65,
-      fat: 12,
-      fiber: 8,
-    },
-    {
-      id: '2',
-      type: 'Lunch',
-      time: '13:15',
-      name: 'Grilled Chicken Salad',
-      calories: 580,
-      protein: 45,
-      carbs: 25,
-      fat: 28,
-      fiber: 6,
-    },
-    {
-      id: '3',
-      type: 'Snack',
-      time: '16:00',
-      name: 'Apple with Almonds',
-      calories: 190,
-      protein: 6,
-      carbs: 20,
-      fat: 12,
-      fiber: 4,
-    },
-  ],
-  weeklyProgress: [
-    { day: 'Mon', calories: 2100, target: 2200 },
-    { day: 'Tue', calories: 2050, target: 2200 },
-    { day: 'Wed', calories: 2180, target: 2200 },
-    { day: 'Thu', calories: 1950, target: 2200 },
-    { day: 'Fri', calories: 2220, target: 2200 },
-    { day: 'Sat', calories: 2300, target: 2200 },
-    { day: 'Today', calories: 1850, target: 2200 },
-  ],
-  insights: [
-    {
-      type: 'success',
-      title: 'Great Protein Intake!',
-      message: 'You\'re on track with your protein goals for muscle building.',
-    },
-    {
-      type: 'warning',
-      title: 'Low Fiber',
-      message: 'Add more vegetables and whole grains to reach your fiber goal.',
-    },
-    {
-      type: 'info',
-      title: 'Hydration Reminder',
-      message: 'Drink 400ml more water to reach your daily goal.',
-    },
-  ],
+// **BMR/TDEE Calculation Functions (Dashboard'dan adapt edildi)**
+const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
+  if (gender === 'male') {
+    return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+  } else {
+    return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+  }
 };
 
-interface CircularProgressProps {
+const getActivityMultiplier = (activityLevel: string): number => {
+  const multipliers: { [key: string]: number } = {
+    'sedentary': 1.2,
+    'lightly_active': 1.375,
+    'moderately_active': 1.55,
+    'very_active': 1.725,
+    'extra_active': 1.9,
+  };
+  return multipliers[activityLevel] || 1.55;
+};
+
+const calculateDailyCalories = (bmr: number, activityLevel: string): number => {
+  return Math.round(bmr * getActivityMultiplier(activityLevel));
+};
+
+const calculateMacros = (calories: number, goals: string[]) => {
+  let proteinRatio = 0.25;
+  let carbRatio = 0.45;
+  let fatRatio = 0.30;
+
+  if (goals.includes('muscle_gain')) {
+    proteinRatio = 0.30;
+    carbRatio = 0.40;
+    fatRatio = 0.30;
+  } else if (goals.includes('weight_loss')) {
+    proteinRatio = 0.30;
+    carbRatio = 0.35;
+    fatRatio = 0.35;
+  }
+
+  return {
+    protein: Math.round((calories * proteinRatio) / 4),
+    carbs: Math.round((calories * carbRatio) / 4),
+    fat: Math.round((calories * fatRatio) / 9),
+  };
+};
+
+// **Enhanced Progress Bar Component (CircularProgress yerine)**
+interface ProgressBarProps {
   percentage: number;
-  size: number;
-  strokeWidth: number;
   color: string;
-  backgroundColor?: string;
+  size?: 'small' | 'large';
   children?: React.ReactNode;
 }
 
-const CircularProgress: React.FC<CircularProgressProps> = ({
-  percentage,
-  size,
-  strokeWidth,
-  color,
-  backgroundColor = colors.neutral[200],
-  children,
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
+const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'large', children }) => {
+  const isLarge = size === 'large';
+  const containerSize = isLarge ? 120 : 80;
+  
   return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      {/* Background circle */}
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: backgroundColor,
-        }}
-      />
-      {/* Progress circle */}
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: color,
-          borderStyle: 'solid',
-          transform: [{ rotate: '-90deg' }],
-        }}
-      />
-      {/* Content */}
+    <View style={{ 
+      width: containerSize, 
+      height: containerSize, 
+      justifyContent: 'center', 
+      alignItems: 'center',
+      position: 'relative' 
+    }}>
       <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        width: containerSize - 20,
+        height: containerSize - 20,
+        borderRadius: (containerSize - 20) / 2,
+        borderWidth: 8,
+        borderColor: `${color}20`,
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
       }}>
+        <View style={{
+          position: 'absolute',
+          top: -8,
+          left: -8,
+          width: containerSize - 4,
+          height: containerSize - 4,
+          borderRadius: (containerSize - 4) / 2,
+          borderWidth: 8,
+          borderColor: 'transparent',
+          borderTopColor: color,
+          transform: [{ rotate: `${(percentage * 3.6) - 90}deg` }],
+        }} />
         {children}
       </View>
     </View>
@@ -179,27 +139,19 @@ const MacroCard: React.FC<MacroCardProps> = ({
 }) => {
   return (
     <View style={styles.macroCard}>
-      <CircularProgress
-        percentage={percentage}
-        size={80}
-        strokeWidth={6}
-        color={color}
-      >
-        <View style={styles.macroContent}>
-          <Text style={styles.macroPercentage}>{percentage}%</Text>
-        </View>
-      </CircularProgress>
-      
+      <ProgressBar percentage={percentage} color={color} size="small">
+        <Text style={styles.macroPercentage}>{percentage}%</Text>
+      </ProgressBar>
       <View style={styles.macroInfo}>
         <Text style={styles.macroTitle}>{title}</Text>
         <Text style={styles.macroValues}>
-          {current} / {target} {unit}
+          {Math.round(current)} / {target} {unit}
         </Text>
         <View style={styles.macroProgressBar}>
           <View
             style={[
               styles.macroProgressFill,
-              { width: `${percentage}%`, backgroundColor: color }
+              { width: `${Math.min(percentage, 100)}%`, backgroundColor: color }
             ]}
           />
         </View>
@@ -209,7 +161,17 @@ const MacroCard: React.FC<MacroCardProps> = ({
 };
 
 interface MealCardProps {
-  meal: typeof mockNutritionData.meals[0];
+  meal: {
+    id: string;
+    meal_type: string;
+    time: string;
+    food_name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber: number;
+  };
   onPress: () => void;
 }
 
@@ -218,32 +180,32 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onPress }) => {
     <TouchableOpacity style={styles.mealCard} onPress={onPress}>
       <View style={styles.mealHeader}>
         <View>
-          <Text style={styles.mealType}>{meal.type}</Text>
+          <Text style={styles.mealType}>
+            {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)}
+          </Text>
           <Text style={styles.mealTime}>{meal.time}</Text>
         </View>
         <View style={styles.mealCalories}>
-          <Text style={styles.mealCaloriesText}>{meal.calories}</Text>
+          <Text style={styles.mealCaloriesText}>{Math.round(meal.calories)}</Text>
           <Text style={styles.mealCaloriesLabel}>kcal</Text>
         </View>
       </View>
-      
-      <Text style={styles.mealName}>{meal.name}</Text>
-      
+      <Text style={styles.mealName}>{meal.food_name}</Text>
       <View style={styles.mealMacros}>
         <View style={styles.mealMacro}>
-          <Text style={styles.mealMacroValue}>{meal.protein}g</Text>
+          <Text style={styles.mealMacroValue}>{Math.round(meal.protein)}g</Text>
           <Text style={styles.mealMacroLabel}>Protein</Text>
         </View>
         <View style={styles.mealMacro}>
-          <Text style={styles.mealMacroValue}>{meal.carbs}g</Text>
+          <Text style={styles.mealMacroValue}>{Math.round(meal.carbs)}g</Text>
           <Text style={styles.mealMacroLabel}>Carbs</Text>
         </View>
         <View style={styles.mealMacro}>
-          <Text style={styles.mealMacroValue}>{meal.fat}g</Text>
+          <Text style={styles.mealMacroValue}>{Math.round(meal.fat)}g</Text>
           <Text style={styles.mealMacroLabel}>Fat</Text>
         </View>
         <View style={styles.mealMacro}>
-          <Text style={styles.mealMacroValue}>{meal.fiber}g</Text>
+          <Text style={styles.mealMacroValue}>{Math.round(meal.fiber)}g</Text>
           <Text style={styles.mealMacroLabel}>Fiber</Text>
         </View>
       </View>
@@ -253,30 +215,407 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onPress }) => {
 
 export default function Nutrition() {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [waterIntake, setWaterIntake] = useState(mockNutritionData.today.water.current);
+  const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // **Real nutrition data states**
+  const [todaysNutrition, setTodaysNutrition] = useState({
+    calories: { current: 0, target: 2000, percentage: 0 },
+    protein: { current: 0, target: 120, percentage: 0 },
+    carbs: { current: 0, target: 250, percentage: 0 },
+    fat: { current: 0, target: 67, percentage: 0 },
+    fiber: { current: 0, target: 25, percentage: 0 },
+    water: { current: 0, target: 2000, percentage: 0 },
+  });
+  
+  const [meals, setMeals] = useState<any[]>([]);
+  const [weeklyProgress, setWeeklyProgress] = useState<any[]>([]);
+  const [insights, setInsights] = useState<any[]>([]);
+  const [waterIntake, setWaterIntake] = useState(0);
   const [quickAddCalories, setQuickAddCalories] = useState('');
 
-  const { today, meals, weeklyProgress, insights } = mockNutritionData;
-
-  const addWater = (amount: number) => {
-    setWaterIntake(prev => Math.min(prev + amount, today.water.target));
+  // **Helper function: Format date to YYYY-MM-DD**
+  const formatDate = (date: Date): string => {
+    return date.toISOString().split('T')[0];
   };
 
-  const handleQuickAdd = () => {
-    if (quickAddCalories) {
-      // Add quick calories logic here
-      setQuickAddCalories('');
+  // **Helper function: Format time from ISO string**
+  const formatTime = (isoString: string): string => {
+    return new Date(isoString).toLocaleTimeString('tr-TR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  // **Main data loading function**
+  const loadNutritionData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        Alert.alert('Hata', 'Lütfen giriş yapın');
+        return;
+      }
+
+      // **Load user profile for targets**
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error('Profile loading error:', profileError);
+        Alert.alert('Hata', 'Kullanıcı profili yüklenemedi');
+        return;
+      }
+
+      setUserProfile(profile);
+
+      // **Calculate user's nutrition targets**
+      let nutritionTargets = {
+        calories: 2000,
+        protein: 120,
+        carbs: 250,
+        fat: 67,
+      };
+
+      if (profile.age && profile.gender && profile.height_cm && profile.weight_kg && profile.activity_level) {
+        const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
+        const dailyCalories = calculateDailyCalories(bmr, profile.activity_level);
+        const macros = calculateMacros(dailyCalories, profile.health_goals || []);
+
+        nutritionTargets = {
+          calories: dailyCalories,
+          protein: macros.protein,
+          carbs: macros.carbs,
+          fat: macros.fat,
+        };
+      }
+
+      // **Load today's nutrition data**
+      await loadTodaysNutrition(user.id, nutritionTargets);
+      
+      // **Load meals and weekly progress**
+      await Promise.all([
+        loadTodaysMeals(user.id),
+        loadWeeklyProgress(user.id, nutritionTargets.calories)
+      ]);
+
+      // **Generate insights**
+      generateInsights(nutritionTargets);
+
+    } catch (error) {
+      console.error('Error loading nutrition data:', error);
+      Alert.alert('Hata', 'Beslenme verileri yüklenemedi');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // **Load today's nutrition totals**
+  const loadTodaysNutrition = async (userId: string, targets: any) => {
+    const today = formatDate(selectedDate);
+    
+    const { data: nutritionLogs, error } = await supabase
+      .from('nutrition_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today);
+
+    if (error) {
+      console.error('Error loading nutrition logs:', error);
+      return;
+    }
+
+    // **Calculate totals**
+    const totals = nutritionLogs?.reduce((acc, log) => ({
+      calories: acc.calories + (log.calories || 0),
+      protein: acc.protein + (log.protein || 0),
+      carbs: acc.carbs + (log.carbs || 0),
+      fat: acc.fat + (log.fat || 0),
+      fiber: acc.fiber + (log.fiber || 0),
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }) || 
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+
+    // **Calculate water intake (assuming water logs have meal_type: 'water')**
+    const waterLogs = nutritionLogs?.filter(log => log.meal_type === 'water') || [];
+    const totalWater = waterLogs.reduce((sum, log) => sum + (log.quantity || 0), 0);
+
+    // **Calculate percentages**
+    const calculatePercentage = (current: number, target: number) => 
+      target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
+
+    const nutritionData = {
+      calories: {
+        current: totals.calories,
+        target: targets.calories,
+        percentage: calculatePercentage(totals.calories, targets.calories)
+      },
+      protein: {
+        current: totals.protein,
+        target: targets.protein,
+        percentage: calculatePercentage(totals.protein, targets.protein)
+      },
+      carbs: {
+        current: totals.carbs,
+        target: targets.carbs,
+        percentage: calculatePercentage(totals.carbs, targets.carbs)
+      },
+      fat: {
+        current: totals.fat,
+        target: targets.fat,
+        percentage: calculatePercentage(totals.fat, targets.fat)
+      },
+      fiber: {
+        current: totals.fiber,
+        target: 25,
+        percentage: calculatePercentage(totals.fiber, 25)
+      },
+      water: {
+        current: totalWater,
+        target: 2000,
+        percentage: calculatePercentage(totalWater, 2000)
+      }
+    };
+
+    setTodaysNutrition(nutritionData);
+    setWaterIntake(totalWater);
+  };
+
+  // **Load today's meals**
+  const loadTodaysMeals = async (userId: string) => {
+    const today = formatDate(selectedDate);
+    
+    const { data: nutritionLogs, error } = await supabase
+      .from('nutrition_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .neq('meal_type', 'water')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error loading meals:', error);
+      return;
+    }
+
+    // **Format meals for display**
+    const formattedMeals = nutritionLogs?.map(log => ({
+      id: log.id,
+      meal_type: log.meal_type,
+      time: formatTime(log.created_at),
+      food_name: log.food_name,
+      calories: log.calories || 0,
+      protein: log.protein || 0,
+      carbs: log.carbs || 0,
+      fat: log.fat || 0,
+      fiber: log.fiber || 0,
+    })) || [];
+
+    setMeals(formattedMeals);
+  };
+
+  // **Load weekly progress (optimized)**
+  const loadWeeklyProgress = async (userId: string, targetCalories: number) => {
+    const today = new Date();
+    const weekDays = [];
+    
+    // **Generate last 7 days**
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      weekDays.push(formatDate(date));
+    }
+
+    // **Single query for all week data**
+    const { data: weeklyLogs, error } = await supabase
+      .from('nutrition_logs')
+      .select('date, calories')
+      .eq('user_id', userId)
+      .in('date', weekDays)
+      .neq('meal_type', 'water');
+
+    if (error) {
+      console.error('Error loading weekly progress:', error);
+      return;
+    }
+
+    // **Calculate daily totals**
+    const dailyTotals: { [key: string]: number } = {};
+    weeklyLogs?.forEach(log => {
+      if (!dailyTotals[log.date]) {
+        dailyTotals[log.date] = 0;
+      }
+      dailyTotals[log.date] += log.calories || 0;
+    });
+
+    // **Format for chart**
+    const chartData = weekDays.map((date, index) => {
+      const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+      const dayName = index === 6 ? 'Bugün' : dayNames[new Date(date).getDay()];
+      
+      return {
+        day: dayName,
+        calories: Math.round(dailyTotals[date] || 0),
+        target: targetCalories,
+      };
+    });
+
+    setWeeklyProgress(chartData);
+  };
+
+  // **Generate smart insights**
+  const generateInsights = (targets: any) => {
+    const insights = [];
+    const { calories, protein, fiber } = todaysNutrition;
+
+    if (protein.percentage >= 80) {
+      insights.push({
+        type: 'success',
+        title: 'Harika Protein Alımı! 💪',
+        message: 'Protein hedefinde çok iyisin, kas gelişimi için mükemmel!',
+      });
+    } else if (protein.percentage < 50) {
+      insights.push({
+        type: 'warning',
+        title: 'Protein Alımını Artır',
+        message: 'Kas gelişimi ve tokluk için daha fazla protein almayı dene.',
+      });
+    }
+
+    if (fiber.percentage < 60) {
+      insights.push({
+        type: 'warning',
+        title: 'Lif Alımı Düşük',
+        message: 'Sindirim sağlığı için daha fazla sebze ve tam tahıl tüket.',
+      });
+    }
+
+    if (waterIntake < 1600) {
+      insights.push({
+        type: 'info',
+        title: 'Hidrasyon Hatırlatıcısı 💧',
+        message: `Günlük hedefe ulaşmak için ${2000 - waterIntake}ml daha su iç.`,
+      });
+    }
+
+    if (calories.percentage > 110) {
+      insights.push({
+        type: 'warning',
+        title: 'Kalori Hedefini Aştın',
+        message: 'Akşam yemeğinde daha hafif seçimler yapmayı düşün.',
+      });
+    } else if (calories.percentage >= 90) {
+      insights.push({
+        type: 'success',
+        title: 'Mükemmel Kalori Dengesi! 🎯',
+        message: 'Günlük hedefe çok yakınsın, böyle devam et!',
+      });
+    }
+
+    setInsights(insights);
+  };
+
+  // **Water intake function**
+  const addWater = async (amount: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const { error } = await supabase.from('nutrition_logs').insert({
+        user_id: user.id,
+        date: formatDate(selectedDate),
+        meal_type: 'water',
+        food_name: 'Water',
+        quantity: amount,
+        unit: 'ml',
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+      });
+
+      if (error) {
+        Alert.alert('Hata', 'Su eklenemedi');
+        return;
+      }
+
+      Alert.alert('Başarılı! 💧', `${amount}ml su eklendi`);
+      await loadNutritionData();
+      
+    } catch (error) {
+      console.error('Error adding water:', error);
+      Alert.alert('Hata', 'Su eklenemedi');
+    }
+  };
+
+  // **Quick add calories function**
+  const handleQuickAdd = async () => {
+    if (!quickAddCalories || parseFloat(quickAddCalories) <= 0) {
+      Alert.alert('Geçersiz Giriş', 'Lütfen geçerli bir kalori değeri girin');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const calories = parseFloat(quickAddCalories);
+      const { error } = await supabase.from('nutrition_logs').insert({
+        user_id: user.id,
+        date: formatDate(selectedDate),
+        meal_type: 'snacks',
+        food_name: 'Quick Add',
+        quantity: 1,
+        unit: 'serving',
+        calories: calories,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        fiber: 0,
+      });
+
+      if (error) {
+        Alert.alert('Hata', 'Kalori eklenemedi');
+        return;
+      }
+
+      Alert.alert('Başarılı! 🎯', `${calories} kalori eklendi`);
+      setQuickAddCalories('');
+      await loadNutritionData();
+      
+    } catch (error) {
+      console.error('Error adding quick calories:', error);
+      Alert.alert('Hata', 'Kalori eklenemedi');
+    }
+  };
+
+  // **Component lifecycle**
+  useEffect(() => {
+    loadNutritionData();
+  }, [selectedDate]);
+
+  // **Loading state**
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Text style={styles.loadingText}>Beslenme verileri yükleniyor...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* **Header** */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Nutrition Tracker</Text>
           <Text style={styles.headerSubtitle}>
-            {today.calories.current} / {today.calories.target} calories today
+            {Math.round(todaysNutrition.calories.current)} / {todaysNutrition.calories.target} calories today
           </Text>
         </View>
         <TouchableOpacity style={styles.calendarButton}>
@@ -284,90 +623,84 @@ export default function Nutrition() {
         </TouchableOpacity>
       </View>
 
-      {/* Daily Overview */}
+      {/* **Daily Overview** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Target size={20} color={colors.primary[500]} />
           <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
-        
         <View style={styles.caloriesOverview}>
-          <CircularProgress
-            percentage={today.calories.percentage}
-            size={120}
-            strokeWidth={8}
+          <ProgressBar
+            percentage={todaysNutrition.calories.percentage}
             color={colors.primary[500]}
           >
             <View style={styles.caloriesContent}>
-              <Text style={styles.caloriesCurrent}>{today.calories.current}</Text>
+              <Text style={styles.caloriesCurrent}>
+                {Math.round(todaysNutrition.calories.current)}
+              </Text>
               <Text style={styles.caloriesLabel}>calories</Text>
               <Text style={styles.caloriesRemaining}>
-                {today.calories.target - today.calories.current} left
+                {Math.round(todaysNutrition.calories.target - todaysNutrition.calories.current)} left
               </Text>
             </View>
-          </CircularProgress>
-          
+          </ProgressBar>
           <View style={styles.macrosGrid}>
             <MacroCard
               title="Protein"
-              current={today.protein.current}
-              target={today.protein.target}
+              current={todaysNutrition.protein.current}
+              target={todaysNutrition.protein.target}
               unit="g"
               color={colors.secondary[500]}
-              percentage={today.protein.percentage}
+              percentage={todaysNutrition.protein.percentage}
             />
             <MacroCard
               title="Carbs"
-              current={today.carbs.current}
-              target={today.carbs.target}
+              current={todaysNutrition.carbs.current}
+              target={todaysNutrition.carbs.target}
               unit="g"
               color={colors.accent[500]}
-              percentage={today.carbs.percentage}
+              percentage={todaysNutrition.carbs.percentage}
             />
             <MacroCard
               title="Fat"
-              current={today.fat.current}
-              target={today.fat.target}
+              current={todaysNutrition.fat.current}
+              target={todaysNutrition.fat.target}
               unit="g"
               color={colors.error[500]}
-              percentage={today.fat.percentage}
+              percentage={todaysNutrition.fat.percentage}
             />
             <MacroCard
               title="Fiber"
-              current={today.fiber.current}
-              target={today.fiber.target}
+              current={todaysNutrition.fiber.current}
+              target={todaysNutrition.fiber.target}
               unit="g"
               color={colors.success[500]}
-              percentage={today.fiber.percentage}
+              percentage={todaysNutrition.fiber.percentage}
             />
           </View>
         </View>
       </View>
 
-      {/* Water Intake */}
+      {/* **Water Intake** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Droplets size={20} color={colors.accent[500]} />
           <Text style={styles.sectionTitle}>Water Intake</Text>
         </View>
-        
         <View style={styles.waterContainer}>
           <View style={styles.waterProgress}>
-            <CircularProgress
-              percentage={today.water.percentage}
-              size={80}
-              strokeWidth={6}
+            <ProgressBar
+              percentage={todaysNutrition.water.percentage}
               color={colors.accent[500]}
+              size="small"
             >
               <Droplets size={24} color={colors.accent[500]} />
-            </CircularProgress>
-            
+            </ProgressBar>
             <View style={styles.waterInfo}>
-              <Text style={styles.waterCurrent}>{waterIntake} ml</Text>
-              <Text style={styles.waterTarget}>/ {today.water.target} ml</Text>
+              <Text style={styles.waterCurrent}>{Math.round(waterIntake)} ml</Text>
+              <Text style={styles.waterTarget}>/ {todaysNutrition.water.target} ml</Text>
             </View>
           </View>
-          
           <View style={styles.waterButtons}>
             <TouchableOpacity
               style={styles.waterButton}
@@ -385,7 +718,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* Quick Add */}
+      {/* **Quick Add** */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Add</Text>
         <View style={styles.quickAddContainer}>
@@ -406,7 +739,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* Today's Meals */}
+      {/* **Today's Meals** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Clock size={20} color={colors.secondary[500]} />
@@ -415,30 +748,34 @@ export default function Nutrition() {
             <Plus size={16} color={colors.primary[500]} />
           </TouchableOpacity>
         </View>
-        
         <View style={styles.mealsContainer}>
-          {meals.map(meal => (
-            <MealCard
-              key={meal.id}
-              meal={meal}
-              onPress={() => console.log('Meal pressed:', meal.name)}
-            />
-          ))}
+          {meals.length > 0 ? (
+            meals.map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onPress={() => console.log('Meal pressed:', meal.food_name)}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No meals logged today</Text>
+              <Text style={styles.emptyStateSubtext}>Start tracking your nutrition!</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Weekly Progress */}
+      {/* **Weekly Progress** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <TrendingUp size={20} color={colors.success[500]} />
           <Text style={styles.sectionTitle}>Weekly Progress</Text>
         </View>
-        
         <View style={styles.weeklyChart}>
           {weeklyProgress.map((day, index) => {
             const percentage = (day.calories / day.target) * 100;
-            const isToday = day.day === 'Today';
-            
+            const isToday = day.day === 'Bugün' || day.day === 'Today';
             return (
               <View key={index} style={styles.chartDay}>
                 <View style={styles.chartBar}>
@@ -462,46 +799,52 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* Insights */}
+      {/* **Insights** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Award size={20} color={colors.warning[500]} />
           <Text style={styles.sectionTitle}>Insights & Tips</Text>
         </View>
-        
         <View style={styles.insightsContainer}>
-          {insights.map((insight, index) => {
-            const getInsightColors = (type: string) => {
-              switch (type) {
-                case 'success':
-                  return { bg: colors.success[50], border: colors.success[200], text: colors.success[700] };
-                case 'warning':
-                  return { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[700] };
-                default:
-                  return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
-              }
-            };
-
-            const insightColors = getInsightColors(insight.type);
-
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.insightCard,
-                  {
-                    backgroundColor: insightColors.bg,
-                    borderColor: insightColors.border,
-                  }
-                ]}
-              >
-                <Text style={[styles.insightTitle, { color: insightColors.text }]}>
-                  {insight.title}
-                </Text>
-                <Text style={styles.insightMessage}>{insight.message}</Text>
-              </View>
-            );
-          })}
+          {insights.length > 0 ? (
+            insights.map((insight, index) => {
+              const getInsightColors = (type: string) => {
+                switch (type) {
+                  case 'success':
+                    return { bg: colors.success[50], border: colors.success[200], text: colors.success[700] };
+                  case 'warning':
+                    return { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[700] };
+                  case 'info':
+                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
+                  default:
+                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
+                }
+              };
+              const insightColors = getInsightColors(insight.type);
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.insightCard,
+                    {
+                      backgroundColor: insightColors.bg,
+                      borderColor: insightColors.border,
+                    }
+                  ]}
+                >
+                  <Text style={[styles.insightTitle, { color: insightColors.text }]}>
+                    {insight.title}
+                  </Text>
+                  <Text style={styles.insightMessage}>{insight.message}</Text>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No insights available</Text>
+              <Text style={styles.emptyStateSubtext}>Log some meals to get personalized tips!</Text>
+            </View>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -512,6 +855,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[50],
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[50],
+  },
+  loadingText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+    marginTop: spacing.md,
+    fontFamily: 'Inter-Regular',
   },
   header: {
     flexDirection: 'row',
@@ -826,5 +1181,20 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[600],
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyStateText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[600],
+    marginBottom: spacing.xs,
+  },
+  emptyStateSubtext: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
   },
 });
