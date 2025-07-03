@@ -37,6 +37,8 @@ import {
   Instagram,
   Youtube,
   Facebook,
+  Video, // TikTok icon replacement
+  Bookmark, // Pinterest icon replacement
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
@@ -142,7 +144,7 @@ const filterCategories: FilterCategory[] = [
   }
 ];
 
-// **Import Sources Configuration**
+// **Import Sources Configuration (Updated Icons)**
 interface ImportSource {
   id: string;
   name: string;
@@ -162,7 +164,7 @@ const importSources: ImportSource[] = [
   {
     id: 'tiktok',
     name: 'TikTok',
-    icon: ChefHat, // TikTok icon placeholder
+    icon: Video, // **UPDATED: Better TikTok representation**
     color: '#000000',
     description: 'Cooking videos and recipes'
   },
@@ -176,7 +178,7 @@ const importSources: ImportSource[] = [
   {
     id: 'pinterest',
     name: 'Pinterest',
-    icon: BookOpen, // Pinterest icon placeholder
+    icon: Bookmark, // **UPDATED: Better Pinterest representation**
     color: '#BD081C',
     description: 'Recipe pins and boards'
   },
@@ -196,7 +198,304 @@ const importSources: ImportSource[] = [
   }
 ];
 
-// **Enhanced Filter Modal Component**
+// **Manual Recipe Form Modal Component**
+const ManualRecipeModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSave: (recipe: any) => void;
+}> = ({ visible, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    prep_time: '',
+    cook_time: '',
+    servings: '',
+    difficulty: 'Easy',
+    category: 'Lunch',
+    ingredients: '',
+    instructions: '',
+    tags: '',
+  });
+  const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      prep_time: '',
+      cook_time: '',
+      servings: '',
+      difficulty: 'Easy',
+      category: 'Lunch',
+      ingredients: '',
+      instructions: '',
+      tags: '',
+    });
+  };
+
+  const handleSave = async () => {
+    if (!formData.title.trim()) {
+      Alert.alert('Error', 'Recipe title is required');
+      return;
+    }
+
+    if (!formData.ingredients.trim()) {
+      Alert.alert('Error', 'Ingredients are required');
+      return;
+    }
+
+    if (!formData.instructions.trim()) {
+      Alert.alert('Error', 'Instructions are required');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Process ingredients (split by line)
+      const ingredientsList = formData.ingredients
+        .split('\n')
+        .filter(line => line.trim())
+        .map((line, index) => ({
+          name: line.trim(),
+          quantity: '',
+          unit: '',
+          notes: ''
+        }));
+
+      // Process instructions (split by line)
+      const instructionsList = formData.instructions
+        .split('\n')
+        .filter(line => line.trim())
+        .map((line, index) => ({
+          step: index + 1,
+          instruction: line.trim(),
+          duration_mins: undefined
+        }));
+
+      // Process tags (split by comma)
+      const tagsList = formData.tags
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag);
+
+      const recipeData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        prep_time: parseInt(formData.prep_time) || 0,
+        cook_time: parseInt(formData.cook_time) || 0,
+        servings: parseInt(formData.servings) || 1,
+        difficulty: formData.difficulty,
+        category: formData.category,
+        ingredients: ingredientsList,
+        instructions: instructionsList,
+        tags: tagsList,
+        is_ai_generated: false,
+        is_favorite: false,
+      };
+
+      await onSave(recipeData);
+      resetForm();
+      onClose();
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      Alert.alert('Error', 'Failed to save recipe');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.manualRecipeContainer}>
+        {/* Header */}
+        <View style={styles.manualRecipeHeader}>
+          <TouchableOpacity onPress={onClose}>
+            <X size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+          <Text style={styles.manualRecipeTitle}>Add Recipe Manually</Text>
+          <TouchableOpacity onPress={handleSave} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primary[500]} />
+            ) : (
+              <Text style={styles.saveButtonText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.manualRecipeContent} showsVerticalScrollIndicator={false}>
+          {/* Basic Info */}
+          <View style={styles.formSection}>
+            <Text style={styles.formSectionTitle}>Basic Information</Text>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Recipe Title *</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Enter recipe title..."
+                value={formData.title}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
+                placeholderTextColor={colors.neutral[400]}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput
+                style={[styles.formInput, styles.textArea]}
+                placeholder="Brief description of the recipe..."
+                value={formData.description}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                placeholderTextColor={colors.neutral[400]}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
+                <Text style={styles.formLabel}>Prep Time (min)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="15"
+                  value={formData.prep_time}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, prep_time: text }))}
+                  placeholderTextColor={colors.neutral[400]}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
+                <Text style={styles.formLabel}>Cook Time (min)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="30"
+                  value={formData.cook_time}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, cook_time: text }))}
+                  placeholderTextColor={colors.neutral[400]}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
+                <Text style={styles.formLabel}>Servings</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="4"
+                  value={formData.servings}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, servings: text }))}
+                  placeholderTextColor={colors.neutral[400]}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
+                <Text style={styles.formLabel}>Difficulty</Text>
+                <View style={styles.pickerContainer}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {['Easy', 'Medium', 'Hard'].map((level) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.pickerOption,
+                          formData.difficulty === level && styles.pickerOptionSelected
+                        ]}
+                        onPress={() => setFormData(prev => ({ ...prev, difficulty: level }))}
+                      >
+                        <Text
+                          style={[
+                            styles.pickerOptionText,
+                            formData.difficulty === level && styles.pickerOptionTextSelected
+                          ]}
+                        >
+                          {level}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Category</Text>
+              <View style={styles.pickerContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.pickerOption,
+                        formData.category === cat && styles.pickerOptionSelected
+                      ]}
+                      onPress={() => setFormData(prev => ({ ...prev, category: cat }))}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          formData.category === cat && styles.pickerOptionTextSelected
+                        ]}
+                      >
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+
+          {/* Ingredients */}
+          <View style={styles.formSection}>
+            <Text style={styles.formSectionTitle}>Ingredients *</Text>
+            <Text style={styles.formHint}>Enter each ingredient on a new line</Text>
+            <TextInput
+              style={[styles.formInput, styles.textArea, { height: 120 }]}
+              placeholder="1 cup flour&#10;2 eggs&#10;1/2 cup milk&#10;Salt to taste"
+              value={formData.ingredients}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, ingredients: text }))}
+              placeholderTextColor={colors.neutral[400]}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Instructions */}
+          <View style={styles.formSection}>
+            <Text style={styles.formSectionTitle}>Instructions *</Text>
+            <Text style={styles.formHint}>Enter each step on a new line</Text>
+            <TextInput
+              style={[styles.formInput, styles.textArea, { height: 150 }]}
+              placeholder="Preheat oven to 350°F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;Bake for 25-30 minutes"
+              value={formData.instructions}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, instructions: text }))}
+              placeholderTextColor={colors.neutral[400]}
+              multiline
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Tags */}
+          <View style={styles.formSection}>
+            <Text style={styles.formSectionTitle}>Tags</Text>
+            <Text style={styles.formHint}>Separate tags with commas</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="vegetarian, quick, healthy, comfort food"
+              value={formData.tags}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, tags: text }))}
+              placeholderTextColor={colors.neutral[400]}
+            />
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+};
+
+// **Enhanced Filter Modal Component (Samsung Food Style)**
 const FilterModal: React.FC<{
   visible: boolean;
   onClose: () => void;
@@ -349,7 +648,7 @@ const ImportOptionsModal: React.FC<{
             </TouchableOpacity>
           </View>
 
-          {/* Import Sources Grid */}
+          {/* Import Sources Grid - **FIXED: Reduced gap** */}
           <ScrollView style={styles.importSourcesContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.importSourcesGrid}>
               {importSources.map((source) => (
@@ -687,9 +986,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 const EmptyState: React.FC<{
   hasFilters: boolean;
   onAddRecipe: () => void;
-  onImportRecipe: () => void;
   onClearFilters: () => void;
-}> = ({ hasFilters, onAddRecipe, onImportRecipe, onClearFilters }) => {
+}> = ({ hasFilters, onAddRecipe, onClearFilters }) => {
   if (hasFilters) {
     return (
       <View style={styles.emptyStateContainer}>
@@ -727,11 +1025,6 @@ const EmptyState: React.FC<{
           <Plus size={20} color={colors.primary[500]} />
           <Text style={styles.emptyActionText}>Add Recipe</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onImportRecipe}>
-          <Link size={20} color={colors.neutral[600]} />
-          <Text style={styles.emptyActionTextSecondary}>Import Recipe</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -746,7 +1039,9 @@ export default function Library() {
   const [showImportOptions, setShowImportOptions] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showManualRecipe, setShowManualRecipe] = useState(false); // **NEW: Manual recipe modal**
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
+  const [filterMode, setFilterMode] = useState<string>('all'); // **NEW: Filter mode for favorites**
   
   // **Enhanced Filter State**
   const [filters, setFilters] = useState<{ [key: string]: string }>({
@@ -837,11 +1132,15 @@ export default function Library() {
     const matchesDifficulty = filters.difficulty === 'all' || 
       recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
 
-    return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty;
+    // **NEW: Favorites filter**
+    const matchesFavorites = filterMode === 'all' || 
+      (filterMode === 'favorites' && recipe.is_favorite);
+
+    return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty && matchesFavorites;
   });
 
   // **Check if any filters are active**
-  const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all');
+  const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all') || filterMode !== 'all';
 
   // **Clear all filters**
   const clearAllFilters = () => {
@@ -852,6 +1151,7 @@ export default function Library() {
       difficulty: 'all',
       cuisine: 'all',
     });
+    setFilterMode('all');
   };
 
   // **Handle Import Source Selection**
@@ -867,13 +1167,45 @@ export default function Library() {
         }
       });
     } else if (sourceId === 'manual') {
-      // Navigate to manual recipe form (future implementation)
-      Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
+      // **NEW: Show manual recipe modal**
+      setShowManualRecipe(true);
     } else {
       // Show URL import modal for social media sources
       setSelectedImportSource(sourceId);
       setShowURLImport(true);
     }
+  };
+
+  // **NEW: Handle Manual Recipe Save**
+  const handleManualRecipeSave = async (recipeData: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please log in to save recipes');
+        return;
+      }
+
+      const { error } = await supabase.from('user_recipes').insert({
+        user_id: user.id,
+        ...recipeData,
+      });
+
+      if (error) {
+        Alert.alert('Error', 'Failed to save recipe');
+        return;
+      }
+
+      Alert.alert('Success! 📚', 'Recipe added to your library');
+      await loadLibraryData(); // Refresh recipes
+    } catch (error) {
+      console.error('Error saving manual recipe:', error);
+      Alert.alert('Error', 'Failed to save recipe');
+    }
+  };
+
+  // **NEW: Handle Favorites Toggle**
+  const handleFavoritesFilter = () => {
+    setFilterMode(filterMode === 'favorites' ? 'all' : 'favorites');
   };
 
   // **Toggle Favorite**
@@ -1018,7 +1350,7 @@ export default function Library() {
         </TouchableOpacity>
       </View>
 
-      {/* Add Recipe Actions */}
+      {/* **UPDATED: Add Recipe Actions - Add Recipe + Favorites** */}
       <View style={styles.addActions}>
         <TouchableOpacity 
           style={styles.addActionButton}
@@ -1029,11 +1361,23 @@ export default function Library() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.addActionButtonSecondary}
-          onPress={() => setShowImportOptions(true)}
+          style={[
+            styles.addActionButtonSecondary,
+            filterMode === 'favorites' && styles.addActionButtonSecondaryActive
+          ]}
+          onPress={handleFavoritesFilter}
         >
-          <Link size={18} color={colors.neutral[600]} />
-          <Text style={styles.addActionTextSecondary}>Import Recipe</Text>
+          <Heart 
+            size={18} 
+            color={filterMode === 'favorites' ? colors.error[500] : colors.neutral[600]}
+            fill={filterMode === 'favorites' ? colors.error[500] : 'transparent'}
+          />
+          <Text style={[
+            styles.addActionTextSecondary,
+            filterMode === 'favorites' && styles.addActionTextSecondaryActive
+          ]}>
+            Favorites
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -1087,11 +1431,17 @@ export default function Library() {
           <EmptyState
             hasFilters={hasActiveFilters}
             onAddRecipe={() => setShowImportOptions(true)}
-            onImportRecipe={() => setShowImportOptions(true)}
             onClearFilters={clearAllFilters}
           />
         )}
       </ScrollView>
+
+      {/* **NEW: Manual Recipe Modal** */}
+      <ManualRecipeModal
+        visible={showManualRecipe}
+        onClose={() => setShowManualRecipe(false)}
+        onSave={handleManualRecipeSave}
+      />
 
       {/* Enhanced Import Options Modal */}
       <ImportOptionsModal
@@ -1141,7 +1491,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     marginTop: spacing.md,
   },
@@ -1169,13 +1519,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: typography.fontSize['2xl'],
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
   },
   viewToggleButton: {
@@ -1207,7 +1557,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[800],
   },
   filterButton: {
@@ -1260,17 +1610,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
+  addActionButtonSecondaryActive: {
+    backgroundColor: colors.error[50],
+  },
   addActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.primary[600],
   },
   addActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[600],
+  },
+  addActionTextSecondaryActive: {
+    color: colors.error[600],
   },
   recipesContainer: {
     flex: 1,
@@ -1284,11 +1640,11 @@ const styles = StyleSheet.create({
   recipesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.sm, // **FIXED: Reduced gap between grid items**
     justifyContent: 'space-between',
   },
   gridCardContainer: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    width: (width - spacing.lg * 2 - spacing.sm) / 2, // **FIXED: Adjusted for smaller gap**
   },
   
   // **Enhanced Import Options Modal Styles**
@@ -1327,13 +1683,13 @@ const styles = StyleSheet.create({
   },
   importModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
   },
   importModalSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
   },
   importModalCloseButton: {
@@ -1351,11 +1707,11 @@ const styles = StyleSheet.create({
   importSourcesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.sm, // **FIXED: Reduced gap between source cards**
     justifyContent: 'space-between',
   },
   importSourceCard: {
-    width: (width - spacing.lg * 2 - spacing.md * 2) / 3,
+    width: (width - spacing.lg * 2 - spacing.sm * 2) / 3, // **FIXED: Adjusted for smaller gap**
     backgroundColor: colors.neutral[50],
     borderRadius: 16,
     padding: spacing.lg,
@@ -1373,7 +1729,7 @@ const styles = StyleSheet.create({
   },
   importSourceName: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
@@ -1381,7 +1737,7 @@ const styles = StyleSheet.create({
   },
   importSourceDescription: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
     textAlign: 'center',
     lineHeight: 16,
@@ -1402,9 +1758,107 @@ const styles = StyleSheet.create({
   },
   manualAddText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[600],
+  },
+
+  // **NEW: Manual Recipe Modal Styles**
+  manualRecipeContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral[0],
+  },
+  manualRecipeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  manualRecipeTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  saveButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[500],
+  },
+  manualRecipeContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  formSection: {
+    marginVertical: spacing.lg,
+  },
+  formSectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.md,
+  },
+  formGroup: {
+    marginBottom: spacing.md,
+  },
+  formLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.xs,
+  },
+  formInput: {
+    backgroundColor: colors.neutral[50],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[800],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  textArea: {
+    textAlignVertical: 'top',
+  },
+  formRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  formHint: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+    marginBottom: spacing.sm,
+  },
+  pickerContainer: {
+    marginTop: spacing.xs,
+  },
+  pickerOption: {
+    backgroundColor: colors.neutral[100],
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  pickerOptionSelected: {
+    backgroundColor: colors.primary[500],
+  },
+  pickerOptionText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    fontWeight: '500',
+    color: colors.neutral[600],
+  },
+  pickerOptionTextSelected: {
+    color: colors.neutral[0],
   },
   
   // **Enhanced Filter Modal Styles**
@@ -1424,13 +1878,13 @@ const styles = StyleSheet.create({
   },
   filterModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
   },
   clearAllText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.primary[500],
   },
@@ -1451,7 +1905,7 @@ const styles = StyleSheet.create({
   },
   filterCategoryTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
   },
@@ -1478,11 +1932,11 @@ const styles = StyleSheet.create({
   },
   filterOptionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[700],
   },
   filterOptionTextSelected: {
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.primary[600],
   },
@@ -1499,7 +1953,7 @@ const styles = StyleSheet.create({
   },
   applyFiltersText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[0],
   },
@@ -1539,13 +1993,13 @@ const styles = StyleSheet.create({
   },
   urlModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
   },
   urlModalSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
   },
   urlModalCloseButton: {
@@ -1558,7 +2012,7 @@ const styles = StyleSheet.create({
   },
   urlModalDescription: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     lineHeight: 22,
     marginBottom: spacing.xl,
@@ -1579,7 +2033,7 @@ const styles = StyleSheet.create({
   urlInput: {
     flex: 1,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[800],
     paddingVertical: spacing.md,
   },
@@ -1596,14 +2050,14 @@ const styles = StyleSheet.create({
   },
   exampleUrlsTitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[600],
     marginBottom: spacing.md,
   },
   exampleUrlsText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
     lineHeight: 20,
   },
@@ -1620,7 +2074,7 @@ const styles = StyleSheet.create({
   },
   urlCancelButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[600],
   },
@@ -1639,7 +2093,7 @@ const styles = StyleSheet.create({
   },
   urlImportButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[0],
   },
@@ -1688,7 +2142,7 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -1703,7 +2157,7 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontSize: 9,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -1731,7 +2185,7 @@ const styles = StyleSheet.create({
   },
   matchScoreText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -1740,14 +2194,14 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   gridDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -1764,7 +2218,7 @@ const styles = StyleSheet.create({
   },
   gridMetaText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     fontWeight: '500',
     color: colors.neutral[500],
   },
@@ -1818,7 +2272,7 @@ const styles = StyleSheet.create({
   listTitle: {
     flex: 1,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
     marginRight: spacing.sm,
@@ -1837,7 +2291,7 @@ const styles = StyleSheet.create({
   },
   listDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -1853,7 +2307,7 @@ const styles = StyleSheet.create({
   },
   listMetaText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     fontWeight: '500',
     color: colors.neutral[500],
   },
@@ -1864,7 +2318,7 @@ const styles = StyleSheet.create({
   },
   difficultyChipText: {
     fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -1876,7 +2330,7 @@ const styles = StyleSheet.create({
   },
   aiChipText: {
     fontSize: 9,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -1887,7 +2341,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     fontWeight: '600',
     color: colors.neutral[700],
     marginTop: spacing.lg,
@@ -1896,7 +2350,7 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -1925,13 +2379,13 @@ const styles = StyleSheet.create({
   },
   emptyActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.primary[600],
   },
   emptyActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[600],
   },
