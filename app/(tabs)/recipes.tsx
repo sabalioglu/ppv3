@@ -19,14 +19,15 @@ import {
   Flame,
   Heart,
   Plus,
-  TrendingUp,
   Calendar,
+  BookOpen, // NEW: Library icon
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { router } from 'expo-router'; // NEW: Navigation
 
 const { width } = Dimensions.get('window');
 
-// Mock recipe data
+// Mock recipe data (keeping existing for now)
 const mockRecipes = [
   {
     id: '1',
@@ -130,6 +131,62 @@ const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts']
 const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
 const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
 
+// NEW: Updated Quick Actions Configuration
+const quickActions = [
+  {
+    id: 'ai_suggest',
+    icon: ChefHat,
+    label: 'AI Suggest',
+    color: colors.secondary[500],
+    description: 'Smart recipes based on your pantry'
+  },
+  {
+    id: 'meal_plan',
+    icon: Calendar,
+    label: 'Meal Plan',
+    color: colors.accent[500],
+    description: 'Plan your weekly meals'
+  },
+  {
+    id: 'favorites',
+    icon: Heart,
+    label: 'Favorites',
+    color: colors.error[500],
+    description: 'Your saved recipes'
+  },
+  {
+    id: 'library',
+    icon: BookOpen,
+    label: 'My Library',
+    color: colors.primary[500],
+    description: 'Personal recipe collection'
+  }
+];
+
+// NEW: Quick Actions Handler
+const handleQuickAction = (actionId: string) => {
+  switch (actionId) {
+    case 'ai_suggest':
+      console.log('🤖 AI Suggest activated - will implement smart pantry matching');
+      // Future: AI-powered recipe recommendations
+      break;
+    case 'meal_plan':
+      console.log('📅 Meal Plan opened - will integrate with weekly planning');
+      // Future: Meal planning functionality
+      break;
+    case 'favorites':
+      console.log('❤️ Favorites filtered - will show only favorite recipes');
+      // Future: Filter favorites functionality
+      break;
+    case 'library':
+      console.log('📚 My Library opened - navigating to personal collection');
+      router.push('/library'); // Navigation to library screen
+      break;
+    default:
+      console.log('Unknown action:', actionId);
+  }
+};
+
 interface RecipeCardProps {
   recipe: typeof mockRecipes[0];
   onPress: () => void;
@@ -157,7 +214,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
       <View style={styles.recipeImageContainer}>
         <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-        
         {/* Favorite Button */}
         <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
           <Heart
@@ -166,40 +222,36 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             fill={recipe.isFavorite ? colors.error[500] : 'transparent'}
           />
         </TouchableOpacity>
-        
         {/* Difficulty Badge */}
         <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
           <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
         </View>
-        
         {/* Nutrition Score */}
         <View style={styles.nutritionScore}>
           <Text style={styles.nutritionScoreText}>{recipe.nutritionScore}</Text>
         </View>
       </View>
-      
+
       <View style={styles.recipeContent}>
         <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
         <Text style={styles.recipeDescription} numberOfLines={2}>{recipe.description}</Text>
-        
+
         {/* Recipe Meta */}
         <View style={styles.recipeMeta}>
           <View style={styles.metaItem}>
             <Clock size={14} color={colors.neutral[500]} />
             <Text style={styles.metaText}>{recipe.prepTime + recipe.cookTime}m</Text>
           </View>
-          
           <View style={styles.metaItem}>
             <Users size={14} color={colors.neutral[500]} />
             <Text style={styles.metaText}>{recipe.servings}</Text>
           </View>
-          
           <View style={styles.metaItem}>
             <Flame size={14} color={colors.neutral[500]} />
             <Text style={styles.metaText}>{recipe.calories} cal</Text>
           </View>
         </View>
-        
+
         {/* Nutrition Info */}
         <View style={styles.nutritionInfo}>
           <View style={styles.nutritionItem}>
@@ -215,7 +267,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             <Text style={styles.nutritionLabel}>Fat</Text>
           </View>
         </View>
-        
+
         {/* Ingredient Availability */}
         <View style={styles.ingredientAvailability}>
           <View style={styles.availabilityIndicator}>
@@ -230,7 +282,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             </Text>
           </View>
         </View>
-        
+
         {/* Tags */}
         <View style={styles.recipeTags}>
           {recipe.tags.slice(0, 2).map((tag, index) => (
@@ -242,7 +294,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             <Text style={styles.moreTagsText}>+{recipe.tags.length - 2}</Text>
           )}
         </View>
-        
+
         {/* Rating */}
         <View style={styles.recipeRating}>
           <Star size={14} color={colors.secondary[500]} fill={colors.secondary[500]} />
@@ -263,10 +315,10 @@ export default function Recipes() {
 
   const filteredRecipes = mockRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
+      recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDiet = selectedDiet === 'All' || recipe.tags.includes(selectedDiet);
     const matchesDifficulty = selectedDifficulty === 'All' || recipe.difficulty === selectedDifficulty;
-    
+
     return matchesSearch && matchesDiet && matchesDifficulty;
   });
 
@@ -296,7 +348,6 @@ export default function Recipes() {
             placeholderTextColor={colors.neutral[400]}
           />
         </View>
-        
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
@@ -337,7 +388,7 @@ export default function Recipes() {
               ))}
             </View>
           </View>
-          
+
           <View style={styles.filterSection}>
             <Text style={styles.filterLabel}>Difficulty:</Text>
             <View style={styles.filterChips}>
@@ -365,27 +416,18 @@ export default function Recipes() {
         </ScrollView>
       )}
 
-      {/* Quick Actions */}
+      {/* UPDATED: Quick Actions */}
       <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickAction}>
-          <TrendingUp size={20} color={colors.primary[500]} />
-          <Text style={styles.quickActionText}>Trending</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction}>
-          <ChefHat size={20} color={colors.secondary[500]} />
-          <Text style={styles.quickActionText}>AI Suggest</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction}>
-          <Calendar size={20} color={colors.accent[500]} />
-          <Text style={styles.quickActionText}>Meal Plan</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction}>
-          <Heart size={20} color={colors.error[500]} />
-          <Text style={styles.quickActionText}>Favorites</Text>
-        </TouchableOpacity>
+        {quickActions.map((action) => (
+          <TouchableOpacity 
+            key={action.id}
+            style={styles.quickAction}
+            onPress={() => handleQuickAction(action.id)}
+          >
+            <action.icon size={20} color={action.color} />
+            <Text style={styles.quickActionText}>{action.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Recipes List */}
@@ -412,6 +454,7 @@ export default function Recipes() {
   );
 }
 
+// Existing styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
