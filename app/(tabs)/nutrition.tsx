@@ -11,7 +11,6 @@ import {
   Animated,
   Modal,
   Platform,
-  TextInput,
 } from 'react-native';
 import {
   Target,
@@ -25,7 +24,6 @@ import {
   X,
   Trash2,
   HelpCircle,
-  Edit3,
 } from 'lucide-react-native';
 import { Calendar as CalendarPicker } from 'react-native-calendars';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
@@ -255,6 +253,7 @@ export default function Nutrition() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
+  
   const [todaysNutrition, setTodaysNutrition] = useState({
     calories: { current: 0, target: 2000, percentage: 0 },
     protein: { current: 0, target: 120, percentage: 0 },
@@ -270,13 +269,8 @@ export default function Nutrition() {
   const [waterIntake, setWaterIntake] = useState(0);
 
   // **Calendar & Modal States**
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [showTdeeTooltip, setShowTdeeTooltip] = useState(false);
-  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
-
-  // **Manual Quick Add States**
-  const [quickAddCalories, setQuickAddCalories] = useState('');
-  const [quickAddFoodName, setQuickAddFoodName] = useState('');
 
   // **Celebration Animation States**
   const [showCelebration, setShowCelebration] = useState(false);
@@ -336,6 +330,33 @@ export default function Nutrition() {
     return 'snacks';
   };
 
+  // **NEW: Calendar date selection handler**
+  const handleDateSelect = (day: any) => {
+    const newDate = new Date(day.dateString);
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+  };
+
+  // **NEW: Quick date selection functions**
+  const selectToday = () => {
+    setSelectedDate(new Date());
+    setShowCalendar(false);
+  };
+
+  const selectYesterday = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    setSelectedDate(yesterday);
+    setShowCalendar(false);
+  };
+
+  const selectWeekAgo = () => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    setSelectedDate(weekAgo);
+    setShowCalendar(false);
+  };
+
   // **Process Camera AI Data**
   const processCameraData = async (cameraData: any) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -351,7 +372,7 @@ export default function Nutrition() {
         user_id: user.id,
         date: formatDate(selectedDate),
         meal_type: mealType,
-        food_name: foodName, // **AI detected food name (Pizza, Burger, etc.)**
+        food_name: foodName,
         quantity: 1,
         unit: 'serving',
         calories: calories,
@@ -371,6 +392,7 @@ export default function Nutrition() {
         'Success! 🎉',
         `${foodName} (${calories} calories) added to your nutrition tracker!`
       );
+
       await loadNutritionData();
     } catch (error) {
       console.error('Error processing camera data:', error);
@@ -526,7 +548,7 @@ export default function Nutrition() {
       id: log.id,
       meal_type: log.meal_type,
       time: formatTime(log.created_at),
-      food_name: log.food_name, // **Real AI detected food name**
+      food_name: log.food_name,
       calories: log.calories || 0,
       protein: log.protein || 0,
       carbs: log.carbs || 0,
@@ -728,54 +750,8 @@ export default function Nutrition() {
     });
   };
 
-  // **NEW: Manual Quick Add Function**
-  const handleManualQuickAdd = async () => {
-    if (!quickAddCalories || parseFloat(quickAddCalories) <= 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid calorie value');
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    try {
-      const calories = parseFloat(quickAddCalories);
-      const foodName = quickAddFoodName.trim() || 'Quick Add';
-      const mealType = getSmartMealType();
-
-      const { error } = await supabase.from('nutrition_logs').insert({
-        user_id: user.id,
-        date: formatDate(selectedDate),
-        meal_type: mealType,
-        food_name: foodName,
-        quantity: 1,
-        unit: 'serving',
-        calories: calories,
-        protein: 0,
-        carbs: 0,
-        fat: 0,
-        fiber: 0,
-        source: 'manual',
-      });
-
-      if (error) {
-        Alert.alert('Error', 'Failed to add food');
-        return;
-      }
-
-      Alert.alert('Success! 🎯', `${foodName} (${calories} calories) added successfully!`);
-      setQuickAddCalories('');
-      setQuickAddFoodName('');
-      setShowQuickAddModal(false);
-      await loadNutritionData();
-    } catch (error) {
-      console.error('Error adding manual food:', error);
-      Alert.alert('Error', 'Failed to add food');
-    }
-  };
-
   // **Camera Integration**
-  const handleCameraAdd = () => {
+  const handleQuickAdd = () => {
     router.push({
       pathname: '/(tabs)/camera',
       params: {
@@ -807,32 +783,6 @@ export default function Nutrition() {
     }
   };
 
-  // **NEW: Calendar Date Selection Functions**
-  const handleDateSelect = (day: any) => {
-    const newDate = new Date(day.dateString);
-    setSelectedDate(newDate);
-    setShowDatePicker(false);
-  };
-
-  const selectToday = () => {
-    setSelectedDate(new Date());
-    setShowDatePicker(false);
-  };
-
-  const selectYesterday = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    setSelectedDate(yesterday);
-    setShowDatePicker(false);
-  };
-
-  const selectWeekAgo = () => {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    setSelectedDate(weekAgo);
-    setShowDatePicker(false);
-  };
-
   // **Handle Camera Return Data**
   useEffect(() => {
     if (params.scanResult) {
@@ -862,7 +812,7 @@ export default function Nutrition() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* **Enhanced Header with Functional Calendar** */}
+      {/* **Header with Functional Calendar** */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Nutrition Tracker</Text>
@@ -875,279 +825,18 @@ export default function Nutrition() {
         </View>
         <TouchableOpacity
           style={styles.calendarButton}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => setShowCalendar(true)}
         >
           <Calendar size={24} color={colors.primary[500]} />
         </TouchableOpacity>
       </View>
 
-      {/* **Mobile-Optimized Daily Overview** */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Target size={20} color={colors.primary[500]} />
-          <Text style={styles.sectionTitle}>Today's Progress</Text>
-          <TouchableOpacity onPress={() => setShowTdeeTooltip(true)}>
-            <HelpCircle size={16} color={colors.neutral[500]} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.caloriesOverview}>
-          <ProgressBar
-            percentage={todaysNutrition.calories.percentage}
-            color={colors.primary[500]}
-          >
-            <View style={styles.caloriesContent}>
-              <Text style={styles.caloriesCurrent}>
-                {Math.round(todaysNutrition.calories.current)}
-              </Text>
-              <Text style={styles.caloriesLabel}>calories</Text>
-              <Text style={styles.caloriesRemaining}>
-                {Math.round(todaysNutrition.calories.target - todaysNutrition.calories.current)} left
-              </Text>
-            </View>
-          </ProgressBar>
-
-          {/* **Mobile-Optimized Macros Grid** */}
-          <View style={styles.macrosGrid}>
-            <MacroCard
-              title="Protein"
-              current={todaysNutrition.protein.current}
-              target={todaysNutrition.protein.target}
-              unit="g"
-              color={colors.secondary[500]}
-              percentage={todaysNutrition.protein.percentage}
-            />
-            <MacroCard
-              title="Carbs"
-              current={todaysNutrition.carbs.current}
-              target={todaysNutrition.carbs.target}
-              unit="g"
-              color={colors.accent[500]}
-              percentage={todaysNutrition.carbs.percentage}
-            />
-            <MacroCard
-              title="Fat"
-              current={todaysNutrition.fat.current}
-              target={todaysNutrition.fat.target}
-              unit="g"
-              color={colors.error[500]}
-              percentage={todaysNutrition.fat.percentage}
-            />
-            <MacroCard
-              title="Fiber"
-              current={todaysNutrition.fiber.current}
-              target={todaysNutrition.fiber.target}
-              unit="g"
-              color={colors.success[500]}
-              percentage={todaysNutrition.fiber.percentage}
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* **Enhanced Water Intake with 4 Options** */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Droplets size={20} color={colors.accent[500]} />
-          <Text style={styles.sectionTitle}>Water Intake</Text>
-          {todaysNutrition.water.percentage >= 100 && (
-            <View style={styles.goalBadge}>
-              <Text style={styles.goalBadgeText}>✅ Goal Reached!</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.waterContainer}>
-          <View style={styles.waterProgress}>
-            <ProgressBar
-              percentage={todaysNutrition.water.percentage}
-              color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]}
-              size="small"
-            >
-              <Droplets size={24} color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]} />
-            </ProgressBar>
-            <View style={styles.waterInfo}>
-              <Text style={styles.waterCurrent}>{Math.round(waterIntake)} ml</Text>
-              <Text style={styles.waterTarget}>/ {todaysNutrition.water.target} ml</Text>
-              {todaysNutrition.water.percentage >= 100 && (
-                <Text style={styles.goalCompleteText}>Daily goal complete!</Text>
-              )}
-            </View>
-          </View>
-          <View style={styles.waterButtons}>
-            <TouchableOpacity
-              style={styles.waterButton}
-              onPress={() => addWater(50)}
-            >
-              <Text style={styles.waterButtonText}>+50ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.waterButton}
-              onPress={() => addWater(100)}
-            >
-              <Text style={styles.waterButtonText}>+100ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.waterButton}
-              onPress={() => addWater(250)}
-            >
-              <Text style={styles.waterButtonText}>+250ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.waterButton}
-              onPress={() => addWater(500)}
-            >
-              <Text style={styles.waterButtonText}>+500ml</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* **NEW: Enhanced Quick Add with Both Options** */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Add Food</Text>
-        <View style={styles.quickAddContainer}>
-          <TouchableOpacity
-            style={styles.quickAddOption}
-            onPress={handleCameraAdd}
-          >
-            <Camera size={24} color={colors.primary[500]} />
-            <View style={styles.quickAddOptionText}>
-              <Text style={styles.quickAddOptionTitle}>AI Camera</Text>
-              <Text style={styles.quickAddOptionSubtitle}>Scan food automatically</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.quickAddOption}
-            onPress={() => setShowQuickAddModal(true)}
-          >
-            <Edit3 size={24} color={colors.secondary[500]} />
-            <View style={styles.quickAddOptionText}>
-              <Text style={styles.quickAddOptionTitle}>Manual Entry</Text>
-              <Text style={styles.quickAddOptionSubtitle}>Enter calories manually</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* **Enhanced Today's Meals with Delete & AI Badge** */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Clock size={20} color={colors.secondary[500]} />
-          <Text style={styles.sectionTitle}>Today's Meals</Text>
-          <TouchableOpacity style={styles.sectionAction} onPress={() => setShowQuickAddModal(true)}>
-            <Plus size={16} color={colors.primary[500]} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.mealsContainer}>
-          {meals.length > 0 ? (
-            meals.map(meal => (
-              <MealCard
-                key={meal.id}
-                meal={meal}
-                onPress={() => console.log('Meal pressed:', meal.food_name)}
-                onDelete={deleteMeal}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No meals logged {formatSelectedDate(selectedDate).toLowerCase()}</Text>
-              <Text style={styles.emptyStateSubtext}>Start tracking your nutrition!</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* **Weekly Progress** */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <TrendingUp size={20} color={colors.success[500]} />
-          <Text style={styles.sectionTitle}>Weekly Progress</Text>
-        </View>
-        <View style={styles.weeklyChart}>
-          {weeklyProgress.map((day, index) => {
-            const percentage = (day.calories / day.target) * 100;
-            const isToday = day.day === 'Today';
-
-            return (
-              <View key={index} style={styles.chartDay}>
-                <View style={styles.chartBar}>
-                  <View
-                    style={[
-                      styles.chartBarFill,
-                      {
-                        height: `${Math.min(percentage, 100)}%`,
-                        backgroundColor: isToday ? colors.primary[500] : colors.neutral[300],
-                      }
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.chartDayLabel, isToday && styles.chartDayLabelToday]}>
-                  {day.day}
-                </Text>
-                <Text style={styles.chartDayValue}>{day.calories}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* **Insights** */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Award size={20} color={colors.warning[500]} />
-          <Text style={styles.sectionTitle}>Insights & Tips</Text>
-        </View>
-        <View style={styles.insightsContainer}>
-          {insights.length > 0 ? (
-            insights.map((insight, index) => {
-              const getInsightColors = (type: string) => {
-                switch (type) {
-                  case 'success':
-                    return { bg: colors.success[50], border: colors.success[200], text: colors.success[700] };
-                  case 'warning':
-                    return { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[700] };
-                  case 'info':
-                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
-                  default:
-                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
-                }
-              };
-
-              const insightColors = getInsightColors(insight.type);
-
-              return (
-                <View
-                  key={index}
-                  style={[
-                    styles.insightCard,
-                    {
-                      backgroundColor: insightColors.bg,
-                      borderColor: insightColors.border,
-                    }
-                  ]}
-                >
-                  <Text style={[styles.insightTitle, { color: insightColors.text }]}>
-                    {insight.title}
-                  </Text>
-                  <Text style={styles.insightMessage}>{insight.message}</Text>
-                </View>
-              );
-            })
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No insights available</Text>
-              <Text style={styles.emptyStateSubtext}>Log some meals to get personalized tips!</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* **NEW: Full Calendar Picker Modal** */}
+      {/* **NEW: Full Calendar Modal** */}
       <Modal
-        visible={showDatePicker}
+        visible={showCalendar}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowDatePicker(false)}
+        onRequestClose={() => setShowCalendar(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -1155,7 +844,7 @@ export default function Nutrition() {
               <Text style={styles.modalTitle}>Select Date</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
-                onPress={() => setShowDatePicker(false)}
+                onPress={() => setShowCalendar(false)}
               >
                 <X size={24} color={colors.neutral[600]} />
               </TouchableOpacity>
@@ -1210,63 +899,264 @@ export default function Nutrition() {
         </View>
       </Modal>
 
-      {/* **NEW: Manual Quick Add Modal** */}
-      <Modal
-        visible={showQuickAddModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowQuickAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Food Manually</Text>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setShowQuickAddModal(false)}
-              >
-                <X size={24} color={colors.neutral[600]} />
-              </TouchableOpacity>
+      {/* **Mobile-Optimized Daily Overview** */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Target size={20} color={colors.primary[500]} />
+          <Text style={styles.sectionTitle}>Today's Progress</Text>
+          <TouchableOpacity onPress={() => setShowTdeeTooltip(true)}>
+            <HelpCircle size={16} color={colors.neutral[500]} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.caloriesOverview}>
+          <ProgressBar
+            percentage={todaysNutrition.calories.percentage}
+            color={colors.primary[500]}
+          >
+            <View style={styles.caloriesContent}>
+              <Text style={styles.caloriesCurrent}>
+                {Math.round(todaysNutrition.calories.current)}
+              </Text>
+              <Text style={styles.caloriesLabel}>calories</Text>
+              <Text style={styles.caloriesRemaining}>
+                {Math.round(todaysNutrition.calories.target - todaysNutrition.calories.current)} left
+              </Text>
             </View>
+          </ProgressBar>
 
-            <View style={styles.manualAddForm}>
-              <Text style={styles.inputLabel}>Food Name (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., Apple, Sandwich..."
-                value={quickAddFoodName}
-                onChangeText={setQuickAddFoodName}
-                placeholderTextColor={colors.neutral[400]}
-              />
-
-              <Text style={styles.inputLabel}>Calories *</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter calories..."
-                value={quickAddCalories}
-                onChangeText={setQuickAddCalories}
-                keyboardType="numeric"
-                placeholderTextColor={colors.neutral[400]}
-              />
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setShowQuickAddModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.addButton]}
-                  onPress={handleManualQuickAdd}
-                >
-                  <Text style={styles.addButtonText}>Add Food</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          {/* **Mobile-Optimized Macros Grid** */}
+          <View style={styles.macrosGrid}>
+            <MacroCard
+              title="Protein"
+              current={todaysNutrition.protein.current}
+              target={todaysNutrition.protein.target}
+              unit="g"
+              color={colors.secondary[500]}
+              percentage={todaysNutrition.protein.percentage}
+            />
+            <MacroCard
+              title="Carbs"
+              current={todaysNutrition.carbs.current}
+              target={todaysNutrition.carbs.target}
+              unit="g"
+              color={colors.accent[500]}
+              percentage={todaysNutrition.carbs.percentage}
+            />
+            <MacroCard
+              title="Fat"
+              current={todaysNutrition.fat.current}
+              target={todaysNutrition.fat.target}
+              unit="g"
+              color={colors.error[500]}
+              percentage={todaysNutrition.fat.percentage}
+            />
+            <MacroCard
+              title="Fiber"
+              current={todaysNutrition.fiber.current}
+              target={todaysNutrition.fiber.target}
+              unit="g"
+              color={colors.success[500]}
+              percentage={todaysNutrition.fiber.percentage}
+            />
           </View>
         </View>
-      </Modal>
+      </View>
+
+      {/* **Water Intake with 4 Options** */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Droplets size={20} color={colors.accent[500]} />
+          <Text style={styles.sectionTitle}>Water Intake</Text>
+          {todaysNutrition.water.percentage >= 100 && (
+            <View style={styles.goalBadge}>
+              <Text style={styles.goalBadgeText}>✅ Goal Reached!</Text>
+            </View>
+          )}
+        </View>
+        
+        <View style={styles.waterContainer}>
+          <View style={styles.waterProgress}>
+            <ProgressBar
+              percentage={todaysNutrition.water.percentage}
+              color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]}
+              size="small"
+            >
+              <Droplets size={24} color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]} />
+            </ProgressBar>
+            <View style={styles.waterInfo}>
+              <Text style={styles.waterCurrent}>{Math.round(waterIntake)} ml</Text>
+              <Text style={styles.waterTarget}>/ {todaysNutrition.water.target} ml</Text>
+              {todaysNutrition.water.percentage >= 100 && (
+                <Text style={styles.goalCompleteText}>Daily goal complete!</Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.waterButtons}>
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() => addWater(50)}
+            >
+              <Text style={styles.waterButtonText}>+50ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() => addWater(100)}
+            >
+              <Text style={styles.waterButtonText}>+100ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() => addWater(250)}
+            >
+              <Text style={styles.waterButtonText}>+250ml</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() => addWater(500)}
+            >
+              <Text style={styles.waterButtonText}>+500ml</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* **Camera-Only Quick Add** */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Add Food</Text>
+        <View style={styles.quickAddContainer}>
+          <View style={styles.quickAddContent}>
+            <Camera size={24} color={colors.primary[500]} />
+            <View style={styles.quickAddText}>
+              <Text style={styles.quickAddTitle}>Scan Food with AI Camera</Text>
+              <Text style={styles.quickAddSubtitle}>Take a photo to automatically detect food and calories</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.quickAddButton}
+            onPress={handleQuickAdd}
+          >
+            <Camera size={20} color={colors.neutral[0]} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* **Today's Meals with Delete & AI Badge** */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Clock size={20} color={colors.secondary[500]} />
+          <Text style={styles.sectionTitle}>Today's Meals</Text>
+          <TouchableOpacity style={styles.sectionAction} onPress={handleQuickAdd}>
+            <Plus size={16} color={colors.primary[500]} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.mealsContainer}>
+          {meals.length > 0 ? (
+            meals.map(meal => (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onPress={() => console.log('Meal pressed:', meal.food_name)}
+                onDelete={deleteMeal}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No meals logged {formatSelectedDate(selectedDate).toLowerCase()}</Text>
+              <Text style={styles.emptyStateSubtext}>Start tracking your nutrition!</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* **Weekly Progress** */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <TrendingUp size={20} color={colors.success[500]} />
+          <Text style={styles.sectionTitle}>Weekly Progress</Text>
+        </View>
+        
+        <View style={styles.weeklyChart}>
+          {weeklyProgress.map((day, index) => {
+            const percentage = (day.calories / day.target) * 100;
+            const isToday = day.day === 'Today';
+
+            return (
+              <View key={index} style={styles.chartDay}>
+                <View style={styles.chartBar}>
+                  <View
+                    style={[
+                      styles.chartBarFill,
+                      {
+                        height: `${Math.min(percentage, 100)}%`,
+                        backgroundColor: isToday ? colors.primary[500] : colors.neutral[300],
+                      }
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.chartDayLabel, isToday && styles.chartDayLabelToday]}>
+                  {day.day}
+                </Text>
+                <Text style={styles.chartDayValue}>{day.calories}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* **Insights** */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Award size={20} color={colors.warning[500]} />
+          <Text style={styles.sectionTitle}>Insights & Tips</Text>
+        </View>
+        
+        <View style={styles.insightsContainer}>
+          {insights.length > 0 ? (
+            insights.map((insight, index) => {
+              const getInsightColors = (type: string) => {
+                switch (type) {
+                  case 'success':
+                    return { bg: colors.success[50], border: colors.success[200], text: colors.success[700] };
+                  case 'warning':
+                    return { bg: colors.warning[50], border: colors.warning[200], text: colors.warning[700] };
+                  case 'info':
+                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
+                  default:
+                    return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
+                }
+              };
+
+              const insightColors = getInsightColors(insight.type);
+
+              return (
+                <View
+                  key={index}
+                  style={[
+                    styles.insightCard,
+                    {
+                      backgroundColor: insightColors.bg,
+                      borderColor: insightColors.border,
+                    }
+                  ]}
+                >
+                  <Text style={[styles.insightTitle, { color: insightColors.text }]}>
+                    {insight.title}
+                  </Text>
+                  <Text style={styles.insightMessage}>{insight.message}</Text>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No insights available</Text>
+              <Text style={styles.emptyStateSubtext}>Log some meals to get personalized tips!</Text>
+            </View>
+          )}
+        </View>
+      </View>
 
       {/* **TDEE Tooltip Modal** */}
       <Modal
@@ -1384,6 +1274,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // **NEW: Calendar Modal Styles**
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 20,
+    padding: spacing.lg,
+    margin: spacing.lg,
+    width: width - (spacing.lg * 2),
+    maxHeight: '80%',
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  quickDateButton: {
+    flex: 1,
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  quickDateButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[600],
   },
   section: {
     padding: spacing.lg,
@@ -1530,32 +1474,42 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[0],
   },
-  // **NEW: Enhanced Quick Add Styles**
+  // **Camera-Only Quick Add**
   quickAddContainer: {
-    gap: spacing.md,
-  },
-  quickAddOption: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: colors.neutral[0],
     borderRadius: 12,
     padding: spacing.lg,
+    alignItems: 'center',
     ...shadows.md,
   },
-  quickAddOptionText: {
+  quickAddContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  quickAddText: {
     marginLeft: spacing.md,
     flex: 1,
   },
-  quickAddOptionTitle: {
+  quickAddTitle: {
     fontSize: typography.fontSize.base,
     fontFamily: 'Inter-SemiBold',
     color: colors.neutral[800],
     marginBottom: 2,
   },
-  quickAddOptionSubtitle: {
+  quickAddSubtitle: {
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
+  },
+  quickAddButton: {
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   mealsContainer: {
     gap: spacing.md,
@@ -1719,108 +1673,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
-  },
-  // **NEW: Modal Styles**
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 20,
-    padding: spacing.lg,
-    margin: spacing.lg,
-    width: width - (spacing.lg * 2),
-    maxHeight: '80%',
-    ...shadows.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
-    color: colors.neutral[800],
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickDateButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  quickDateButton: {
-    flex: 1,
-    backgroundColor: colors.primary[50],
-    borderRadius: 12,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary[200],
-  },
-  quickDateButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.primary[600],
-  },
-  // **NEW: Manual Add Form Styles**
-  manualAddForm: {
-    gap: spacing.md,
-  },
-  inputLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[700],
-    marginBottom: 4,
-  },
-  textInput: {
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
-    color: colors.neutral[800],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: colors.neutral[100],
-  },
-  cancelButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[600],
-  },
-  addButton: {
-    backgroundColor: colors.primary[500],
-  },
-  addButtonText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
-    color: colors.neutral[0],
   },
   // **Tooltip Styles**
   tooltipOverlay: {
