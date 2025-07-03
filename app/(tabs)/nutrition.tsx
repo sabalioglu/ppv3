@@ -12,8 +12,19 @@ import {
 } from 'react-native';
 import {
   Target,
-  Trendinimport { Target, TrendingUp, Calendar, Plus, Droplets, Clock, Award, Camera, X, Trash2, CircleHelp as HelpCircle } from 'lucide-react-native' shadows } from '@/lib/theme';
-import { supabase } from '@/lib/supabase';
+  TrendingUp,
+  Calendar,
+  Plus,
+  Droplets,
+  Clock,
+  Award,
+  Camera,
+  X,
+  Trash2,
+  CircleHelp as HelpCircle
+} from 'lucide-react-native';
+
+import { colors, spacing, typography, shadows } from '@/lib/theme';
 
 const { width } = Dimensions.get('window');
 
