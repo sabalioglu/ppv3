@@ -26,7 +26,7 @@ import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// **BMR/TDEE Calculation Functions (Dashboard'dan adapt edildi)**
+// **BMR/TDEE Calculation Functions (Adapted from Dashboard)**
 const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
   if (gender === 'male') {
     return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
@@ -72,7 +72,7 @@ const calculateMacros = (calories: number, goals: string[]) => {
   };
 };
 
-// **Enhanced Progress Bar Component (CircularProgress yerine)**
+// **Enhanced Progress Bar Component (Instead of CircularProgress)**
 interface ProgressBarProps {
   percentage: number;
   color: string;
@@ -241,7 +241,7 @@ export default function Nutrition() {
 
   // **Helper function: Format time from ISO string**
   const formatTime = (isoString: string): string => {
-    return new Date(isoString).toLocaleTimeString('tr-TR', { 
+    return new Date(isoString).toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -254,7 +254,7 @@ export default function Nutrition() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        Alert.alert('Hata', 'Lütfen giriş yapın');
+        Alert.alert('Error', 'Please log in');
         return;
       }
 
@@ -267,7 +267,7 @@ export default function Nutrition() {
 
       if (profileError || !profile) {
         console.error('Profile loading error:', profileError);
-        Alert.alert('Hata', 'Kullanıcı profili yüklenemedi');
+        Alert.alert('Error', 'Failed to load user profile');
         return;
       }
 
@@ -308,7 +308,7 @@ export default function Nutrition() {
 
     } catch (error) {
       console.error('Error loading nutrition data:', error);
-      Alert.alert('Hata', 'Beslenme verileri yüklenemedi');
+      Alert.alert('Error', 'Failed to load nutrition data');
     } finally {
       setLoading(false);
     }
@@ -453,8 +453,8 @@ export default function Nutrition() {
 
     // **Format for chart**
     const chartData = weekDays.map((date, index) => {
-      const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-      const dayName = index === 6 ? 'Bugün' : dayNames[new Date(date).getDay()];
+      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dayName = index === 6 ? 'Today' : dayNames[new Date(date).getDay()];
       
       return {
         day: dayName,
@@ -474,44 +474,44 @@ export default function Nutrition() {
     if (protein.percentage >= 80) {
       insights.push({
         type: 'success',
-        title: 'Harika Protein Alımı! 💪',
-        message: 'Protein hedefinde çok iyisin, kas gelişimi için mükemmel!',
+        title: 'Great Protein Intake! 💪',
+        message: 'You\'re doing excellent with your protein goals for muscle building!',
       });
     } else if (protein.percentage < 50) {
       insights.push({
         type: 'warning',
-        title: 'Protein Alımını Artır',
-        message: 'Kas gelişimi ve tokluk için daha fazla protein almayı dene.',
+        title: 'Boost Your Protein',
+        message: 'Try consuming more protein for muscle development and satiety.',
       });
     }
 
     if (fiber.percentage < 60) {
       insights.push({
         type: 'warning',
-        title: 'Lif Alımı Düşük',
-        message: 'Sindirim sağlığı için daha fazla sebze ve tam tahıl tüket.',
+        title: 'Low Fiber Intake',
+        message: 'Eat more vegetables and whole grains for digestive health.',
       });
     }
 
     if (waterIntake < 1600) {
       insights.push({
         type: 'info',
-        title: 'Hidrasyon Hatırlatıcısı 💧',
-        message: `Günlük hedefe ulaşmak için ${2000 - waterIntake}ml daha su iç.`,
+        title: 'Hydration Reminder 💧',
+        message: `Drink ${2000 - waterIntake}ml more water to reach your daily goal.`,
       });
     }
 
     if (calories.percentage > 110) {
       insights.push({
         type: 'warning',
-        title: 'Kalori Hedefini Aştın',
-        message: 'Akşam yemeğinde daha hafif seçimler yapmayı düşün.',
+        title: 'Exceeded Calorie Goal',
+        message: 'Consider lighter choices for dinner.',
       });
     } else if (calories.percentage >= 90) {
       insights.push({
         type: 'success',
-        title: 'Mükemmel Kalori Dengesi! 🎯',
-        message: 'Günlük hedefe çok yakınsın, böyle devam et!',
+        title: 'Perfect Calorie Balance! 🎯',
+        message: 'You\'re very close to your daily goal, keep it up!',
       });
     }
 
@@ -539,23 +539,23 @@ export default function Nutrition() {
       });
 
       if (error) {
-        Alert.alert('Hata', 'Su eklenemedi');
+        Alert.alert('Error', 'Failed to add water');
         return;
       }
 
-      Alert.alert('Başarılı! 💧', `${amount}ml su eklendi`);
+      Alert.alert('Success! 💧', `${amount}ml water added`);
       await loadNutritionData();
       
     } catch (error) {
       console.error('Error adding water:', error);
-      Alert.alert('Hata', 'Su eklenemedi');
+      Alert.alert('Error', 'Failed to add water');
     }
   };
 
   // **Quick add calories function**
   const handleQuickAdd = async () => {
     if (!quickAddCalories || parseFloat(quickAddCalories) <= 0) {
-      Alert.alert('Geçersiz Giriş', 'Lütfen geçerli bir kalori değeri girin');
+      Alert.alert('Invalid Input', 'Please enter a valid calorie value');
       return;
     }
 
@@ -579,17 +579,17 @@ export default function Nutrition() {
       });
 
       if (error) {
-        Alert.alert('Hata', 'Kalori eklenemedi');
+        Alert.alert('Error', 'Failed to add calories');
         return;
       }
 
-      Alert.alert('Başarılı! 🎯', `${calories} kalori eklendi`);
+      Alert.alert('Success! 🎯', `${calories} calories added`);
       setQuickAddCalories('');
       await loadNutritionData();
       
     } catch (error) {
       console.error('Error adding quick calories:', error);
-      Alert.alert('Hata', 'Kalori eklenemedi');
+      Alert.alert('Error', 'Failed to add calories');
     }
   };
 
@@ -603,7 +603,7 @@ export default function Nutrition() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Beslenme verileri yükleniyor...</Text>
+        <Text style={styles.loadingText}>Loading nutrition data...</Text>
       </View>
     );
   }
@@ -775,7 +775,7 @@ export default function Nutrition() {
         <View style={styles.weeklyChart}>
           {weeklyProgress.map((day, index) => {
             const percentage = (day.calories / day.target) * 100;
-            const isToday = day.day === 'Bugün' || day.day === 'Today';
+            const isToday = day.day === 'Today';
             return (
               <View key={index} style={styles.chartDay}>
                 <View style={styles.chartBar}>
