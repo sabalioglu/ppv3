@@ -8,6 +8,7 @@ import {
   TextInput,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native';
 import {
   Search,
@@ -20,14 +21,103 @@ import {
   Heart,
   Plus,
   Calendar,
-  BookOpen, // NEW: Library icon
+  BookOpen,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
-import { router } from 'expo-router'; // NEW: Navigation
+import { router } from 'expo-router';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Mock recipe data (keeping existing for now)
+// **Device-Specific Responsive Configuration**
+const getDeviceConfig = () => {
+  const isSmallDevice = width < 380; // iPhone SE, smaller Android
+  const isMediumDevice = width >= 380 && width < 430; // Most phones
+  const isLargeDevice = width >= 430; // Large phones, tablets
+
+  if (isSmallDevice) {
+    return {
+      iconSize: 18,
+      fontSize: 11,
+      padding: spacing.sm,
+      gap: spacing.xs,
+      useShortLabels: true,
+      minHeight: 60,
+    };
+  } else if (isMediumDevice) {
+    return {
+      iconSize: 20,
+      fontSize: 12,
+      padding: spacing.md,
+      gap: spacing.sm,
+      useShortLabels: false,
+      minHeight: 70,
+    };
+  } else {
+    return {
+      iconSize: 22,
+      fontSize: 13,
+      padding: spacing.md,
+      gap: spacing.sm,
+      useShortLabels: false,
+      minHeight: 75,
+    };
+  }
+};
+
+// **Smart Quick Actions Configuration**
+const quickActions = [
+  {
+    id: 'ai_suggest',
+    icon: ChefHat,
+    label: 'AI Suggest',
+    shortLabel: 'AI',
+    color: colors.secondary[500],
+  },
+  {
+    id: 'meal_plan',
+    icon: Calendar,
+    label: 'Meal Plan',
+    shortLabel: 'Plan',
+    color: colors.accent[500],
+  },
+  {
+    id: 'favorites',
+    icon: Heart,
+    label: 'Favorites',
+    shortLabel: 'Fav',
+    color: colors.error[500],
+  },
+  {
+    id: 'library',
+    icon: BookOpen,
+    label: 'My Library',
+    shortLabel: 'Library',
+    color: colors.primary[500],
+  }
+];
+
+// **Quick Actions Handler**
+const handleQuickAction = (actionId: string) => {
+  switch (actionId) {
+    case 'ai_suggest':
+      console.log('🤖 AI Suggest activated - smart pantry matching');
+      break;
+    case 'meal_plan':
+      console.log('📅 Meal Plan opened - weekly planning');
+      break;
+    case 'favorites':
+      console.log('❤️ Favorites filtered - show favorite recipes');
+      break;
+    case 'library':
+      console.log('📚 My Library opened - personal collection');
+      router.push('/library');
+      break;
+    default:
+      console.log('Unknown action:', actionId);
+  }
+};
+
+// Mock recipe data (keeping existing)
 const mockRecipes = [
   {
     id: '1',
@@ -131,62 +221,6 @@ const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts']
 const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
 const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
 
-// NEW: Updated Quick Actions Configuration
-const quickActions = [
-  {
-    id: 'ai_suggest',
-    icon: ChefHat,
-    label: 'AI Suggest',
-    color: colors.secondary[500],
-    description: 'Smart recipes based on your pantry'
-  },
-  {
-    id: 'meal_plan',
-    icon: Calendar,
-    label: 'Meal Plan',
-    color: colors.accent[500],
-    description: 'Plan your weekly meals'
-  },
-  {
-    id: 'favorites',
-    icon: Heart,
-    label: 'Favorites',
-    color: colors.error[500],
-    description: 'Your saved recipes'
-  },
-  {
-    id: 'library',
-    icon: BookOpen,
-    label: 'My Library',
-    color: colors.primary[500],
-    description: 'Personal recipe collection'
-  }
-];
-
-// NEW: Quick Actions Handler
-const handleQuickAction = (actionId: string) => {
-  switch (actionId) {
-    case 'ai_suggest':
-      console.log('🤖 AI Suggest activated - will implement smart pantry matching');
-      // Future: AI-powered recipe recommendations
-      break;
-    case 'meal_plan':
-      console.log('📅 Meal Plan opened - will integrate with weekly planning');
-      // Future: Meal planning functionality
-      break;
-    case 'favorites':
-      console.log('❤️ Favorites filtered - will show only favorite recipes');
-      // Future: Filter favorites functionality
-      break;
-    case 'library':
-      console.log('📚 My Library opened - navigating to personal collection');
-      router.push('/library'); // Navigation to library screen
-      break;
-    default:
-      console.log('Unknown action:', actionId);
-  }
-};
-
 interface RecipeCardProps {
   recipe: typeof mockRecipes[0];
   onPress: () => void;
@@ -214,7 +248,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
       <View style={styles.recipeImageContainer}>
         <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-        {/* Favorite Button */}
         <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
           <Heart
             size={20}
@@ -222,11 +255,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             fill={recipe.isFavorite ? colors.error[500] : 'transparent'}
           />
         </TouchableOpacity>
-        {/* Difficulty Badge */}
         <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
           <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
         </View>
-        {/* Nutrition Score */}
         <View style={styles.nutritionScore}>
           <Text style={styles.nutritionScoreText}>{recipe.nutritionScore}</Text>
         </View>
@@ -236,7 +267,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
         <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
         <Text style={styles.recipeDescription} numberOfLines={2}>{recipe.description}</Text>
 
-        {/* Recipe Meta */}
         <View style={styles.recipeMeta}>
           <View style={styles.metaItem}>
             <Clock size={14} color={colors.neutral[500]} />
@@ -252,7 +282,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
           </View>
         </View>
 
-        {/* Nutrition Info */}
         <View style={styles.nutritionInfo}>
           <View style={styles.nutritionItem}>
             <Text style={styles.nutritionValue}>{recipe.protein}g</Text>
@@ -268,7 +297,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
           </View>
         </View>
 
-        {/* Ingredient Availability */}
         <View style={styles.ingredientAvailability}>
           <View style={styles.availabilityIndicator}>
             <View
@@ -283,7 +311,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
           </View>
         </View>
 
-        {/* Tags */}
         <View style={styles.recipeTags}>
           {recipe.tags.slice(0, 2).map((tag, index) => (
             <View key={index} style={styles.recipeTag}>
@@ -295,7 +322,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
           )}
         </View>
 
-        {/* Rating */}
         <View style={styles.recipeRating}>
           <Star size={14} color={colors.secondary[500]} fill={colors.secondary[500]} />
           <Text style={styles.ratingText}>{recipe.rating}</Text>
@@ -312,6 +338,9 @@ export default function Recipes() {
   const [selectedDiet, setSelectedDiet] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
+
+  // **Get device-specific configuration**
+  const deviceConfig = getDeviceConfig();
 
   const filteredRecipes = mockRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -416,16 +445,36 @@ export default function Recipes() {
         </ScrollView>
       )}
 
-      {/* UPDATED: Quick Actions */}
-      <View style={styles.quickActions}>
+      {/* **OPTIMIZED: Responsive Quick Actions** */}
+      <View style={[styles.quickActions, { gap: deviceConfig.gap }]}>
         {quickActions.map((action) => (
           <TouchableOpacity 
             key={action.id}
-            style={styles.quickAction}
+            style={[
+              styles.quickAction, 
+              { 
+                padding: deviceConfig.padding,
+                minHeight: deviceConfig.minHeight,
+              }
+            ]}
             onPress={() => handleQuickAction(action.id)}
+            activeOpacity={0.7}
           >
-            <action.icon size={20} color={action.color} />
-            <Text style={styles.quickActionText}>{action.label}</Text>
+            <action.icon size={deviceConfig.iconSize} color={action.color} />
+            <Text 
+              style={[
+                styles.quickActionText, 
+                { 
+                  fontSize: deviceConfig.fontSize,
+                  lineHeight: deviceConfig.fontSize * 1.3,
+                }
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit={true}
+              minimumFontScale={0.75}
+            >
+              {deviceConfig.useShortLabels ? action.shortLabel : action.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -454,7 +503,6 @@ export default function Recipes() {
   );
 }
 
-// Existing styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -550,25 +598,29 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: colors.neutral[0],
   },
+  // **OPTIMIZED: Responsive Quick Actions Styling**
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    gap: spacing.md,
+    backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
   },
   quickAction: {
     flex: 1,
     backgroundColor: colors.neutral[0],
     borderRadius: 12,
-    padding: spacing.md,
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
     ...shadows.sm,
+    marginHorizontal: 2, // Small margin between buttons
   },
   quickActionText: {
-    fontSize: typography.fontSize.xs,
     fontFamily: 'Inter-Medium',
     color: colors.neutral[600],
+    textAlign: 'center',
+    marginTop: 4,
   },
   recipesContainer: {
     flex: 1,
