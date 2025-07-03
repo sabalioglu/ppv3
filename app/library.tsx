@@ -33,12 +33,16 @@ import {
   Flame,
   ChevronDown,
   Check,
+  Camera,
+  Instagram,
+  Youtube,
+  Facebook,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // **Recipe Interface (Supabase Schema Aligned)**
 interface Recipe {
@@ -135,6 +139,60 @@ const filterCategories: FilterCategory[] = [
       { id: 'mexican', label: 'Mexican' },
       { id: 'indian', label: 'Indian' },
     ]
+  }
+];
+
+// **Import Sources Configuration**
+interface ImportSource {
+  id: string;
+  name: string;
+  icon: any;
+  color: string;
+  description: string;
+}
+
+const importSources: ImportSource[] = [
+  {
+    id: 'instagram',
+    name: 'Instagram',
+    icon: Instagram,
+    color: '#E4405F',
+    description: 'Recipe posts and reels'
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    icon: ChefHat, // TikTok icon placeholder
+    color: '#000000',
+    description: 'Cooking videos and recipes'
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    icon: Facebook,
+    color: '#1877F2',
+    description: 'Recipe posts and videos'
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    icon: BookOpen, // Pinterest icon placeholder
+    color: '#BD081C',
+    description: 'Recipe pins and boards'
+  },
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    icon: Youtube,
+    color: '#FF0000',
+    description: 'Cooking videos and tutorials'
+  },
+  {
+    id: 'camera',
+    name: 'Camera',
+    icon: Camera,
+    color: colors.primary[500],
+    description: 'Scan recipe from notebook'
   }
 ];
 
@@ -260,14 +318,89 @@ const FilterModal: React.FC<{
   );
 };
 
-// **Enhanced URL Import Modal Component**
+// **Enhanced Import Options Modal Component**
+const ImportOptionsModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSelectSource: (sourceId: string) => void;
+}> = ({ visible, onClose, onSelectSource }) => {
+  const handleSourceSelect = (sourceId: string) => {
+    onSelectSource(sourceId);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.importModalOverlay}>
+        <View style={styles.importModalContainer}>
+          {/* Header */}
+          <View style={styles.importModalHeader}>
+            <View style={styles.importModalTitleContainer}>
+              <View style={styles.importModalIconContainer}>
+                <Plus size={24} color={colors.primary[500]} />
+              </View>
+              <View>
+                <Text style={styles.importModalTitle}>Import Recipe</Text>
+                <Text style={styles.importModalSubtitle}>Choose your source</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.importModalCloseButton}>
+              <X size={20} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Import Sources Grid */}
+          <ScrollView style={styles.importSourcesContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.importSourcesGrid}>
+              {importSources.map((source) => (
+                <TouchableOpacity
+                  key={source.id}
+                  style={styles.importSourceCard}
+                  onPress={() => handleSourceSelect(source.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.importSourceIconContainer, { backgroundColor: `${source.color}15` }]}>
+                    <source.icon size={28} color={source.color} />
+                  </View>
+                  <Text style={styles.importSourceName}>{source.name}</Text>
+                  <Text style={styles.importSourceDescription}>{source.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Manual Add Option */}
+          <View style={styles.manualAddContainer}>
+            <TouchableOpacity 
+              style={styles.manualAddButton}
+              onPress={() => handleSourceSelect('manual')}
+            >
+              <Edit3 size={20} color={colors.neutral[600]} />
+              <Text style={styles.manualAddText}>Add Recipe Manually</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// **URL Import Modal Component**
 const URLImportModal: React.FC<{
   visible: boolean;
   onClose: () => void;
   onImport: (url: string) => void;
-}> = ({ visible, onClose, onImport }) => {
+  selectedSource?: string;
+}> = ({ visible, onClose, onImport, selectedSource }) => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const getSourceInfo = () => {
+    const source = importSources.find(s => s.id === selectedSource);
+    return source || { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
+  };
+
+  const sourceInfo = getSourceInfo();
 
   const handleImport = async () => {
     if (!url.trim()) {
@@ -298,12 +431,12 @@ const URLImportModal: React.FC<{
           {/* Header */}
           <View style={styles.urlModalHeader}>
             <View style={styles.urlModalTitleContainer}>
-              <View style={styles.urlModalIconContainer}>
-                <Link size={24} color={colors.primary[500]} />
+              <View style={[styles.urlModalIconContainer, { backgroundColor: `${sourceInfo.color}15` }]}>
+                <Link size={24} color={sourceInfo.color} />
               </View>
               <View>
-                <Text style={styles.urlModalTitle}>Import Recipe</Text>
-                <Text style={styles.urlModalSubtitle}>From any website or social media</Text>
+                <Text style={styles.urlModalTitle}>Import from {sourceInfo.name}</Text>
+                <Text style={styles.urlModalSubtitle}>{sourceInfo.description}</Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.urlModalCloseButton}>
@@ -313,8 +446,8 @@ const URLImportModal: React.FC<{
 
           {/* Description */}
           <Text style={styles.urlModalDescription}>
-            Paste a link from TikTok, Instagram, Facebook, YouTube, or any recipe website. 
-            Our AI will automatically extract the recipe details.
+            Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details, 
+            including ingredients, instructions, and nutritional information.
           </Text>
 
           {/* URL Input */}
@@ -322,7 +455,7 @@ const URLImportModal: React.FC<{
             <View style={styles.urlInputContainer}>
               <TextInput
                 style={styles.urlInput}
-                placeholder="https://www.example.com/recipe"
+                placeholder={`https://${sourceInfo.name.toLowerCase()}.com/recipe`}
                 value={url}
                 onChangeText={setUrl}
                 placeholderTextColor={colors.neutral[400]}
@@ -340,16 +473,15 @@ const URLImportModal: React.FC<{
             </View>
           </View>
 
-          {/* Popular Sources */}
-          <View style={styles.popularSourcesContainer}>
-            <Text style={styles.popularSourcesTitle}>Popular Sources</Text>
-            <View style={styles.popularSourcesList}>
-              {['TikTok', 'Instagram', 'YouTube', 'AllRecipes'].map((source) => (
-                <View key={source} style={styles.popularSourceChip}>
-                  <Text style={styles.popularSourceText}>{source}</Text>
-                </View>
-              ))}
-            </View>
+          {/* Example URLs */}
+          <View style={styles.exampleUrlsContainer}>
+            <Text style={styles.exampleUrlsTitle}>Supported formats:</Text>
+            <Text style={styles.exampleUrlsText}>
+              • Recipe posts and videos{'\n'}
+              • Cooking tutorials{'\n'}
+              • Food blog articles{'\n'}
+              • Recipe sharing posts
+            </Text>
           </View>
 
           {/* Action Buttons */}
@@ -382,7 +514,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component (Keeping existing implementation)**
+// **Recipe Card Component (keeping existing implementation)**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -555,9 +687,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 const EmptyState: React.FC<{
   hasFilters: boolean;
   onAddRecipe: () => void;
-  onImportURL: () => void;
+  onImportRecipe: () => void;
   onClearFilters: () => void;
-}> = ({ hasFilters, onAddRecipe, onImportURL, onClearFilters }) => {
+}> = ({ hasFilters, onAddRecipe, onImportRecipe, onClearFilters }) => {
   if (hasFilters) {
     return (
       <View style={styles.emptyStateContainer}>
@@ -596,9 +728,9 @@ const EmptyState: React.FC<{
           <Text style={styles.emptyActionText}>Add Recipe</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onImportURL}>
+        <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onImportRecipe}>
           <Link size={20} color={colors.neutral[600]} />
-          <Text style={styles.emptyActionTextSecondary}>Import from URL</Text>
+          <Text style={styles.emptyActionTextSecondary}>Import Recipe</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -611,8 +743,10 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   
   // **Enhanced Filter State**
   const [filters, setFilters] = useState<{ [key: string]: string }>({
@@ -720,6 +854,28 @@ export default function Library() {
     });
   };
 
+  // **Handle Import Source Selection**
+  const handleImportSourceSelect = (sourceId: string) => {
+    if (sourceId === 'camera') {
+      // Navigate to camera for recipe scanning
+      router.push({
+        pathname: '/(tabs)/camera',
+        params: {
+          mode: 'recipe-scanner',
+          returnTo: 'library',
+          timestamp: Date.now().toString()
+        }
+      });
+    } else if (sourceId === 'manual') {
+      // Navigate to manual recipe form (future implementation)
+      Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
+    } else {
+      // Show URL import modal for social media sources
+      setSelectedImportSource(sourceId);
+      setShowURLImport(true);
+    }
+  };
+
   // **Toggle Favorite**
   const handleFavorite = async (recipeId: string) => {
     try {
@@ -786,13 +942,17 @@ export default function Library() {
   // **URL Import Handler**
   const handleURLImport = async (url: string) => {
     try {
+      const sourceName = importSources.find(s => s.id === selectedImportSource)?.name || 'this platform';
       Alert.alert(
         'Coming Soon! 🚀',
-        'URL import with AI extraction will be implemented in the next update. This feature will support TikTok, Instagram, Facebook, and any recipe website.',
+        `URL import from ${sourceName} with AI extraction will be implemented in the next update. This feature will automatically extract recipe details from any ${sourceName} link.`,
         [{ text: 'Got it!' }]
       );
       
-      console.log('URL Import requested for future implementation:', url);
+      console.log('URL Import requested for future implementation:', {
+        source: selectedImportSource,
+        url: url
+      });
     } catch (error) {
       console.error('URL import error:', error);
       Alert.alert('Error', 'Failed to import recipe from URL');
@@ -862,9 +1022,7 @@ export default function Library() {
       <View style={styles.addActions}>
         <TouchableOpacity 
           style={styles.addActionButton}
-          onPress={() => {
-            Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
-          }}
+          onPress={() => setShowImportOptions(true)}
         >
           <Plus size={18} color={colors.primary[500]} />
           <Text style={styles.addActionText}>Add Recipe</Text>
@@ -872,10 +1030,10 @@ export default function Library() {
 
         <TouchableOpacity 
           style={styles.addActionButtonSecondary}
-          onPress={() => setShowURLImport(true)}
+          onPress={() => setShowImportOptions(true)}
         >
           <Link size={18} color={colors.neutral[600]} />
-          <Text style={styles.addActionTextSecondary}>Import URL</Text>
+          <Text style={styles.addActionTextSecondary}>Import Recipe</Text>
         </TouchableOpacity>
       </View>
 
@@ -928,14 +1086,19 @@ export default function Library() {
         ) : (
           <EmptyState
             hasFilters={hasActiveFilters}
-            onAddRecipe={() => {
-              Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
-            }}
-            onImportURL={() => setShowURLImport(true)}
+            onAddRecipe={() => setShowImportOptions(true)}
+            onImportRecipe={() => setShowImportOptions(true)}
             onClearFilters={clearAllFilters}
           />
         )}
       </ScrollView>
+
+      {/* Enhanced Import Options Modal */}
+      <ImportOptionsModal
+        visible={showImportOptions}
+        onClose={() => setShowImportOptions(false)}
+        onSelectSource={handleImportSourceSelect}
+      />
 
       {/* Enhanced Filter Modal */}
       <FilterModal
@@ -951,14 +1114,13 @@ export default function Library() {
         visible={showURLImport}
         onClose={() => setShowURLImport(false)}
         onImport={handleURLImport}
+        selectedSource={selectedImportSource}
       />
 
       {/* Floating Add Button */}
       <TouchableOpacity 
         style={styles.floatingAddButton}
-        onPress={() => {
-          Alert.alert('Coming Soon!', 'Manual recipe creation form will be implemented in the next update.');
-        }}
+        onPress={() => setShowImportOptions(true)}
       >
         <Plus size={28} color={colors.neutral[0]} />
       </TouchableOpacity>
@@ -979,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[600],
     marginTop: spacing.md,
   },
@@ -1007,13 +1169,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: typography.fontSize['2xl'],
-    fontFamily: 'Poppins-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold', // **NOTE: SF Pro for iOS**
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[600],
   },
   viewToggleButton: {
@@ -1045,7 +1207,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[800],
   },
   filterButton: {
@@ -1100,12 +1262,14 @@ const styles = StyleSheet.create({
   },
   addActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.primary[600],
   },
   addActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[600],
   },
   recipesContainer: {
@@ -1127,6 +1291,122 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.md) / 2,
   },
   
+  // **Enhanced Import Options Modal Styles**
+  importModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  importModalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+    maxHeight: '85%',
+  },
+  importModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
+  },
+  importModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  importModalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  importModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  importModalSubtitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    color: colors.neutral[500],
+  },
+  importModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  importSourcesContainer: {
+    flex: 1,
+    marginBottom: spacing.lg,
+  },
+  importSourcesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+  importSourceCard: {
+    width: (width - spacing.lg * 2 - spacing.md * 2) / 3,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 16,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  importSourceIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  importSourceName: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  importSourceDescription: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    color: colors.neutral[500],
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  manualAddContainer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+    paddingTop: spacing.lg,
+  },
+  manualAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  manualAddText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
+    color: colors.neutral[600],
+  },
+  
   // **Enhanced Filter Modal Styles**
   filterModalContainer: {
     flex: 1,
@@ -1144,12 +1424,14 @@ const styles = StyleSheet.create({
   },
   filterModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[800],
   },
   clearAllText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.primary[500],
   },
   filterModalContent: {
@@ -1169,7 +1451,8 @@ const styles = StyleSheet.create({
   },
   filterCategoryTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[800],
   },
   chevronIcon: {
@@ -1195,11 +1478,12 @@ const styles = StyleSheet.create({
   },
   filterOptionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[700],
   },
   filterOptionTextSelected: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.primary[600],
   },
   filterModalFooter: {
@@ -1215,7 +1499,8 @@ const styles = StyleSheet.create({
   },
   applyFiltersText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[0],
   },
 
@@ -1248,19 +1533,19 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
   urlModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[800],
   },
   urlModalSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[500],
   },
   urlModalCloseButton: {
@@ -1273,7 +1558,7 @@ const styles = StyleSheet.create({
   },
   urlModalDescription: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[600],
     lineHeight: 22,
     marginBottom: spacing.xl,
@@ -1294,7 +1579,7 @@ const styles = StyleSheet.create({
   urlInput: {
     flex: 1,
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[800],
     paddingVertical: spacing.md,
   },
@@ -1306,30 +1591,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  popularSourcesContainer: {
+  exampleUrlsContainer: {
     marginBottom: spacing.xl,
   },
-  popularSourcesTitle: {
+  exampleUrlsTitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[600],
     marginBottom: spacing.md,
   },
-  popularSourcesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  popularSourceChip: {
-    backgroundColor: colors.neutral[100],
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  popularSourceText: {
+  exampleUrlsText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[600],
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
+    color: colors.neutral[500],
+    lineHeight: 20,
   },
   urlModalActions: {
     flexDirection: 'row',
@@ -1344,7 +1620,8 @@ const styles = StyleSheet.create({
   },
   urlCancelButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[600],
   },
   urlImportButton: {
@@ -1362,11 +1639,12 @@ const styles = StyleSheet.create({
   },
   urlImportButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[0],
   },
 
-  // **Existing Recipe Card Styles (keeping all previous styles)**
+  // **Recipe Card Styles (existing implementation with SF Pro)**
   gridCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -1410,7 +1688,8 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     fontSize: 10,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontWeight: 'bold',
     color: colors.neutral[0],
   },
   aiBadge: {
@@ -1424,7 +1703,8 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontSize: 9,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontWeight: 'bold',
     color: colors.neutral[0],
   },
   sourceBadge: {
@@ -1451,7 +1731,8 @@ const styles = StyleSheet.create({
   },
   matchScoreText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontWeight: 'bold',
     color: colors.neutral[0],
   },
   gridContent: {
@@ -1459,13 +1740,14 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   gridDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -1482,7 +1764,8 @@ const styles = StyleSheet.create({
   },
   gridMetaText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium', // **NOTE: SF Pro for iOS**
+    fontWeight: '500',
     color: colors.neutral[500],
   },
   gridActions: {
@@ -1535,7 +1818,8 @@ const styles = StyleSheet.create({
   listTitle: {
     flex: 1,
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[800],
     marginRight: spacing.sm,
   },
@@ -1553,7 +1837,7 @@ const styles = StyleSheet.create({
   },
   listDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -1569,7 +1853,8 @@ const styles = StyleSheet.create({
   },
   listMetaText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium', // **NOTE: SF Pro for iOS**
+    fontWeight: '500',
     color: colors.neutral[500],
   },
   difficultyChip: {
@@ -1579,7 +1864,8 @@ const styles = StyleSheet.create({
   },
   difficultyChipText: {
     fontSize: 10,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontWeight: 'bold',
     color: colors.neutral[0],
   },
   aiChip: {
@@ -1590,7 +1876,8 @@ const styles = StyleSheet.create({
   },
   aiChipText: {
     fontSize: 9,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold', // **NOTE: SF Pro for iOS**
+    fontWeight: 'bold',
     color: colors.neutral[0],
   },
   emptyStateContainer: {
@@ -1600,7 +1887,8 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[700],
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
@@ -1608,7 +1896,7 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular', // **NOTE: SF Pro for iOS**
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -1637,12 +1925,14 @@ const styles = StyleSheet.create({
   },
   emptyActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.primary[600],
   },
   emptyActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold', // **NOTE: SF Pro for iOS**
+    fontWeight: '600',
     color: colors.neutral[600],
   },
   floatingAddButton: {
