@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Animated,
 } from 'react-native';
 import {
   Target,
@@ -26,7 +27,7 @@ import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// **BMR/TDEE Calculation Functions (Adapted from Dashboard)**
+// **BMR/TDEE Calculation Functions**
 const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
   if (gender === 'male') {
     return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
@@ -72,7 +73,7 @@ const calculateMacros = (calories: number, goals: string[]) => {
   };
 };
 
-// **Enhanced Progress Bar Component (Instead of CircularProgress)**
+// **Enhanced Progress Bar Component**
 interface ProgressBarProps {
   percentage: number;
   color: string;
@@ -83,37 +84,48 @@ interface ProgressBarProps {
 const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'large', children }) => {
   const isLarge = size === 'large';
   const containerSize = isLarge ? 120 : 80;
-  
+  const strokeWidth = isLarge ? 8 : 6;
+
   return (
-    <View style={{ 
-      width: containerSize, 
-      height: containerSize, 
-      justifyContent: 'center', 
+    <View style={{
+      width: containerSize,
+      height: containerSize,
+      justifyContent: 'center',
       alignItems: 'center',
-      position: 'relative' 
+      position: 'relative',
     }}>
+      {/* Background Circle */}
       <View style={{
-        width: containerSize - 20,
-        height: containerSize - 20,
-        borderRadius: (containerSize - 20) / 2,
-        borderWidth: 8,
+        position: 'absolute',
+        width: containerSize,
+        height: containerSize,
+        borderRadius: containerSize / 2,
+        borderWidth: strokeWidth,
         borderColor: `${color}20`,
+      }} />
+
+      {/* Progress Circle */}
+      <View style={{
+        position: 'absolute',
+        width: containerSize,
+        height: containerSize,
+        borderRadius: containerSize / 2,
+        borderWidth: strokeWidth,
+        borderColor: 'transparent',
+        borderTopColor: color,
+        transform: [{ rotate: `${(percentage * 3.6) - 90}deg` }],
+      }} />
+
+      {/* Content */}
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         justifyContent: 'center',
         alignItems: 'center',
-        position: 'relative',
       }}>
-        <View style={{
-          position: 'absolute',
-          top: -8,
-          left: -8,
-          width: containerSize - 4,
-          height: containerSize - 4,
-          borderRadius: (containerSize - 4) / 2,
-          borderWidth: 8,
-          borderColor: 'transparent',
-          borderTopColor: color,
-          transform: [{ rotate: `${(percentage * 3.6) - 90}deg` }],
-        }} />
         {children}
       </View>
     </View>
@@ -234,6 +246,12 @@ export default function Nutrition() {
   const [waterIntake, setWaterIntake] = useState(0);
   const [quickAddCalories, setQuickAddCalories] = useState('');
 
+  // **Celebration Animation States**
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [waterGoalCelebrated, setWaterGoalCelebrated] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
   // **Helper function: Format date to YYYY-MM-DD**
   const formatDate = (date: Date): string => {
     return date.toISOString().split('T')[0];
@@ -339,7 +357,7 @@ export default function Nutrition() {
     }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }) || 
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
 
-    // **Calculate water intake (assuming water logs have meal_type: 'water')**
+    // **Calculate water intake**
     const waterLogs = nutritionLogs?.filter(log => log.meal_type === 'water') || [];
     const totalWater = waterLogs.reduce((sum, log) => sum + (log.quantity || 0), 0);
 
@@ -382,6 +400,9 @@ export default function Nutrition() {
 
     setTodaysNutrition(nutritionData);
     setWaterIntake(totalWater);
+    
+    // **Reset celebration flag for new day**
+    setWaterGoalCelebrated(totalWater >= 2000);
   };
 
   // **Load today's meals**
@@ -417,12 +438,12 @@ export default function Nutrition() {
     setMeals(formattedMeals);
   };
 
-  // **Load weekly progress (optimized)**
+  // **FIXED: Load weekly progress with correct calendar**
   const loadWeeklyProgress = async (userId: string, targetCalories: number) => {
     const today = new Date();
     const weekDays = [];
     
-    // **Generate last 7 days**
+    // **Generate last 7 days correctly**
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -451,14 +472,18 @@ export default function Nutrition() {
       dailyTotals[log.date] += log.calories || 0;
     });
 
-    // **Format for chart**
-    const chartData = weekDays.map((date, index) => {
-      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const dayName = index === 6 ? 'Today' : dayNames[new Date(date).getDay()];
+    // **FIXED: Correct day name mapping**
+    const chartData = weekDays.map((dateString, index) => {
+      const dateObj = new Date(dateString);
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      // **Check if it's today**
+      const isToday = formatDate(new Date()) === dateString;
+      const dayName = isToday ? 'Today' : dayNames[dateObj.getDay()];
       
       return {
         day: dayName,
-        calories: Math.round(dailyTotals[date] || 0),
+        calories: Math.round(dailyTotals[dateString] || 0),
         target: targetCalories,
       };
     });
@@ -493,11 +518,11 @@ export default function Nutrition() {
       });
     }
 
-    if (waterIntake < 1600) {
+    if (waterIntake < todaysNutrition.water.target) {
       insights.push({
         type: 'info',
         title: 'Hydration Reminder 💧',
-        message: `Drink ${2000 - waterIntake}ml more water to reach your daily goal.`,
+        message: `Drink ${todaysNutrition.water.target - waterIntake}ml more water to reach your daily goal.`,
       });
     }
 
@@ -518,12 +543,33 @@ export default function Nutrition() {
     setInsights(insights);
   };
 
-  // **Water intake function**
+  // **OPTIMIZED: Water intake function (No page refresh)**
   const addWater = async (amount: number) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     try {
+      // **Immediate UI update (Optimistic UI)**
+      const newWaterIntake = waterIntake + amount;
+      const newPercentage = Math.min(Math.round((newWaterIntake / todaysNutrition.water.target) * 100), 100);
+      
+      setWaterIntake(newWaterIntake);
+      setTodaysNutrition(prev => ({
+        ...prev,
+        water: {
+          ...prev.water,
+          current: newWaterIntake,
+          percentage: newPercentage
+        }
+      }));
+
+      // **Check for goal completion and trigger celebration**
+      if (!waterGoalCelebrated && newWaterIntake >= todaysNutrition.water.target && waterIntake < todaysNutrition.water.target) {
+        triggerCelebration();
+        setWaterGoalCelebrated(true);
+      }
+
+      // **Background database update**
       const { error } = await supabase.from('nutrition_logs').insert({
         user_id: user.id,
         date: formatDate(selectedDate),
@@ -539,17 +585,60 @@ export default function Nutrition() {
       });
 
       if (error) {
+        // **Rollback on error**
+        setWaterIntake(waterIntake);
+        setTodaysNutrition(prev => ({
+          ...prev,
+          water: {
+            ...prev.water,
+            current: waterIntake,
+            percentage: Math.min(Math.round((waterIntake / prev.water.target) * 100), 100)
+          }
+        }));
         Alert.alert('Error', 'Failed to add water');
         return;
       }
 
-      Alert.alert('Success! 💧', `${amount}ml water added`);
-      await loadNutritionData();
+      // **Success feedback (no intrusive alert)**
+      console.log(`✅ ${amount}ml water added successfully`);
       
     } catch (error) {
       console.error('Error adding water:', error);
       Alert.alert('Error', 'Failed to add water');
     }
+  };
+
+  // **Celebration Animation Function**
+  const triggerCelebration = () => {
+    setShowCelebration(true);
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 5,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 0.8,
+            duration: 500,
+            useNativeDriver: true,
+          })
+        ]).start(() => setShowCelebration(false));
+      }, 2000);
+    });
   };
 
   // **Quick add calories function**
@@ -681,35 +770,49 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **Water Intake** */}
+      {/* **ENHANCED: Water Intake with Celebration** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Droplets size={20} color={colors.accent[500]} />
           <Text style={styles.sectionTitle}>Water Intake</Text>
+          {todaysNutrition.water.percentage >= 100 && (
+            <View style={styles.goalBadge}>
+              <Text style={styles.goalBadgeText}>✅ Goal Reached!</Text>
+            </View>
+          )}
         </View>
         <View style={styles.waterContainer}>
           <View style={styles.waterProgress}>
             <ProgressBar
               percentage={todaysNutrition.water.percentage}
-              color={colors.accent[500]}
+              color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]}
               size="small"
             >
-              <Droplets size={24} color={colors.accent[500]} />
+              <Droplets size={24} color={todaysNutrition.water.percentage >= 100 ? colors.success[500] : colors.accent[500]} />
             </ProgressBar>
             <View style={styles.waterInfo}>
               <Text style={styles.waterCurrent}>{Math.round(waterIntake)} ml</Text>
               <Text style={styles.waterTarget}>/ {todaysNutrition.water.target} ml</Text>
+              {todaysNutrition.water.percentage >= 100 && (
+                <Text style={styles.goalCompleteText}>Daily goal complete!</Text>
+              )}
             </View>
           </View>
           <View style={styles.waterButtons}>
             <TouchableOpacity
-              style={styles.waterButton}
+              style={[
+                styles.waterButton,
+                todaysNutrition.water.percentage >= 100 && styles.waterButtonComplete
+              ]}
               onPress={() => addWater(250)}
             >
               <Text style={styles.waterButtonText}>+250ml</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.waterButton}
+              style={[
+                styles.waterButton,
+                todaysNutrition.water.percentage >= 100 && styles.waterButtonComplete
+              ]}
               onPress={() => addWater(500)}
             >
               <Text style={styles.waterButtonText}>+500ml</Text>
@@ -766,7 +869,7 @@ export default function Nutrition() {
         </View>
       </View>
 
-      {/* **Weekly Progress** */}
+      {/* **FIXED: Weekly Progress** */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <TrendingUp size={20} color={colors.success[500]} />
@@ -847,6 +950,23 @@ export default function Nutrition() {
           )}
         </View>
       </View>
+
+      {/* **Celebration Animation Overlay** */}
+      {showCelebration && (
+        <Animated.View style={[
+          styles.celebrationOverlay,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}>
+          <View style={styles.celebrationContent}>
+            <Text style={styles.celebrationEmoji}>🎉</Text>
+            <Text style={styles.celebrationTitle}>Congratulations!</Text>
+            <Text style={styles.celebrationMessage}>You reached your water goal!</Text>
+          </View>
+        </Animated.View>
+      )}
     </ScrollView>
   );
 }
@@ -1020,6 +1140,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
   },
+  goalCompleteText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.success[600],
+    marginTop: 4,
+  },
+  goalBadge: {
+    backgroundColor: colors.success[500],
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  goalBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   waterButtons: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -1030,6 +1167,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: spacing.md,
     alignItems: 'center',
+  },
+  waterButtonComplete: {
+    backgroundColor: colors.neutral[300],
+    opacity: 0.6,
   },
   waterButtonText: {
     fontSize: typography.fontSize.base,
@@ -1196,5 +1337,40 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: 'Inter-Regular',
     color: colors.neutral[500],
+  },
+  // **Celebration Animation Styles**
+  celebrationOverlay: {
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: [{ translateX: -150 }, { translateY: -75 }],
+    backgroundColor: 'rgba(76, 175, 80, 0.95)',
+    borderRadius: 20,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 300,
+    height: 150,
+    zIndex: 1000,
+    ...shadows.lg,
+  },
+  celebrationContent: {
+    alignItems: 'center',
+  },
+  celebrationEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.sm,
+  },
+  celebrationTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: 'Poppins-Bold',
+    color: '#FFFFFF',
+    marginBottom: spacing.xs,
+  },
+  celebrationMessage: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
