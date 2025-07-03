@@ -9,10 +9,23 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import {
   Target,
-  Trendinimport { Target, TrendingUp, Calendar, Plus, Droplets, Clock, Award, Camera, X, Trash2, CircleHelp as HelpCircle } from 'lucide-react-native' shadows } from '@/lib/theme';
+  TrendingUp,
+  Calendar,
+  Plus,
+  Droplets,
+  Clock,
+  Award,
+  Camera,
+  X,
+  Trash2,
+  CircleHelp as HelpCircle
+} from 'lucide-react-native';
+import { Calendar as CalendarPicker } from 'react-native-calendars';
+import { colors, typography, spacing, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -74,14 +87,14 @@ interface ProgressBarProps {
 const ProgressBar: React.FC<ProgressBarProps> = ({ percentage, color, size = 'large', children }) => {
   const isLarge = size === 'large';
   const containerSize = isLarge ? 120 : 80;
-  
+
   return (
-    <View style={{ 
-      width: containerSize, 
-      height: containerSize, 
-      justifyContent: 'center', 
+    <View style={{
+      width: containerSize,
+      height: containerSize,
+      justifyContent: 'center',
       alignItems: 'center',
-      position: 'relative' 
+      position: 'relative'
     }}>
       <View style={{
         width: containerSize - 20,
@@ -209,6 +222,9 @@ export default function Nutrition() {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
   
+  // **NEW: Calendar modal state**
+  const [showCalendar, setShowCalendar] = useState(false);
+
   // **Real nutrition data states**
   const [todaysNutrition, setTodaysNutrition] = useState({
     calories: { current: 0, target: 2000, percentage: 0 },
@@ -218,7 +234,7 @@ export default function Nutrition() {
     fiber: { current: 0, target: 25, percentage: 0 },
     water: { current: 0, target: 2000, percentage: 0 },
   });
-  
+
   const [meals, setMeals] = useState<any[]>([]);
   const [weeklyProgress, setWeeklyProgress] = useState<any[]>([]);
   const [insights, setInsights] = useState<any[]>([]);
@@ -232,10 +248,56 @@ export default function Nutrition() {
 
   // **Helper function: Format time from ISO string**
   const formatTime = (isoString: string): string => {
-    return new Date(isoString).toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(isoString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  };
+
+  // **NEW: Calendar date selection handler**
+  const handleDateSelect = (day: any) => {
+    const newDate = new Date(day.dateString);
+    setSelectedDate(newDate);
+    setShowCalendar(false);
+  };
+
+  // **NEW: Quick date selection functions**
+  const selectToday = () => {
+    setSelectedDate(new Date());
+    setShowCalendar(false);
+  };
+
+  const selectYesterday = () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    setSelectedDate(yesterday);
+    setShowCalendar(false);
+  };
+
+  const selectWeekAgo = () => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    setSelectedDate(weekAgo);
+    setShowCalendar(false);
+  };
+
+  // **NEW: Format selected date for display**
+  const formatSelectedDate = (date: Date): string => {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+      });
+    }
   };
 
   // **Main data loading function**
@@ -243,7 +305,6 @@ export default function Nutrition() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         Alert.alert('Error', 'Please log in');
         return;
@@ -287,7 +348,7 @@ export default function Nutrition() {
 
       // **Load today's nutrition data**
       await loadTodaysNutrition(user.id, nutritionTargets);
-      
+
       // **Load meals and weekly progress**
       await Promise.all([
         loadTodaysMeals(user.id),
@@ -308,7 +369,7 @@ export default function Nutrition() {
   // **Load today's nutrition totals**
   const loadTodaysNutrition = async (userId: string, targets: any) => {
     const today = formatDate(selectedDate);
-    
+
     const { data: nutritionLogs, error } = await supabase
       .from('nutrition_logs')
       .select('*')
@@ -327,7 +388,7 @@ export default function Nutrition() {
       carbs: acc.carbs + (log.carbs || 0),
       fat: acc.fat + (log.fat || 0),
       fiber: acc.fiber + (log.fiber || 0),
-    }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }) || 
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }) ||
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
 
     // **Calculate water intake (assuming water logs have meal_type: 'water')**
@@ -335,7 +396,7 @@ export default function Nutrition() {
     const totalWater = waterLogs.reduce((sum, log) => sum + (log.quantity || 0), 0);
 
     // **Calculate percentages**
-    const calculatePercentage = (current: number, target: number) => 
+    const calculatePercentage = (current: number, target: number) =>
       target > 0 ? Math.min(Math.round((current / target) * 100), 100) : 0;
 
     const nutritionData = {
@@ -378,7 +439,7 @@ export default function Nutrition() {
   // **Load today's meals**
   const loadTodaysMeals = async (userId: string) => {
     const today = formatDate(selectedDate);
-    
+
     const { data: nutritionLogs, error } = await supabase
       .from('nutrition_logs')
       .select('*')
@@ -412,7 +473,7 @@ export default function Nutrition() {
   const loadWeeklyProgress = async (userId: string, targetCalories: number) => {
     const today = new Date();
     const weekDays = [];
-    
+
     // **Generate last 7 days**
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
@@ -446,7 +507,7 @@ export default function Nutrition() {
     const chartData = weekDays.map((date, index) => {
       const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const dayName = index === 6 ? 'Today' : dayNames[new Date(date).getDay()];
-      
+
       return {
         day: dayName,
         calories: Math.round(dailyTotals[date] || 0),
@@ -536,7 +597,7 @@ export default function Nutrition() {
 
       Alert.alert('Success! 💧', `${amount}ml water added`);
       await loadNutritionData();
-      
+
     } catch (error) {
       console.error('Error adding water:', error);
       Alert.alert('Error', 'Failed to add water');
@@ -555,6 +616,7 @@ export default function Nutrition() {
 
     try {
       const calories = parseFloat(quickAddCalories);
+
       const { error } = await supabase.from('nutrition_logs').insert({
         user_id: user.id,
         date: formatDate(selectedDate),
@@ -577,7 +639,7 @@ export default function Nutrition() {
       Alert.alert('Success! 🎯', `${calories} calories added`);
       setQuickAddCalories('');
       await loadNutritionData();
-      
+
     } catch (error) {
       console.error('Error adding quick calories:', error);
       Alert.alert('Error', 'Failed to add calories');
@@ -606,13 +668,84 @@ export default function Nutrition() {
         <View>
           <Text style={styles.headerTitle}>Nutrition Tracker</Text>
           <Text style={styles.headerSubtitle}>
-            {Math.round(todaysNutrition.calories.current)} / {todaysNutrition.calories.target} calories today
+            {Math.round(todaysNutrition.calories.current)} / {todaysNutrition.calories.target} calories {formatSelectedDate(selectedDate).toLowerCase()}
           </Text>
         </View>
-        <TouchableOpacity style={styles.calendarButton}>
+        <TouchableOpacity 
+          style={styles.calendarButton}
+          onPress={() => setShowCalendar(true)}
+        >
           <Calendar size={24} color={colors.primary[500]} />
         </TouchableOpacity>
       </View>
+
+      {/* **NEW: Calendar Modal** */}
+      <Modal
+        visible={showCalendar}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Date</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowCalendar(false)}
+              >
+                <X size={24} color={colors.neutral[600]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* **Quick Access Buttons** */}
+            <View style={styles.quickDateButtons}>
+              <TouchableOpacity style={styles.quickDateButton} onPress={selectToday}>
+                <Text style={styles.quickDateButtonText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateButton} onPress={selectYesterday}>
+                <Text style={styles.quickDateButtonText}>Yesterday</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickDateButton} onPress={selectWeekAgo}>
+                <Text style={styles.quickDateButtonText}>Week Ago</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* **Full Calendar Picker** */}
+            <CalendarPicker
+              maxDate={new Date()}
+              onDayPress={handleDateSelect}
+              markedDates={{
+                [formatDate(selectedDate)]: {
+                  selected: true,
+                  selectedColor: colors.primary[500]
+                }
+              }}
+              theme={{
+                backgroundColor: colors.neutral[0],
+                calendarBackground: colors.neutral[0],
+                textSectionTitleColor: colors.neutral[600],
+                selectedDayBackgroundColor: colors.primary[500],
+                selectedDayTextColor: colors.neutral[0],
+                todayTextColor: colors.primary[600],
+                dayTextColor: colors.neutral[800],
+                textDisabledColor: colors.neutral[300],
+                dotColor: colors.primary[500],
+                selectedDotColor: colors.neutral[0],
+                arrowColor: colors.primary[500],
+                monthTextColor: colors.neutral[800],
+                indicatorColor: colors.primary[500],
+                textDayFontFamily: 'Inter-Regular',
+                textMonthFontFamily: 'Inter-SemiBold',
+                textDayHeaderFontFamily: 'Inter-Medium',
+                textDayFontSize: 16,
+                textMonthFontSize: 18,
+                textDayHeaderFontSize: 14,
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
 
       {/* **Daily Overview** */}
       <View style={styles.section}>
@@ -620,6 +753,7 @@ export default function Nutrition() {
           <Target size={20} color={colors.primary[500]} />
           <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
+
         <View style={styles.caloriesOverview}>
           <ProgressBar
             percentage={todaysNutrition.calories.percentage}
@@ -635,6 +769,7 @@ export default function Nutrition() {
               </Text>
             </View>
           </ProgressBar>
+
           <View style={styles.macrosGrid}>
             <MacroCard
               title="Protein"
@@ -678,6 +813,7 @@ export default function Nutrition() {
           <Droplets size={20} color={colors.accent[500]} />
           <Text style={styles.sectionTitle}>Water Intake</Text>
         </View>
+
         <View style={styles.waterContainer}>
           <View style={styles.waterProgress}>
             <ProgressBar
@@ -692,6 +828,7 @@ export default function Nutrition() {
               <Text style={styles.waterTarget}>/ {todaysNutrition.water.target} ml</Text>
             </View>
           </View>
+
           <View style={styles.waterButtons}>
             <TouchableOpacity
               style={styles.waterButton}
@@ -739,6 +876,7 @@ export default function Nutrition() {
             <Plus size={16} color={colors.primary[500]} />
           </TouchableOpacity>
         </View>
+
         <View style={styles.mealsContainer}>
           {meals.length > 0 ? (
             meals.map(meal => (
@@ -750,7 +888,7 @@ export default function Nutrition() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No meals logged today</Text>
+              <Text style={styles.emptyStateText}>No meals logged {formatSelectedDate(selectedDate).toLowerCase()}</Text>
               <Text style={styles.emptyStateSubtext}>Start tracking your nutrition!</Text>
             </View>
           )}
@@ -763,10 +901,12 @@ export default function Nutrition() {
           <TrendingUp size={20} color={colors.success[500]} />
           <Text style={styles.sectionTitle}>Weekly Progress</Text>
         </View>
+
         <View style={styles.weeklyChart}>
           {weeklyProgress.map((day, index) => {
             const percentage = (day.calories / day.target) * 100;
             const isToday = day.day === 'Today';
+
             return (
               <View key={index} style={styles.chartDay}>
                 <View style={styles.chartBar}>
@@ -796,6 +936,7 @@ export default function Nutrition() {
           <Award size={20} color={colors.warning[500]} />
           <Text style={styles.sectionTitle}>Insights & Tips</Text>
         </View>
+
         <View style={styles.insightsContainer}>
           {insights.length > 0 ? (
             insights.map((insight, index) => {
@@ -811,7 +952,9 @@ export default function Nutrition() {
                     return { bg: colors.accent[50], border: colors.accent[200], text: colors.accent[700] };
                 }
               };
+
               const insightColors = getInsightColors(insight.type);
+
               return (
                 <View
                   key={index}
@@ -888,6 +1031,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // **NEW: Calendar Modal Styles**
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 20,
+    padding: spacing.lg,
+    margin: spacing.lg,
+    width: width - (spacing.lg * 2),
+    maxHeight: '80%',
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickDateButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  quickDateButton: {
+    flex: 1,
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  quickDateButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.primary[600],
   },
   section: {
     padding: spacing.lg,
