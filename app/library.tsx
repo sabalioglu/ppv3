@@ -44,7 +44,7 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-// **YENİ EKLEME: OpenAI Recipe AI Service Import**
+// **OpenAI Recipe AI Service Import**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
 
 const { width, height } = Dimensions.get('window');
@@ -167,7 +167,7 @@ const importSources: ImportSource[] = [
   {
     id: 'tiktok',
     name: 'TikTok',
-    icon: Video, // **UPDATED: Better TikTok representation**
+    icon: Video,
     color: '#000000',
     description: 'Cooking videos and recipes'
   },
@@ -181,7 +181,7 @@ const importSources: ImportSource[] = [
   {
     id: 'pinterest',
     name: 'Pinterest',
-    icon: Bookmark, // **UPDATED: Better Pinterest representation**
+    icon: Bookmark,
     color: '#BD081C',
     description: 'Recipe pins and boards'
   },
@@ -632,7 +632,7 @@ const ImportOptionsModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-          {/* Import Sources Grid - **FIXED: Reduced gap** */}
+          {/* Import Sources Grid */}
           <ScrollView style={styles.importSourcesContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.importSourcesGrid}>
               {importSources.map((source) => (
@@ -667,15 +667,81 @@ const ImportOptionsModal: React.FC<{
   );
 };
 
-// **URL Import Modal Component**
+// **Enhanced URL Import Modal Component with Intelligent Loading Messages**
 const URLImportModal: React.FC<{
   visible: boolean;
   onClose: () => void;
   onImport: (url: string) => void;
   selectedSource?: string;
-}> = ({ visible, onClose, onImport, selectedSource }) => {
+  loading: boolean;
+}> = ({ visible, onClose, onImport, selectedSource, loading }) => {
   const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [currentLoadingMessage, setCurrentLoadingMessage] = useState('Our AI chef is cooking up your recipe...');
+
+  // Platform-aware and humorous loading messages
+  const getLoadingMessages = (url: string) => {
+    const baseMessages = [
+      "Our AI chef is cooking up your recipe...",
+      "Scanning the digital pantry for ingredients...",
+      "Teaching our robots to chop onions (virtually, of course)...",
+      "Brewing the perfect digital coffee for our recipe AI...",
+      "Wrangling pixels to find the best recipe image...",
+      "Making sure no digital crumbs are left behind...",
+      "Consulting the ancient scrolls of culinary wisdom...",
+      "Don't worry, we're faster than a slow cooker!",
+      "Almost ready to serve your new favorite dish!",
+      "Just adding a pinch of AI magic..."
+    ];
+
+    // Platform-specific messages
+    const platformMessages: { [key: string]: string[] } = {
+      tiktok: [
+        "🎵 Parsing TikTok cooking video...",
+        "📱 Extracting recipe from viral content...",
+        "🎬 Analyzing video thumbnail...",
+        "⭐ This looks like a trending recipe!"
+      ],
+      instagram: [
+        "📸 Processing Instagram recipe post...",
+        "🌟 Extracting from food influencer content...",
+        "📖 Reading recipe from beautiful photos...",
+        "✨ Instagram-worthy recipe incoming!"
+      ],
+      youtube: [
+        "🎥 Analyzing YouTube cooking tutorial...",
+        "👨‍🍳 Learning from the chef's video...",
+        "📺 Extracting step-by-step instructions...",
+        "🎬 Processing video thumbnail..."
+      ]
+    };
+
+    // Detect platform
+    let platform = 'general';
+    if (url.includes('tiktok.com')) platform = 'tiktok';
+    else if (url.includes('instagram.com')) platform = 'instagram';
+    else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
+
+    // Combine platform-specific + general messages
+    const specificMessages = platformMessages[platform] || [];
+    return [...specificMessages, ...baseMessages].slice(0, 8); // Max 8 messages
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading && url) {
+      const messages = getLoadingMessages(url);
+      let messageIndex = 0;
+      setCurrentLoadingMessage(messages[0]);
+      
+      interval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % messages.length;
+        setCurrentLoadingMessage(messages[messageIndex]);
+      }, 2500); // Change message every 2.5 seconds
+    } else {
+      setCurrentLoadingMessage('Our AI chef is cooking up your recipe...');
+    }
+    return () => clearInterval(interval);
+  }, [loading, url]);
 
   const getSourceInfo = () => {
     const source = importSources.find(s => s.id === selectedSource);
@@ -689,15 +755,12 @@ const URLImportModal: React.FC<{
       Alert.alert('Error', 'Please enter a valid URL');
       return;
     }
-    setLoading(true);
     try {
       await onImport(url.trim());
       setUrl('');
       onClose();
     } catch (error) {
       console.error('Import error:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -724,11 +787,13 @@ const URLImportModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
+
           {/* Description */}
           <Text style={styles.urlModalDescription}>
             Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
             including ingredients, instructions, and nutritional information.
           </Text>
+
           {/* URL Input */}
           <View style={styles.urlInputWrapper}>
             <View style={styles.urlInputContainer}>
@@ -751,6 +816,7 @@ const URLImportModal: React.FC<{
               )}
             </View>
           </View>
+
           {/* Example URLs */}
           <View style={styles.exampleUrlsContainer}>
             <Text style={styles.exampleUrlsTitle}>Supported formats:</Text>
@@ -761,6 +827,7 @@ const URLImportModal: React.FC<{
               - Recipe sharing posts
             </Text>
           </View>
+
           {/* Action Buttons */}
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
@@ -775,7 +842,12 @@ const URLImportModal: React.FC<{
               disabled={!url.trim() || loading}
             >
               {loading ? (
-                <ActivityIndicator size="small" color={colors.neutral[0]} />
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="small" color={colors.neutral[0]} />
+                  <Text style={styles.urlImportButtonText} numberOfLines={2}>
+                    {currentLoadingMessage}
+                  </Text>
+                </View>
               ) : (
                 <>
                   <Link size={16} color={colors.neutral[0]} />
@@ -1002,9 +1074,10 @@ export default function Library() {
   const [showImportOptions, setShowImportOptions] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [showManualRecipe, setShowManualRecipe] = useState(false); // **NEW: Manual recipe modal**
+  const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
-  const [filterMode, setFilterMode] = useState<string>('all'); // **NEW: Filter mode for favorites**
+  const [filterMode, setFilterMode] = useState<string>('all');
+  const [isImporting, setIsImporting] = useState(false); // **NEW: Loading state for AI import**
 
   // **Enhanced Filter State**
   const [filters, setFilters] = useState<{ [key: string]: string }>({
@@ -1093,7 +1166,6 @@ export default function Library() {
     const matchesDifficulty = filters.difficulty === 'all' ||
       recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
 
-    // **NEW: Favorites filter**
     const matchesFavorites = filterMode === 'all' ||
       (filterMode === 'favorites' && recipe.is_favorite);
 
@@ -1118,7 +1190,6 @@ export default function Library() {
   // **Handle Import Source Selection**
   const handleImportSourceSelect = (sourceId: string) => {
     if (sourceId === 'camera') {
-      // Navigate to camera for recipe scanning
       router.push({
         pathname: '/(tabs)/camera',
         params: {
@@ -1128,16 +1199,14 @@ export default function Library() {
         }
       });
     } else if (sourceId === 'manual') {
-      // **NEW: Show manual recipe modal**
       setShowManualRecipe(true);
     } else {
-      // Show URL import modal for social media sources
       setSelectedImportSource(sourceId);
       setShowURLImport(true);
     }
   };
 
-  // **NEW: Handle Manual Recipe Save**
+  // **Handle Manual Recipe Save**
   const handleManualRecipeSave = async (recipeData: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1154,14 +1223,14 @@ export default function Library() {
         return;
       }
       Alert.alert('Success! 📚', 'Recipe added to your library');
-      await loadLibraryData(); // Refresh recipes
+      await loadLibraryData();
     } catch (error) {
       console.error('Error saving manual recipe:', error);
       Alert.alert('Error', 'Failed to save recipe');
     }
   };
 
-  // **NEW: Handle Favorites Toggle**
+  // **Handle Favorites Toggle**
   const handleFavoritesFilter = () => {
     setFilterMode(filterMode === 'favorites' ? 'all' : 'favorites');
   };
@@ -1222,7 +1291,7 @@ export default function Library() {
     );
   };
 
-  // **🚀 GÜNCELLENMIŞ: AI-Powered URL Import Handler with Hybrid Model Selection**
+  // **🚀 Enhanced AI-Powered URL Import Handler with Zero Extra Cost + Intelligent Loading**
   const handleURLImport = async (url: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1231,7 +1300,7 @@ export default function Library() {
         return;
       }
 
-      setLoading(true);
+      setIsImporting(true); // **Start intelligent loading state**
 
       // URL validation
       if (!url.trim() || !url.includes('http')) {
@@ -1239,7 +1308,7 @@ export default function Library() {
         return;
       }
 
-      // Extract recipe using AI service with hybrid model selection
+      // Extract recipe using AI service (same API call, zero extra cost)
       const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
 
       if (!extractedData) {
@@ -1255,7 +1324,7 @@ export default function Library() {
         user_id: user.id,
         title: extractedData.title,
         description: extractedData.description || '',
-        image_url: extractedData.image_url,
+        image_url: extractedData.image_url, // **AI extracts this in same call - zero extra cost**
         prep_time: extractedData.prep_time || 0,
         cook_time: extractedData.cook_time || 0,
         servings: extractedData.servings || 1,
@@ -1298,7 +1367,7 @@ export default function Library() {
         Alert.alert('Import Error', error.message || 'An unexpected error occurred. Please try again.');
       }
     } finally {
-      setLoading(false);
+      setIsImporting(false); // **End loading state**
     }
   };
 
@@ -1356,7 +1425,7 @@ export default function Library() {
           {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
-      {/* **UPDATED: Add Recipe Actions - Add Recipe + Favorites** */}
+      {/* Add Recipe Actions */}
       <View style={styles.addActions}>
         <TouchableOpacity
           style={styles.addActionButton}
@@ -1439,7 +1508,7 @@ export default function Library() {
           />
         )}
       </ScrollView>
-      {/* **NEW: Manual Recipe Modal** */}
+      {/* Manual Recipe Modal */}
       <ManualRecipeModal
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
@@ -1459,12 +1528,13 @@ export default function Library() {
         onFiltersChange={setFilters}
         recipeCount={filteredRecipes.length}
       />
-      {/* Enhanced URL Import Modal */}
+      {/* Enhanced URL Import Modal with Intelligent Loading */}
       <URLImportModal
         visible={showURLImport}
         onClose={() => setShowURLImport(false)}
         onImport={handleURLImport}
         selectedSource={selectedImportSource}
+        loading={isImporting} // **Pass intelligent loading state**
       />
       {/* Floating Add Button */}
       <TouchableOpacity
@@ -1639,11 +1709,11 @@ const styles = StyleSheet.create({
   recipesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm, // **FIXED: Reduced gap between grid items**
+    gap: spacing.sm,
     justifyContent: 'space-between',
   },
   gridCardContainer: {
-    width: (width - spacing.lg * 2 - spacing.sm) / 2, // **FIXED: Adjusted for smaller gap**
+    width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   // **Enhanced Import Options Modal Styles**
   importModalOverlay: {
@@ -1705,11 +1775,11 @@ const styles = StyleSheet.create({
   importSourcesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm, // **FIXED: Reduced gap between source cards**
+    gap: spacing.sm,
     justifyContent: 'space-between',
   },
   importSourceCard: {
-    width: (width - spacing.lg * 2 - spacing.sm * 2) / 3, // **FIXED: Adjusted for smaller gap**
+    width: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
     backgroundColor: colors.neutral[50],
     borderRadius: 16,
     padding: spacing.lg,
@@ -1760,7 +1830,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[600],
   },
-  // **NEW: Manual Recipe Modal Styles**
+  // **Manual Recipe Modal Styles**
   manualRecipeContainer: {
     flex: 1,
     backgroundColor: colors.neutral[0],
@@ -2092,7 +2162,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-  // **Recipe Card Styles (existing implementation with SF Pro)**
+  // **NEW: Intelligent Loading Content Style**
+  loadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  // **Recipe Card Styles (existing implementation)**
   gridCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
