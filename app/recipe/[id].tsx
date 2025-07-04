@@ -66,7 +66,7 @@ export default function RecipeDetail() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-
+      
       if (!user) {
         Alert.alert('Authentication Required', 'Please log in to view recipe details.');
         router.back();
@@ -127,7 +127,7 @@ export default function RecipeDetail() {
   // Toggle favorite
   const handleFavorite = async () => {
     if (!recipe) return;
-
+    
     try {
       const newFavoriteStatus = !recipe.is_favorite;
       const { error } = await supabase
@@ -160,34 +160,34 @@ export default function RecipeDetail() {
 
   // Placeholder functions for future features
   const handleCookNow = () => {
-    Alert.alert('Coming Soon! 👨‍🍳 ', 'Interactive Cooking Mode will be implemented in the next update.');
+    Alert.alert('Coming Soon! 👨‍🍳', 'Interactive Cooking Mode will be implemented in the next update.');
   };
 
   const handleAddMissingToCart = () => {
-    Alert.alert('Coming Soon! 🛒 ', 'Smart Pantry Integration with shopping cart will be implemented soon.');
+    Alert.alert('Coming Soon! 🛒', 'Smart Pantry Integration with shopping cart will be implemented soon.');
   };
 
   const handleShare = () => {
-    Alert.alert('Coming Soon! 📤 ', 'Recipe sharing feature will be implemented soon.');
+    Alert.alert('Coming Soon! 📤', 'Recipe sharing feature will be implemented soon.');
   };
 
   const handleEdit = () => {
-    Alert.alert('Coming Soon! ✏ ', 'Recipe editing feature will be implemented soon.');
+    Alert.alert('Coming Soon! ✏️', 'Recipe editing feature will be implemented soon.');
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return colors.success;
-      case 'Medium': return colors.warning;
-      case 'Hard': return colors.error;
-      default: return colors.neutral;
+      case 'Easy': return colors.success[500];
+      case 'Medium': return colors.warning[500];
+      case 'Hard': return colors.error[500];
+      default: return colors.neutral[500];
     }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Loading recipe details...</Text>
       </View>
     );
@@ -209,21 +209,21 @@ export default function RecipeDetail() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-          <ArrowLeft size={24} color={colors.neutral} />
+          <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleFavorite} style={styles.headerActionButton}>
             <Heart
               size={24}
-              color={recipe.is_favorite ? colors.error : colors.neutral}
-              fill={recipe.is_favorite ? colors.error : 'transparent'}
+              color={recipe.is_favorite ? colors.error[500] : colors.neutral[600]}
+              fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
             />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
-            <Share size={24} color={colors.neutral} />
+            <Share size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleEdit} style={styles.headerActionButton}>
-            <Edit3 size={24} color={colors.neutral} />
+            <Edit3 size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
         </View>
       </View>
@@ -238,7 +238,7 @@ export default function RecipeDetail() {
               <Text style={styles.heroPlaceholderText}>No Image</Text>
             </View>
           )}
-
+          
           {/* Badges */}
           <View style={styles.badges}>
             {recipe.is_ai_generated && (
@@ -247,7 +247,7 @@ export default function RecipeDetail() {
               </View>
             )}
             <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-              <Text style={styles.difficultyText}>{recipe.difficulty} </Text>
+              <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
             </View>
           </View>
         </View>
@@ -256,20 +256,20 @@ export default function RecipeDetail() {
         <View style={styles.titleSection}>
           <Text style={styles.title}>{recipe.title}</Text>
           <Text style={styles.description}>{recipe.description}</Text>
-
+          
           {/* Meta Info */}
           <View style={styles.metaInfo}>
             <View style={styles.metaItem}>
-              <Clock size={16} color={colors.neutral} />
+              <Clock size={16} color={colors.neutral[500]} />
               <Text style={styles.metaText}>{recipe.prep_time + recipe.cook_time}m</Text>
             </View>
             <View style={styles.metaItem}>
-              <Users size={16} color={colors.neutral} />
+              <Users size={16} color={colors.neutral[500]} />
               <Text style={styles.metaText}>{recipe.servings} servings</Text>
             </View>
             {recipe.nutrition?.calories && (
               <View style={styles.metaItem}>
-                <Flame size={16} color={colors.neutral} />
+                <Flame size={16} color={colors.neutral[500]} />
                 <Text style={styles.metaText}>{recipe.nutrition.calories} cal</Text>
               </View>
             )}
@@ -278,7 +278,7 @@ export default function RecipeDetail() {
           {/* Source URL */}
           {recipe.source_url && (
             <TouchableOpacity style={styles.sourceButton} onPress={handleOpenSource}>
-              <ExternalLink size={16} color={colors.primary} />
+              <ExternalLink size={16} color={colors.primary[500]} />
               <Text style={styles.sourceText}>View Original Source</Text>
             </TouchableOpacity>
           )}
@@ -287,11 +287,11 @@ export default function RecipeDetail() {
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.primaryButton} onPress={handleCookNow}>
-            <Play size={20} color={colors.neutral} />
+            <Play size={20} color={colors.neutral[0]} />
             <Text style={styles.primaryButtonText}>Cook Now</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={handleAddMissingToCart}>
-            <ShoppingCart size={20} color={colors.primary} />
+            <ShoppingCart size={20} color={colors.primary[500]} />
             <Text style={styles.secondaryButtonText}>Add Missing to Cart</Text>
           </TouchableOpacity>
         </View>
@@ -303,7 +303,7 @@ export default function RecipeDetail() {
             <View key={index} style={styles.ingredientItem}>
               <View style={styles.ingredientBullet} />
               <Text style={styles.ingredientText}>
-                {ingredient.quantity && ingredient.unit
+                {ingredient.quantity && ingredient.unit 
                   ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`
                   : ingredient.name
                 }
@@ -321,13 +321,13 @@ export default function RecipeDetail() {
           {recipe.instructions.map((instruction, index) => (
             <View key={index} style={styles.instructionItem}>
               <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{instruction.step} </Text>
+                <Text style={styles.stepNumberText}>{instruction.step}</Text>
               </View>
               <View style={styles.instructionContent}>
-                <Text style={styles.instructionText}> {instruction.instruction}</Text>
+                <Text style={styles.instructionText}>{instruction.instruction}</Text>
                 {instruction.duration_mins && (
                   <Text style={styles.instructionDuration}>
-                    ⏱  {instruction.duration_mins} minutes
+                    ⏱️ {instruction.duration_mins} minutes
                   </Text>
                 )}
               </View>
@@ -342,25 +342,25 @@ export default function RecipeDetail() {
             <View style={styles.nutritionGrid}>
               {recipe.nutrition.calories && (
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}> {recipe.nutrition.calories}</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.calories}</Text>
                   <Text style={styles.nutritionLabel}>Calories</Text>
                 </View>
               )}
               {recipe.nutrition.protein && (
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}> {recipe.nutrition.protein}g</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.protein}g</Text>
                   <Text style={styles.nutritionLabel}>Protein</Text>
                 </View>
               )}
               {recipe.nutrition.carbs && (
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}> {recipe.nutrition.carbs}g</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.carbs}g</Text>
                   <Text style={styles.nutritionLabel}>Carbs</Text>
                 </View>
               )}
               {recipe.nutrition.fat && (
                 <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}> {recipe.nutrition.fat}g</Text>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.fat}g</Text>
                   <Text style={styles.nutritionLabel}>Fat</Text>
                 </View>
               )}
@@ -389,35 +389,35 @@ export default function RecipeDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral,
+    backgroundColor: colors.neutral[0],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral,
+    backgroundColor: colors.neutral[0],
   },
   loadingText: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral,
+    color: colors.neutral[600],
     marginTop: spacing.md,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral,
+    backgroundColor: colors.neutral[0],
     padding: spacing.lg,
   },
   errorText: {
     fontSize: typography.fontSize.lg,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.neutral,
+    color: colors.neutral[600],
     marginBottom: spacing.lg,
   },
   backButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary[500],
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: 12,
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.neutral,
+    color: colors.neutral[0],
     fontWeight: '600',
   },
   header: {
@@ -435,15 +435,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-    backgroundColor: colors.neutral,
+    backgroundColor: colors.neutral[0],
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[10],
+    borderBottomColor: colors.neutral[100],
   },
   headerBackButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral[10],
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral[10],
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -473,14 +473,14 @@ const styles = StyleSheet.create({
   heroPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.neutral[10],
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroPlaceholderText: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral,
+    color: colors.neutral[500],
   },
   badges: {
     position: 'absolute',
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   aiBadge: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.secondary[500],
     borderRadius: 6,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
-    color: colors.neutral,
+    color: colors.neutral[0],
   },
   difficultyBadge: {
     borderRadius: 8,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
-    color: colors.neutral,
+    color: colors.neutral[0],
   },
   titleSection: {
     padding: spacing.lg,
@@ -519,13 +519,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize['2xl'],
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
     fontWeight: 'bold',
-    color: colors.neutral,
+    color: colors.neutral[800],
     marginBottom: spacing.sm,
   },
   description: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral,
+    color: colors.neutral[600],
     lineHeight: 22,
     marginBottom: spacing.lg,
   },
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     fontWeight: '500',
-    color: colors.neutral,
+    color: colors.neutral[600],
   },
   sourceButton: {
     flexDirection: 'row',
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.primary[500],
   },
   actionButtons: {
     flexDirection: 'row',
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary[500],
     borderRadius: 12,
     paddingVertical: spacing.lg,
     gap: spacing.sm,
@@ -577,36 +577,36 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
-    color: colors.neutral,
+    color: colors.neutral[0],
   },
   secondaryButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[11],
+    backgroundColor: colors.primary[50],
     borderRadius: 12,
     paddingVertical: spacing.lg,
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.primary[12],
+    borderColor: colors.primary[200],
   },
   secondaryButtonText: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.primary[500],
   },
   section: {
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[10],
+    borderTopColor: colors.neutral[100],
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
-    color: colors.neutral,
+    color: colors.neutral[800],
     marginBottom: spacing.lg,
   },
   ingredientItem: {
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary[500],
     marginTop: 8,
     marginRight: spacing.md,
   },
@@ -626,11 +626,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral,
+    color: colors.neutral[700],
     lineHeight: 22,
   },
   ingredientNotes: {
-    color: colors.neutral,
+    color: colors.neutral[500],
     fontStyle: 'italic',
   },
   instructionItem: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
-    color: colors.neutral,
+    color: colors.neutral[0],
   },
   instructionContent: {
     flex: 1,
@@ -659,14 +659,14 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral,
+    color: colors.neutral[700],
     lineHeight: 22,
     marginBottom: spacing.xs,
   },
   instructionDuration: {
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral,
+    color: colors.neutral[500],
   },
   nutritionGrid: {
     flexDirection: 'row',
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   nutritionItem: {
-    backgroundColor: colors.neutral[11],
+    backgroundColor: colors.neutral[50],
     borderRadius: 12,
     padding: spacing.md,
     alignItems: 'center',
@@ -684,13 +684,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     fontWeight: 'bold',
-    color: colors.neutral,
+    color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   nutritionLabel: {
     fontSize: typography.fontSize.xs,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral,
+    color: colors.neutral[500],
     textAlign: 'center',
   },
   tagsContainer: {
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   tag: {
-    backgroundColor: colors.primary[11],
+    backgroundColor: colors.primary[50],
     borderRadius: 20,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -708,6 +708,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     fontWeight: '500',
-    color: colors.primary,
+    color: colors.primary[600],
   },
 });
