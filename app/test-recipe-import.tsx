@@ -1,5 +1,4 @@
-// app/test-recipe-import.tsx - YENİ DOSYA OLUŞTURUN
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,134 +11,128 @@ import {
   StyleSheet
 } from 'react-native';
 import { extractRecipeFromUrl } from '@/lib/recipeAIService';
+import { debugScrapeService } from '@/lib/scrapeService';
 import { colors, spacing, typography } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { ArrowLeft, TestTube, Clock, DollarSign } from 'lucide-react-native';
+import { ArrowLeft, TestTube, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
 
 interface TestResult {
-  url: string;
   success: boolean;
   title?: string;
   imageUrl?: string;
   ingredientCount?: number;
   instructionCount?: number;
-  isAiGenerated?: boolean;
-  confidence?: number;
   executionTime?: number;
   error?: string;
+  isAiGenerated?: boolean;
 }
 
-export default function RecipeImportTest() {
-  const [url, setUrl] = useState('');
+export default function TestScraping() {
+  const [url, setUrl] = useState('https://www.allrecipes.com/recipe/92462/slow-cooker-texas-pulled-pork/');
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [currentTest, setCurrentTest] = useState<string>('');
+  const [result, setResult] = useState<TestResult | null>(null);
+  const [apiStatus, setApiStatus] = useState<any>(null);
 
-  // Önceden tanımlanmış test URL'leri
-  const testUrls = [
-    {
-      name: 'JSON-LD Blog (Ücretsiz)',
-      url: 'https://www.allrecipes.com/recipe/231506/simple-macaroni-and-cheese/',
-      expected: 'JSON-LD extraction, no AI needed'
-    },
-    {
-      name: 'Recipe Blog (HTML)',
-      url: 'https://www.foodnetwork.com/recipes/alton-brown/baked-macaroni-and-cheese-recipe-1939524',
-      expected: 'HTML extraction + AI analysis'
-    },
-    {
-      name: 'YouTube Video',
-      url: 'https://www.youtube.com/watch?v=FUeyrEN14Rk',
-      expected: 'JS rendering + AI analysis'
-    },
-    {
-      name: 'Serious Eats Blog',
-      url: 'https://www.seriouseats.com/best-chocolate-chip-cookies-recipe',
-      expected: 'Complex HTML + AI analysis'
-    }
-  ];
-
-  const runSingleTest = async (testUrl: string, testName: string = 'Manual Test') => {
-    console.log(`\n🧪 ===== ${testName.toUpperCase()} BAŞLADI =====`);
-    console.log('🔗 Test URL:', testUrl);
+  // API durumu kontrolü
+  const checkApiStatus = () => {
+    console.log('\n🔍 [TEST] API durumu kontrol ediliyor...');
     
+    const openaiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    const scrapeDoKey = process.env.EXPO_PUBLIC_SCRAPE_DO_API_KEY;
+    
+    console.log('🔑 [TEST] OpenAI Key:', openaiKey ? openaiKey.substring(0, 8) + '...' : 'YOK!');
+    console.log('🔑 [TEST] Scrape.do Key:', scrapeDoKey ? scrapeDoKey.substring(0, 8) + '...' : 'YOK!');
+    
+    const scrapeStatus = debugScrapeService.checkStatus();
+    
+    setApiStatus({
+      openaiConfigured: !!openaiKey,
+      scrapeDoConfigured: !!scrapeDoKey,
+      openaiPreview: openaiKey ? openaiKey.substring(0, 8) + '...' : 'Yapılandırılmamış',
+      scrapeDoPreview: scrapeDoKey ? scrapeDoKey.substring(0, 8) + '...' : 'Yapılandırılmamış'
+    });
+  };
+
+  // Scrape.do bağlantı testi
+  const testScrapeDoConnection = async () => {
     setLoading(true);
-    setCurrentTest(testName);
-    
-    const startTime = Date.now();
-    let testResult: TestResult = {
-      url: testUrl,
-      success: false
-    };
+    try {
+      console.log('\n🔧 [TEST] Scrape.do bağlantı testi...');
+      const connectionResult = await debugScrapeService.testConnection();
+      console.log('📡 [TEST] Bağlantı sonucu:', connectionResult);
+      
+      Alert.alert(
+        connectionResult.success ? '✅ Başarılı' : '❌ Hata',
+        connectionResult.message
+      );
+    } catch (error) {
+      console.error('❌ [TEST] Bağlantı testi hatası:', error);
+      Alert.alert('❌ Hata', 'Bağlantı testi başarısız');
+    }
+    setLoading(false);
+  };
+
+  // Ana tarif çıkarım testi
+  const testRecipeExtraction = async () => {
+    if (!url.trim()) {
+      Alert.alert('Hata', 'Lütfen bir URL girin');
+      return;
+    }
+
+    console.log('\n🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BAŞLADI =====');
+    console.log('🌐 [TEST] Test URL:', url);
+
+    setLoading(true);
+    setResult(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new Error('Kullanıcı oturumu bulunamadı');
       }
 
-      const result = await extractRecipeFromUrl(testUrl, user.id);
+      const startTime = Date.now();
+      const extractedData = await extractRecipeFromUrl(url, user.id);
       const endTime = Date.now();
       const executionTime = (endTime - startTime) / 1000;
 
-      if (result) {
-        testResult = {
-          url: testUrl,
-          success: true,
-          title: result.title,
-          imageUrl: result.image_url,
-          ingredientCount: result.ingredients?.length || 0,
-          instructionCount: result.instructions?.length || 0,
-          isAiGenerated: result.is_ai_generated,
-          confidence: result.ai_match_score,
-          executionTime: executionTime
-        };
+      if (extractedData) {
+        console.log('✅ [TEST] Başarılı!');
+        console.log('📝 [TEST] Başlık:', extractedData.title);
+        console.log('🖼️ [TEST] Görsel:', extractedData.image_url ? 'Mevcut' : 'Yok');
+        console.log('🥘 [TEST] Malzemeler:', extractedData.ingredients?.length || 0);
+        console.log('📋 [TEST] Talimatlar:', extractedData.instructions?.length || 0);
+        console.log('⏱️ [TEST] Süre:', executionTime.toFixed(2) + 's');
 
-        console.log('✅ SUCCESS!');
-        console.log('📝 Title:', result.title);
-        console.log('🖼️ Image URL:', result.image_url ? 'Available' : 'Missing');
-        console.log('🥘 Ingredients:', result.ingredients?.length || 0);
-        console.log('📋 Instructions:', result.instructions?.length || 0);
-        console.log('🤖 AI Generated:', result.is_ai_generated);
-        console.log('⭐ Confidence:', result.ai_match_score || 'N/A');
-        console.log('⏱️ Execution Time:', executionTime.toFixed(2), 'seconds');
+        setResult({
+          success: true,
+          title: extractedData.title,
+          imageUrl: extractedData.image_url,
+          ingredientCount: extractedData.ingredients?.length || 0,
+          instructionCount: extractedData.instructions?.length || 0,
+          executionTime: executionTime,
+          isAiGenerated: extractedData.is_ai_generated
+        });
       } else {
-        throw new Error('No result returned');
+        throw new Error('Tarif çıkarılamadı');
       }
 
     } catch (error: any) {
-      console.error('❌ ERROR:', error.message);
-      testResult.error = error.message;
+      console.error('❌ [TEST] Hata:', error);
+      setResult({
+        success: false,
+        error: error.message || 'Bilinmeyen hata'
+      });
     }
 
-    console.log(`🧪 ===== ${testName.toUpperCase()} BİTTİ =====\n`);
-    
-    setResults(prev => [testResult, ...prev]);
     setLoading(false);
-    setCurrentTest('');
+    console.log('🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BİTTİ =====\n');
   };
 
-  const runAllTests = async () => {
-    Alert.alert(
-      'Tüm Testleri Çalıştır',
-      'Bu işlem birkaç dakika sürebilir ve API maliyeti oluşturabilir. Devam etmek istiyor musunuz?',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Başlat', 
-          onPress: async () => {
-            setResults([]);
-            for (const test of testUrls) {
-              await runSingleTest(test.url, test.name);
-              // Testler arasında kısa bekleme
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-      ]
-    );
-  };
+  useEffect(() => {
+    checkApiStatus();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -149,120 +142,114 @@ export default function RecipeImportTest() {
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recipe Import Test</Text>
-      </View>
-
-      {/* Manual Test Input */}
-      <View style={styles.inputSection}>
-        <Text style={styles.sectionTitle}>Manuel Test</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Tarif URL'sini girin..."
-          value={url}
-          onChangeText={setUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-          placeholderTextColor={colors.neutral[500]}
-        />
-        <TouchableOpacity
-          style={[styles.testButton, loading && styles.testButtonDisabled]}
-          onPress={() => runSingleTest(url, 'Manual Test')}
-          disabled={loading || !url}
-        >
-          <TestTube size={20} color={colors.neutral[0]} />
-          <Text style={styles.testButtonText}>
-            {loading ? 'Test Ediliyor...' : 'Test Et'}
-          </Text>
+        <TouchableOpacity onPress={checkApiStatus} style={styles.refreshButton}>
+          <Settings size={24} color={colors.neutral[600]} />
         </TouchableOpacity>
       </View>
 
-      {/* Predefined Tests */}
-      <View style={styles.predefinedSection}>
-        <Text style={styles.sectionTitle}>Önceden Tanımlanmış Testler</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {testUrls.map((test, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.predefinedButton, loading && styles.testButtonDisabled]}
-              onPress={() => runSingleTest(test.url, test.name)}
-              disabled={loading}
-            >
-              <Text style={styles.predefinedButtonText}>{test.name}</Text>
-              <Text style={styles.predefinedButtonSubtext}>{test.expected}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        
-        <TouchableOpacity
-          style={[styles.runAllButton, loading && styles.testButtonDisabled]}
-          onPress={runAllTests}
-          disabled={loading}
-        >
-          <Text style={styles.runAllButtonText}>Tüm Testleri Çalıştır</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Loading Indicator */}
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary[500]} />
-          <Text style={styles.loadingText}>
-            {currentTest ? `${currentTest} test ediliyor...` : 'Test ediliyor...'}
-          </Text>
-        </View>
-      )}
-
-      {/* Results */}
-      <ScrollView style={styles.resultsContainer} showsVerticalScrollIndicator={false}>
-        {results.map((result, index) => (
-          <View key={index} style={[styles.resultCard, result.success ? styles.successCard : styles.errorCard]}>
-            <View style={styles.resultHeader}>
-              <Text style={styles.resultStatus}>
-                {result.success ? '✅ BAŞARILI' : '❌ BAŞARISIZ'}
-              </Text>
-              {result.executionTime && (
-                <View style={styles.executionTime}>
-                  <Clock size={14} color={colors.neutral[500]} />
-                  <Text style={styles.executionTimeText}>
-                    {result.executionTime.toFixed(2)}s
-                  </Text>
-                </View>
-              )}
-            </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* API Status */}
+        {apiStatus && (
+          <View style={styles.statusSection}>
+            <Text style={styles.sectionTitle}>🔧 API Durumu</Text>
             
-            <Text style={styles.resultUrl} numberOfLines={2}>
-              {result.url}
+            <View style={styles.statusItem}>
+              <View style={styles.statusHeader}>
+                {apiStatus.openaiConfigured ? 
+                  <CheckCircle size={20} color={colors.success[500]} /> :
+                  <XCircle size={20} color={colors.error[500]} />
+                }
+                <Text style={styles.statusLabel}>OpenAI API</Text>
+              </View>
+              <Text style={styles.statusValue}>{apiStatus.openaiPreview}</Text>
+            </View>
+
+            <View style={styles.statusItem}>
+              <View style={styles.statusHeader}>
+                {apiStatus.scrapeDoConfigured ? 
+                  <CheckCircle size={20} color={colors.success[500]} /> :
+                  <XCircle size={20} color={colors.error[500]} />
+                }
+                <Text style={styles.statusLabel}>Scrape.do API</Text>
+              </View>
+              <Text style={styles.statusValue}>{apiStatus.scrapeDoPreview}</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.testConnectionButton} 
+              onPress={testScrapeDoConnection}
+              disabled={loading || !apiStatus.scrapeDoConfigured}
+            >
+              <Text style={styles.testConnectionText}>Scrape.do Bağlantı Testi</Text>
+            </TouchableOpacity>
+
+            {!apiStatus.openaiConfigured && (
+              <View style={styles.warningContainer}>
+                <AlertTriangle size={16} color={colors.warning[600]} />
+                <Text style={styles.warningText}>
+                  OpenAI API key eksik! .env dosyanızı kontrol edin ve Metro'yu yeniden başlatın.
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Test Input */}
+        <View style={styles.inputSection}>
+          <Text style={styles.sectionTitle}>🧪 Tarif URL Testi</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Test edilecek tarif URL'sini girin..."
+            value={url}
+            onChangeText={setUrl}
+            autoCapitalize="none"
+            keyboardType="url"
+            placeholderTextColor={colors.neutral[500]}
+            multiline
+          />
+          
+          <TouchableOpacity
+            style={[styles.testButton, loading && styles.testButtonDisabled]}
+            onPress={testRecipeExtraction}
+            disabled={loading || !apiStatus?.openaiConfigured}
+          >
+            <TestTube size={20} color={colors.neutral[0]} />
+            <Text style={styles.testButtonText}>
+              {loading ? 'Test Ediliyor...' : 'Tarif Çıkar'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Loading */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary[500]} />
+            <Text style={styles.loadingText}>İşlem devam ediyor...</Text>
+            <Text style={styles.loadingSubtext}>Console loglarını terminalde takip edin</Text>
+          </View>
+        )}
+
+        {/* Result */}
+        {result && (
+          <View style={[styles.resultContainer, result.success ? styles.successResult : styles.errorResult]}>
+            <Text style={styles.resultTitle}>
+              {result.success ? '✅ Başarılı!' : '❌ Hata'}
             </Text>
             
             {result.success ? (
               <View style={styles.resultDetails}>
-                <Text style={styles.resultTitle}>{result.title}</Text>
-                <View style={styles.resultStats}>
-                  <Text style={styles.resultStat}>
-                    🥘 {result.ingredientCount} malzeme
-                  </Text>
-                  <Text style={styles.resultStat}>
-                    📋 {result.instructionCount} adım
-                  </Text>
-                  <Text style={styles.resultStat}>
-                    🖼️ {result.imageUrl ? 'Görsel var' : 'Görsel yok'}
-                  </Text>
-                </View>
-                <View style={styles.resultMeta}>
-                  <Text style={styles.resultMetaText}>
-                    🤖 {result.isAiGenerated ? 'AI Üretimi' : 'Yapısal Veri'}
-                  </Text>
-                  {result.confidence && (
-                    <Text style={styles.resultMetaText}>
-                      ⭐ Güven: {result.confidence}
-                    </Text>
-                  )}
-                </View>
+                <Text style={styles.resultItem}>📝 Başlık: {result.title}</Text>
+                <Text style={styles.resultItem}>🖼️ Görsel: {result.imageUrl ? 'Mevcut' : 'Yok'}</Text>
+                <Text style={styles.resultItem}>🥘 Malzemeler: {result.ingredientCount} adet</Text>
+                <Text style={styles.resultItem}>📋 Talimatlar: {result.instructionCount} adım</Text>
+                <Text style={styles.resultItem}>⏱️ Süre: {result.executionTime?.toFixed(2)}s</Text>
+                <Text style={styles.resultItem}>🤖 AI Üretimi: {result.isAiGenerated ? 'Evet' : 'JSON-LD'}</Text>
               </View>
             ) : (
               <Text style={styles.errorText}>{result.error}</Text>
             )}
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
@@ -276,6 +263,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
@@ -290,18 +278,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: typography.fontSize.xl,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
     color: colors.neutral[800],
   },
-  inputSection: {
+  content: {
+    flex: 1,
     padding: spacing.lg,
+  },
+  statusSection: {
     backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
@@ -309,17 +308,71 @@ const styles = StyleSheet.create({
     color: colors.neutral[800],
     marginBottom: spacing.md,
   },
+  statusItem: {
+    marginBottom: spacing.md,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  statusLabel: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[700],
+  },
+  statusValue: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+    marginLeft: 28,
+  },
+  testConnectionButton: {
+    backgroundColor: colors.accent[500],
+    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  testConnectionText: {
+    color: colors.neutral[0],
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning[50],
+    borderRadius: 8,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.warning[700],
+  },
+  inputSection: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
   input: {
-    height: 50,
     borderColor: colors.neutral[300],
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.md,
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[800],
-    backgroundColor: colors.neutral[0],
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   testButton: {
     flexDirection: 'row',
@@ -338,47 +391,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
   },
-  predefinedSection: {
-    padding: spacing.lg,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  predefinedButton: {
-    backgroundColor: colors.accent[50],
-    borderRadius: 12,
-    padding: spacing.md,
-    marginRight: spacing.md,
-    minWidth: 200,
-    borderWidth: 1,
-    borderColor: colors.accent[200],
-  },
-  predefinedButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.accent[700],
-    marginBottom: spacing.xs,
-  },
-  predefinedButtonSubtext: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.accent[500],
-  },
-  runAllButton: {
-    backgroundColor: colors.secondary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  runAllButtonText: {
-    color: colors.neutral[0],
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-  },
   loadingContainer: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
     padding: spacing.xl,
     alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   loadingText: {
     marginTop: spacing.md,
@@ -386,79 +404,40 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
   },
-  resultsContainer: {
-    flex: 1,
-    padding: spacing.lg,
+  loadingSubtext: {
+    marginTop: spacing.xs,
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
   },
-  resultCard: {
-    backgroundColor: colors.neutral[0],
+  resultContainer: {
     borderRadius: 12,
     padding: spacing.lg,
-    marginBottom: spacing.md,
     borderWidth: 1,
   },
-  successCard: {
+  successResult: {
+    backgroundColor: colors.success[50],
     borderColor: colors.success[200],
   },
-  errorCard: {
+  errorResult: {
+    backgroundColor: colors.error[50],
     borderColor: colors.error[200],
   },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  resultStatus: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
-    color: colors.neutral[700],
-  },
-  executionTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  executionTimeText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-  resultUrl: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
+  resultTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     marginBottom: spacing.md,
   },
   resultDetails: {
     gap: spacing.sm,
   },
-  resultTitle: {
+  resultItem: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.neutral[800],
-  },
-  resultStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  resultStat: {
-    fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
-  },
-  resultMeta: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  resultMetaText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
+    color: colors.success[700],
   },
   errorText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.error[600],
   },
