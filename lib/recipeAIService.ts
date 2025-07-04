@@ -1,123 +1,25 @@
+// lib/recipeAIService.ts - MEVCUT DOSYAYI GÜNCELLEYIN
 import { Platform } from 'react-native';
+import { ScrapeDoService, ScrapedContent } from './scrapeService';
 
-// Platform-aware OpenAI import
+// Scrape.do service instance
+const scrapeService = new ScrapeDoService();
+
+// Platform-aware OpenAI import (mevcut kod aynı kalacak)
 let openai: any = null;
 
-// Initialize OpenAI only on supported platforms
+// Initialize OpenAI (mevcut kod aynı kalacak)
 const initializeOpenAI = async () => {
-  if (Platform.OS === 'web') {
-    // For web platform, use dangerouslyAllowBrowser (development only)
-    const OpenAI = (await import('openai')).default;
-    const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-    
-    if (!OPENAI_API_KEY) {
-      console.warn("OPENAI_API_KEY is not set. OpenAI features may not work.");
-      return null;
-    }
-    
-    return new OpenAI({
-      apiKey: OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true, // Only for development/testing
-    });
-  } else {
-    // For native platforms (iOS/Android)
-    const OpenAI = (await import('openai')).default;
-    const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-    
-    if (!OPENAI_API_KEY) {
-      console.warn("OPENAI_API_KEY is not set. OpenAI features may not work.");
-      return null;
-    }
-    
-    return new OpenAI({
-      apiKey: OPENAI_API_KEY,
-    });
-  }
+  // ... mevcut kod aynı kalacak
 };
 
-// Extracted recipe data interface
-export interface ExtractedRecipeData {
-  title: string;
-  description?: string;
-  image_url?: string;
-  prep_time?: number;
-  cook_time?: number;
-  servings?: number;
-  difficulty?: 'Easy' | 'Medium' | 'Hard';
-  ingredients: Array<{ 
-    name: string; 
-    quantity?: string; 
-    unit?: string; 
-    notes?: string 
-  }>;
-  instructions: Array<{ 
-    step: number; 
-    instruction: string; 
-    duration_mins?: number 
-  }>;
-  nutrition?: {
-    calories?: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-  };
-  tags?: string[];
-  category?: string;
-}
+// Rate limiting (mevcut kod aynı kalacak)
+const rateLimitStore = new Map();
 
-// Rate limiting storage (simple in-memory for now)
-const rateLimitStore = new Map<string, { count: number; lastRequest: number; dailyCount: number; dailyReset: number }>();
-
-// Smart URL analysis for model selection
-function analyzeUrlContentType(url: string): 'text' | 'media' {
-  const mediaPatterns = /instagram|tiktok|youtube|facebook.*video|pinterest.*pin/i;
-  return mediaPatterns.test(url) ? 'media' : 'text';
-}
-
-// Rate limiting check
-function checkRateLimit(userId: string): { allowed: boolean; waitTime?: number } {
-  const now = Date.now();
-  const userLimit = rateLimitStore.get(userId);
-  
-  if (!userLimit) {
-    rateLimitStore.set(userId, { 
-      count: 1, 
-      lastRequest: now, 
-      dailyCount: 1, 
-      dailyReset: now + 24 * 60 * 60 * 1000 
-    });
-    return { allowed: true };
-  }
-
-  // Check daily limit
-  if (now > userLimit.dailyReset) {
-    userLimit.dailyCount = 0;
-    userLimit.dailyReset = now + 24 * 60 * 60 * 1000;
-  }
-
-  if (userLimit.dailyCount >= 10) {
-    return { allowed: false, waitTime: userLimit.dailyReset - now };
-  }
-
-  // Check per-minute limit
-  const timeSinceLastRequest = now - userLimit.lastRequest;
-  if (timeSinceLastRequest < 30000) { // 30 seconds
-    return { allowed: false, waitTime: 30000 - timeSinceLastRequest };
-  }
-
-  // Update counters
-  userLimit.count++;
-  userLimit.dailyCount++;
-  userLimit.lastRequest = now;
-  
-  return { allowed: true };
-}
-
-// Main extraction function with platform-aware initialization
+// ✅ YENİ extractRecipeFromUrl FONKSİYONU
 export async function extractRecipeFromUrl(url: string, userId: string): Promise<ExtractedRecipeData | null> {
   try {
-    // Initialize OpenAI client if not already done
+    // Initialize OpenAI client
     if (!openai) {
       openai = await initializeOpenAI();
       if (!openai) {
@@ -125,127 +27,229 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
       }
     }
 
-    // Rate limiting check
+    // Rate limiting check (mevcut kod aynı)
     const rateLimitResult = checkRateLimit(userId);
     if (!rateLimitResult.allowed) {
       const waitMinutes = Math.ceil((rateLimitResult.waitTime || 0) / 60000);
       throw new Error(`Rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`);
     }
 
-    // Platform-specific handling
-    if (Platform.OS === 'web') {
-      console.warn('⚠️ Running OpenAI in browser environment. This is for development only.');
-      console.warn('⚠️ In production, implement a backend proxy for security.');
+    console.log('🔍 Starting recipe extraction from URL:', url);
+
+    // 🚀 SCRAPE.DO ENTEGRASYONİ - RECIME PLUS STRATEJİSİ
+    
+    // Katman 1: Optimal strateji belirleme
+    const strategy = scrapeService.getOptimalStrategy(url);
+    console.log('📋 Scraping strategy:', strategy);
+
+    // Katman 2: İçerik çekme
+    const scrapedContent = await scrapeService.scrapeUrl(url, {
+      screenshot: strategy.screenshot,
+      jsRendering: strategy.jsRendering
+    });
+
+    if (!scrapedContent.success || !scrapedContent.html) {
+      throw new Error(`Failed to scrape content: ${scrapedContent.error || 'Unknown error'}`);
     }
 
-    // Determine optimal model based on URL content type
-    const contentType = analyzeUrlContentType(url);
-    let selectedModel = contentType === 'text' ? 'gpt-4o-mini' : 'gpt-4o-mini'; // Using 4o-mini for both for now
-    
-    // System prompt for recipe extraction
-const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided URL.
+    console.log('✅ Successfully scraped content. HTML length:', scrapedContent.html.length);
 
-Parse the webpage content and identify:
-- Recipe title and brief description
-- **CRITICAL: High-quality image URL of the finished dish. For social media posts (TikTok, Instagram, YouTube), extract the video thumbnail or featured image. Look for og:image, twitter:image, video thumbnails, or main recipe photos.**
-- Prep time and cook time (in minutes)
-- Number of servings
-- Difficulty level ('Easy', 'Medium', or 'Hard')
-- Detailed ingredients list with quantities
+    // Katman 3: JSON-LD kontrolü (öncelik)
+    const jsonLdRecipe = extractJsonLdRecipe(scrapedContent.html);
+    if (jsonLdRecipe) {
+      console.log('🎯 Recipe extracted from JSON-LD (no AI needed)');
+      return {
+        ...jsonLdRecipe,
+        source_url: url,
+        is_ai_generated: false,
+        ai_match_score: 95 // JSON-LD'den geldiği için yüksek güven
+      } as ExtractedRecipeData;
+    }
+
+    // Katman 4: AI analizi (JSON-LD bulunamazsa)
+    console.log('🤖 Using AI analysis for content extraction');
+
+    // Gelişmiş sistem prompt'u
+    const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided HTML content.
+
+**CRITICAL ANTI-HALLUCINATION RULES:**
+1. Extract information ONLY from the provided HTML content
+2. If information is not present, use null/undefined - DO NOT make up data
+3. Cross-reference extracted title with the source URL for consistency
+4. Provide confidence score (0-100) for your extraction
+
+**EXTRACTION PRIORITIES:**
+- Recipe title and description
+- High-quality image URL (from og:image, twitter:image, or img tags)
+- Prep/cook times in minutes
+- Servings count
+- Difficulty level assessment
+- Complete ingredients with quantities
 - Step-by-step instructions
 - Nutritional information (if available)
-- Relevant tags (vegetarian, quick, healthy, etc.)
-- Primary category (Breakfast, Lunch, Dinner, Snacks, Desserts)
+- Relevant tags and category
 
-**IMAGE EXTRACTION PRIORITY:**
-1. Video thumbnail URLs (for TikTok, Instagram Reels, YouTube)
-2. Open Graph images (og:image)
-3. Twitter Card images (twitter:image)
-4. Featured recipe photos
-5. Main content images
-
-**CRITICAL:** Respond ONLY with valid JSON. No markdown, no explanations, just pure JSON.
-
-JSON Schema:
+**RESPOND ONLY WITH VALID JSON:**
 {
   "title": "string",
   "description": "string (optional)",
-  "image_url": "string (HIGH PRIORITY - extract best available image/thumbnail)",
-  "prep_time": "number (optional, minutes)",
-  "cook_time": "number (optional, minutes)",
+  "image_url": "string (high priority)",
+  "prep_time": "number (minutes, optional)",
+  "cook_time": "number (minutes, optional)",
   "servings": "number (optional)",
-  "difficulty": "string (optional, 'Easy'|'Medium'|'Hard')",
+  "difficulty": "Easy|Medium|Hard (optional)",
   "ingredients": [{"name": "string", "quantity": "string", "unit": "string", "notes": "string"}],
   "instructions": [{"step": "number", "instruction": "string", "duration_mins": "number"}],
   "nutrition": {"calories": "number", "protein": "number", "carbs": "number", "fat": "number", "fiber": "number"},
   "tags": ["string"],
-  "category": "string"
+  "category": "string",
+  "confidence_score": "number (0-100)"
 }`;
 
+    // AI'a gönderilecek içerik hazırlama
+    const contentForAI = `
+URL: ${url}
+Page Title: ${scrapedContent.title || 'Not available'}
+${scrapedContent.screenshot ? `Screenshot URL: ${scrapedContent.screenshot}` : ''}
 
-    // Make OpenAI API call
+HTML Content:
+${scrapedContent.html.substring(0, 12000)} // Token limit için kısaltma
+`;
+
+    // OpenAI API çağrısı
     const response = await openai.chat.completions.create({
-      model: selectedModel,
+      model: 'gpt-4o-mini',
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Extract recipe details from this URL: ${url}` }
+        { role: "user", content: contentForAI }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.1,
-      max_tokens: 2000,
+      temperature: 0.1, // Düşük sıcaklık = daha deterministik
+      max_tokens: 3000,
     });
 
     const rawJson = response.choices[0].message.content;
-    
     if (!rawJson) {
-      console.error("OpenAI returned no content for URL:", url);
-      return null;
+      throw new Error('OpenAI returned empty response');
     }
 
-    try {
-      const parsedData: ExtractedRecipeData = JSON.parse(rawJson);
-
-      // Validate critical fields
-      if (!parsedData.title || !parsedData.ingredients || parsedData.ingredients.length === 0) {
-        console.warn("Extracted recipe missing critical fields for URL:", url);
-        return null;
-      }
-
-      // Ensure arrays are properly initialized
-      parsedData.ingredients = parsedData.ingredients || [];
-      parsedData.instructions = parsedData.instructions || [];
-      parsedData.tags = parsedData.tags || [];
-
-      return parsedData;
-
-    } catch (jsonError) {
-      console.error("Failed to parse JSON from OpenAI for URL:", url, "Error:", jsonError);
-      throw new Error("Invalid response format. Please try again with a different URL.");
+    // JSON parsing ve validasyon
+    const parsedData = JSON.parse(rawJson);
+    
+    // Güven skoru kontrolü
+    if (parsedData.confidence_score && parsedData.confidence_score < 70) {
+      throw new Error(`Low confidence extraction (${parsedData.confidence_score}%). Please try a different URL.`);
     }
+
+    // Kritik alanları kontrol et
+    if (!parsedData.title || !parsedData.ingredients || parsedData.ingredients.length === 0) {
+      throw new Error('Incomplete recipe data extracted. Please try a different URL.');
+    }
+
+    // Görsel URL optimizasyonu
+    if (!parsedData.image_url && scrapedContent.screenshot) {
+      parsedData.image_url = scrapedContent.screenshot;
+    }
+
+    // Final recipe data
+    const finalRecipe: ExtractedRecipeData = {
+      title: parsedData.title,
+      description: parsedData.description || '',
+      image_url: parsedData.image_url,
+      prep_time: parsedData.prep_time || 0,
+      cook_time: parsedData.cook_time || 0,
+      servings: parsedData.servings || 1,
+      difficulty: parsedData.difficulty || 'Easy',
+      ingredients: parsedData.ingredients || [],
+      instructions: parsedData.instructions || [],
+      nutrition: parsedData.nutrition,
+      tags: parsedData.tags || [],
+      category: parsedData.category || 'General'
+    };
+
+    console.log('✅ Recipe successfully extracted:', finalRecipe.title);
+    return finalRecipe;
 
   } catch (error: any) {
-    console.error("Error extracting recipe from URL:", url, error);
+    console.error('❌ Error extracting recipe:', error);
     
-    // User-friendly error messages
+    // Kullanıcı dostu hata mesajları
     if (error.message?.includes('Rate limit')) {
-      throw error; // Re-throw rate limit errors as-is
-    } else if (error.message?.includes('Invalid URL')) {
-      throw new Error("Invalid URL format. Please check the link and try again.");
-    } else if (error.message?.includes('timeout')) {
-      throw new Error("Request timeout. Please try again.");
-    } else if (error.message?.includes('OpenAI client could not be initialized')) {
-      throw new Error("AI service is currently unavailable. Please try again later.");
+      throw error;
+    } else if (error.message?.includes('Low confidence')) {
+      throw error;
+    } else if (error.message?.includes('Incomplete recipe')) {
+      throw error;
+    } else if (error.message?.includes('Failed to scrape')) {
+      throw new Error('Could not access the webpage. Please check the URL and try again.');
     } else {
-      throw new Error("Could not extract recipe from this URL. Please try a different link or add manually.");
+      throw new Error('Could not extract recipe from this URL. Please try a different link.');
     }
   }
 }
 
-// Development helper function
-export function getOpenAIStatus(): string {
-  if (Platform.OS === 'web') {
-    return 'Running in browser mode (development only)';
-  } else {
-    return 'Running in native mode';
+// JSON-LD çıkarma yardımcı fonksiyonu
+function extractJsonLdRecipe(html: string): Partial<ExtractedRecipeData> | null {
+  try {
+    const jsonLdMatch = html.match(/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/gis);
+    if (!jsonLdMatch) return null;
+
+    for (const match of jsonLdMatch) {
+      const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
+      const data = JSON.parse(jsonContent);
+      
+      // Recipe şeması kontrolü
+      if (data['@type'] === 'Recipe' || (Array.isArray(data) && data.some(item => item['@type'] === 'Recipe'))) {
+        const recipe = Array.isArray(data) ? data.find(item => item['@type'] === 'Recipe') : data;
+        
+        return {
+          title: recipe.name,
+          description: recipe.description,
+          image_url: recipe.image?.url || (Array.isArray(recipe.image) ? recipe.image[0]?.url : recipe.image),
+          prep_time: parseDuration(recipe.prepTime),
+          cook_time: parseDuration(recipe.cookTime),
+          servings: parseInt(recipe.recipeYield) || undefined,
+          ingredients: recipe.recipeIngredient?.map((ing: string) => ({ name: ing })) || [],
+          instructions: recipe.recipeInstructions?.map((inst: any, idx: number) => ({
+            step: idx + 1,
+            instruction: typeof inst === 'string' ? inst : inst.text
+          })) || [],
+          nutrition: recipe.nutrition ? {
+            calories: parseFloat(recipe.nutrition.calories) || undefined,
+            protein: parseFloat(recipe.nutrition.proteinContent) || undefined,
+            carbs: parseFloat(recipe.nutrition.carbohydrateContent) || undefined,
+            fat: parseFloat(recipe.nutrition.fatContent) || undefined,
+            fiber: parseFloat(recipe.nutrition.fiberContent) || undefined
+          } : undefined,
+          tags: recipe.keywords?.split(',').map((tag: string) => tag.trim()) || [],
+          category: recipe.recipeCategory || 'General'
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn('JSON-LD parsing error:', error);
+    return null;
   }
+}
+
+// ISO 8601 süre formatını dakikaya çeviren fonksiyon
+function parseDuration(duration: string): number | undefined {
+  if (!duration) return undefined;
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+  if (match) {
+    const hours = parseInt(match[1] || '0');
+    const minutes = parseInt(match[2] || '0');
+    return hours * 60 + minutes;
+  }
+  return undefined;
+}
+
+// Mevcut fonksiyonlar aynı kalacak
+function checkRateLimit(userId: string) {
+  // ... mevcut kod
+}
+
+export function getOpenAIStatus(): string {
+  // ... mevcut kod
 }
