@@ -143,11 +143,11 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
     let selectedModel = contentType === 'text' ? 'gpt-4o-mini' : 'gpt-4o-mini'; // Using 4o-mini for both for now
     
     // System prompt for recipe extraction
-    const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided URL.
+const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided URL.
 
 Parse the webpage content and identify:
 - Recipe title and brief description
-- Image URL (if prominent)
+- **CRITICAL: High-quality image URL of the finished dish. For social media posts (TikTok, Instagram, YouTube), extract the video thumbnail or featured image. Look for og:image, twitter:image, video thumbnails, or main recipe photos.**
 - Prep time and cook time (in minutes)
 - Number of servings
 - Difficulty level ('Easy', 'Medium', or 'Hard')
@@ -157,13 +157,20 @@ Parse the webpage content and identify:
 - Relevant tags (vegetarian, quick, healthy, etc.)
 - Primary category (Breakfast, Lunch, Dinner, Snacks, Desserts)
 
+**IMAGE EXTRACTION PRIORITY:**
+1. Video thumbnail URLs (for TikTok, Instagram Reels, YouTube)
+2. Open Graph images (og:image)
+3. Twitter Card images (twitter:image)
+4. Featured recipe photos
+5. Main content images
+
 **CRITICAL:** Respond ONLY with valid JSON. No markdown, no explanations, just pure JSON.
 
 JSON Schema:
 {
   "title": "string",
   "description": "string (optional)",
-  "image_url": "string (optional)",
+  "image_url": "string (HIGH PRIORITY - extract best available image/thumbnail)",
   "prep_time": "number (optional, minutes)",
   "cook_time": "number (optional, minutes)",
   "servings": "number (optional)",
@@ -174,6 +181,7 @@ JSON Schema:
   "tags": ["string"],
   "category": "string"
 }`;
+
 
     // Make OpenAI API call
     const response = await openai.chat.completions.create({
