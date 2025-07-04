@@ -1,10 +1,10 @@
-// lib/recipeAIService.ts - DÜZELTİLMİŞ SCRAPE.DO URL ENCODING - TAM KOD
+// lib/recipeAIService.ts - DÜZELTİLMİŞ SCRAPE.DO FORMAT - TAM KOD
 import { Platform } from 'react-native';
 
 // Platform-aware OpenAI import
 let openai: any = null;
 
-// Düzeltilmiş Scrape.do Service Class (URL Encoding ile)
+// Düzeltilmiş Scrape.do Service Class (Format parametresi kaldırıldı)
 class ScrapeDoService {
   private apiKey: string;
   private baseUrl = 'https://api.scrape.do';
@@ -14,7 +14,7 @@ class ScrapeDoService {
     if (!this.apiKey) {
       console.warn('⚠️ [SCRAPE.DO] API key bulunamadı!');
     } else {
-      console.log('✅ [SCRAPE.DO] Servis başlatıldı (URL encoding ile).');
+      console.log('✅ [SCRAPE.DO] Servis başlatıldı (format düzeltmesi ile).');
     }
   }
 
@@ -23,34 +23,42 @@ class ScrapeDoService {
     jsRendering?: boolean;
   } = {}): Promise<{
     html: string;
+    screenshot?: string;
+    title?: string;
     success: boolean;
     error?: string;
   }> {
-    console.log('\n🔍 [SCRAPE.DO] ===== SCRAPING BAŞLADI (URL ENCODING İLE) =====');
+    console.log('\n🔍 [SCRAPE.DO] ===== SCRAPING BAŞLADI (DÜZELTİLMİŞ FORMAT) =====');
     console.log('🌐 [SCRAPE.DO] Hedef URL:', url);
+    console.log('📋 [SCRAPE.DO] Seçenekler:', options);
     
     try {
       if (!this.apiKey) {
         throw new Error('Scrape.do API key yapılandırılmamış');
       }
 
-      // ✅ MANUEL URL ENCODING - Scrape.do'nun önerdiği yöntem
-      const encodedUrl = encodeURIComponent(url);
-      console.log('🔐 [SCRAPE.DO] URL encode edildi:', encodedUrl.substring(0, 50) + '...');
-
-      // Manuel query string oluşturma
-      let requestUrl = `${this.baseUrl}/?token=${this.apiKey}&url=${encodedUrl}&super=True&customheaders=false`;
+      // ✅ DÜZELTİLMİŞ URL ENCODING - URLSearchParams kullanarak
+      const params = new URLSearchParams();
+      params.append('token', this.apiKey);
+      params.append('url', url); // URLSearchParams otomatik encode eder
+      params.append('super', 'true');
+      params.append('customheaders', 'false');
 
       // Opsiyonel parametreler
       if (options.jsRendering) {
-        requestUrl += '&render=true';
+        params.append('render', 'true');
       }
       if (options.screenshot) {
-        requestUrl += '&screenshot=true';
+        params.append('screenshot', 'true');
       }
 
-      console.log('📤 [SCRAPE.DO] İstek hazırlandı');
-      console.log('🔑 [SCRAPE.DO] Token kullanılıyor:', this.apiKey.substring(0, 8) + '...');
+      // ❌ 'format' parametresi tamamen kaldırıldı - bu 400 hatasının nedeni
+
+      const requestUrl = `${this.baseUrl}/?${params.toString()}`;
+
+      console.log('📤 [SCRAPE.DO] Düzeltilmiş GET isteği hazırlandı');
+      console.log('🌐 [SCRAPE.DO] Request URL (token gizli):', requestUrl.replace(this.apiKey, 'TOKEN_HIDDEN'));
+      console.log('🔑 [SCRAPE.DO] Token query parametresi kullanılıyor:', this.apiKey.substring(0, 8) + '...');
 
       const startTime = Date.now();
       
@@ -66,45 +74,75 @@ class ScrapeDoService {
       const duration = (endTime - startTime) / 1000;
       
       console.log('📡 [SCRAPE.DO] Yanıt durumu:', response.status);
-      console.log('⏱️ [SCRAPE.DO] Süre:', duration.toFixed(2) + 's');
+      console.log('⏱️ [SCRAPE.DO] İstek süresi:', duration.toFixed(2) + 's');
+
+      // Response headers debug
+      const headers = {
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length'),
+        server: response.headers.get('server')
+      };
+      console.log('📋 [SCRAPE.DO] Response headers:', headers);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ [SCRAPE.DO] Hata:', response.status, response.statusText);
-        console.error('📄 [SCRAPE.DO] Response (ilk 500 karakter):', errorText.substring(0, 500));
-        
-        // Debug URL'i Scrape.do desteği için
-        const debugUrl = requestUrl.replace(this.apiKey, 'YOUR_TOKEN');
-        console.error('🔗 [SCRAPE.DO] Debug URL (desteğe gönderin):', debugUrl);
+        console.error('❌ [SCRAPE.DO] API Hata Detayları (Düzeltilmiş GET Format):');
+        console.error('  📊 Status:', response.status, response.statusText);
+        console.error('  📄 Response Body (ilk 1000 karakter):', errorText.substring(0, 1000));
         
         // Hata türü analizi
         if (response.status === 400) {
-          console.error('⚠️ [SCRAPE.DO] 400 Bad Request: URL encoding düzeltildi, plan veya format sorunu olabilir');
+          console.error('⚠️ [SCRAPE.DO] 400 Bad Request: Format düzeltildi, plan kısıtlaması olabilir');
+          console.error('💡 [SCRAPE.DO] Çözüm önerileri:');
+          console.error('   1. Free plan limitlerini kontrol edin');
+          console.error('   2. URL encoding doğru mu kontrol edin');
+          console.error('   3. API token geçerli mi kontrol edin');
         } else if (response.status === 401) {
           console.error('🔑 [SCRAPE.DO] 401 Unauthorized: API token hatası');
         } else if (response.status === 403) {
           console.error('🚫 [SCRAPE.DO] 403 Forbidden: Site erişimi engelli veya plan kısıtlaması');
+        } else if (response.status === 429) {
+          console.error('⏱️ [SCRAPE.DO] 429 Rate Limit: Çok fazla istek, bekleyin');
         }
+        
+        // Debug URL'i (desteğe gönderilebilir)
+        const debugUrl = requestUrl.replace(this.apiKey, 'YOUR_TOKEN');
+        console.error('🔗 [SCRAPE.DO] Debug URL (desteğe gönderin):', debugUrl);
         
         throw new Error(`Scrape.do API hatası: ${response.status} ${response.statusText}`);
       }
 
-      const htmlContent = await response.text();
+      // Response'u parse etme
+      const contentType = response.headers.get('content-type') || '';
+      let responseData: any;
+
+      if (contentType.includes('application/json')) {
+        console.log('📊 [SCRAPE.DO] JSON response alındı');
+        responseData = await response.json();
+      } else {
+        console.log('📄 [SCRAPE.DO] HTML response alındı');
+        const htmlContent = await response.text();
+        responseData = { html: htmlContent };
+      }
+
+      const htmlContent = responseData.html || responseData;
       
       console.log('✅ [SCRAPE.DO] Başarılı! HTML uzunluğu:', htmlContent.length);
       
       // İçerik kalite kontrolü
       if (htmlContent.length > 1000) {
         const hasJsonLd = htmlContent.includes('application/ld+json');
-        const hasRecipeSchema = htmlContent.includes('"@type":"Recipe"');
+        const hasRecipeSchema = htmlContent.includes('"@type":"Recipe"') || htmlContent.includes("'@type':'Recipe'");
         const hasOpenGraph = htmlContent.includes('og:');
+        const hasImages = htmlContent.includes('<img');
         
-        console.log('🔍 [SCRAPE.DO] İçerik analizi:');
-        console.log('  📊 JSON-LD:', hasJsonLd);
+        console.log('🔍 [SCRAPE.DO] İçerik kalite analizi:');
+        console.log('  📊 JSON-LD mevcut:', hasJsonLd);
         console.log('  🍳 Recipe şeması:', hasRecipeSchema);
-        console.log('  🖼️ Open Graph:', hasOpenGraph);
+        console.log('  🖼️ Open Graph meta:', hasOpenGraph);
+        console.log('  📷 Görseller bulundu:', hasImages);
         
-        // HTML önizleme
+        // HTML önizleme (debug için)
         const htmlPreview = htmlContent.substring(0, 300).replace(/\s+/g, ' ');
         console.log('👀 [SCRAPE.DO] HTML önizleme:', htmlPreview + '...');
       }
@@ -113,11 +151,31 @@ class ScrapeDoService {
       
       return {
         html: htmlContent,
+        screenshot: responseData.screenshot,
+        title: responseData.title || this.extractTitleFromHtml(htmlContent),
         success: true
       };
 
     } catch (error) {
-      console.error('❌ [SCRAPE.DO] Hata:', error);
+      console.error('\n❌ [SCRAPE.DO] ===== SCRAPING BAŞARISIZ =====');
+      console.error('💥 [SCRAPE.DO] Hata detayları:', error);
+      
+      if (error instanceof Error) {
+        console.error('🔍 [SCRAPE.DO] Hata mesajı:', error.message);
+        
+        // Hata türüne göre özel çözüm önerileri
+        if (error.message.includes('400')) {
+          console.error('💡 [SCRAPE.DO] 400 Hatası Çözüm Önerileri:');
+          console.error('   1. Scrape.do dashboard\'da plan durumunu kontrol edin');
+          console.error('   2. API token\'ın geçerli olduğunu doğrulayın');
+          console.error('   3. URL\'nin doğru encode edildiğini kontrol edin');
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          console.error('🌐 [SCRAPE.DO] Ağ hatası tespit edildi - internet bağlantınızı kontrol edin');
+        }
+      }
+      
+      console.error('❌ [SCRAPE.DO] ===== SCRAPING BAŞARISIZ SON =====\n');
+      
       return {
         html: '',
         success: false,
@@ -126,35 +184,68 @@ class ScrapeDoService {
     }
   }
 
+  // HTML'den title çıkarma yardımcı fonksiyonu
+  private extractTitleFromHtml(html: string): string | undefined {
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    return titleMatch ? titleMatch[1].trim() : undefined;
+  }
+
   getOptimalStrategy(url: string): {
     screenshot: boolean;
     jsRendering: boolean;
+    priority: 'speed' | 'quality';
     reasoning: string;
   } {
     const domain = url.toLowerCase();
     
+    // Recipe blogs: Genellikle static content, JSON-LD olasılığı yüksek
     if (domain.includes('allrecipes.com') || domain.includes('food.com') || 
-        domain.includes('foodnetwork.com') || domain.includes('seriouseats.com')) {
+        domain.includes('foodnetwork.com') || domain.includes('seriouseats.com') ||
+        domain.includes('epicurious.com') || domain.includes('tasty.co')) {
       return { 
         screenshot: false, 
         jsRendering: true, 
-        reasoning: 'Recipe blog: JSON-LD olasılığı yüksek, URL encoding ile optimize'
+        priority: 'speed',
+        reasoning: 'Recipe blog: JSON-LD olasılığı yüksek, düzeltilmiş GET formatı ile optimize'
       };
     }
     
-    if (domain.includes('youtube.com') || domain.includes('tiktok.com') || 
-        domain.includes('instagram.com')) {
+    // YouTube: JS rendering yeterli, screenshot video thumbnail için
+    if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
       return { 
         screenshot: true, 
         jsRendering: true, 
-        reasoning: 'Social media: Screenshot + JS rendering gerekli'
+        priority: 'quality',
+        reasoning: 'YouTube: Video metadata için JS rendering, thumbnail için screenshot'
       };
     }
     
+    // TikTok, Instagram: Hem JS hem screenshot gerekli
+    if (domain.includes('tiktok.com') || domain.includes('instagram.com')) {
+      return { 
+        screenshot: true, 
+        jsRendering: true, 
+        priority: 'quality',
+        reasoning: 'Sosyal medya: Tam içerik için hem JS hem screenshot gerekli'
+      };
+    }
+    
+    // Pinterest: Görsel odaklı
+    if (domain.includes('pinterest.com')) {
+      return { 
+        screenshot: true, 
+        jsRendering: true, 
+        priority: 'quality',
+        reasoning: 'Pinterest: Görsel içerik, screenshot önemli'
+      };
+    }
+    
+    // Genel durumlar için orta yol
     return { 
       screenshot: false, 
       jsRendering: true, 
-      reasoning: 'Genel website: URL encoding ile standart işlem'
+      priority: 'speed',
+      reasoning: 'Genel website: Dinamik içerik için JS rendering, maliyet için screenshot yok'
     };
   }
 
@@ -162,9 +253,9 @@ class ScrapeDoService {
   async testConnection(): Promise<{
     success: boolean;
     message: string;
-    debugUrl?: string;
+    details?: any;
   }> {
-    console.log('\n🔧 [SCRAPE.DO] Bağlantı testi (URL encoding ile)...');
+    console.log('\n🔧 [SCRAPE.DO] API bağlantısı test ediliyor (düzeltilmiş format)...');
     
     if (!this.apiKey) {
       return { success: false, message: 'API key yapılandırılmamış' };
@@ -174,23 +265,25 @@ class ScrapeDoService {
       const testUrl = 'https://httpbin.org/html';
       const result = await this.scrapeUrl(testUrl, { screenshot: false, jsRendering: false });
       
-      const debugUrl = `https://api.scrape.do/?token=YOUR_TOKEN&url=${encodeURIComponent(testUrl)}&super=True&customheaders=false`;
-      
       if (result.success) {
         console.log('✅ [SCRAPE.DO] Bağlantı testi başarılı');
         return {
           success: true,
-          message: 'API bağlantısı başarılı (URL encoding ile)',
-          debugUrl: debugUrl
+          message: 'API bağlantısı başarılı (düzeltilmiş format)',
+          details: {
+            htmlLength: result.html.length,
+            title: result.title
+          }
         };
       } else {
+        console.error('❌ [SCRAPE.DO] Bağlantı testi başarısız:', result.error);
         return {
           success: false,
-          message: result.error || 'Bağlantı testi başarısız',
-          debugUrl: debugUrl
+          message: result.error || 'Bağlantı testi başarısız'
         };
       }
     } catch (error) {
+      console.error('❌ [SCRAPE.DO] Bağlantı testi hatası:', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Bilinmeyen hata'
@@ -223,10 +316,15 @@ const initializeOpenAI = async () => {
 
   console.log('🔍 [OPENAI] Environment Variables Debug:');
   console.log('  - EXPO_PUBLIC_OPENAI_API_KEY:', process.env.EXPO_PUBLIC_OPENAI_API_KEY ? 'MEVCUT' : 'YOK');
+  console.log('  - OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'MEVCUT' : 'YOK');
   console.log('  - Final Key:', OPENAI_API_KEY ? OPENAI_API_KEY.substring(0, 8) + '...' : 'BULUNAMADI');
 
   if (!OPENAI_API_KEY) {
     console.error("❌ [OPENAI] API KEY BULUNAMADI!");
+    console.error("💡 [OPENAI] Çözüm adımları:");
+    console.error("   1. .env dosyasında EXPO_PUBLIC_OPENAI_API_KEY=sk-... var mı?");
+    console.error("   2. Metro'yu yeniden başlattınız mı: npx expo start --clear");
+    console.error("   3. Dosya proje kökünde mi?");
     return null;
   }
 
@@ -259,6 +357,7 @@ const initializeOpenAI = async () => {
 
       console.log('🏗️ [OPENAI] Client oluşturuldu, test API çağrısı...');
       
+      // Test API call ile doğrulama
       const testResponse = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: 'Test connection' }],
@@ -277,11 +376,28 @@ const initializeOpenAI = async () => {
     } else {
       console.log('📱 [OPENAI] Native platform için başlatılıyor');
       const OpenAI = (await import('openai')).default;
-      return new OpenAI({ apiKey: OPENAI_API_KEY });
+      return new OpenAI({
+        apiKey: OPENAI_API_KEY,
+      });
     }
     
   } catch (error) {
     console.error('❌ [OPENAI] Client başlatma hatası:', error);
+    
+    if (error instanceof Error) {
+      console.error('💥 [OPENAI] Hata detayı:', error.message);
+      
+      if (error.message.includes('API key')) {
+        console.error('🔑 [OPENAI] API key problemi - OpenAI dashboard kontrol edin');
+      } else if (error.message.includes('billing') || error.message.includes('quota')) {
+        console.error('💳 [OPENAI] Billing/quota hatası - hesabınızda kredi var mı?');
+      } else if (error.message.includes('import') || error.message.includes('modül')) {
+        console.error('📦 [OPENAI] Import hatası - OpenAI paketi kurulu mu?');
+      } else if (error.message.includes('network') || error.message.includes('timeout')) {
+        console.error('🌐 [OPENAI] Network hatası - internet bağlantınızı kontrol edin');
+      }
+    }
+    
     return null;
   }
 };
@@ -310,7 +426,7 @@ export interface ExtractedRecipeData {
   ai_match_score?: number;
 }
 
-// Rate limiting
+// Rate limiting storage
 const rateLimitStore = new Map<string, { count: number; lastRequest: number; dailyCount: number; dailyReset: number }>();
 
 function checkRateLimit(userId: string): { allowed: boolean; waitTime?: number } {
@@ -403,7 +519,7 @@ function parseDuration(duration: string): number | undefined {
   return undefined;
 }
 
-// Main extraction function - DÜZELTİLMİŞ SCRAPE.DO
+// Main extraction function - DÜZELTİLMİŞ SCRAPE.DO FORMAT
 export async function extractRecipeFromUrl(url: string, userId: string): Promise<ExtractedRecipeData | null> {
   try {
     console.log('\n🧪 [RECIPE] ===== "RECIME PLUS" DÜZELTİLMİŞ SCRAPE.DO TARİF ÇIKARIM BAŞLADI =====');
@@ -432,7 +548,7 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
     console.log('📋 [RECIPE] Düzeltilmiş Scrape.do stratejisi:', strategy);
 
     // 🚀 KATMAN 2: Düzeltilmiş Scrape.do ile içerik çekme
-    console.log('🔍 [RECIPE] Düzeltilmiş Scrape.do (URL encoding) ile içerik çekiliyor...');
+    console.log('🔍 [RECIPE] Düzeltilmiş Scrape.do (format düzeltmesi) ile içerik çekiliyor...');
     const scrapedContent = await scrapeDoService.scrapeUrl(url, {
       screenshot: strategy.screenshot,
       jsRendering: strategy.jsRendering
@@ -441,9 +557,19 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
     if (!scrapedContent.success || !scrapedContent.html) {
       console.warn('⚠️ [RECIPE] Düzeltilmiş Scrape.do başarısız, fallback basit fetch...');
       
-      // Fallback: Simple fetch
+      // Fallback: Simple fetch (CORS riski)
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          mode: 'cors',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; AI-Food-Pantry/1.0)'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const html = await response.text();
         scrapedContent.html = html;
         scrapedContent.success = true;
@@ -518,7 +644,8 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
     // AI'a gönderilecek içerik hazırlama
     const contentForAI = `
 URL: ${url}
-Düzeltilmiş Scrape.do ile çekildi (URL encoding ile)
+Page Title: ${scrapedContent.title || 'Not available'}
+${scrapedContent.screenshot ? `Screenshot URL: ${scrapedContent.screenshot}` : ''}
 
 HTML Content:
 ${scrapedContent.html.substring(0, 12000)}
@@ -554,6 +681,11 @@ ${scrapedContent.html.substring(0, 12000)}
     // Kritik alanları kontrol et
     if (!parsedData.title || !parsedData.ingredients || parsedData.ingredients.length === 0) {
       throw new Error('Incomplete recipe data extracted. Please try a different URL.');
+    }
+
+    // Görsel URL optimizasyonu
+    if (!parsedData.image_url && scrapedContent.screenshot) {
+      parsedData.image_url = scrapedContent.screenshot;
     }
 
     // Final recipe data
@@ -610,6 +742,7 @@ export const debugScrapeService = {
     console.log('✅ Yapılandırılmış:', status.configured);
     console.log('🔑 API Key:', status.keyPreview);
     console.log('🌐 Base URL:', status.baseUrl);
+    console.log('🛠️ Format düzeltmesi: format parametresi kaldırıldı');
     
     return status;
   },
@@ -624,6 +757,7 @@ export const debugScrapeService = {
     console.log('\n🎯 [DEBUG] Düzeltilmiş Scrape.do Optimal Strateji:', url);
     console.log('📸 Screenshot:', strategy.screenshot);
     console.log('🔄 JS Rendering:', strategy.jsRendering);
+    console.log('⚡ Öncelik:', strategy.priority);
     console.log('💭 Açıklama:', strategy.reasoning);
     
     return strategy;
