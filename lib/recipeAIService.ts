@@ -1,4 +1,39 @@
-import openai from '@/lib/openai';
+import { Platform } from 'react-native';
+
+// Platform-aware OpenAI import
+let openai: any = null;
+
+// Initialize OpenAI only on supported platforms
+const initializeOpenAI = async () => {
+  if (Platform.OS === 'web') {
+    // For web platform, use dangerouslyAllowBrowser (development only)
+    const OpenAI = (await import('openai')).default;
+    const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY) {
+      console.warn("OPENAI_API_KEY is not set. OpenAI features may not work.");
+      return null;
+    }
+    
+    return new OpenAI({
+      apiKey: OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true, // Only for development/testing
+    });
+  } else {
+    // For native platforms (iOS/Android)
+    const OpenAI = (await import('openai')).default;
+    const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+    
+    if (!OPENAI_API_KEY) {
+      console.warn("OPENAI_API_KEY is not set. OpenAI features may not work.");
+      return null;
+    }
+    
+    return new OpenAI({
+      apiKey: OPENAI_API_KEY,
+    });
+  }
+};
 
 // Extracted recipe data interface
 export interface ExtractedRecipeData {
@@ -79,21 +114,36 @@ function checkRateLimit(userId: string): { allowed: boolean; waitTime?: number }
   return { allowed: true };
 }
 
-// Main extraction function with hybrid model selection
+// Main extraction function with platform-aware initialization
 export async function extractRecipeFromUrl(url: string, userId: string): Promise<ExtractedRecipeData | null> {
-  // Rate limiting check
-  const rateLimitResult = checkRateLimit(userId);
-  if (!rateLimitResult.allowed) {
-    const waitMinutes = Math.ceil((rateLimitResult.waitTime || 0) / 60000);
-    throw new Error(`Rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`);
-  }
+  try {
+    // Initialize OpenAI client if not already done
+    if (!openai) {
+      openai = await initializeOpenAI();
+      if (!openai) {
+        throw new Error('OpenAI client could not be initialized. Please check your API key configuration.');
+      }
+    }
 
-  // Determine optimal model based on URL content type
-  const contentType = analyzeUrlContentType(url);
-  let selectedModel = contentType === 'text' ? 'gpt-4.1-nano' : 'gpt-4o-mini';
-  
-  // System prompt for recipe extraction
-  const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided URL.
+    // Rate limiting check
+    const rateLimitResult = checkRateLimit(userId);
+    if (!rateLimitResult.allowed) {
+      const waitMinutes = Math.ceil((rateLimitResult.waitTime || 0) / 60000);
+      throw new Error(`Rate limit exceeded. Please wait ${waitMinutes} minutes before trying again.`);
+    }
+
+    // Platform-specific handling
+    if (Platform.OS === 'web') {
+      console.warn('⚠️ Running OpenAI in browser environment. This is for development only.');
+      console.warn('⚠️ In production, implement a backend proxy for security.');
+    }
+
+    // Determine optimal model based on URL content type
+    const contentType = analyzeUrlContentType(url);
+    let selectedModel = contentType === 'text' ? 'gpt-4o-mini' : 'gpt-4o-mini'; // Using 4o-mini for both for now
+    
+    // System prompt for recipe extraction
+    const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided URL.
 
 Parse the webpage content and identify:
 - Recipe title and brief description
@@ -125,9 +175,8 @@ JSON Schema:
   "category": "string"
 }`;
 
-  try {
-    // Try with selected model first
-    let response = await openai.chat.completions.create({
+    // Make OpenAI API call
+    const response = await openai.chat.completions.create({
       model: selectedModel,
       messages: [
         { role: "system", content: systemPrompt },
@@ -138,24 +187,8 @@ JSON Schema:
       max_tokens: 2000,
     });
 
-    let rawJson = response.choices[0].message.content;
+    const rawJson = response.choices[0].message.content;
     
-    // If gpt-4.1-nano fails, fallback to gpt-4o-mini
-    if (!rawJson && selectedModel === 'gpt-4.1-nano') {
-      console.log('Falling back to gpt-4o-mini for URL:', url);
-      response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Extract recipe details from this URL: ${url}` }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 2000,
-      });
-      rawJson = response.choices[0].message.content;
-    }
-
     if (!rawJson) {
       console.error("OpenAI returned no content for URL:", url);
       return null;
@@ -192,8 +225,19 @@ JSON Schema:
       throw new Error("Invalid URL format. Please check the link and try again.");
     } else if (error.message?.includes('timeout')) {
       throw new Error("Request timeout. Please try again.");
+    } else if (error.message?.includes('OpenAI client could not be initialized')) {
+      throw new Error("AI service is currently unavailable. Please try again later.");
     } else {
       throw new Error("Could not extract recipe from this URL. Please try a different link or add manually.");
     }
+  }
+}
+
+// Development helper function
+export function getOpenAIStatus(): string {
+  if (Platform.OS === 'web') {
+    return 'Running in browser mode (development only)';
+  } else {
+    return 'Running in native mode';
   }
 }
