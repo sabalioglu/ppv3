@@ -1403,7 +1403,7 @@ export default function Library() {
                     recipe={recipe}
                     viewMode="grid"
                     onPress={() => {
-                      console.log('Recipe detail view coming soon:', recipe.title);
+                      router.push(`/recipe/${recipe.id}`);
                     }}
                     onFavorite={() => handleFavorite(recipe.id)}
                     onEdit={() => {
@@ -1421,7 +1421,7 @@ export default function Library() {
                 recipe={recipe}
                 viewMode="list"
                 onPress={() => {
-                  console.log('Recipe detail view coming soon:', recipe.title);
+                  router.push(`/recipe/${recipe.id}`);
                 }}
                 onFavorite={() => handleFavorite(recipe.id)}
                 onEdit={() => {
