@@ -44,6 +44,9 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
+// **YENİ EKLEME: OpenAI Recipe AI Service Import**
+import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
+
 const { width, height } = Dimensions.get('window');
 
 // **Recipe Interface (Supabase Schema Aligned)**
@@ -238,19 +241,16 @@ const ManualRecipeModal: React.FC<{
       Alert.alert('Error', 'Recipe title is required');
       return;
     }
-
     if (!formData.ingredients.trim()) {
       Alert.alert('Error', 'Ingredients are required');
       return;
     }
-
     if (!formData.instructions.trim()) {
       Alert.alert('Error', 'Instructions are required');
       return;
     }
 
     setLoading(true);
-
     try {
       // Process ingredients (split by line)
       const ingredientsList = formData.ingredients
@@ -322,12 +322,10 @@ const ManualRecipeModal: React.FC<{
             )}
           </TouchableOpacity>
         </View>
-
         <ScrollView style={styles.manualRecipeContent} showsVerticalScrollIndicator={false}>
           {/* Basic Info */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Basic Information</Text>
-            
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Recipe Title *</Text>
               <TextInput
@@ -338,7 +336,6 @@ const ManualRecipeModal: React.FC<{
                 placeholderTextColor={colors.neutral[400]}
               />
             </View>
-
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Description</Text>
               <TextInput
@@ -351,7 +348,6 @@ const ManualRecipeModal: React.FC<{
                 numberOfLines={3}
               />
             </View>
-
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
                 <Text style={styles.formLabel}>Prep Time (min)</Text>
@@ -364,7 +360,6 @@ const ManualRecipeModal: React.FC<{
                   keyboardType="numeric"
                 />
               </View>
-
               <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
                 <Text style={styles.formLabel}>Cook Time (min)</Text>
                 <TextInput
@@ -377,7 +372,6 @@ const ManualRecipeModal: React.FC<{
                 />
               </View>
             </View>
-
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
                 <Text style={styles.formLabel}>Servings</Text>
@@ -390,7 +384,6 @@ const ManualRecipeModal: React.FC<{
                   keyboardType="numeric"
                 />
               </View>
-
               <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
                 <Text style={styles.formLabel}>Difficulty</Text>
                 <View style={styles.pickerContainer}>
@@ -418,7 +411,6 @@ const ManualRecipeModal: React.FC<{
                 </View>
               </View>
             </View>
-
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Category</Text>
               <View style={styles.pickerContainer}>
@@ -446,7 +438,6 @@ const ManualRecipeModal: React.FC<{
               </View>
             </View>
           </View>
-
           {/* Ingredients */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Ingredients *</Text>
@@ -461,7 +452,6 @@ const ManualRecipeModal: React.FC<{
               textAlignVertical="top"
             />
           </View>
-
           {/* Instructions */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Instructions *</Text>
@@ -476,7 +466,6 @@ const ManualRecipeModal: React.FC<{
               textAlignVertical="top"
             />
           </View>
-
           {/* Tags */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Tags</Text>
@@ -532,7 +521,6 @@ const FilterModal: React.FC<{
       acc[key] = 'all';
       return acc;
     }, {} as { [key: string]: string });
-    
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
     onClose();
@@ -551,7 +539,6 @@ const FilterModal: React.FC<{
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
         </View>
-
         {/* Filter Categories */}
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
           {filterCategories.map((category) => (
@@ -570,7 +557,6 @@ const FilterModal: React.FC<{
                   ]}
                 />
               </TouchableOpacity>
-
               {expandedCategories[category.id] && (
                 <View style={styles.filterOptionsContainer}>
                   {category.options.map((option) => {
@@ -603,7 +589,6 @@ const FilterModal: React.FC<{
             </View>
           ))}
         </ScrollView>
-
         {/* Apply Button */}
         <View style={styles.filterModalFooter}>
           <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
@@ -647,7 +632,6 @@ const ImportOptionsModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-
           {/* Import Sources Grid - **FIXED: Reduced gap** */}
           <ScrollView style={styles.importSourcesContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.importSourcesGrid}>
@@ -667,10 +651,9 @@ const ImportOptionsModal: React.FC<{
               ))}
             </View>
           </ScrollView>
-
           {/* Manual Add Option */}
           <View style={styles.manualAddContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.manualAddButton}
               onPress={() => handleSourceSelect('manual')}
             >
@@ -706,7 +689,6 @@ const URLImportModal: React.FC<{
       Alert.alert('Error', 'Please enter a valid URL');
       return;
     }
-
     setLoading(true);
     try {
       await onImport(url.trim());
@@ -742,13 +724,11 @@ const URLImportModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-
           {/* Description */}
           <Text style={styles.urlModalDescription}>
-            Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details, 
+            Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
             including ingredients, instructions, and nutritional information.
           </Text>
-
           {/* URL Input */}
           <View style={styles.urlInputWrapper}>
             <View style={styles.urlInputContainer}>
@@ -771,29 +751,26 @@ const URLImportModal: React.FC<{
               )}
             </View>
           </View>
-
           {/* Example URLs */}
           <View style={styles.exampleUrlsContainer}>
             <Text style={styles.exampleUrlsTitle}>Supported formats:</Text>
             <Text style={styles.exampleUrlsText}>
-              • Recipe posts and videos{'\n'}
-              • Cooking tutorials{'\n'}
-              • Food blog articles{'\n'}
-              • Recipe sharing posts
+              - Recipe posts and videos{'\n'}
+              - Cooking tutorials{'\n'}
+              - Food blog articles{'\n'}
+              - Recipe sharing posts
             </Text>
           </View>
-
           {/* Action Buttons */}
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
               <Text style={styles.urlCancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
-                styles.urlImportButton, 
+                styles.urlImportButton,
                 (!url.trim() || loading) && styles.urlImportButtonDisabled
-              ]} 
+              ]}
               onPress={handleImport}
               disabled={!url.trim() || loading}
             >
@@ -823,13 +800,13 @@ interface RecipeCardProps {
   onDelete: () => void;
 }
 
-const RecipeCard: React.FC<RecipeCardProps> = ({ 
-  recipe, 
-  viewMode, 
-  onPress, 
-  onFavorite, 
-  onEdit, 
-  onDelete 
+const RecipeCard: React.FC<RecipeCardProps> = ({
+  recipe,
+  viewMode,
+  onPress,
+  onFavorite,
+  onEdit,
+  onDelete
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -852,14 +829,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             </View>
           )}
         </View>
-
         <View style={styles.listContent}>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
             <View style={styles.listActions}>
               <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
-                <Heart 
-                  size={16} 
+                <Heart
+                  size={16}
                   color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
                   fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
                 />
@@ -872,11 +848,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-
           <Text style={styles.listDescription} numberOfLines={2}>
             {recipe.description}
           </Text>
-
           <View style={styles.listMeta}>
             <View style={styles.listMetaItem}>
               <Clock size={12} color={colors.neutral[500]} />
@@ -912,7 +886,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             <ChefHat size={32} color={colors.neutral[400]} />
           </View>
         )}
-
         <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
           <Heart
             size={18}
@@ -920,36 +893,30 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
           />
         </TouchableOpacity>
-
         <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
           <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
         </View>
-
         {recipe.is_ai_generated && (
           <View style={styles.aiBadge}>
             <Text style={styles.aiText}>AI</Text>
           </View>
         )}
-
         {recipe.source_url && (
           <View style={styles.sourceBadge}>
             <ExternalLink size={12} color={colors.neutral[0]} />
           </View>
         )}
-
         {recipe.ai_match_score !== undefined && (
           <View style={styles.matchScore}>
             <Text style={styles.matchScoreText}>{recipe.ai_match_score}%</Text>
           </View>
         )}
       </View>
-
       <View style={styles.gridContent}>
         <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
           {recipe.description}
         </Text>
-
         <View style={styles.gridMeta}>
           <View style={styles.gridMetaItem}>
             <Clock size={12} color={colors.neutral[500]} />
@@ -968,7 +935,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             </View>
           )}
         </View>
-
         <View style={styles.gridActions}>
           <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
             <Edit3 size={14} color={colors.primary[500]} />
@@ -996,13 +962,11 @@ const EmptyState: React.FC<{
         <Text style={styles.emptyStateSubtitle}>
           Try adjusting your filters or add new recipes to your collection
         </Text>
-
         <View style={styles.emptyStateActions}>
           <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
             <X size={20} color={colors.primary[500]} />
             <Text style={styles.emptyActionText}>Clear Filters</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
             <Plus size={20} color={colors.neutral[600]} />
             <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
@@ -1019,7 +983,6 @@ const EmptyState: React.FC<{
       <Text style={styles.emptyStateSubtitle}>
         Start collecting your favorite recipes in one place
       </Text>
-
       <View style={styles.emptyStateActions}>
         <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
           <Plus size={20} color={colors.primary[500]} />
@@ -1042,7 +1005,7 @@ export default function Library() {
   const [showManualRecipe, setShowManualRecipe] = useState(false); // **NEW: Manual recipe modal**
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all'); // **NEW: Filter mode for favorites**
-  
+
   // **Enhanced Filter State**
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
@@ -1057,7 +1020,6 @@ export default function Library() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
         return;
@@ -1098,7 +1060,6 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
-
     } catch (error) {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
@@ -1116,10 +1077,10 @@ export default function Library() {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesMealType = filters.meal_type === 'all' || 
+    const matchesMealType = filters.meal_type === 'all' ||
       recipe.category.toLowerCase() === filters.meal_type.toLowerCase();
 
-    const matchesDiet = filters.diet === 'all' || 
+    const matchesDiet = filters.diet === 'all' ||
       recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()));
 
     const totalTime = recipe.prep_time + recipe.cook_time;
@@ -1129,11 +1090,11 @@ export default function Library() {
       (filters.cook_time === 'under_60' && totalTime < 60) ||
       (filters.cook_time === 'over_60' && totalTime >= 60);
 
-    const matchesDifficulty = filters.difficulty === 'all' || 
+    const matchesDifficulty = filters.difficulty === 'all' ||
       recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
 
     // **NEW: Favorites filter**
-    const matchesFavorites = filterMode === 'all' || 
+    const matchesFavorites = filterMode === 'all' ||
       (filterMode === 'favorites' && recipe.is_favorite);
 
     return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty && matchesFavorites;
@@ -1184,17 +1145,14 @@ export default function Library() {
         Alert.alert('Error', 'Please log in to save recipes');
         return;
       }
-
       const { error } = await supabase.from('user_recipes').insert({
         user_id: user.id,
         ...recipeData,
       });
-
       if (error) {
         Alert.alert('Error', 'Failed to save recipe');
         return;
       }
-
       Alert.alert('Success! 📚', 'Recipe added to your library');
       await loadLibraryData(); // Refresh recipes
     } catch (error) {
@@ -1213,20 +1171,16 @@ export default function Library() {
     try {
       const recipe = recipes.find(r => r.id === recipeId);
       if (!recipe) return;
-
       const newFavoriteStatus = !recipe.is_favorite;
-
       const { error } = await supabase
         .from('user_recipes')
         .update({ is_favorite: newFavoriteStatus })
         .eq('id', recipeId);
-
       if (error) {
         Alert.alert('Error', 'Failed to update favorite status');
         return;
       }
-
-      setRecipes(prev => prev.map(r => 
+      setRecipes(prev => prev.map(r =>
         r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
       ));
     } catch (error) {
@@ -1239,7 +1193,6 @@ export default function Library() {
   const handleDelete = async (recipeId: string) => {
     const recipe = recipes.find(r => r.id === recipeId);
     if (!recipe) return;
-
     Alert.alert(
       'Delete Recipe',
       `Are you sure you want to delete "${recipe.title}"? This action cannot be undone.`,
@@ -1254,12 +1207,10 @@ export default function Library() {
                 .from('user_recipes')
                 .delete()
                 .eq('id', recipeId);
-
               if (error) {
                 Alert.alert('Error', 'Failed to delete recipe');
                 return;
               }
-
               setRecipes(prev => prev.filter(r => r.id !== recipeId));
             } catch (error) {
               console.error('Error deleting recipe:', error);
@@ -1271,23 +1222,83 @@ export default function Library() {
     );
   };
 
-  // **URL Import Handler**
+  // **🚀 GÜNCELLENMIŞ: AI-Powered URL Import Handler with Hybrid Model Selection**
   const handleURLImport = async (url: string) => {
     try {
-      const sourceName = importSources.find(s => s.id === selectedImportSource)?.name || 'this platform';
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to save recipes.');
+        return;
+      }
+
+      setLoading(true);
+
+      // URL validation
+      if (!url.trim() || !url.includes('http')) {
+        Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
+        return;
+      }
+
+      // Extract recipe using AI service with hybrid model selection
+      const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
+
+      if (!extractedData) {
+        Alert.alert(
+          'Import Failed', 
+          'Could not extract recipe details from this URL. The page might not contain a recipe or may be inaccessible. Please try another link or add manually.'
+        );
+        return;
+      }
+
+      // Convert extracted data to Supabase recipe format
+      const newRecipe = {
+        user_id: user.id,
+        title: extractedData.title,
+        description: extractedData.description || '',
+        image_url: extractedData.image_url,
+        prep_time: extractedData.prep_time || 0,
+        cook_time: extractedData.cook_time || 0,
+        servings: extractedData.servings || 1,
+        difficulty: extractedData.difficulty || 'Easy',
+        ingredients: extractedData.ingredients || [],
+        instructions: extractedData.instructions || [],
+        nutrition: extractedData.nutrition,
+        tags: extractedData.tags || [],
+        category: extractedData.category || 'General',
+        is_favorite: false,
+        is_ai_generated: true,
+        source_url: url.trim(),
+      };
+
+      // Save to Supabase
+      const { error } = await supabase.from('user_recipes').insert(newRecipe);
+
+      if (error) {
+        console.error('Error saving AI extracted recipe:', error);
+        Alert.alert('Save Error', 'Failed to save the imported recipe. Please try again.');
+        return;
+      }
+
+      // Success feedback
       Alert.alert(
-        'Coming Soon! 🚀',
-        `URL import from ${sourceName} with AI extraction will be implemented in the next update. This feature will automatically extract recipe details from any ${sourceName} link.`,
-        [{ text: 'Got it!' }]
+        'Success! 🎉', 
+        `"${newRecipe.title}" has been successfully imported to your library!`,
+        [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
       );
+
+      // Refresh recipe list
+      await loadLibraryData();
+
+    } catch (error: any) {
+      console.error('URL import process error:', error);
       
-      console.log('URL Import requested for future implementation:', {
-        source: selectedImportSource,
-        url: url
-      });
-    } catch (error) {
-      console.error('URL import error:', error);
-      Alert.alert('Error', 'Failed to import recipe from URL');
+      if (error.message?.includes('Rate limit')) {
+        Alert.alert('Rate Limit', error.message);
+      } else {
+        Alert.alert('Import Error', error.message || 'An unexpected error occurred. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1307,17 +1318,15 @@ export default function Library() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
-        
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>My Recipe Library</Text>
           <Text style={styles.headerSubtitle}>
-            {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} 
+            {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''}
             {hasActiveFilters ? ' filtered' : ' in your collection'}
           </Text>
         </View>
-
-        <TouchableOpacity 
-          style={styles.viewToggleButton} 
+        <TouchableOpacity
+          style={styles.viewToggleButton}
           onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
         >
           {viewMode === 'grid' ? (
@@ -1327,7 +1336,6 @@ export default function Library() {
           )}
         </TouchableOpacity>
       </View>
-
       {/* Search and Controls */}
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
@@ -1340,8 +1348,7 @@ export default function Library() {
             placeholderTextColor={colors.neutral[400]}
           />
         </View>
-
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
           onPress={() => setShowFilters(true)}
         >
@@ -1349,26 +1356,24 @@ export default function Library() {
           {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
-
       {/* **UPDATED: Add Recipe Actions - Add Recipe + Favorites** */}
       <View style={styles.addActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addActionButton}
           onPress={() => setShowImportOptions(true)}
         >
           <Plus size={18} color={colors.primary[500]} />
           <Text style={styles.addActionText}>Add Recipe</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.addActionButtonSecondary,
             filterMode === 'favorites' && styles.addActionButtonSecondaryActive
           ]}
           onPress={handleFavoritesFilter}
         >
-          <Heart 
-            size={18} 
+          <Heart
+            size={18}
             color={filterMode === 'favorites' ? colors.error[500] : colors.neutral[600]}
             fill={filterMode === 'favorites' ? colors.error[500] : 'transparent'}
           />
@@ -1380,7 +1385,6 @@ export default function Library() {
           </Text>
         </TouchableOpacity>
       </View>
-
       {/* Recipes List */}
       <ScrollView
         style={styles.recipesContainer}
@@ -1435,21 +1439,18 @@ export default function Library() {
           />
         )}
       </ScrollView>
-
       {/* **NEW: Manual Recipe Modal** */}
       <ManualRecipeModal
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
         onSave={handleManualRecipeSave}
       />
-
       {/* Enhanced Import Options Modal */}
       <ImportOptionsModal
         visible={showImportOptions}
         onClose={() => setShowImportOptions(false)}
         onSelectSource={handleImportSourceSelect}
       />
-
       {/* Enhanced Filter Modal */}
       <FilterModal
         visible={showFilters}
@@ -1458,7 +1459,6 @@ export default function Library() {
         onFiltersChange={setFilters}
         recipeCount={filteredRecipes.length}
       />
-
       {/* Enhanced URL Import Modal */}
       <URLImportModal
         visible={showURLImport}
@@ -1466,9 +1466,8 @@ export default function Library() {
         onImport={handleURLImport}
         selectedSource={selectedImportSource}
       />
-
       {/* Floating Add Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.floatingAddButton}
         onPress={() => setShowImportOptions(true)}
       >
@@ -1646,7 +1645,6 @@ const styles = StyleSheet.create({
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.sm) / 2, // **FIXED: Adjusted for smaller gap**
   },
-  
   // **Enhanced Import Options Modal Styles**
   importModalOverlay: {
     flex: 1,
@@ -1762,7 +1760,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[600],
   },
-
   // **NEW: Manual Recipe Modal Styles**
   manualRecipeContainer: {
     flex: 1,
@@ -1860,7 +1857,6 @@ const styles = StyleSheet.create({
   pickerOptionTextSelected: {
     color: colors.neutral[0],
   },
-  
   // **Enhanced Filter Modal Styles**
   filterModalContainer: {
     flex: 1,
@@ -1957,7 +1953,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-
   // **Enhanced URL Import Modal Styles**
   urlModalOverlay: {
     flex: 1,
@@ -2097,7 +2092,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-
   // **Recipe Card Styles (existing implementation with SF Pro)**
   gridCard: {
     backgroundColor: colors.neutral[0],
