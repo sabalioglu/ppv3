@@ -8,9 +8,9 @@ import {
   TextInput,
   Image,
   Dimensions,
-  Platform,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import {
   Search,
@@ -22,53 +22,16 @@ import {
   Flame,
   Heart,
   Plus,
+  TrendingUp,
   Calendar,
-  BookOpen,
-  PlusCircle,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// **Device-Specific Responsive Configuration**
-const getDeviceConfig = () => {
-  const isSmallDevice = width < 380;
-  const isMediumDevice = width >= 380 && width < 430;
-  const isLargeDevice = width >= 430;
-
-  if (isSmallDevice) {
-    return {
-      iconSize: 18,
-      fontSize: 11,
-      padding: spacing.sm,
-      gap: spacing.xs,
-      useShortLabels: true,
-      minHeight: 60,
-    };
-  } else if (isMediumDevice) {
-    return {
-      iconSize: 20,
-      fontSize: 12,
-      padding: spacing.md,
-      gap: spacing.sm,
-      useShortLabels: false,
-      minHeight: 70,
-    };
-  } else {
-    return {
-      iconSize: 22,
-      fontSize: 13,
-      padding: spacing.md,
-      gap: spacing.sm,
-      useShortLabels: false,
-      minHeight: 75,
-    };
-  }
-};
-
-// **Real Recipe Type (Supabase Schema Aligned)**
+// Recipe interface (aligned with Supabase schema)
 interface Recipe {
   id: string;
   title: string;
@@ -91,68 +54,15 @@ interface Recipe {
   category: string;
   is_favorite: boolean;
   is_ai_generated: boolean;
-  ai_match_score?: number;
   source_url?: string;
+  ai_match_score?: number;
   created_at: string;
   updated_at: string;
 }
 
-// **Smart Quick Actions Configuration**
-const quickActions = [
-  {
-    id: 'ai_suggest',
-    icon: ChefHat,
-    label: 'AI Suggest',
-    shortLabel: 'AI',
-    color: colors.secondary[500],
-  },
-  {
-    id: 'meal_plan',
-    icon: Calendar,
-    label: 'Meal Plan',
-    shortLabel: 'Plan',
-    color: colors.accent[500],
-  },
-  {
-    id: 'favorites',
-    icon: Heart,
-    label: 'Favorites',
-    shortLabel: 'Fav',
-    color: colors.error[500],
-  },
-  {
-    id: 'library',
-    icon: BookOpen,
-    label: 'My Library',
-    shortLabel: 'Library',
-    color: colors.primary[500],
-  }
-];
-
-// **Enhanced Quick Actions Handler**
-const handleQuickAction = (actionId: string, setFilterMode: (mode: string) => void) => {
-  switch (actionId) {
-    case 'ai_suggest':
-      console.log('🤖 AI Suggest activated - smart pantry matching');
-      // Future: AI-powered recipe recommendations
-      Alert.alert('AI Suggest', 'Smart recipe recommendations coming soon!');
-      break;
-    case 'meal_plan':
-      console.log('📅 Meal Plan opened - weekly planning');
-      Alert.alert('Meal Plan', 'Meal planning feature coming soon!');
-      break;
-    case 'favorites':
-      console.log('❤️ Favorites filtered - show favorite recipes');
-      setFilterMode('favorites');
-      break;
-    case 'library':
-      console.log('📚 My Library opened - personal collection');
-      router.push('/library');
-      break;
-    default:
-      console.log('Unknown action:', actionId);
-  }
-};
+const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'];
+const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
+const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -170,17 +80,33 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
     }
   };
 
-  // **Smart Pantry Availability (Future: Real Calculation)**
-  const availableCount = recipe.ai_match_score ? Math.floor((recipe.ai_match_score / 100) * recipe.ingredients.length) : 0;
-  const totalCount = recipe.ingredients.length;
-
-  const getAvailabilityColor = (available: number, total: number) => {
-    if (total === 0) return colors.neutral[500];
-    const percentage = (available / total) * 100;
-    if (percentage === 100) return colors.success[500];
-    if (percentage >= 75) return colors.warning[500];
-    return colors.error[500];
+  const calculateNutritionScore = (nutrition?: Recipe['nutrition']) => {
+    if (!nutrition) return 85; // Default score
+    
+    // Simple scoring based on balanced nutrition
+    const { calories = 0, protein = 0, carbs = 0, fat = 0 } = nutrition;
+    let score = 70;
+    
+    // Protein bonus
+    if (protein > 15) score += 10;
+    if (protein > 25) score += 5;
+    
+    // Reasonable calorie range
+    if (calories >= 200 && calories <= 600) score += 10;
+    
+    // Balanced macros
+    const totalMacros = protein + carbs + fat;
+    if (totalMacros > 0) {
+      const proteinRatio = protein / totalMacros;
+      if (proteinRatio >= 0.2) score += 5;
+    }
+    
+    return Math.min(score, 100);
   };
+
+  const nutritionScore = calculateNutritionScore(recipe.nutrition);
+  const totalTime = recipe.prep_time + recipe.cook_time;
+  const totalIngredients = recipe.ingredients.length;
 
   return (
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
@@ -188,9 +114,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
         {recipe.image_url ? (
           <Image source={{ uri: recipe.image_url }} style={styles.recipeImage} />
         ) : (
-          <View style={styles.placeholderImage}>
+          <View style={styles.recipeImagePlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
-            <Text style={styles.placeholderText}>No Image</Text>
           </View>
         )}
         
@@ -215,23 +140,21 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
           </View>
         )}
         
-        {/* Match Score */}
-        {recipe.ai_match_score !== undefined && (
-          <View style={styles.matchScore}>
-            <Text style={styles.matchScoreText}>{recipe.ai_match_score}%</Text>
-          </View>
-        )}
+        {/* Nutrition Score */}
+        <View style={styles.nutritionScore}>
+          <Text style={styles.nutritionScoreText}>{nutritionScore}</Text>
+        </View>
       </View>
-
+      
       <View style={styles.recipeContent}>
         <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
         <Text style={styles.recipeDescription} numberOfLines={2}>{recipe.description}</Text>
-
+        
         {/* Recipe Meta */}
         <View style={styles.recipeMeta}>
           <View style={styles.metaItem}>
             <Clock size={14} color={colors.neutral[500]} />
-            <Text style={styles.metaText}>{recipe.prep_time + recipe.cook_time}m</Text>
+            <Text style={styles.metaText}>{totalTime}m</Text>
           </View>
           <View style={styles.metaItem}>
             <Users size={14} color={colors.neutral[500]} />
@@ -244,105 +167,98 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
             </View>
           )}
         </View>
-
+        
         {/* Nutrition Info */}
-        {recipe.nutrition && (
-          <View style={styles.nutritionInfo}>
-            {recipe.nutrition.protein !== undefined && (
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{Math.round(recipe.nutrition.protein)}g</Text>
-                <Text style={styles.nutritionLabel}>Protein</Text>
-              </View>
-            )}
-            {recipe.nutrition.carbs !== undefined && (
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{Math.round(recipe.nutrition.carbs)}g</Text>
-                <Text style={styles.nutritionLabel}>Carbs</Text>
-              </View>
-            )}
-            {recipe.nutrition.fat !== undefined && (
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{Math.round(recipe.nutrition.fat)}g</Text>
-                <Text style={styles.nutritionLabel}>Fat</Text>
-              </View>
-            )}
+        <View style={styles.nutritionInfo}>
+          <View style={styles.nutritionItem}>
+            <Text style={styles.nutritionValue}>{recipe.nutrition?.protein || 0}g</Text>
+            <Text style={styles.nutritionLabel}>Protein</Text>
           </View>
-        )}
-
+          <View style={styles.nutritionItem}>
+            <Text style={styles.nutritionValue}>{recipe.nutrition?.carbs || 0}g</Text>
+            <Text style={styles.nutritionLabel}>Carbs</Text>
+          </View>
+          <View style={styles.nutritionItem}>
+            <Text style={styles.nutritionValue}>{recipe.nutrition?.fat || 0}g</Text>
+            <Text style={styles.nutritionLabel}>Fat</Text>
+          </View>
+        </View>
+        
         {/* Ingredient Availability */}
         <View style={styles.ingredientAvailability}>
           <View style={styles.availabilityIndicator}>
-            <View
-              style={[
-                styles.availabilityBar,
-                { backgroundColor: getAvailabilityColor(availableCount, totalCount) }
-              ]}
-            />
+            <View style={[styles.availabilityBar, { backgroundColor: colors.success[500] }]} />
             <Text style={styles.availabilityText}>
-              {availableCount}/{totalCount} ingredients available
+              {totalIngredients} ingredients
             </Text>
           </View>
         </View>
-
+        
         {/* Tags */}
-        {recipe.tags && recipe.tags.length > 0 && (
-          <View style={styles.recipeTags}>
-            {recipe.tags.slice(0, 2).map((tag, index) => (
-              <View key={index} style={styles.recipeTag}>
-                <Text style={styles.recipeTagText}>{tag}</Text>
-              </View>
-            ))}
-            {recipe.tags.length > 2 && (
-              <Text style={styles.moreTagsText}>+{recipe.tags.length - 2}</Text>
-            )}
-          </View>
-        )}
+        <View style={styles.recipeTags}>
+          {recipe.tags.slice(0, 2).map((tag, index) => (
+            <View key={index} style={styles.recipeTag}>
+              <Text style={styles.recipeTagText}>{tag}</Text>
+            </View>
+          ))}
+          {recipe.tags.length > 2 && (
+            <Text style={styles.moreTagsText}>+{recipe.tags.length - 2}</Text>
+          )}
+        </View>
+        
+        {/* Rating (based on AI match score or default) */}
+        <View style={styles.recipeRating}>
+          <Star size={14} color={colors.secondary[500]} fill={colors.secondary[500]} />
+          <Text style={styles.ratingText}>
+            {recipe.ai_match_score ? (recipe.ai_match_score / 20).toFixed(1) : '4.5'}
+          </Text>
+          <Text style={styles.reviewsText}>
+            ({recipe.is_ai_generated ? 'AI Generated' : 'Manual'})
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 };
 
-// **Smart Empty State Component**
-const EmptyState = ({ filterMode, onAddRecipe }: { filterMode: string; onAddRecipe: () => void }) => {
-  const getEmptyStateContent = () => {
-    switch (filterMode) {
-      case 'favorites':
-        return {
-          title: 'No Favorite Recipes',
-          subtitle: 'Heart recipes you love to see them here',
-          icon: Heart,
-          color: colors.error[500],
-        };
-      default:
-        return {
-          title: 'No Recipes Found',
-          subtitle: 'Start building your recipe collection',
-          icon: ChefHat,
-          color: colors.primary[500],
-        };
-    }
-  };
-
-  const content = getEmptyStateContent();
+// Empty State Component
+const EmptyState: React.FC<{
+  hasFilters: boolean;
+  onAddRecipe: () => void;
+  onClearFilters: () => void;
+}> = ({ hasFilters, onAddRecipe, onClearFilters }) => {
+  if (hasFilters) {
+    return (
+      <View style={styles.emptyStateContainer}>
+        <Filter size={64} color={colors.neutral[400]} />
+        <Text style={styles.emptyStateTitle}>No Recipes Found</Text>
+        <Text style={styles.emptyStateSubtitle}>
+          Try adjusting your filters or add new recipes to your collection
+        </Text>
+        <View style={styles.emptyStateActions}>
+          <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
+            <Text style={styles.emptyActionText}>Clear Filters</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
+            <Plus size={20} color={colors.neutral[600]} />
+            <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.emptyStateContainer}>
-      <content.icon size={64} color={content.color} />
-      <Text style={styles.emptyStateTitle}>{content.title}</Text>
-      <Text style={styles.emptyStateSubtitle}>{content.subtitle}</Text>
-      
+      <ChefHat size={64} color={colors.primary[500]} />
+      <Text style={styles.emptyStateTitle}>Start Your Recipe Collection</Text>
+      <Text style={styles.emptyStateSubtitle}>
+        Discover and save recipes that match your taste and pantry
+      </Text>
       <View style={styles.emptyStateActions}>
         <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
-          <PlusCircle size={20} color={colors.primary[500]} />
-          <Text style={styles.emptyActionText}>Add Recipe</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.emptyActionButton, styles.secondaryButton]} 
-          onPress={() => router.push('/library')}
-        >
-          <BookOpen size={20} color={colors.neutral[600]} />
-          <Text style={[styles.emptyActionText, styles.secondaryText]}>My Library</Text>
+          <Plus size={20} color={colors.primary[500]} />
+          <Text style={styles.emptyActionText}>Browse Library</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -350,69 +266,64 @@ const EmptyState = ({ filterMode, onAddRecipe }: { filterMode: string; onAddReci
 };
 
 export default function Recipes() {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDiet, setSelectedDiet] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterMode, setFilterMode] = useState('all'); // 'all', 'favorites'
 
-  const deviceConfig = getDeviceConfig();
-
-  const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
-  const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
-
-  // **Load Recipes from Supabase**
+  // Load recipes from Supabase
   const loadRecipes = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        setRecipes([]);
-        setLoading(false);
+        Alert.alert('Authentication Required', 'Please log in to view recipes.');
         return;
       }
 
-      const { data, error } = await supabase
+      const { data: recipesData, error } = await supabase
         .from('user_recipes')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching recipes:', error);
+        console.error('Error loading recipes:', error);
         Alert.alert('Error', 'Failed to load recipes');
-        setRecipes([]);
-      } else {
-        const formattedRecipes: Recipe[] = (data || []).map(dbRecipe => ({
-          id: dbRecipe.id,
-          title: dbRecipe.title,
-          description: dbRecipe.description || '',
-          image_url: dbRecipe.image_url,
-          prep_time: dbRecipe.prep_time || 0,
-          cook_time: dbRecipe.cook_time || 0,
-          servings: dbRecipe.servings || 1,
-          difficulty: dbRecipe.difficulty || 'Easy',
-          ingredients: dbRecipe.ingredients || [],
-          instructions: dbRecipe.instructions || [],
-          nutrition: dbRecipe.nutrition,
-          tags: dbRecipe.tags || [],
-          category: dbRecipe.category || 'General',
-          is_favorite: dbRecipe.is_favorite || false,
-          is_ai_generated: dbRecipe.is_ai_generated || false,
-          ai_match_score: dbRecipe.ai_match_score,
-          source_url: dbRecipe.source_url,
-          created_at: dbRecipe.created_at,
-          updated_at: dbRecipe.updated_at,
-        }));
-        setRecipes(formattedRecipes);
+        return;
       }
+
+      // Format recipes (aligned with Supabase schema)
+      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+        id: dbRecipe.id,
+        title: dbRecipe.title,
+        description: dbRecipe.description || '',
+        image_url: dbRecipe.image_url,
+        prep_time: dbRecipe.prep_time || 0,
+        cook_time: dbRecipe.cook_time || 0,
+        servings: dbRecipe.servings || 1,
+        difficulty: dbRecipe.difficulty || 'Easy',
+        ingredients: dbRecipe.ingredients || [],
+        instructions: dbRecipe.instructions || [],
+        nutrition: dbRecipe.nutrition,
+        tags: dbRecipe.tags || [],
+        category: dbRecipe.category || 'General',
+        is_favorite: dbRecipe.is_favorite || false,
+        is_ai_generated: dbRecipe.is_ai_generated || false,
+        source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
+        created_at: dbRecipe.created_at,
+        updated_at: dbRecipe.updated_at,
+      }));
+
+      setRecipes(formattedRecipes);
     } catch (error) {
       console.error('Error loading recipes:', error);
       Alert.alert('Error', 'Failed to load recipes');
-      setRecipes([]);
     } finally {
       setLoading(false);
     }
@@ -422,18 +333,41 @@ export default function Recipes() {
     loadRecipes();
   }, []);
 
-  // **Filter Recipes**
+  // Filter recipes based on search and filters
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDiet = selectedDiet === 'All' || recipe.tags.includes(selectedDiet);
-    const matchesDifficulty = selectedDifficulty === 'All' || recipe.difficulty === selectedDifficulty;
-    const matchesFilter = filterMode === 'all' || (filterMode === 'favorites' && recipe.is_favorite);
+    
+    const matchesCategory = selectedCategory === 'All' || 
+      recipe.category.toLowerCase() === selectedCategory.toLowerCase();
+    
+    const matchesDiet = selectedDiet === 'All' || 
+      recipe.tags.some(tag => tag.toLowerCase().includes(selectedDiet.toLowerCase()));
+    
+    const matchesDifficulty = selectedDifficulty === 'All' || 
+      recipe.difficulty === selectedDifficulty;
 
-    return matchesSearch && matchesDiet && matchesDifficulty && matchesFilter;
+    return matchesSearch && matchesCategory && matchesDiet && matchesDifficulty;
   });
 
-  // **Toggle Favorite**
+  // Check if any filters are active
+  const hasActiveFilters = selectedCategory !== 'All' || selectedDiet !== 'All' || selectedDifficulty !== 'All';
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSelectedCategory('All');
+    setSelectedDiet('All');
+    setSelectedDifficulty('All');
+    setShowFilters(false);
+  };
+
+  // Handle recipe press - FIXED NAVIGATION
+  const handleRecipePress = (recipeId: string) => {
+    console.log('Recipe pressed:', recipeId);
+    router.push(`/recipe/${recipeId}`);
+  };
+
+  // Handle favorite toggle
   const handleFavorite = async (recipeId: string) => {
     try {
       const recipe = recipes.find(r => r.id === recipeId);
@@ -451,8 +385,7 @@ export default function Recipes() {
         return;
       }
 
-      // Update local state
-      setRecipes(prev => prev.map(r => 
+      setRecipes(prev => prev.map(r =>
         r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
       ));
     } catch (error) {
@@ -461,7 +394,7 @@ export default function Recipes() {
     }
   };
 
-  // **Add Recipe Handler**
+  // Handle add recipe (navigate to library)
   const handleAddRecipe = () => {
     router.push('/library');
   };
@@ -470,7 +403,7 @@ export default function Recipes() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading recipes...</Text>
+        <Text style={styles.loadingText}>Loading your recipes...</Text>
       </View>
     );
   }
@@ -481,8 +414,7 @@ export default function Recipes() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recipe Discovery</Text>
         <Text style={styles.headerSubtitle}>
-          {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} 
-          {filterMode === 'favorites' ? ' in favorites' : ' match your pantry'}
+          {filteredRecipes.length} recipes in your collection
         </Text>
       </View>
 
@@ -499,10 +431,11 @@ export default function Recipes() {
           />
         </View>
         <TouchableOpacity
-          style={styles.filterButton}
+          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Filter size={20} color={colors.primary[500]} />
+          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
+          {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
 
@@ -514,6 +447,31 @@ export default function Recipes() {
           style={styles.filtersContainer}
           contentContainerStyle={styles.filtersContent}
         >
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Category:</Text>
+            <View style={styles.filterChips}>
+              {categories.map(category => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.filterChip,
+                    selectedCategory === category && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedCategory === category && styles.filterChipTextActive
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           <View style={styles.filterSection}>
             <Text style={styles.filterLabel}>Diet:</Text>
             <View style={styles.filterChips}>
@@ -567,41 +525,46 @@ export default function Recipes() {
       )}
 
       {/* Quick Actions */}
-      <View style={[styles.quickActions, { gap: deviceConfig.gap }]}>
-        {quickActions.map((action) => (
-          <TouchableOpacity
-            key={action.id}
-            style={[
-              styles.quickAction,
-              {
-                padding: deviceConfig.padding,
-                minHeight: deviceConfig.minHeight,
-              },
-              filterMode === action.id && styles.quickActionActive
-            ]}
-            onPress={() => handleQuickAction(action.id, setFilterMode)}
-            activeOpacity={0.7}
-          >
-            <action.icon size={deviceConfig.iconSize} color={action.color} />
-            <Text
-              style={[
-                styles.quickActionText,
-                {
-                  fontSize: deviceConfig.fontSize,
-                  lineHeight: deviceConfig.fontSize * 1.3,
-                }
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit={true}
-              minimumFontScale={0.75}
-            >
-              {deviceConfig.useShortLabels ? action.shortLabel : action.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.quickActions}>
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Sort by most recent
+          const sortedRecipes = [...recipes].sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setRecipes(sortedRecipes);
+        }}>
+          <TrendingUp size={20} color={colors.primary[500]} />
+          <Text style={styles.quickActionText}>Recent</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Show AI generated recipes
+          setSelectedDiet('All');
+          setSelectedCategory('All');
+          setSelectedDifficulty('All');
+        }}>
+          <ChefHat size={20} color={colors.secondary[500]} />
+          <Text style={styles.quickActionText}>AI Recipes</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
+          <Calendar size={20} color={colors.accent[500]} />
+          <Text style={styles.quickActionText}>Library</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Show only favorites
+          const favoriteRecipes = recipes.filter(r => r.is_favorite);
+          if (favoriteRecipes.length === 0) {
+            Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
+          }
+        }}>
+          <Heart size={20} color={colors.error[500]} />
+          <Text style={styles.quickActionText}>Favorites</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Recipes List or Empty State */}
+      {/* Recipes List */}
       <ScrollView
         style={styles.recipesContainer}
         showsVerticalScrollIndicator={false}
@@ -612,12 +575,16 @@ export default function Recipes() {
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
-              onPress={() => console.log('Recipe pressed:', recipe.title)}
+              onPress={() => handleRecipePress(recipe.id)}
               onFavorite={() => handleFavorite(recipe.id)}
             />
           ))
         ) : (
-          <EmptyState filterMode={filterMode} onAddRecipe={handleAddRecipe} />
+          <EmptyState
+            hasFilters={hasActiveFilters}
+            onAddRecipe={handleAddRecipe}
+            onClearFilters={clearAllFilters}
+          />
         )}
       </ScrollView>
 
@@ -642,7 +609,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     marginTop: spacing.md,
   },
@@ -656,13 +623,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: typography.fontSize['3xl'],
-    fontFamily: 'Poppins-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
   },
   controls: {
@@ -686,16 +653,29 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[800],
   },
   filterButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: colors.primary[50],
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary[50],
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary[500],
   },
   filtersContainer: {
     backgroundColor: colors.neutral[0],
@@ -711,7 +691,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
@@ -730,7 +710,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
   },
   filterChipTextActive: {
@@ -740,29 +720,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    gap: spacing.md,
   },
   quickAction: {
     flex: 1,
     backgroundColor: colors.neutral[0],
     borderRadius: 12,
+    padding: spacing.md,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.xs,
     ...shadows.sm,
-    marginHorizontal: 2,
-  },
-  quickActionActive: {
-    backgroundColor: colors.primary[50],
-    borderWidth: 1,
-    borderColor: colors.primary[200],
   },
   quickActionText: {
-    fontFamily: 'Inter-Medium',
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
-    textAlign: 'center',
-    marginTop: 4,
   },
   recipesContainer: {
     flex: 1,
@@ -780,24 +752,17 @@ const styles = StyleSheet.create({
   recipeImageContainer: {
     position: 'relative',
     height: 200,
-    backgroundColor: colors.neutral[100],
   },
   recipeImage: {
     width: '100%',
     height: '100%',
   },
-  placeholderImage: {
+  recipeImagePlaceholder: {
     width: '100%',
     height: '100%',
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-  },
-  placeholderText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
-    color: colors.neutral[400],
-    marginTop: spacing.xs,
   },
   favoriteButton: {
     position: 'absolute',
@@ -820,7 +785,7 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     color: colors.neutral[0],
   },
   aiBadge: {
@@ -834,10 +799,10 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontSize: 10,
-    fontFamily: 'Inter-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     color: colors.neutral[0],
   },
-  matchScore: {
+  nutritionScore: {
     position: 'absolute',
     bottom: spacing.md,
     right: spacing.md,
@@ -848,9 +813,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  matchScoreText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Bold',
+  nutritionScoreText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
     color: colors.neutral[0],
   },
   recipeContent: {
@@ -858,13 +823,13 @@ const styles = StyleSheet.create({
   },
   recipeTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   recipeDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
     lineHeight: typography.lineHeight.normal * typography.fontSize.sm,
     marginBottom: spacing.md,
@@ -882,7 +847,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
   },
   nutritionInfo: {
@@ -898,12 +863,12 @@ const styles = StyleSheet.create({
   },
   nutritionValue: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Poppins-Bold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Poppins-Bold',
     color: colors.neutral[800],
   },
   nutritionLabel: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
   },
   ingredientAvailability: {
@@ -921,7 +886,7 @@ const styles = StyleSheet.create({
   },
   availabilityText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
   },
   recipeTags: {
@@ -938,12 +903,27 @@ const styles = StyleSheet.create({
   },
   recipeTagText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.primary[600],
   },
   moreTagsText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: 'Inter-Medium',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[500],
+  },
+  recipeRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  ratingText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    color: colors.neutral[700],
+  },
+  reviewsText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
   },
   emptyStateContainer: {
@@ -953,14 +933,15 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     color: colors.neutral[700],
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-Regular',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -978,15 +959,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
-  secondaryButton: {
+  emptyActionButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   emptyActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     color: colors.primary[600],
   },
-  secondaryText: {
+  emptyActionTextSecondary: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     color: colors.neutral[600],
   },
   addButton: {
