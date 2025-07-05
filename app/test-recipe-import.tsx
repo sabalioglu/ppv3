@@ -1,444 +1,197 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   ScrollView,
   Alert,
-  Platform,
-  StyleSheet
+  ActivityIndicator
 } from 'react-native';
 import { extractRecipeFromUrl } from '@/lib/recipeAIService';
 import { debugScrapeService } from '@/lib/scrapeService';
 import { colors, spacing, typography } from '@/lib/theme';
-import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { ArrowLeft, TestTube, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
 
-interface TestResult {
-  success: boolean;
-  title?: string;
-  imageUrl?: string;
-  ingredientCount?: number;
-  instructionCount?: number;
-  executionTime?: number;
-  error?: string;
-  isAiGenerated?: boolean;
-}
-
-export default function TestScraping() {
-  const [url, setUrl] = useState('https://www.allrecipes.com/recipe/92462/slow-cooker-texas-pulled-pork/');
+export default function TestRecipeImport() {
+  const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TestResult | null>(null);
-  const [apiStatus, setApiStatus] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
-  // API durumu kontrolü
-  const checkApiStatus = () => {
-    console.log('\n🔍 [TEST] API durumu kontrol ediliyor...');
-    
-    const openaiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    const scrapeDoKey = process.env.EXPO_PUBLIC_SCRAPE_DO_API_KEY;
-    
-    console.log('🔑 [TEST] OpenAI Key:', openaiKey ? openaiKey.substring(0, 8) + '...' : 'YOK!');
-    console.log('🔑 [TEST] Scrape.do Key:', scrapeDoKey ? scrapeDoKey.substring(0, 8) + '...' : 'YOK!');
-    
-    const scrapeStatus = debugScrapeService.checkStatus();
-    
-    setApiStatus({
-      openaiConfigured: !!openaiKey,
-      scrapeDoConfigured: !!scrapeDoKey,
-      openaiPreview: openaiKey ? openaiKey.substring(0, 8) + '...' : 'Yapılandırılmamış',
-      scrapeDoPreview: scrapeDoKey ? scrapeDoKey.substring(0, 8) + '...' : 'Yapılandırılmamış'
-    });
-  };
-
-  // Scrape.do bağlantı testi
-  const testScrapeDoConnection = async () => {
-    setLoading(true);
-    try {
-      console.log('\n🔧 [TEST] Scrape.do bağlantı testi...');
-      const connectionResult = await debugScrapeService.testConnection();
-      console.log('📡 [TEST] Bağlantı sonucu:', connectionResult);
-      
-      Alert.alert(
-        connectionResult.success ? '✅ Başarılı' : '❌ Hata',
-        connectionResult.message
-      );
-    } catch (error) {
-      console.error('❌ [TEST] Bağlantı testi hatası:', error);
-      Alert.alert('❌ Hata', 'Bağlantı testi başarısız');
-    }
-    setLoading(false);
-  };
-
-  // Ana tarif çıkarım testi
-  const testRecipeExtraction = async () => {
+  const handleDebugScrape = async () => {
     if (!url.trim()) {
-      Alert.alert('Hata', 'Lütfen bir URL girin');
+      Alert.alert('Error', 'Please enter a URL');
       return;
     }
 
-    console.log('\n🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BAŞLADI =====');
-    console.log('🌐 [TEST] Test URL:', url);
-
     setLoading(true);
-    setResult(null);
+    setDebugInfo(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Kullanıcı oturumu bulunamadı');
-      }
-
-      const startTime = Date.now();
-      const extractedData = await extractRecipeFromUrl(url, user.id);
-      const endTime = Date.now();
-      const executionTime = (endTime - startTime) / 1000;
-
-      if (extractedData) {
-        console.log('✅ [TEST] Başarılı!');
-        console.log('📝 [TEST] Başlık:', extractedData.title);
-        console.log('🖼️ [TEST] Görsel:', extractedData.image_url ? 'Mevcut' : 'Yok');
-        console.log('🥘 [TEST] Malzemeler:', extractedData.ingredients?.length || 0);
-        console.log('📋 [TEST] Talimatlar:', extractedData.instructions?.length || 0);
-        console.log('⏱️ [TEST] Süre:', executionTime.toFixed(2) + 's');
-
-        setResult({
-          success: true,
-          title: extractedData.title,
-          imageUrl: extractedData.image_url,
-          ingredientCount: extractedData.ingredients?.length || 0,
-          instructionCount: extractedData.instructions?.length || 0,
-          executionTime: executionTime,
-          isAiGenerated: extractedData.is_ai_generated
-        });
-      } else {
-        throw new Error('Tarif çıkarılamadı');
-      }
-
-    } catch (error: any) {
-      console.error('❌ [TEST] Hata:', error);
-      setResult({
-        success: false,
-        error: error.message || 'Bilinmeyen hata'
+      console.log('🔍 Starting debug scrape for:', url);
+      const result = await debugScrapeService(url);
+      
+      setDebugInfo({
+        success: result.success,
+        htmlLength: result.html.length,
+        hasTitle: !!result.metadata?.title,
+        hasDescription: !!result.metadata?.description,
+        hasStructuredData: !!result.metadata?.structuredData?.length,
+        title: result.metadata?.title,
+        description: result.metadata?.description,
+        structuredDataCount: result.metadata?.structuredData?.length || 0,
+        error: result.error
       });
-    }
 
-    setLoading(false);
-    console.log('🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BİTTİ =====\n');
+    } catch (error) {
+      console.error('Debug scrape error:', error);
+      Alert.alert('Error', `Debug scraping failed: ${error}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    checkApiStatus();
-  }, []);
+  const handleFullRecipeImport = async () => {
+    if (!url.trim()) {
+      Alert.alert('Error', 'Please enter a URL');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const recipe = await extractRecipeFromUrl(url);
+      
+      if (recipe) {
+        Alert.alert(
+          'Success!', 
+          `Recipe "${recipe.name}" imported successfully!`,
+          [{ text: 'OK', onPress: () => router.push('/library') }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to extract recipe from URL');
+      }
+
+    } catch (error) {
+      console.error('Full import error:', error);
+      Alert.alert('Error', `Recipe import failed: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Recipe Import Test</Text>
-        <TouchableOpacity onPress={checkApiStatus} style={styles.refreshButton}>
-          <Settings size={24} color={colors.neutral[600]} />
-        </TouchableOpacity>
-      </View>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ padding: spacing.lg }}>
+        <Text style={[typography.h1, { color: colors.primary, marginBottom: spacing.md }]}>
+          🧪 ScrapingBee Test
+        </Text>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* API Status */}
-        {apiStatus && (
-          <View style={styles.statusSection}>
-            <Text style={styles.sectionTitle}>🔧 API Durumu</Text>
-            
-            <View style={styles.statusItem}>
-              <View style={styles.statusHeader}>
-                {apiStatus.openaiConfigured ? 
-                  <CheckCircle size={20} color={colors.success[500]} /> :
-                  <XCircle size={20} color={colors.error[500]} />
-                }
-                <Text style={styles.statusLabel}>OpenAI API</Text>
-              </View>
-              <Text style={styles.statusValue}>{apiStatus.openaiPreview}</Text>
-            </View>
+        <TextInput
+          style={{
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 8,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+            fontSize: 16,
+            backgroundColor: colors.surface
+          }}
+          placeholder="Enter recipe URL (YouTube, TikTok, Instagram, etc.)"
+          value={url}
+          onChangeText={setUrl}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
 
-            <View style={styles.statusItem}>
-              <View style={styles.statusHeader}>
-                {apiStatus.scrapeDoConfigured ? 
-                  <CheckCircle size={20} color={colors.success[500]} /> :
-                  <XCircle size={20} color={colors.error[500]} />
-                }
-                <Text style={styles.statusLabel}>Scrape.do API</Text>
-              </View>
-              <Text style={styles.statusValue}>{apiStatus.scrapeDoPreview}</Text>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.testConnectionButton} 
-              onPress={testScrapeDoConnection}
-              disabled={loading || !apiStatus.scrapeDoConfigured}
-            >
-              <Text style={styles.testConnectionText}>Scrape.do Bağlantı Testi</Text>
-            </TouchableOpacity>
-
-            {!apiStatus.openaiConfigured && (
-              <View style={styles.warningContainer}>
-                <AlertTriangle size={16} color={colors.warning[600]} />
-                <Text style={styles.warningText}>
-                  OpenAI API key eksik! .env dosyanızı kontrol edin ve Metro'yu yeniden başlatın.
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Test Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>🧪 Tarif URL Testi</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Test edilecek tarif URL'sini girin..."
-            value={url}
-            onChangeText={setUrl}
-            autoCapitalize="none"
-            keyboardType="url"
-            placeholderTextColor={colors.neutral[500]}
-            multiline
-          />
-          
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
-            style={[styles.testButton, loading && styles.testButtonDisabled]}
-            onPress={testRecipeExtraction}
-            disabled={loading || !apiStatus?.openaiConfigured}
+            style={{
+              flex: 1,
+              backgroundColor: colors.secondary,
+              padding: spacing.md,
+              borderRadius: 8,
+              alignItems: 'center'
+            }}
+            onPress={handleDebugScrape}
+            disabled={loading}
           >
-            <TestTube size={20} color={colors.neutral[0]} />
-            <Text style={styles.testButtonText}>
-              {loading ? 'Test Ediliyor...' : 'Tarif Çıkar'}
+            <Text style={[typography.button, { color: colors.surface }]}>
+              🔍 Debug Scrape
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              flex: 1,
+              backgroundColor: colors.primary,
+              padding: spacing.md,
+              borderRadius: 8,
+              alignItems: 'center'
+            }}
+            onPress={handleFullRecipeImport}
+            disabled={loading}
+          >
+            <Text style={[typography.button, { color: colors.surface }]}>
+              🚀 Full Import
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Loading */}
         {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary[500]} />
-            <Text style={styles.loadingText}>İşlem devam ediyor...</Text>
-            <Text style={styles.loadingSubtext}>Console loglarını terminalde takip edin</Text>
+          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+              Processing...
+            </Text>
           </View>
         )}
 
-        {/* Result */}
-        {result && (
-          <View style={[styles.resultContainer, result.success ? styles.successResult : styles.errorResult]}>
-            <Text style={styles.resultTitle}>
-              {result.success ? '✅ Başarılı!' : '❌ Hata'}
+        {debugInfo && (
+          <View style={{
+            backgroundColor: colors.surface,
+            padding: spacing.md,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.border
+          }}>
+            <Text style={[typography.h3, { color: colors.primary, marginBottom: spacing.sm }]}>
+              📊 Debug Results
             </Text>
             
-            {result.success ? (
-              <View style={styles.resultDetails}>
-                <Text style={styles.resultItem}>📝 Başlık: {result.title}</Text>
-                <Text style={styles.resultItem}>🖼️ Görsel: {result.imageUrl ? 'Mevcut' : 'Yok'}</Text>
-                <Text style={styles.resultItem}>🥘 Malzemeler: {result.ingredientCount} adet</Text>
-                <Text style={styles.resultItem}>📋 Talimatlar: {result.instructionCount} adım</Text>
-                <Text style={styles.resultItem}>⏱️ Süre: {result.executionTime?.toFixed(2)}s</Text>
-                <Text style={styles.resultItem}>🤖 AI Üretimi: {result.isAiGenerated ? 'Evet' : 'JSON-LD'}</Text>
+            <Text style={[typography.body, { color: colors.text }]}>
+              Success: {debugInfo.success ? '✅' : '❌'}
+            </Text>
+            <Text style={[typography.body, { color: colors.text }]}>
+              HTML Length: {debugInfo.htmlLength.toLocaleString()} chars
+            </Text>
+            <Text style={[typography.body, { color: colors.text }]}>
+              Has Title: {debugInfo.hasTitle ? '✅' : '❌'}
+            </Text>
+            <Text style={[typography.body, { color: colors.text }]}>
+              Has Description: {debugInfo.hasDescription ? '✅' : '❌'}
+            </Text>
+            <Text style={[typography.body, { color: colors.text }]}>
+              Structured Data: {debugInfo.structuredDataCount} items
+            </Text>
+
+            {debugInfo.title && (
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  Title: {debugInfo.title}
+                </Text>
               </View>
-            ) : (
-              <Text style={styles.errorText}>{result.error}</Text>
+            )}
+
+            {debugInfo.error && (
+              <Text style={[typography.body, { color: colors.error, marginTop: spacing.sm }]}>
+                Error: {debugInfo.error}
+              </Text>
             )}
           </View>
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
-    color: colors.neutral[800],
-  },
-  content: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  statusSection: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.neutral[800],
-    marginBottom: spacing.md,
-  },
-  statusItem: {
-    marginBottom: spacing.md,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  statusLabel: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral[700],
-  },
-  statusValue: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-    marginLeft: 28,
-  },
-  testConnectionButton: {
-    backgroundColor: colors.accent[500],
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  testConnectionText: {
-    color: colors.neutral[0],
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-  },
-  warningContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning[50],
-    borderRadius: 8,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.warning[700],
-  },
-  inputSection: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  input: {
-    borderColor: colors.neutral[300],
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[800],
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  testButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  testButtonDisabled: {
-    backgroundColor: colors.neutral[300],
-  },
-  testButtonText: {
-    color: colors.neutral[0],
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-  },
-  loadingContainer: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
-  },
-  loadingSubtext: {
-    marginTop: spacing.xs,
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-  resultContainer: {
-    borderRadius: 12,
-    padding: spacing.lg,
-    borderWidth: 1,
-  },
-  successResult: {
-    backgroundColor: colors.success[50],
-    borderColor: colors.success[200],
-  },
-  errorResult: {
-    backgroundColor: colors.error[50],
-    borderColor: colors.error[200],
-  },
-  resultTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    marginBottom: spacing.md,
-  },
-  resultDetails: {
-    gap: spacing.sm,
-  },
-  resultItem: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.success[700],
-  },
-  errorText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.error[600],
-  },
-});
