@@ -15,7 +15,7 @@ import { debugScrapeService } from '@/lib/scrapeService';
 import { colors, spacing, typography } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { ArrowLeft, TestTube, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
+import { ArrowLeft, TestTube, Settings, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 
 interface ScrapingDebugResult {
   success: boolean;
