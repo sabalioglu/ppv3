@@ -469,6 +469,7 @@ class ScrapingBeeService {
         console.warn('⚠️ [SCRAPINGBEE] Structured data parse hatası:', error);
       }
     }
+
     return metadata;
   }
 
