@@ -1,11 +1,9 @@
-// lib/recipeAIService.ts - ScrapingBee Entegrasyonu - %100 Kullanıma Hazır
+// lib/recipeAIService.ts - AI Food Pantry Production-Ready Recipe Extraction Service
 import { Platform } from 'react-native';
 import { scrapeUrl, ScrapingResult } from '@/lib/scrapeService';
 
-// Platform-aware OpenAI import
 let openai: any = null;
 
-// ExtractedRecipeData interface
 export interface ExtractedRecipeData {
   title: string;
   description?: string;
@@ -38,7 +36,6 @@ export interface ExtractedRecipeData {
   ai_match_score?: number;
 }
 
-// Rate limiting
 const rateLimitStore = new Map<string, {
   count: number;
   lastRequest: number;
@@ -77,11 +74,9 @@ function checkRateLimit(userId: string): { allowed: boolean; waitTime?: number }
   userLimit.count++;
   userLimit.dailyCount++;
   userLimit.lastRequest = now;
-
   return { allowed: true };
 }
 
-// Initialize OpenAI
 const initializeOpenAI = async () => {
   console.log('\n🔄 [OPENAI] ===== OpenAI CLIENT BAŞLATILIYOR =====');
   console.log('📱 [OPENAI] Platform:', Platform.OS);
@@ -121,7 +116,6 @@ const initializeOpenAI = async () => {
       });
 
       console.log('🏗️ [OPENAI] Client oluşturuldu, test API çağrısı...');
-
       const testResponse = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: 'Test connection' }],
@@ -151,33 +145,117 @@ const initializeOpenAI = async () => {
   }
 };
 
-// JSON-LD extraction helper
 function extractJsonLdRecipe(html: string): Partial<ExtractedRecipeData> | null {
   try {
-    const jsonLdMatch = html.match(/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>([\s\S]*?)<\/script>/gi);
-    if (!jsonLdMatch) return null;
+    console.log('🔍 [JSON-LD] JSON-LD arama başlatılıyor...');
+    
+    const jsonLdPatterns = [
+      /<script[^>]*type=["\']application\/ld\+json["\'][^>]*>([\s\S]*?)<\/script>/gi,
+      /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi,
+      /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi
+    ];
 
-    for (const match of jsonLdMatch) {
-      const jsonContent = match.replace(/<script[^>]*>|<\/script>/gi, '').trim();
-      const data = JSON.parse(jsonContent);
+    let allMatches: string[] = [];
+    
+    for (const pattern of jsonLdPatterns) {
+      const matches = Array.from(html.matchAll(pattern));
+      allMatches.push(...matches.map(match => match[1]));
+    }
 
-      if (data['@type'] === 'Recipe' || (Array.isArray(data) && data.some(item => item['@type'] === 'Recipe'))) {
-        const recipe = Array.isArray(data) ? data.find(item => item['@type'] === 'Recipe') : data;
+    if (allMatches.length === 0) {
+      console.log('⚠️ [JSON-LD] JSON-LD script bulunamadı');
+      return null;
+    }
 
-        return {
-          title: recipe.name,
-          description: recipe.description,
-          image_url: recipe.image?.url || (Array.isArray(recipe.image) ? recipe.image[0]?.url : recipe.image),
+    console.log(`🔍 [JSON-LD] ${allMatches.length} JSON-LD script bulundu`);
+
+    for (let i = 0; i < allMatches.length; i++) {
+      try {
+        const jsonContent = allMatches[i].trim();
+        console.log(`📄 [JSON-LD] Script ${i + 1} parse ediliyor... (${jsonContent.length} karakter)`);
+        
+        const data = JSON.parse(jsonContent);
+        
+        let recipes: any[] = [];
+        
+        if (Array.isArray(data)) {
+          recipes = data.filter(item => 
+            item['@type'] === 'Recipe' || 
+            (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
+          );
+        } else if (data['@type'] === 'Recipe' || 
+                   (Array.isArray(data['@type']) && data['@type'].includes('Recipe'))) {
+          recipes = [data];
+        } else if (data['@graph']) {
+          recipes = data['@graph'].filter((item: any) => 
+            item['@type'] === 'Recipe' || 
+            (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
+          );
+        }
+
+        if (recipes.length === 0) {
+          console.log(`⚠️ [JSON-LD] Script ${i + 1}'de Recipe bulunamadı`);
+          continue;
+        }
+
+        const recipe = recipes[0];
+        console.log('🎯 [JSON-LD] Recipe bulundu:', recipe.name);
+        console.log('🥘 [JSON-LD] Malzeme sayısı:', recipe.recipeIngredient?.length || 0);
+        console.log('📋 [JSON-LD] Talimat sayısı:', recipe.recipeInstructions?.length || 0);
+
+        const ingredients = recipe.recipeIngredient?.map((ing: string, index: number) => {
+          console.log(`🥄 [JSON-LD] Malzeme ${index + 1}: ${ing}`);
+          return { name: ing.trim() };
+        }) || [];
+
+        const instructions = recipe.recipeInstructions?.map((inst: any, idx: number) => {
+          let instructionText = '';
+          
+          if (typeof inst === 'string') {
+            instructionText = inst;
+          } else if (inst.text) {
+            instructionText = inst.text;
+          } else if (inst.name) {
+            instructionText = inst.name;
+          } else if (inst['@type'] === 'HowToStep' && inst.text) {
+            instructionText = inst.text;
+          }
+          
+          console.log(`📝 [JSON-LD] Talimat ${idx + 1}: ${instructionText.substring(0, 100)}...`);
+          
+          return {
+            step: idx + 1,
+            instruction: instructionText.trim()
+          };
+        }) || [];
+
+        let imageUrl = '';
+        if (recipe.image) {
+          if (typeof recipe.image === 'string') {
+            imageUrl = recipe.image;
+          } else if (Array.isArray(recipe.image) && recipe.image.length > 0) {
+            imageUrl = recipe.image[0].url || recipe.image[0];
+          } else if (recipe.image.url) {
+            imageUrl = recipe.image.url;
+          }
+        }
+
+        console.log('🖼️ [JSON-LD] Çıkarılan görsel URL:', imageUrl || 'Bulunamadı');
+
+        if (ingredients.length < 3 || instructions.length < 1) {
+          console.log(`⚠️ [JSON-LD] Yetersiz veri: ${ingredients.length} malzeme, ${instructions.length} talimat - AI fallback gerekli`);
+          continue;
+        }
+
+        const extractedRecipe = {
+          title: recipe.name?.trim() || '',
+          description: recipe.description?.trim() || '',
+          image_url: imageUrl,
           prep_time: parseDuration(recipe.prepTime),
           cook_time: parseDuration(recipe.cookTime),
-          servings: parseInt(recipe.recipeYield) || undefined,
-          ingredients: recipe.recipeIngredient?.map((ing: string) => ({
-            name: ing
-          })) || [],
-          instructions: recipe.recipeInstructions?.map((inst: any, idx: number) => ({
-            step: idx + 1,
-            instruction: typeof inst === 'string' ? inst : inst.text
-          })) || [],
+          servings: parseInt(recipe.recipeYield) || parseInt(recipe.yield) || undefined,
+          ingredients: ingredients,
+          instructions: instructions,
           nutrition: recipe.nutrition ? {
             calories: parseFloat(recipe.nutrition.calories) || undefined,
             protein: parseFloat(recipe.nutrition.proteinContent) || undefined,
@@ -185,14 +263,31 @@ function extractJsonLdRecipe(html: string): Partial<ExtractedRecipeData> | null 
             fat: parseFloat(recipe.nutrition.fatContent) || undefined,
             fiber: parseFloat(recipe.nutrition.fiberContent) || undefined
           } : undefined,
-          tags: recipe.keywords?.split(',').map((tag: string) => tag.trim()) || [],
-          category: recipe.recipeCategory || 'General'
+          tags: recipe.keywords?.split(',').map((tag: string) => tag.trim()) || 
+                (Array.isArray(recipe.keywords) ? recipe.keywords : []),
+          category: recipe.recipeCategory || recipe.category || 'General'
         };
+
+        console.log('✅ [JSON-LD] Başarılı parse:', {
+          title: extractedRecipe.title,
+          ingredientCount: extractedRecipe.ingredients.length,
+          instructionCount: extractedRecipe.instructions.length,
+          hasImage: !!extractedRecipe.image_url
+        });
+
+        return extractedRecipe;
+
+      } catch (parseError) {
+        console.warn(`⚠️ [JSON-LD] Script ${i + 1} parse hatası:`, parseError);
+        continue;
       }
     }
+
+    console.log('❌ [JSON-LD] Hiçbir JSON-LD script başarıyla parse edilemedi');
     return null;
+
   } catch (error) {
-    console.warn('⚠️ [RECIPE] JSON-LD parsing error:', error);
+    console.error('❌ [JSON-LD] Genel parsing hatası:', error);
     return null;
   }
 }
@@ -208,7 +303,6 @@ function parseDuration(duration: string): number | undefined {
   return undefined;
 }
 
-// ScrapingBee için optimize edilmiş platform stratejisi
 function getOptimalScrapingStrategy(url: string): {
   renderJs: boolean;
   screenshot: boolean;
@@ -218,19 +312,14 @@ function getOptimalScrapingStrategy(url: string): {
   priority: 'speed' | 'quality';
   reasoning: string;
 } {
-  const domain = url.toLowerCase();
+  const domain = new URL(url).hostname.toLowerCase();
 
-  // Recipe blogs: JSON-LD olasılığı yüksek
   if (domain.includes('allrecipes.com') || 
       domain.includes('food.com') || 
       domain.includes('foodnetwork.com') ||
       domain.includes('seriouseats.com') || 
       domain.includes('epicurious.com') || 
-      domain.includes('tasty.co') ||
-      domain.includes('delish.com') ||
-      domain.includes('bonappetit.com') ||
-      domain.includes('eatingwell.com') ||
-      domain.includes('foodandwine.com')) {
+      domain.includes('tasty.co')) {
     return {
       renderJs: true,
       screenshot: false,
@@ -242,13 +331,10 @@ function getOptimalScrapingStrategy(url: string): {
     };
   }
 
-  // Social media: Screenshot + JS gerekli (Multimodal AI için)
   if (domain.includes('youtube.com') || 
       domain.includes('tiktok.com') || 
       domain.includes('instagram.com') || 
-      domain.includes('pinterest.com') ||
-      domain.includes('facebook.com') ||
-      domain.includes('fb.com')) {
+      domain.includes('pinterest.com')) {
     return {
       renderJs: true,
       screenshot: true,
@@ -260,25 +346,22 @@ function getOptimalScrapingStrategy(url: string): {
     };
   }
 
-  // Genel siteler
   return {
     renderJs: true,
     screenshot: false,
     screenshotFullPage: false,
-    waitFor: 2000,
+    waitFor: 3000,
     premium_proxy: false,
     priority: 'speed',
     reasoning: 'Genel website: ScrapingBee standart işlem'
   };
 }
 
-// MAIN EXTRACTION FUNCTION - ScrapingBee Entegrasyonu
 export async function extractRecipeFromUrl(url: string, userId: string): Promise<ExtractedRecipeData | null> {
   try {
     console.log('\n🧪 [RECIPE] ===== "RECIME PLUS" ScrapingBee TARİF ÇIKARIM BAŞLADI =====');
     console.log('🌐 [RECIPE] URL:', url);
 
-    // Initialize OpenAI client
     if (!openai) {
       console.log('🔄 [RECIPE] OpenAI client başlatılıyor...');
       openai = await initializeOpenAI();
@@ -287,7 +370,6 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
       }
     }
 
-    // Rate limiting check
     const rateLimitResult = checkRateLimit(userId);
     if (!rateLimitResult.allowed) {
       const waitMinutes = Math.ceil((rateLimitResult.waitTime || 0) / 60000);
@@ -296,11 +378,9 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
 
     console.log('✅ [RECIPE] OpenAI + ScrapingBee hazır, "Recime Plus" stratejisi başlıyor...');
 
-    // KATMAN 1: Optimal strateji belirleme
     const strategy = getOptimalScrapingStrategy(url);
-    console.log('📋 [RECIPE] ScrapingBee stratejisi:', strategy);
+    console.log('📋 [RECIPE] ScrapingBee stratejisi:', strategy.reasoning);
 
-    // KATMAN 2: ScrapingBee ile içerik çekme
     console.log('🔍 [RECIPE] ScrapingBee ile içerik çekiliyor...');
     const scrapingResult: ScrapingResult = await scrapeUrl(url, {
       renderJs: strategy.renderJs,
@@ -313,7 +393,6 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
     if (!scrapingResult.success || !scrapingResult.html) {
       console.warn('⚠️ [RECIPE] ScrapingBee başarısız, fallback basit fetch...');
       
-      // Fallback: Simple fetch
       try {
         const response = await fetch(url, {
           headers: {
@@ -337,7 +416,6 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
       executionTime: scrapingResult.executionTime
     });
 
-    // KATMAN 3: JSON-LD kontrolü (Öncelik)
     console.log('🔍 [RECIPE] JSON-LD kontrolü yapılıyor...');
     const jsonLdRecipe = extractJsonLdRecipe(scrapingResult.html);
     
@@ -349,7 +427,7 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
       const result: ExtractedRecipeData = {
         ...jsonLdRecipe,
         is_ai_generated: false,
-        ai_match_score: 98 // ScrapingBee + JSON-LD = en yüksek güven
+        ai_match_score: 98
       } as ExtractedRecipeData;
 
       console.log('✅ [RECIPE] ScrapingBee + JSON-LD çıkarımı tamamlandı!');
@@ -358,10 +436,8 @@ export async function extractRecipeFromUrl(url: string, userId: string): Promise
       return result;
     }
 
-    // KATMAN 4: AI analizi (JSON-LD bulunamazsa)
     console.log('🤖 [RECIPE] JSON-LD bulunamadı veya eksik, ScrapingBee + AI analizi başlatılıyor...');
 
-    // Multimodal AI için content hazırlama
     let aiContent = `
 URL: ${url}
 Platform: ${scrapingResult.platform || 'Unknown'}
@@ -372,7 +448,6 @@ HTML Content:
 ${scrapingResult.html.substring(0, 12000)}
 `;
 
-    // Screenshot varsa AI'a ekle
     if (scrapingResult.screenshot) {
       aiContent += `
 
@@ -382,7 +457,6 @@ Visual context provided for enhanced accuracy.
       console.log('📸 [RECIPE] Screenshot AI\'a dahil edildi:', scrapingResult.screenshot);
     }
 
-    // Gelişmiş anti-halüsinasyon prompt
     const systemPrompt = `You are an expert culinary assistant. Extract comprehensive recipe information from the provided HTML content.
 
 **CRITICAL ANTI-HALLUCINATION RULES:**
@@ -420,7 +494,7 @@ Visual context provided for enhanced accuracy.
   "confidence_score": "number (0-100)"
 }`;
 
-    console.log('📡 [RECIPE] OpenAI API çağrısı yapılıyor (ScrapingBee content + screenshot)...');
+    console.log('📡 [RECIPE] OpenAI API çağrısı yapılıyor (ScrapingBee content + multimodal)...');
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -442,17 +516,14 @@ Visual context provided for enhanced accuracy.
 
     const parsedData = JSON.parse(rawJson);
 
-    // Güven skoru kontrolü
     if (parsedData.confidence_score && parsedData.confidence_score < 75) {
       throw new Error(`Low confidence extraction (${parsedData.confidence_score}%). Please try a different URL.`);
     }
 
-    // Kritik alanları kontrol et
     if (!parsedData.title || !parsedData.ingredients || parsedData.ingredients.length === 0) {
       throw new Error('Incomplete recipe data extracted. Please try a different URL.');
     }
 
-    // Final recipe data
     const finalRecipe: ExtractedRecipeData = {
       title: parsedData.title,
       description: parsedData.description || '',
@@ -482,7 +553,6 @@ Visual context provided for enhanced accuracy.
   } catch (error: any) {
     console.error('❌ [RECIPE] Hata:', error);
 
-    // Kullanıcı dostu hata mesajları
     if (error.message?.includes('Rate limit')) {
       throw error;
     } else if (error.message?.includes('Low confidence')) {
@@ -499,7 +569,66 @@ Visual context provided for enhanced accuracy.
   }
 }
 
-// Utility functions
+export async function debugRecipeExtraction(url: string): Promise<{
+  success: boolean;
+  scrapingResult?: ScrapingResult;
+  jsonLdFound?: boolean;
+  extractedJsonLdRecipe?: Partial<ExtractedRecipeData> | null;
+  error?: string;
+}> {
+  try {
+    console.log('\n🔍 [DEBUG] Recipe extraction debug başlatılıyor:', url);
+    
+    const strategy = getOptimalScrapingStrategy(url);
+    console.log('📋 [DEBUG] Strateji:', strategy);
+    
+    const scrapingResult = await scrapeUrl(url, {
+      renderJs: strategy.renderJs,
+      screenshot: false,
+      screenshotFullPage: false,
+      waitFor: strategy.waitFor,
+      premium_proxy: strategy.premium_proxy
+    });
+    
+    let jsonLdRecipe: Partial<ExtractedRecipeData> | null = null;
+    if (scrapingResult.success) {
+      jsonLdRecipe = extractJsonLdRecipe(scrapingResult.html);
+    }
+    
+    console.log('📊 [DEBUG] Sonuçlar:', {
+      scrapingSuccess: scrapingResult.success,
+      htmlLength: scrapingResult.html?.length || 0,
+      jsonLdFound: !!jsonLdRecipe,
+      platform: scrapingResult.platform,
+      creditsUsed: scrapingResult.creditsUsed,
+      executionTime: scrapingResult.executionTime
+    });
+    
+    if (jsonLdRecipe) {
+      console.log('🎯 [DEBUG] JSON-LD Recipe Detayları:', {
+        title: jsonLdRecipe.title,
+        ingredientCount: jsonLdRecipe.ingredients?.length,
+        instructionCount: jsonLdRecipe.instructions?.length,
+        hasImage: !!jsonLdRecipe.image_url
+      });
+    }
+    
+    return {
+      success: true,
+      scrapingResult,
+      jsonLdFound: !!jsonLdRecipe,
+      extractedJsonLdRecipe: jsonLdRecipe
+    };
+    
+  } catch (error) {
+    console.error('❌ [DEBUG] Debug hatası:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+    };
+  }
+}
+
 export function getOpenAIStatus(): string {
   if (Platform.OS === 'web') {
     return 'Running in browser mode (development only)';
@@ -511,49 +640,4 @@ export function getOpenAIStatus(): string {
 export function getScrapingServiceStatus(): string {
   const apiKey = process.env.EXPO_PUBLIC_SCRAPINGBEE_API_KEY;
   return apiKey ? 'ScrapingBee configured and ready' : 'ScrapingBee not configured';
-}
-
-// Debug function for testing
-export async function debugRecipeExtraction(url: string): Promise<{
-  success: boolean;
-  scrapingResult?: ScrapingResult;
-  jsonLdFound?: boolean;
-  error?: string;
-}> {
-  try {
-    console.log('\n🔍 [DEBUG] Recipe extraction debug başlatılıyor:', url);
-    
-    const strategy = getOptimalScrapingStrategy(url);
-    console.log('📋 [DEBUG] Strateji:', strategy);
-    
-    const scrapingResult = await scrapeUrl(url, {
-      renderJs: strategy.renderJs,
-      screenshot: false, // Debug için screenshot'sız
-      screenshotFullPage: false,
-      waitFor: strategy.waitFor,
-      premium_proxy: strategy.premium_proxy
-    });
-    
-    const jsonLdRecipe = scrapingResult.success ? extractJsonLdRecipe(scrapingResult.html) : null;
-    
-    console.log('📊 [DEBUG] Sonuçlar:', {
-      scrapingSuccess: scrapingResult.success,
-      htmlLength: scrapingResult.html?.length || 0,
-      jsonLdFound: !!jsonLdRecipe,
-      platform: scrapingResult.platform
-    });
-    
-    return {
-      success: true,
-      scrapingResult,
-      jsonLdFound: !!jsonLdRecipe
-    };
-    
-  } catch (error) {
-    console.error('❌ [DEBUG] Debug hatası:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
 }

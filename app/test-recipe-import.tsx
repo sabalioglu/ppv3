@@ -17,7 +17,6 @@ import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { ArrowLeft, TestTube, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
 
-// Sadece Scraping için sonuç tipi
 interface ScrapingDebugResult {
   success: boolean;
   htmlLength: number;
@@ -36,7 +35,6 @@ interface ScrapingDebugResult {
   jsonLdImageUrl?: string;
 }
 
-// Tam Tarif Çıkarım için sonuç tipi
 interface FullRecipeResult {
   success: boolean;
   title?: string;
@@ -69,7 +67,6 @@ export default function TestScraping() {
   const [fullRecipeResult, setFullRecipeResult] = useState<FullRecipeResult | null>(null);
   const [apiStatus, setApiStatus] = useState<ApiStatusState | null>(null);
 
-  // API durumu kontrolü
   const checkApiStatus = () => {
     console.log('\n🔍 [TEST] API durumu kontrol ediliyor...');
     
@@ -93,7 +90,6 @@ export default function TestScraping() {
     });
   };
 
-  // ScrapingBee bağlantı testi
   const testScrapingBeeConnection = async () => {
     setLoading(true);
     try {
@@ -124,7 +120,6 @@ export default function TestScraping() {
     setLoading(false);
   };
 
-  // Sadece scraping testi (JSON-LD detayları ile)
   const handleDebugScrape = async () => {
     if (!url.trim()) {
       Alert.alert('Hata', 'Lütfen bir URL girin');
@@ -186,7 +181,6 @@ export default function TestScraping() {
     console.log('🔍 [TEST] ===== SADECE SCRAPING + JSON-LD DEBUG TESTİ BİTTİ =====\n');
   };
 
-  // Tam tarif çıkarım testi (Authentication fix ile)
   const handleFullRecipeExtraction = async () => {
     if (!url.trim()) {
       Alert.alert('Hata', 'Lütfen bir URL girin');
@@ -201,7 +195,7 @@ export default function TestScraping() {
     setFullRecipeResult(null);
 
     try {
-      // 🔄 YENİ: Authentication fix - test için geçici user ID
+      // Authentication fix - test için geçici user ID
       let userId = 'test-user-id-for-ai-extraction';
       
       try {
@@ -261,7 +255,6 @@ export default function TestScraping() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.neutral[800]} />
@@ -273,7 +266,6 @@ export default function TestScraping() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* API Status */}
         {apiStatus && (
           <View style={styles.statusSection}>
             <Text style={styles.sectionTitle}>🔧 API Durumu</Text>
@@ -335,7 +327,6 @@ export default function TestScraping() {
           </View>
         )}
 
-        {/* Test Input */}
         <View style={styles.inputSection}>
           <Text style={styles.sectionTitle}>🧪 Test URL'si</Text>
           <TextInput
@@ -373,7 +364,6 @@ export default function TestScraping() {
           </View>
         </View>
 
-        {/* Loading */}
         {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary[500]} />
@@ -382,7 +372,6 @@ export default function TestScraping() {
           </View>
         )}
 
-        {/* Sadece Scraping Sonucu */}
         {scrapingDebugResult && (
           <View style={[styles.resultContainer, scrapingDebugResult.success ? styles.successResult : styles.errorResult]}>
             <Text style={styles.resultTitle}>
@@ -412,7 +401,6 @@ export default function TestScraping() {
           </View>
         )}
 
-        {/* Tam Tarif Çıkarım Sonucu */}
         {fullRecipeResult && (
           <View style={[styles.resultContainer, fullRecipeResult.success ? styles.successResult : styles.errorResult]}>
             <Text style={styles.resultTitle}>
