@@ -247,11 +247,10 @@ class ScrapingBeeService {
     const params = new URLSearchParams({
       api_key: this.apiKey,
       url: url,
-      render_js: 'false' // Keep cost low for initial check
-    });
-
-    const response = await fetch(`${this.baseUrl}?${params}`);
-    
+      const params = new URLSearchParams();
+      params.append('api_key', this.apiKey);
+      params.append('url', url);
+      // Don't append render_js=false - omit it entirely for quick scrape
     if (!response.ok) {
       throw new Error(`ScrapingBee API error: ${response.status} - ${response.statusText}`);
     }
@@ -407,6 +406,34 @@ class ScrapingBeeService {
   }
 
   /**
+   * Enhanced error handling with platform-specific messages
+   */
+  private handleScrapingError(error: any, url: string): string {
+    try {
+      const domain = new URL(url).hostname.toLowerCase();
+      
+      if (error.message?.includes('400')) {
+        return 'Invalid request parameters. Please try a different URL.';
+      } else if (error.message?.includes('401')) {
+        return 'ScrapingBee API key is invalid. Please check your configuration.';
+      } else if (error.message?.includes('403') || error.message?.includes('blocked')) {
+        if (domain.includes('tiktok.com')) {
+          return 'TikTok blocks automated access. Please copy-paste the recipe manually.';
+        } else if (domain.includes('instagram.com')) {
+          return 'Instagram blocks automated access. Please copy-paste the recipe manually.';
+        } else {
+          return 'Website blocks automated access. Please try a different URL.';
+        }
+      } else if (error.message?.includes('CORS')) {
+        return 'Cross-origin request blocked. This is a browser limitation.';
+      } else {
+        return 'Could not access the webpage. Please check the URL and try again.';
+      }
+    } catch {
+      return 'Could not access the webpage. Please check the URL and try again.';
+    }
+  }
+  /**
    * Extract metadata from HTML for structured data detection
    */
   private extractMetadata(html: string): ScrapingResult['metadata'] {
@@ -431,16 +458,25 @@ class ScrapingBeeService {
         const structuredData = jsonLdMatches.map(match => {
           const jsonContent = match.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
           return JSON.parse(jsonContent);
-        });
+      const response = await fetch(`${this.baseUrl}?${params}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
         metadata.structuredData = structuredData;
       } catch (error) {
         console.warn('⚠️ [SCRAPINGBEE] Structured data parse hatası:', error);
       }
-    }
-
+      console.error('❌ [SCRAPINGBEE] Quick scrape error:', error);
+      const userFriendlyMessage = this.handleScrapingError(error, url);
+      throw new Error(userFriendlyMessage);
     return metadata;
   }
-
+      const response = await fetch(`${this.baseUrl}?${params}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
   /**
    * Debug function for comprehensive testing
    */
@@ -451,14 +487,23 @@ class ScrapingBeeService {
       renderJs: true,
       screenshot: false // Disable screenshot for debug to save credits
     });
-
-    console.log('📊 [SCRAPINGBEE] Debug Scraping Sonuçları:', {
-      success: result.success,
-      platform: result.platform,
-      htmlLength: result.html.length,
-      hasTitle: !!result.metadata?.title,
-      hasDescription: !!result.metadata?.description,
-      hasStructuredData: !!result.metadata?.structuredData?.length,
+      const params = new URLSearchParams();
+      params.append('api_key', this.apiKey);
+      params.append('url', url);
+      
+      // Only add parameters when they are true/needed
+      if (mergedOptions.renderJs) {
+        params.append('render_js', 'true');
+      }
+      if (mergedOptions.screenshot) {
+        params.append('screenshot', 'true');
+      }
+      if (mergedOptions.screenshotFullPage) {
+        params.append('screenshot_full_page', 'true');
+      }
+      if (mergedOptions.premium_proxy) {
+        params.append('premium_proxy', 'true');
+      }
       executionTime: result.executionTime,
       creditsUsed: result.creditsUsed,
       error: result.error
@@ -470,8 +515,9 @@ class ScrapingBeeService {
 
     if (result.metadata?.structuredData) {
       console.log('🏗️ [SCRAPINGBEE] Structured Data:', result.metadata.structuredData.length, 'öğe bulundu');
-    }
-
+      console.error('❌ [SCRAPINGBEE] Full scrape error:', error);
+      const userFriendlyMessage = this.handleScrapingError(error, url);
+      throw new Error(userFriendlyMessage);
     return result;
   }
 }
