@@ -10,14 +10,34 @@ import {
   Platform,
   StyleSheet
 } from 'react-native';
-import { extractRecipeFromUrl } from '@/lib/recipeAIService';
+import { extractRecipeFromUrl, debugRecipeExtraction } from '@/lib/recipeAIService';
 import { debugScrapeService } from '@/lib/scrapeService';
 import { colors, spacing, typography } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { ArrowLeft, TestTube, Settings, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
 
-interface TestResult {
+// Sadece Scraping için sonuç tipi
+interface ScrapingDebugResult {
+  success: boolean;
+  htmlLength: number;
+  hasTitle: boolean;
+  hasDescription: boolean;
+  structuredDataCount: number;
+  title?: string;
+  description?: string;
+  error?: string;
+  platform?: string;
+  creditsUsed?: number;
+  executionTime?: number;
+  jsonLdFoundAndParsed?: boolean;
+  jsonLdIngredientsCount?: number;
+  jsonLdInstructionsCount?: number;
+  jsonLdImageUrl?: string;
+}
+
+// Tam Tarif Çıkarım için sonuç tipi
+interface FullRecipeResult {
   success: boolean;
   title?: string;
   imageUrl?: string;
@@ -26,8 +46,7 @@ interface TestResult {
   executionTime?: number;
   error?: string;
   isAiGenerated?: boolean;
-  platform?: string;
-  creditsUsed?: number;
+  aiMatchScore?: number;
 }
 
 interface ApiStatusState {
@@ -46,7 +65,8 @@ interface ApiStatusState {
 export default function TestScraping() {
   const [url, setUrl] = useState('https://www.allrecipes.com/recipe/92462/slow-cooker-texas-pulled-pork/');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TestResult | null>(null);
+  const [scrapingDebugResult, setScrapingDebugResult] = useState<ScrapingDebugResult | null>(null);
+  const [fullRecipeResult, setFullRecipeResult] = useState<FullRecipeResult | null>(null);
   const [apiStatus, setApiStatus] = useState<ApiStatusState | null>(null);
 
   // API durumu kontrolü
@@ -82,7 +102,6 @@ export default function TestScraping() {
       
       console.log('📡 [TEST] Bağlantı sonucu:', connectionResult);
       
-      // Update API status with test results
       setApiStatus(prev => prev ? {
         ...prev,
         lastScrapingBeeTest: {
@@ -105,115 +124,135 @@ export default function TestScraping() {
     setLoading(false);
   };
 
-  // Scraping testi (sadece scraping, AI olmadan)
-  const testScraping = async () => {
+  // Sadece scraping testi (JSON-LD detayları ile)
+  const handleDebugScrape = async () => {
     if (!url.trim()) {
       Alert.alert('Hata', 'Lütfen bir URL girin');
       return;
     }
 
-    console.log('\n🔍 [TEST] ===== SCRAPING TESTİ BAŞLADI =====');
+    console.log('\n🔍 [TEST] ===== SADECE SCRAPING + JSON-LD DEBUG TESTİ BAŞLADI =====');
     console.log('🌐 [TEST] Test URL:', url);
 
     setLoading(true);
-    setResult(null);
+    setScrapingDebugResult(null);
+    setFullRecipeResult(null);
 
     try {
       const startTime = Date.now();
-      const scrapingResult = await debugScrapeService.debugScrape(url);
+      const debugResult = await debugRecipeExtraction(url);
       const endTime = Date.now();
       const executionTime = (endTime - startTime) / 1000;
 
-      if (scrapingResult.success) {
-        console.log('✅ [TEST] Scraping başarılı!');
-        console.log('📊 [TEST] HTML uzunluğu:', scrapingResult.html.length);
-        console.log('📝 [TEST] Başlık:', scrapingResult.metadata?.title);
-        console.log('🏗️ [TEST] Structured data:', scrapingResult.metadata?.structuredData?.length || 0);
-        console.log('⏱️ [TEST] Süre:', executionTime.toFixed(2) + 's');
-        console.log('💳 [TEST] Kullanılan kredi:', scrapingResult.creditsUsed || 'Bilinmiyor');
+      if (debugResult.success && debugResult.scrapingResult) {
+        const scrapingResult = debugResult.scrapingResult;
+        const jsonLdRecipe = debugResult.extractedJsonLdRecipe;
 
-        setResult({
+        setScrapingDebugResult({
           success: true,
-          title: scrapingResult.metadata?.title || 'Başlık bulunamadı',
-          executionTime: executionTime,
+          htmlLength: scrapingResult.html.length,
+          hasTitle: !!scrapingResult.metadata?.title,
+          hasDescription: !!scrapingResult.metadata?.description,
+          structuredDataCount: scrapingResult.metadata?.structuredData?.length || 0,
+          title: scrapingResult.metadata?.title,
+          description: scrapingResult.metadata?.description,
           platform: scrapingResult.platform,
           creditsUsed: scrapingResult.creditsUsed,
-          // Mock values for scraping-only test
-          ingredientCount: scrapingResult.metadata?.structuredData?.length || 0,
-          instructionCount: scrapingResult.html.length > 0 ? 1 : 0,
-          isAiGenerated: false
+          executionTime: executionTime,
+          jsonLdFoundAndParsed: !!jsonLdRecipe,
+          jsonLdIngredientsCount: jsonLdRecipe?.ingredients?.length,
+          jsonLdInstructionsCount: jsonLdRecipe?.instructions?.length,
+          jsonLdImageUrl: jsonLdRecipe?.image_url
         });
+
+        console.log('✅ [TEST] Debug scraping başarılı!');
       } else {
-        throw new Error(scrapingResult.error || 'Scraping başarısız');
+        throw new Error(debugResult.error || 'Debug scraping başarısız');
       }
 
     } catch (error: any) {
-      console.error('❌ [TEST] Scraping hatası:', error);
-      setResult({
+      console.error('❌ [TEST] Debug scraping hatası:', error);
+      setScrapingDebugResult({
         success: false,
+        htmlLength: 0,
+        hasTitle: false,
+        hasDescription: false,
+        structuredDataCount: 0,
         error: error.message || 'Bilinmeyen hata'
       });
     }
 
     setLoading(false);
-    console.log('🔍 [TEST] ===== SCRAPING TESTİ BİTTİ =====\n');
+    console.log('🔍 [TEST] ===== SADECE SCRAPING + JSON-LD DEBUG TESTİ BİTTİ =====\n');
   };
 
-  // Ana tarif çıkarım testi (AI ile)
-  const testRecipeExtraction = async () => {
+  // Tam tarif çıkarım testi (Authentication fix ile)
+  const handleFullRecipeExtraction = async () => {
     if (!url.trim()) {
       Alert.alert('Hata', 'Lütfen bir URL girin');
       return;
     }
 
-    console.log('\n🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BAŞLADI =====');
+    console.log('\n🧪 [TEST] ===== TAM TARİF ÇIKARIM TESTİ BAŞLADI =====');
     console.log('🌐 [TEST] Test URL:', url);
 
     setLoading(true);
-    setResult(null);
+    setScrapingDebugResult(null);
+    setFullRecipeResult(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Kullanıcı oturumu bulunamadı');
+      // 🔄 YENİ: Authentication fix - test için geçici user ID
+      let userId = 'test-user-id-for-ai-extraction';
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          userId = user.id;
+          console.log('✅ [TEST] Gerçek kullanıcı oturumu bulundu:', user.id);
+        } else {
+          console.log('⚠️ [TEST] Kullanıcı oturumu yok, test user ID kullanılıyor:', userId);
+        }
+      } catch (authError) {
+        console.log('⚠️ [TEST] Auth kontrolü başarısız, test user ID kullanılıyor:', authError);
       }
 
       const startTime = Date.now();
-      const extractedData = await extractRecipeFromUrl(url, user.id);
+      const extractedData = await extractRecipeFromUrl(url, userId);
       const endTime = Date.now();
       const executionTime = (endTime - startTime) / 1000;
 
       if (extractedData) {
-        console.log('✅ [TEST] Başarılı!');
+        console.log('✅ [TEST] Tam tarif çıkarım başarılı!');
         console.log('📝 [TEST] Başlık:', extractedData.title);
         console.log('🖼️ [TEST] Görsel:', extractedData.image_url ? 'Mevcut' : 'Yok');
         console.log('🥘 [TEST] Malzemeler:', extractedData.ingredients?.length || 0);
         console.log('📋 [TEST] Talimatlar:', extractedData.instructions?.length || 0);
         console.log('⏱️ [TEST] Süre:', executionTime.toFixed(2) + 's');
 
-        setResult({
+        setFullRecipeResult({
           success: true,
           title: extractedData.title,
           imageUrl: extractedData.image_url,
           ingredientCount: extractedData.ingredients?.length || 0,
           instructionCount: extractedData.instructions?.length || 0,
           executionTime: executionTime,
-          isAiGenerated: extractedData.is_ai_generated
+          isAiGenerated: extractedData.is_ai_generated,
+          aiMatchScore: extractedData.ai_match_score
         });
       } else {
         throw new Error('Tarif çıkarılamadı');
       }
 
     } catch (error: any) {
-      console.error('❌ [TEST] Hata:', error);
-      setResult({
+      console.error('❌ [TEST] Tam tarif çıkarım hatası:', error);
+      setFullRecipeResult({
         success: false,
         error: error.message || 'Bilinmeyen hata'
       });
     }
 
     setLoading(false);
-    console.log('🧪 [TEST] ===== TARİF ÇIKARIM TESTİ BİTTİ =====\n');
+    console.log('🧪 [TEST] ===== TAM TARİF ÇIKARIM TESTİ BİTTİ =====\n');
   };
 
   useEffect(() => {
@@ -313,7 +352,7 @@ export default function TestScraping() {
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.testButton, styles.secondaryButton, loading && styles.testButtonDisabled]}
-              onPress={testScraping}
+              onPress={handleDebugScrape}
               disabled={loading || !apiStatus?.scrapingBeeConfigured}
             >
               <Text style={styles.secondaryButtonText}>
@@ -323,7 +362,7 @@ export default function TestScraping() {
 
             <TouchableOpacity
               style={[styles.testButton, styles.primaryButton, loading && styles.testButtonDisabled]}
-              onPress={testRecipeExtraction}
+              onPress={handleFullRecipeExtraction}
               disabled={loading || !apiStatus?.openaiConfigured || !apiStatus?.scrapingBeeConfigured}
             >
               <TestTube size={20} color={colors.neutral[0]} />
@@ -343,29 +382,56 @@ export default function TestScraping() {
           </View>
         )}
 
-        {/* Result */}
-        {result && (
-          <View style={[styles.resultContainer, result.success ? styles.successResult : styles.errorResult]}>
+        {/* Sadece Scraping Sonucu */}
+        {scrapingDebugResult && (
+          <View style={[styles.resultContainer, scrapingDebugResult.success ? styles.successResult : styles.errorResult]}>
             <Text style={styles.resultTitle}>
-              {result.success ? '✅ Başarılı!' : '❌ Hata'}
+              {scrapingDebugResult.success ? '✅ Scraping + JSON-LD Debug Başarılı!' : '❌ Scraping Hatası'}
             </Text>
-            {result.success ? (
+            {scrapingDebugResult.success ? (
               <View style={styles.resultDetails}>
-                <Text style={styles.resultItem}>📝 Başlık: {result.title}</Text>
-                {result.platform && (
-                  <Text style={styles.resultItem}>📱 Platform: {result.platform}</Text>
+                <Text style={styles.resultItem}>📝 Başlık: {scrapingDebugResult.title || 'Bulunamadı'}</Text>
+                <Text style={styles.resultItem}>📱 Platform: {scrapingDebugResult.platform || 'Bilinmiyor'}</Text>
+                <Text style={styles.resultItem}>📄 HTML Uzunluğu: {scrapingDebugResult.htmlLength.toLocaleString()} chars</Text>
+                <Text style={styles.resultItem}>⏱️ Süre: {scrapingDebugResult.executionTime?.toFixed(2)}s</Text>
+                <Text style={styles.resultItem}>💳 Kullanılan Kredi: {scrapingDebugResult.creditsUsed || 'Bilinmiyor'}</Text>
+                <Text style={styles.resultItem}>🏗️ JSON-LD Script Sayısı: {scrapingDebugResult.structuredDataCount}</Text>
+                <Text style={styles.resultItem}>--- JSON-LD Parse Detayları ---</Text>
+                <Text style={styles.resultItem}>JSON-LD Parse Edildi: {scrapingDebugResult.jsonLdFoundAndParsed ? '✅' : '❌'}</Text>
+                {scrapingDebugResult.jsonLdFoundAndParsed && (
+                  <>
+                    <Text style={styles.resultItem}>🥘 Malzeme Sayısı: {scrapingDebugResult.jsonLdIngredientsCount} adet</Text>
+                    <Text style={styles.resultItem}>📋 Talimat Sayısı: {scrapingDebugResult.jsonLdInstructionsCount} adım</Text>
+                    <Text style={styles.resultItem}>🖼️ Görsel URL: {scrapingDebugResult.jsonLdImageUrl ? 'Mevcut' : 'Yok'}</Text>
+                  </>
                 )}
-                <Text style={styles.resultItem}>🖼️ Görsel: {result.imageUrl ? 'Mevcut' : 'Yok'}</Text>
-                <Text style={styles.resultItem}>🥘 Malzemeler: {result.ingredientCount} adet</Text>
-                <Text style={styles.resultItem}>📋 Talimatlar: {result.instructionCount} adım</Text>
-                <Text style={styles.resultItem}>⏱️ Süre: {result.executionTime?.toFixed(2)}s</Text>
-                {result.creditsUsed && (
-                  <Text style={styles.resultItem}>💳 Kullanılan Kredi: {result.creditsUsed}</Text>
-                )}
-                <Text style={styles.resultItem}>🤖 AI Üretimi: {result.isAiGenerated ? 'Evet' : 'JSON-LD'}</Text>
               </View>
             ) : (
-              <Text style={styles.errorText}>{result.error}</Text>
+              <Text style={styles.errorText}>{scrapingDebugResult.error}</Text>
+            )}
+          </View>
+        )}
+
+        {/* Tam Tarif Çıkarım Sonucu */}
+        {fullRecipeResult && (
+          <View style={[styles.resultContainer, fullRecipeResult.success ? styles.successResult : styles.errorResult]}>
+            <Text style={styles.resultTitle}>
+              {fullRecipeResult.success ? '✅ Tam Tarif Çıkarım Başarılı!' : '❌ Tam Tarif Çıkarım Hatası'}
+            </Text>
+            {fullRecipeResult.success ? (
+              <View style={styles.resultDetails}>
+                <Text style={styles.resultItem}>📝 Başlık: {fullRecipeResult.title}</Text>
+                <Text style={styles.resultItem}>🖼️ Görsel: {fullRecipeResult.imageUrl ? 'Mevcut' : 'Yok'}</Text>
+                <Text style={styles.resultItem}>🥘 Malzemeler: {fullRecipeResult.ingredientCount} adet</Text>
+                <Text style={styles.resultItem}>📋 Talimatlar: {fullRecipeResult.instructionCount} adım</Text>
+                <Text style={styles.resultItem}>⏱️ Süre: {fullRecipeResult.executionTime?.toFixed(2)}s</Text>
+                <Text style={styles.resultItem}>🤖 AI Üretimi: {fullRecipeResult.isAiGenerated ? 'Evet' : 'JSON-LD'}</Text>
+                {fullRecipeResult.aiMatchScore && (
+                  <Text style={styles.resultItem}>🎯 Güven Skoru: {fullRecipeResult.aiMatchScore}%</Text>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.errorText}>{fullRecipeResult.error}</Text>
             )}
           </View>
         )}
@@ -548,6 +614,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.lg,
     borderWidth: 1,
+    marginBottom: spacing.lg,
   },
   successResult: {
     backgroundColor: colors.success[50],
