@@ -282,21 +282,34 @@ class ScrapingBeeService {
 
     console.log('⚙️ [SCRAPINGBEE] Platform config:', mergedOptions);
 
-    const params = new URLSearchParams({
-      api_key: this.apiKey,
-      url: url,
-      render_js: mergedOptions.renderJs ? 'true' : 'false',
-      screenshot: mergedOptions.screenshot ? 'true' : 'false',
-      screenshot_full_page: mergedOptions.screenshotFullPage ? 'true' : 'false',
-      premium_proxy: mergedOptions.premium_proxy ? 'true' : 'false'
-    });
+    const params = new URLSearchParams();
+    params.append('api_key', this.apiKey);
+    params.append('url', url);
+    
+    // Only add parameters when they are true/needed
+    if (mergedOptions.renderJs) {
+      params.append('render_js', 'true');
+    }
+    if (mergedOptions.screenshot) {
+      params.append('screenshot', 'true');
+    }
+    if (mergedOptions.screenshotFullPage) {
+      params.append('screenshot_full_page', 'true');
+    }
+    if (mergedOptions.premium_proxy) {
+      params.append('premium_proxy', 'true');
+    }
 
     // Add wait time if specified
     if (mergedOptions.waitFor) {
       params.append('wait_for', mergedOptions.waitFor.toString());
     }
 
-    const response = await fetch(`${this.baseUrl}?${params}`);
+    const response = await fetch(`${this.baseUrl}?${params}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`ScrapingBee API error: ${response.status} - ${response.statusText}`);
