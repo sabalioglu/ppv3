@@ -246,11 +246,15 @@ class ScrapingBeeService {
   private async performQuickScrape(url: string): Promise<ScrapingResult> {
     const params = new URLSearchParams({
       api_key: this.apiKey,
-      url: url,
-      const params = new URLSearchParams();
-      params.append('api_key', this.apiKey);
-      params.append('url', url);
-      // Don't append render_js=false - omit it entirely for quick scrape
+      url: url
+    });
+
+    const response = await fetch(`${this.baseUrl}?${params}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
     if (!response.ok) {
       throw new Error(`ScrapingBee API error: ${response.status} - ${response.statusText}`);
     }
@@ -433,6 +437,7 @@ class ScrapingBeeService {
       return 'Could not access the webpage. Please check the URL and try again.';
     }
   }
+
   /**
    * Extract metadata from HTML for structured data detection
    */
@@ -458,25 +463,15 @@ class ScrapingBeeService {
         const structuredData = jsonLdMatches.map(match => {
           const jsonContent = match.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
           return JSON.parse(jsonContent);
-      const response = await fetch(`${this.baseUrl}?${params}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
+        });
         metadata.structuredData = structuredData;
       } catch (error) {
         console.warn('⚠️ [SCRAPINGBEE] Structured data parse hatası:', error);
       }
-      console.error('❌ [SCRAPINGBEE] Quick scrape error:', error);
-      const userFriendlyMessage = this.handleScrapingError(error, url);
-      throw new Error(userFriendlyMessage);
+    }
     return metadata;
   }
-      const response = await fetch(`${this.baseUrl}?${params}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
+
   /**
    * Debug function for comprehensive testing
    */
@@ -487,23 +482,11 @@ class ScrapingBeeService {
       renderJs: true,
       screenshot: false // Disable screenshot for debug to save credits
     });
-      const params = new URLSearchParams();
-      params.append('api_key', this.apiKey);
-      params.append('url', url);
-      
-      // Only add parameters when they are true/needed
-      if (mergedOptions.renderJs) {
-        params.append('render_js', 'true');
-      }
-      if (mergedOptions.screenshot) {
-        params.append('screenshot', 'true');
-      }
-      if (mergedOptions.screenshotFullPage) {
-        params.append('screenshot_full_page', 'true');
-      }
-      if (mergedOptions.premium_proxy) {
-        params.append('premium_proxy', 'true');
-      }
+
+    console.log('\n📊 [SCRAPINGBEE] Debug sonuçları:', {
+      success: result.success,
+      htmlLength: result.html.length,
+      platform: result.platform,
       executionTime: result.executionTime,
       creditsUsed: result.creditsUsed,
       error: result.error
@@ -515,9 +498,8 @@ class ScrapingBeeService {
 
     if (result.metadata?.structuredData) {
       console.log('🏗️ [SCRAPINGBEE] Structured Data:', result.metadata.structuredData.length, 'öğe bulundu');
-      console.error('❌ [SCRAPINGBEE] Full scrape error:', error);
-      const userFriendlyMessage = this.handleScrapingError(error, url);
-      throw new Error(userFriendlyMessage);
+    }
+
     return result;
   }
 }
