@@ -1,24 +1,14 @@
 // supabase/functions/website-recipe-extractor/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { VertexAI } from 'npm:@google-cloud/vertexai@^1.0.0'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
-const vertexAI = new VertexAI({
-  project: Deno.env.get('GCP_PROJECT_ID')!,
-  location: 'us-central1',
-  googleAuthOptions: {
-    credentials: JSON.parse(Deno.env.get('GCP_SERVICE_ACCOUNT_KEY')!)
-  }
-});
-
-const model = vertexAI.getGenerativeModel({
-  model: 'gemini-1.5-pro-preview-0514'
-});
+// Gemini 2.5 Flash API endpoint
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 interface WebsiteExtractionRequest {
   url: string;
@@ -111,7 +101,7 @@ async function processWebsiteAsync(job: {
     // Step 1: Initialize job
     await updateJobStatus(job.jobId, 'analyzing', 25, 'Web sitesi AI ile analiz ediliyor...');
     
-    // Step 2: AI Analysis
+    // Step 2: Gemini 2.5 Flash Analysis
     const recipeData = await extractRecipeWithGemini(job.url);
     
     await updateJobStatus(job.jobId, 'validating', 60, 'Tarif bilgileri doğrulanıyor...');
@@ -162,6 +152,11 @@ async function processWebsiteAsync(job: {
 }
 
 async function extractRecipeWithGemini(url: string): Promise<RecipeData> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY environment variable is not set');
+  }
+
   const analysisPrompt = `
     Bu web sitesindeki tarifi detaylı analiz et ve JSON formatında çıkar:
     URL: ${url}
@@ -221,38 +216,84 @@ async function extractRecipeWithGemini(url: string): Promise<RecipeData> {
     Eksik veya belirsiz bilgiler varsa confidence_score'u düşür.
   `;
   
-  console.log(`🤖 [GEMINI] Analyzing website: ${url}`);
+  console.log(`🤖 [GEMINI-2.5-FLASH] Analyzing website: ${url}`);
   
-  const result = await model.generateContent({
-    contents: [{
-      role: 'user',
-      parts: [{ text: analysisPrompt }]
-    }]
-  });
-  
-  const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!responseText) {
-    throw new Error('Gemini boş yanıt döndürdü');
-  }
-  
-  console.log(`🤖 [GEMINI] Response received, parsing JSON...`);
-  
-  let recipeData: RecipeData;
   try {
-    recipeData = JSON.parse(responseText);
-  } catch (parseError) {
-    console.error('JSON parse error:', parseError);
-    throw new Error('AI yanıtı geçerli JSON formatında değil');
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: analysisPrompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 2048,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Gemini boş yanıt döndürdü');
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    
+    console.log(`🤖 [GEMINI-2.5-FLASH] Response received, parsing JSON...`);
+    
+    let recipeData: RecipeData;
+    try {
+      recipeData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Raw response:', responseText);
+      throw new Error('AI yanıtı geçerli JSON formatında değil');
+    }
+    
+    // Confidence validation (Manifesto compliance)
+    if (recipeData.confidence_score < 80) {
+      throw new Error(`Düşük güven skoru: ${recipeData.confidence_score}%. Web sitesi net tarif bilgisi içermiyor.`);
+    }
+    
+    console.log(`✅ [GEMINI-2.5-FLASH] Recipe extracted with confidence: ${recipeData.confidence_score}%`);
+    
+    return recipeData;
+    
+  } catch (error) {
+    console.error('Gemini API call failed:', error);
+    throw error;
   }
-  
-  // Confidence validation (Manifesto compliance)
-  if (recipeData.confidence_score < 80) {
-    throw new Error(`Düşük güven skoru: ${recipeData.confidence_score}%. Web sitesi net tarif bilgisi içermiyor.`);
-  }
-  
-  console.log(`✅ [GEMINI] Recipe extracted with confidence: ${recipeData.confidence_score}%`);
-  
-  return recipeData;
 }
 
 function validateRecipeData(recipeData: RecipeData): void {
@@ -309,7 +350,7 @@ async function saveRecipeToLibrary(recipeData: RecipeData, userId: string, sourc
       ai_confidence_score: recipeData.confidence_score,
       source_url: sourceUrl,
       source_platform: detectWebsitePlatform(sourceUrl),
-      extraction_method: 'ai_direct',
+      extraction_method: 'gemini_2.5_flash',
       created_at: new Date().toISOString()
     })
     .select()
@@ -369,6 +410,8 @@ function getWebsiteErrorMessage(error: any, url: string): string {
     return 'AI analizi başarısız. Web sitesi erişilebilir değil veya tarif içermiyor.';
   } else if (error.message?.includes('JSON formatında değil')) {
     return 'AI analizi başarısız. Lütfen farklı bir tarif sitesi deneyin.';
+  } else if (error.message?.includes('GEMINI_API_KEY')) {
+    return 'AI servisi yapılandırma hatası. Lütfen daha sonra tekrar deneyin.';
   } else {
     return `${domain} sitesi analiz edilemedi. Lütfen farklı bir tarif sitesi deneyin.`;
   }
