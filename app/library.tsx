@@ -13,7 +13,33 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { ArrowLeft, Plus, Search, Filter, Grid2x2 as Grid, List, Link, Heart, Clock, Users, ChefHat, Trash2, CreditCard as Edit3, ExternalLink, BookOpen, X, Flame, ChevronDown, Check, Camera, Instagram, Youtube, Facebook, Video, Bookmark } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  Filter,
+  Grid,
+  List,
+  Link,
+  Heart,
+  Clock,
+  Users,
+  ChefHat,
+  Trash2,
+  Edit3,
+  ExternalLink,
+  BookOpen,
+  X,
+  Flame,
+  ChevronDown,
+  Check,
+  Camera,
+  Instagram,
+  Youtube,
+  Facebook,
+  Video, // TikTok icon replacement
+  Bookmark, // Pinterest icon replacement
+} from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -133,25 +159,46 @@ interface ImportSource {
 
 const importSources: ImportSource[] = [
   {
-    id: 'web',
-    name: 'Web',
-    icon: Link,
-    color: colors.primary[500],
-    description: 'Recipe websites'
+    id: 'instagram',
+    name: 'Instagram',
+    icon: Instagram,
+    color: '#E4405F',
+    description: 'Reels & recipe posts'
   },
   {
-    id: 'socials',
-    name: 'Socials',
+    id: 'tiktok',
+    name: 'TikTok',
     icon: Video,
-    color: '#E4405F',
-    description: 'FB, TikTok, Insta, YouTube & more'
+    color: '#000000',
+    description: 'Video recipes'
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    icon: Facebook,
+    color: '#1877F2',
+    description: 'Recipe posts and videos'
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    icon: Bookmark,
+    color: '#BD081C',
+    description: 'Recipe pins and boards'
+  },
+  {
+    id: 'youtube',
+    name: 'YouTube',
+    icon: Youtube,
+    color: '#FF0000',
+    description: 'Cooking videos'
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.accent[500],
-    description: 'Scan recipe'
+    color: colors.primary[500],
+    description: 'Scan recipe from notebook'
   }
 ];
 
@@ -634,16 +681,56 @@ const URLImportModal: React.FC<{
 
   // Platform-aware and humorous loading messages
   const getLoadingMessages = (url: string) => {
-    const messages = [
-      "Extracting recipe...",
-      "Processing content...",
-      "Analyzing ingredients...",
-      "Getting instructions...",
-      "Almost done...",
-      "Finalizing recipe..."
+    const baseMessages = [
+      "Our AI chef is cooking up your recipe...",
+      "Scanning the digital pantry for ingredients...",
+      "Teaching our robots to chop onions (virtually, of course)...",
+      "Brewing the perfect digital coffee for our recipe AI...",
+      "Wrangling pixels to find the best recipe image...",
+      "Making sure no digital crumbs are left behind...",
+      "Consulting the ancient scrolls of culinary wisdom...",
+      "Don't worry, we're faster than a slow cooker!",
+      "Almost ready to serve your new favorite dish!",
+      "Just adding a pinch of AI magic..."
     ];
-    
-    return messages;
+
+    // Platform-specific messages
+    const platformMessages: { [key: string]: string[] } = {
+      tiktok: [
+        "🎬 TikTok videosunu analiz ediyorum...",
+        "👨‍🍳 Şefin hareketlerini takip ediyorum...",
+        "📝 Malzemeleri not alıyorum...",
+        "🔥 Pişirme tekniklerini öğreniyorum..."
+      ],
+      instagram: [
+        "📸 Instagram Reel'i işliyorum...",
+        "✨ Tarif detaylarını çıkarıyorum...",
+        "🥘 Malzeme listesini hazırlıyorum...",
+        "📱 Story'deki notları okuyorum..."
+      ],
+      youtube: [
+        "🎥 YouTube videosunu inceliyorum...",
+        "📊 Video açıklamasını tarıyorum...",
+        "⏱️ Adım adım talimatları kaydediyorum...",
+        "🎯 En iyi kalitede analiz yapıyorum..."
+      ],
+      facebook: [
+        "📘 Facebook videosunu işliyorum...",
+        "👥 Yorumlardaki ipuçlarını topluyorum...",
+        "📹 Video kalitesini optimize ediyorum...",
+        "🍳 Tarif detaylarını birleştiriyorum..."
+      ]
+    };
+
+    // Detect platform
+    let platform = 'general';
+    if (url.includes('tiktok.com')) platform = 'tiktok';
+    else if (url.includes('instagram.com')) platform = 'instagram';
+    else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
+
+    // Combine platform-specific + general messages
+    const specificMessages = platformMessages[platform] || [];
+    return [...specificMessages, ...baseMessages].slice(0, 8); // Max 8 messages
   };
 
   useEffect(() => {
@@ -710,8 +797,8 @@ const URLImportModal: React.FC<{
 
           {/* Description */}
           <Text style={styles.urlModalDescription}>
-            Supports: Web recipes, YouTube, TikTok, Instagram, Facebook and more. 
-            Just paste any recipe link!
+            Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
+            including ingredients, instructions, and nutritional information.
           </Text>
 
           {/* URL Input */}
@@ -764,8 +851,8 @@ const URLImportModal: React.FC<{
               {loading ? (
                 <View style={styles.loadingContent}>
                   <ActivityIndicator size="small" color={colors.neutral[0]} />
-                  <Text style={[styles.urlImportButtonText, { fontSize: 12 }]} numberOfLines={1}>
-                    Processing...
+                  <Text style={styles.urlImportButtonText} numberOfLines={2}>
+                    {currentLoadingMessage}
                   </Text>
                 </View>
               ) : (
@@ -1120,7 +1207,7 @@ export default function Library() {
       });
     } else if (sourceId === 'manual') {
       setShowManualRecipe(true);
-    } else if (sourceId === 'web' || sourceId === 'socials') {
+    } else {
       setSelectedImportSource(sourceId);
       setShowURLImport(true);
     }
@@ -1142,7 +1229,7 @@ export default function Library() {
         Alert.alert('Error', 'Failed to save recipe');
         return;
       }
-      Alert.alert('Success! 🎉', 'Recipe added to your library');
+      Alert.alert('Success! ', 'Recipe added to your library');
       await loadLibraryData();
     } catch (error) {
       console.error('Error saving manual recipe:', error);
@@ -1308,7 +1395,7 @@ export default function Library() {
 
         // Success feedback
         Alert.alert(
-          'Success! 🎉', 
+          'Success! ', 
           `"${newRecipe.title}" has been successfully imported to your library!`,
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
@@ -1745,7 +1832,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.neutral[200],
-    minHeight: 140,
   },
   importSourceIconContainer: {
     width: 56,
@@ -2117,19 +2203,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[300],
   },
   urlImportButtonText: {
-    fontSize: 14,
+    fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[0],
-    marginLeft: 4,
   },
   // **NEW: Intelligent Loading Content Style**
   loadingContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xs,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   // **Recipe Card Styles (existing implementation)**
   gridCard: {
