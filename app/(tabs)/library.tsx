@@ -60,15 +60,15 @@
 +    const platformMessages: { [key: string]: string[] } = {
 +      tiktok: [
 +        "Processing TikTok...",
-+        "Extracting from video...",
++        "Extracting from video..."
 +      ],
 +      instagram: [
 +        "Processing Instagram...",
-+        "Reading recipe post...",
++        "Reading recipe post..."
 +      ],
 +      youtube: [
 +        "Processing YouTube...",
-+        "Analyzing video...",
++        "Analyzing video..."
 +      ]
 +    };
 +
@@ -81,6 +81,7 @@
 +    // Combine platform-specific + general messages
 +    const specificMessages = platformMessages[platform] || [];
 +    return [...specificMessages, ...baseMessages].slice(0, 8);
-   };
++  };
  
    // Start loading animation
+}
