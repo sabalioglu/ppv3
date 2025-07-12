@@ -133,45 +133,24 @@ interface ImportSource {
 
 const importSources: ImportSource[] = [
   {
-    id: 'instagram',
-    name: 'Instagram',
-    icon: Instagram,
-    color: '#E4405F',
-    description: 'Posts & reels'
+    id: 'web',
+    name: 'Web',
+    icon: Link,
+    color: colors.primary[500],
+    description: 'Recipe websites'
   },
   {
-    id: 'tiktok',
-    name: 'TikTok',
+    id: 'socials',
+    name: 'Socials',
     icon: Video,
-    color: '#000000',
-    description: 'Video recipes'
-  },
-  {
-    id: 'facebook',
-    name: 'Facebook',
-    icon: Facebook,
-    color: '#1877F2',
-    description: 'Recipe posts'
-  },
-  {
-    id: 'pinterest',
-    name: 'Pinterest',
-    icon: Bookmark,
-    color: '#BD081C',
-    description: 'Recipe pins'
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    icon: Youtube,
-    color: '#FF0000',
-    description: 'Cooking videos'
+    color: '#E4405F',
+    description: 'FB, TikTok, Insta, YouTube & more'
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.primary[500],
+    color: colors.accent[500],
     description: 'Scan recipe'
   }
 ];
@@ -1141,7 +1120,7 @@ export default function Library() {
       });
     } else if (sourceId === 'manual') {
       setShowManualRecipe(true);
-    } else {
+    } else if (sourceId === 'web' || sourceId === 'socials') {
       setSelectedImportSource(sourceId);
       setShowURLImport(true);
     }
@@ -1766,6 +1745,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.neutral[200],
+    minHeight: 140,
   },
   importSourceIconContainer: {
     width: 56,
