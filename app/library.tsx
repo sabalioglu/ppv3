@@ -694,34 +694,7 @@ const URLImportModal: React.FC<{
       "Just adding a pinch of AI magic..."
     ];
 
-    // Platform-specific messages
-    const platformMessages: { [key: string]: string[] } = {
-      tiktok: [
-        "🎬 TikTok videosunu analiz ediyorum...",
-        "👨‍🍳 Şefin hareketlerini takip ediyorum...",
-        "📝 Malzemeleri not alıyorum...",
-        "🔥 Pişirme tekniklerini öğreniyorum..."
-      ],
-      instagram: [
-        "📸 Instagram Reel'i işliyorum...",
-        "✨ Tarif detaylarını çıkarıyorum...",
-        "🥘 Malzeme listesini hazırlıyorum...",
-        "📱 Story'deki notları okuyorum..."
-      ],
-      youtube: [
-        "🎥 YouTube videosunu inceliyorum...",
-        "📊 Video açıklamasını tarıyorum...",
-        "⏱️ Adım adım talimatları kaydediyorum...",
-        "🎯 En iyi kalitede analiz yapıyorum..."
-      ],
-      facebook: [
-        "📘 Facebook videosunu işliyorum...",
-        "👥 Yorumlardaki ipuçlarını topluyorum...",
-        "📹 Video kalitesini optimize ediyorum...",
-        "🍳 Tarif detaylarını birleştiriyorum..."
-      ]
-    };
-
+    
     // Detect platform
     let platform = 'general';
     if (url.includes('tiktok.com')) platform = 'tiktok';
