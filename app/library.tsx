@@ -44,8 +44,9 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-// **OpenAI Recipe AI Service Import**
+// **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
+import { extractVideoRecipe, detectVideoPlatform } from '@/lib/supabase-functions';
 
 const { width, height } = Dimensions.get('window');
 
@@ -162,14 +163,14 @@ const importSources: ImportSource[] = [
     name: 'Instagram',
     icon: Instagram,
     color: '#E4405F',
-    description: 'Recipe posts and reels'
+    description: 'Reels & recipe posts'
   },
   {
     id: 'tiktok',
     name: 'TikTok',
     icon: Video,
     color: '#000000',
-    description: 'Cooking videos and recipes'
+    description: 'Video recipes'
   },
   {
     id: 'facebook',
@@ -190,7 +191,7 @@ const importSources: ImportSource[] = [
     name: 'YouTube',
     icon: Youtube,
     color: '#FF0000',
-    description: 'Cooking videos and tutorials'
+    description: 'Cooking videos'
   },
   {
     id: 'camera',
@@ -458,7 +459,7 @@ const ManualRecipeModal: React.FC<{
             <Text style={styles.formHint}>Enter each step on a new line</Text>
             <TextInput
               style={[styles.formInput, styles.textArea, { height: 150 }]}
-              placeholder="Preheat oven to 350°F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;Bake for 25-30 minutes"
+              placeholder="Preheat oven to 350F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;Bake for 25-30 minutes"
               value={formData.instructions}
               onChangeText={(text) => setFormData(prev => ({ ...prev, instructions: text }))}
               placeholderTextColor={colors.neutral[400]}
@@ -696,22 +697,28 @@ const URLImportModal: React.FC<{
     // Platform-specific messages
     const platformMessages: { [key: string]: string[] } = {
       tiktok: [
-        "🎵 Parsing TikTok cooking video...",
-        "📱 Extracting recipe from viral content...",
-        "🎬 Analyzing video thumbnail...",
-        "⭐ This looks like a trending recipe!"
+        "🎬 TikTok videosunu analiz ediyorum...",
+        "👨‍🍳 Şefin hareketlerini takip ediyorum...",
+        "📝 Malzemeleri not alıyorum...",
+        "🔥 Pişirme tekniklerini öğreniyorum..."
       ],
       instagram: [
-        "📸 Processing Instagram recipe post...",
-        "🌟 Extracting from food influencer content...",
-        "📖 Reading recipe from beautiful photos...",
-        "✨ Instagram-worthy recipe incoming!"
+        "📸 Instagram Reel'i işliyorum...",
+        "✨ Tarif detaylarını çıkarıyorum...",
+        "🥘 Malzeme listesini hazırlıyorum...",
+        "📱 Story'deki notları okuyorum..."
       ],
       youtube: [
-        "🎥 Analyzing YouTube cooking tutorial...",
-        "👨‍🍳 Learning from the chef's video...",
-        "📺 Extracting step-by-step instructions...",
-        "🎬 Processing video thumbnail..."
+        "🎥 YouTube videosunu inceliyorum...",
+        "📊 Video açıklamasını tarıyorum...",
+        "⏱️ Adım adım talimatları kaydediyorum...",
+        "🎯 En iyi kalitede analiz yapıyorum..."
+      ],
+      facebook: [
+        "📘 Facebook videosunu işliyorum...",
+        "👥 Yorumlardaki ipuçlarını topluyorum...",
+        "📹 Video kalitesini optimize ediyorum...",
+        "🍳 Tarif detaylarını birleştiriyorum..."
       ]
     };
 
@@ -1222,7 +1229,7 @@ export default function Library() {
         Alert.alert('Error', 'Failed to save recipe');
         return;
       }
-      Alert.alert('Success! 📚', 'Recipe added to your library');
+      Alert.alert('Success! ', 'Recipe added to your library');
       await loadLibraryData();
     } catch (error) {
       console.error('Error saving manual recipe:', error);
@@ -1291,7 +1298,7 @@ export default function Library() {
     );
   };
 
-  // **🚀 Enhanced AI-Powered URL Import Handler with Zero Extra Cost + Intelligent Loading**
+  // **Enhanced AI-Powered URL Import Handler with Video Support**
   const handleURLImport = async (url: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1300,7 +1307,7 @@ export default function Library() {
         return;
       }
 
-      setIsImporting(true); // **Start intelligent loading state**
+      setIsImporting(true);
 
       // URL validation
       if (!url.trim() || !url.includes('http')) {
@@ -1308,55 +1315,94 @@ export default function Library() {
         return;
       }
 
-      // Extract recipe using AI service (same API call, zero extra cost)
-      const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
+      // Video platform detection
+      const videoPlatforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'vt.tiktok.com', 'instagram.com', 'facebook.com', 'fb.watch'];
+      const isVideoUrl = videoPlatforms.some(platform => url.includes(platform));
 
-      if (!extractedData) {
+      if (isVideoUrl) {
+        // VIDEO EXTRACTION
+        console.log('🎥 Detected video URL, using video extraction...');
+        
+        // Check platform
+        const platform = detectVideoPlatform(url);
+        if (platform === 'Unknown') {
+          Alert.alert('Unsupported Platform', 'This video platform is not supported yet.');
+          return;
+        }
+
+        // Extract from video
+        const result = await extractVideoRecipe(url, user.id);
+        
+        if (!result.success || !result.recipe) {
+          Alert.alert(
+            'Video Extraction Failed', 
+            result.error || 'Could not extract recipe from this video. Please try another video or add manually.'
+          );
+          return;
+        }
+
+        // Recipe already saved by edge function, just refresh the list
         Alert.alert(
-          'Import Failed', 
-          'Could not extract recipe details from this URL. The page might not contain a recipe or may be inaccessible. Please try another link or add manually.'
+          'Success! 🎉', 
+          `"${result.recipe.title}" has been extracted from the video and saved to your library!`,
+          [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
-        return;
+
+        // Refresh recipe list
+        await loadLibraryData();
+
+      } else {
+        // WEB EXTRACTION
+        console.log('🌐 Detected web URL, using web extraction...');
+        const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
+        
+        if (!extractedData) {
+          Alert.alert(
+            'Import Failed', 
+            'Could not extract recipe details from this URL. The page might not contain a recipe or may be inaccessible.'
+          );
+          return;
+        }
+
+        // Convert extracted data to Supabase recipe format
+        const newRecipe = {
+          user_id: user.id,
+          title: extractedData.title,
+          description: extractedData.description || '',
+          image_url: extractedData.image_url,
+          prep_time: extractedData.prep_time || 0,
+          cook_time: extractedData.cook_time || 0,
+          servings: extractedData.servings || 1,
+          difficulty: extractedData.difficulty || 'Easy',
+          ingredients: extractedData.ingredients || [],
+          instructions: extractedData.instructions || [],
+          nutrition: extractedData.nutrition,
+          tags: extractedData.tags || [],
+          category: extractedData.category || 'General',
+          is_favorite: false,
+          is_ai_generated: true,
+          source_url: url.trim(),
+        };
+
+        // Save to Supabase
+        const { error } = await supabase.from('user_recipes').insert(newRecipe);
+
+        if (error) {
+          console.error('Error saving AI extracted recipe:', error);
+          Alert.alert('Save Error', 'Failed to save the imported recipe. Please try again.');
+          return;
+        }
+
+        // Success feedback
+        Alert.alert(
+          'Success! ', 
+          `"${newRecipe.title}" has been successfully imported to your library!`,
+          [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
+        );
+
+        // Refresh recipe list
+        await loadLibraryData();
       }
-
-      // Convert extracted data to Supabase recipe format
-      const newRecipe = {
-        user_id: user.id,
-        title: extractedData.title,
-        description: extractedData.description || '',
-        image_url: extractedData.image_url, // **AI extracts this in same call - zero extra cost**
-        prep_time: extractedData.prep_time || 0,
-        cook_time: extractedData.cook_time || 0,
-        servings: extractedData.servings || 1,
-        difficulty: extractedData.difficulty || 'Easy',
-        ingredients: extractedData.ingredients || [],
-        instructions: extractedData.instructions || [],
-        nutrition: extractedData.nutrition,
-        tags: extractedData.tags || [],
-        category: extractedData.category || 'General',
-        is_favorite: false,
-        is_ai_generated: true,
-        source_url: url.trim(),
-      };
-
-      // Save to Supabase
-      const { error } = await supabase.from('user_recipes').insert(newRecipe);
-
-      if (error) {
-        console.error('Error saving AI extracted recipe:', error);
-        Alert.alert('Save Error', 'Failed to save the imported recipe. Please try again.');
-        return;
-      }
-
-      // Success feedback
-      Alert.alert(
-        'Success! 🎉', 
-        `"${newRecipe.title}" has been successfully imported to your library!`,
-        [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
-      );
-
-      // Refresh recipe list
-      await loadLibraryData();
 
     } catch (error: any) {
       console.error('URL import process error:', error);
@@ -1367,7 +1413,7 @@ export default function Library() {
         Alert.alert('Import Error', error.message || 'An unexpected error occurred. Please try again.');
       }
     } finally {
-      setIsImporting(false); // **End loading state**
+      setIsImporting(false);
     }
   };
 
