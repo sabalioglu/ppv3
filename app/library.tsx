@@ -1,6 +1,3 @@
-Here's the complete `app/library.tsx` file with all the changes applied:
-
-```typescript
 import React, { useState, useEffect } from 'react';
 import {
   View,
