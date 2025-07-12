@@ -13,33 +13,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import {
-  ArrowLeft,
-  Plus,
-  Search,
-  Filter,
-  Grid,
-  List,
-  Link,
-  Heart,
-  Clock,
-  Users,
-  ChefHat,
-  Trash2,
-  Edit3,
-  ExternalLink,
-  BookOpen,
-  X,
-  Flame,
-  ChevronDown,
-  Check,
-  Camera,
-  Instagram,
-  Youtube,
-  Facebook,
-  Video, // TikTok icon replacement
-  Bookmark, // Pinterest icon replacement
-} from 'lucide-react-native';
+import { ArrowLeft, Plus, Search, Filter, Grid2x2 as Grid, List, Link, Heart, Clock, Users, ChefHat, Trash2, CreditCard as Edit3, ExternalLink, BookOpen, X, Flame, ChevronDown, Check, Camera, Instagram, Youtube, Facebook, Video, Bookmark } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
