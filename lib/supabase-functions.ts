@@ -16,10 +16,10 @@ export async function extractRecipeFromUrl(url: string, userId: string) {
 /**
  * Extract recipe from video URL using AI with nutrition calculation
  * Manifesto: Tek sorumluluk - video extraction
- * Edge Function: process-video-recipe (DÜZELTME: function ismi)
+ * Edge Function: extract-video-recipe
  */
 export async function extractVideoRecipe(videoUrl: string, userId: string) {
-  const { data, error } = await supabase.functions.invoke('process-video-recipe', {
+  const { data, error } = await supabase.functions.invoke('extract-video-recipe', {
     body: { 
       url: videoUrl,
       userId: userId 
@@ -27,6 +27,22 @@ export async function extractVideoRecipe(videoUrl: string, userId: string) {
   });
   
   if (error) throw error;
+  
+  // Instructions format transformation - fix for frontend display
+  if (data?.recipe?.instructions && Array.isArray(data.recipe.instructions)) {
+    // Convert string array to instruction object array
+    data.recipe.instructions = data.recipe.instructions.map((instruction, index) => {
+      if (typeof instruction === 'string') {
+        return {
+          step: index + 1,
+          instruction: instruction,
+          duration_mins: null
+        };
+      }
+      return instruction;
+    });
+  }
+  
   return data;
 }
 
