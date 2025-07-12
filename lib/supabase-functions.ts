@@ -14,11 +14,12 @@ export async function extractRecipeFromUrl(url: string, userId: string) {
 }
 
 /**
- * Extract recipe from video URL using AI
+ * Extract recipe from video URL using AI with nutrition calculation
  * Manifesto: Tek sorumluluk - video extraction
+ * Edge Function: process-video-recipe (DÜZELTME: function ismi)
  */
 export async function extractVideoRecipe(videoUrl: string, userId: string) {
-  const { data, error } = await supabase.functions.invoke('extract-video-recipe', {
+  const { data, error } = await supabase.functions.invoke('process-video-recipe', {
     body: { 
       url: videoUrl,
       userId: userId 
@@ -54,4 +55,41 @@ export function detectVideoPlatform(url: string): string {
   if (url.includes('instagram.com')) return 'Instagram';
   if (url.includes('facebook.com') || url.includes('fb.watch')) return 'Facebook';
   return 'Unknown';
+}
+
+// Video extraction response type (opsiyonel ama önerilen)
+export interface VideoExtractionResponse {
+  success: boolean;
+  recipe?: {
+    id: string;
+    title: string;
+    ingredients: Array<{
+      name: string;
+      amount: string;
+      notes?: string;
+    }>;
+    instructions: string[];
+    nutrition: {
+      calories: number;
+      fat: number;
+      carbs: number;
+      protein: number;
+      fiber: number;
+      sugar: number;
+      sodium: number;
+    };
+    servings?: number;
+    prep_time?: number;
+    cook_time?: number;
+  };
+  processingTime?: string;
+  platform?: string;
+  confidence_score?: number;
+  extraction_notes?: string;
+  nutrition_summary?: {
+    calories: number;
+    protein: number;
+    calculated_by_ai: boolean;
+  };
+  error?: string;
 }
