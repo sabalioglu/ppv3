@@ -19,7 +19,7 @@ export async function extractRecipeFromUrl(url: string, userId: string) {
  * Edge Function: extract-video-recipe
  */
 export async function extractVideoRecipe(videoUrl: string, userId: string) {
-  const { data, error } = await supabase.functions.invoke('extract-video-recipe', {
+  const { data, error } = await supabase.functions.invoke('video-intelligence', {
     body: { 
       url: videoUrl,
       userId: userId 
