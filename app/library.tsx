@@ -13,7 +13,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { ArrowLeft, Plus, Search, Filter, Grid2x2 as Grid, List, Link, Heart, Clock, Users, ChefHat, Trash2, CreditCard as Edit3, ExternalLink, BookOpen, Book, X, Flame, ChevronDown, Check, Camera, Instagram, Youtube, Facebook, Video, Bookmark, Globe, Share2, FileText, ChevronLeft } from 'lucide-react-native'
+import { ArrowLeft, Plus, Search, Filter, Grid, List, Link, Heart, Clock, Users, ChefHat, Trash2, Edit3, ExternalLink, BookOpen, Book, X, Flame, ChevronDown, Check, Camera, Instagram, Youtube, Facebook, Video, Bookmark, Globe, Share2, FileText, ChevronLeft } from 'lucide-react-native'
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -839,7 +839,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onPress,
   onFavorite,
   onEdit,
-  onDelete
+  onDelete,
+  onAddToCookbook
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -872,6 +873,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                   color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
                   fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
                 />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
+                <Book size={16} color={colors.secondary[500]} />
               </TouchableOpacity>
               <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
                 <Edit3 size={16} color={colors.neutral[400]} />
@@ -964,6 +968,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           )}
         </View>
         <View style={styles.gridActions}>
+          <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+            <Book size={14} color={colors.secondary[500]} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
             <Edit3 size={14} color={colors.primary[500]} />
           </TouchableOpacity>
@@ -1036,6 +1043,8 @@ export default function Library() {
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
+  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
+  const [showAddToCookbookModal, setShowAddToCookbookModal] = useState(false);
   
   // **Cookbook view states**
   const [viewType, setViewType] = useState<'library' | 'cookbook'>('library');
@@ -1335,6 +1344,11 @@ export default function Library() {
     );
   };
 
+  const handleAddToCookbook = (recipeId: string, recipeTitle: string) => {
+    setSelectedRecipeForCookbook({ id: recipeId, title: recipeTitle });
+    setShowAddToCookbookModal(true);
+  };
+
   const handleURLImport = async (url: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1596,6 +1610,7 @@ export default function Library() {
                         console.log('Recipe edit form coming soon:', recipe.id);
                       }}
                       onDelete={() => handleDelete(recipe.id)}
+                      onAddToCookbook={() => handleAddToCookbook(recipe.id, recipe.title)}
                     />
                   </View>
                 ))}
@@ -1614,6 +1629,7 @@ export default function Library() {
                     console.log('Recipe edit form coming soon:', recipe.id);
                   }}
                   onDelete={() => handleDelete(recipe.id)}
+                  onAddToCookbook={() => handleAddToCookbook(recipe.id, recipe.title)}
                 />
               ))
             )
