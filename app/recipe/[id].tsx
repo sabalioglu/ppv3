@@ -231,8 +231,15 @@ export default function RecipeDetail() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
         <View style={styles.heroContainer}>
-          {recipe.image_url ? (
-            <Image source={{ uri: recipe.image_url }} style={styles.heroImage} />
+          {recipe.image_url && recipe.image_url.trim() !== '' ? (
+            <Image 
+              source={{ uri: recipe.image_url }} 
+              style={styles.heroImage}
+              resizeMode="cover"
+              onError={() => {
+                console.log('Image failed to load:', recipe.image_url);
+              }}
+            />
           ) : (
             <View style={styles.heroPlaceholder}>
               <Text style={styles.heroPlaceholderText}>No Image</Text>
