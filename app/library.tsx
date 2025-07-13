@@ -13,7 +13,38 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { ArrowLeft, Plus, Search, Filter, Grid2x2 as Grid, List, Link, Heart, Clock, Users, ChefHat, Trash2, CreditCard as Edit3, ExternalLink, BookOpen, Book, X, Flame, ChevronDown, Check, Camera, Instagram, Youtube, Facebook, Video, Bookmark, Globe, Share2, FileText, ChevronLeft } from 'lucide-react-native'rom 'lucide-react-native'
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  Filter,
+  Grid,
+  List,
+  Link,
+  Heart,
+  Clock,
+  Users,
+  ChefHat,
+  Trash2,
+  Edit3,
+  ExternalLink,
+  BookOpen,
+  X,
+  Flame,
+  ChevronDown,
+  Check,
+  Camera,
+  Instagram,
+  Youtube,
+  Facebook,
+  Video,
+  Bookmark,
+  Globe,
+  Share2,
+  FileText,
+  Book,
+  ChevronLeft,
+} from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -21,6 +52,7 @@ import { supabase } from '@/lib/supabase';
 // **Import Cookbook Components**
 import { CookbookCard } from '@/components/cookbook/CookbookCard';
 import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
 import { Cookbook } from '@/types/cookbook';
 
 // **Recipe AI Service Imports**
@@ -822,7 +854,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component**
+// **Recipe Card Component with Cookbook Support**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -839,7 +871,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onPress,
   onFavorite,
   onEdit,
-  onDelete
+  onDelete,
+  onAddToCookbook
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -872,6 +905,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                   color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
                   fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
                 />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
+                <Book size={16} color={colors.secondary[500]} />
               </TouchableOpacity>
               <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
                 <Edit3 size={16} color={colors.neutral[400]} />
@@ -964,6 +1000,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           )}
         </View>
         <View style={styles.gridActions}>
+          <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+            <Book size={14} color={colors.secondary[500]} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
             <Edit3 size={14} color={colors.primary[500]} />
           </TouchableOpacity>
@@ -1033,6 +1072,8 @@ export default function Library() {
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
+  const [showAddToCookbook, setShowAddToCookbook] = useState(false);
+  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
@@ -1191,6 +1232,11 @@ export default function Library() {
     setViewType('library');
     setSelectedCookbook(null);
     loadLibraryData();
+  };
+
+  const handleAddToCookbook = (recipe: Recipe) => {
+    setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
+    setShowAddToCookbook(true);
   };
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -1596,6 +1642,7 @@ export default function Library() {
                         console.log('Recipe edit form coming soon:', recipe.id);
                       }}
                       onDelete={() => handleDelete(recipe.id)}
+                      onAddToCookbook={() => handleAddToCookbook(recipe)}
                     />
                   </View>
                 ))}
@@ -1614,6 +1661,7 @@ export default function Library() {
                     console.log('Recipe edit form coming soon:', recipe.id);
                   }}
                   onDelete={() => handleDelete(recipe.id)}
+                  onAddToCookbook={() => handleAddToCookbook(recipe)}
                 />
               ))
             )
@@ -1663,6 +1711,18 @@ export default function Library() {
           loadLibraryData();
         }}
       />
+
+      {selectedRecipeForCookbook && (
+        <AddToCookbookModal
+          visible={showAddToCookbook}
+          onClose={() => {
+            setShowAddToCookbook(false);
+            setSelectedRecipeForCookbook(null);
+          }}
+          recipeId={selectedRecipeForCookbook.id}
+          recipeTitle={selectedRecipeForCookbook.title}
+        />
+      )}
       
       <TouchableOpacity
         style={styles.floatingAddButton}
