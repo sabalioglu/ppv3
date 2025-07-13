@@ -634,7 +634,7 @@ const ImportOptionsModal: React.FC<{
             </TouchableOpacity>
           </View>
           <View style={styles.importCategoriesContainer}>
-            <View style={styles.importCategoriesGrid}>
+            <View style={styles.importCategoriesGrid}>,
               {importCategories.map((category) => (
                 <TouchableOpacity
                   key={category.id}
