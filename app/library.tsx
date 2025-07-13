@@ -42,10 +42,17 @@ import {
   Globe,
   Share2,
   FileText,
+  Book,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+
+// **Import Cookbook Components**
+import { CookbookCard } from '@/components/cookbook/CookbookCard';
+import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { Cookbook } from '@/types/cookbook';
 
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
@@ -1047,6 +1054,7 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -1054,9 +1062,14 @@ export default function Library() {
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
+  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
+  
+  // **Cookbook view states**
+  const [viewType, setViewType] = useState<'library' | 'cookbook'>('library');
+  const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
 
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
@@ -1075,6 +1088,7 @@ export default function Library() {
         return;
       }
 
+      // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
         .from('user_recipes')
         .select('*')
@@ -1085,6 +1099,19 @@ export default function Library() {
         console.error('Error loading recipes:', recipesError);
         Alert.alert('Error', 'Failed to load recipes');
         return;
+      }
+
+      // Load cookbooks
+      const { data: cookbooksData, error: cookbooksError } = await supabase
+        .from('cookbooks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (cookbooksError) {
+        console.error('Error loading cookbooks:', cookbooksError);
+      } else {
+        setCookbooks(cookbooksData || []);
       }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
@@ -1118,9 +1145,83 @@ export default function Library() {
     }
   };
 
+  const loadCookbookRecipes = async (cookbookId: string) => {
+    try {
+      setLoading(true);
+      
+      // Get recipe IDs from recipe_cookbooks junction table
+      const { data: recipeIds, error: junctionError } = await supabase
+        .from('recipe_cookbooks')
+        .select('recipe_id')
+        .eq('cookbook_id', cookbookId);
+
+      if (junctionError) {
+        console.error('Error loading cookbook recipes:', junctionError);
+        return;
+      }
+
+      if (!recipeIds || recipeIds.length === 0) {
+        setRecipes([]);
+        return;
+      }
+
+      // Get full recipe data
+      const { data: recipesData, error: recipesError } = await supabase
+        .from('user_recipes')
+        .select('*')
+        .in('id', recipeIds.map(r => r.recipe_id));
+
+      if (recipesError) {
+        console.error('Error loading recipes:', recipesError);
+        return;
+      }
+
+      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+        id: dbRecipe.id,
+        title: dbRecipe.title,
+        description: dbRecipe.description || '',
+        image_url: dbRecipe.image_url,
+        prep_time: dbRecipe.prep_time || 0,
+        cook_time: dbRecipe.cook_time || 0,
+        servings: dbRecipe.servings || 1,
+        difficulty: dbRecipe.difficulty || 'Easy',
+        ingredients: dbRecipe.ingredients || [],
+        instructions: dbRecipe.instructions || [],
+        nutrition: dbRecipe.nutrition,
+        tags: dbRecipe.tags || [],
+        category: dbRecipe.category || 'General',
+        is_favorite: dbRecipe.is_favorite || false,
+        is_ai_generated: dbRecipe.is_ai_generated || false,
+        source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
+        created_at: dbRecipe.created_at,
+        updated_at: dbRecipe.updated_at,
+      }));
+
+      setRecipes(formattedRecipes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (viewType === 'library') {
+      loadLibraryData();
+    } else if (viewType === 'cookbook' && selectedCookbook) {
+      loadCookbookRecipes(selectedCookbook.id);
+    }
+  }, [viewType, selectedCookbook]);
+
+  const handleCookbookSelect = (cookbook: Cookbook) => {
+    setSelectedCookbook(cookbook);
+    setViewType('cookbook');
+  };
+
+  const handleBackToLibrary = () => {
+    setViewType('library');
+    setSelectedCookbook(null);
     loadLibraryData();
-  }, []);
+  };
 
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1382,14 +1483,19 @@ export default function Library() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={viewType === 'cookbook' ? handleBackToLibrary : () => router.back()} 
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Recipe Library</Text>
+          <Text style={styles.headerTitle}>
+            {viewType === 'library' ? 'My Recipe Library' : selectedCookbook?.name}
+          </Text>
           <Text style={styles.headerSubtitle}>
             {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''}
-            {hasActiveFilters ? ' filtered' : ' in your collection'}
+            {hasActiveFilters ? ' filtered' : viewType === 'cookbook' ? ' in this cookbook' : ' in your collection'}
           </Text>
         </View>
         <TouchableOpacity
@@ -1461,50 +1567,94 @@ export default function Library() {
           viewMode === 'grid' && styles.recipesGridContent
         ]}
       >
-        {filteredRecipes.length > 0 ? (
-          viewMode === 'grid' ? (
-            <View style={styles.recipesGrid}>
-              {filteredRecipes.map(recipe => (
-                <View key={recipe.id} style={styles.gridCardContainer}>
-                  <RecipeCard
-                    recipe={recipe}
-                    viewMode="grid"
-                    onPress={() => {
-                      router.push(`/recipe/${recipe.id}`);
-                    }}
-                    onFavorite={() => handleFavorite(recipe.id)}
-                    onEdit={() => {
-                      console.log('Recipe edit form coming soon:', recipe.id);
-                    }}
-                    onDelete={() => handleDelete(recipe.id)}
-                  />
-                </View>
-              ))}
+        {/* Cookbooks Section - Only show in library view */}
+        {viewType === 'library' && cookbooks.length > 0 && (
+          <View style={styles.cookbooksSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Cookbooks</Text>
+              <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+                <Plus size={20} color={colors.primary[500]} />
+              </TouchableOpacity>
             </View>
-          ) : (
-            filteredRecipes.map(recipe => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                viewMode="list"
-                onPress={() => {
-                  router.push(`/recipe/${recipe.id}`);
-                }}
-                onFavorite={() => handleFavorite(recipe.id)}
-                onEdit={() => {
-                  console.log('Recipe edit form coming soon:', recipe.id);
-                }}
-                onDelete={() => handleDelete(recipe.id)}
-              />
-            ))
-          )
-        ) : (
-          <EmptyState
-            hasFilters={hasActiveFilters}
-            onAddRecipe={() => setShowImportOptions(true)}
-            onClearFilters={clearAllFilters}
-          />
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.cookbooksScroll}
+            >
+              {/* New Cookbook Card */}
+              <TouchableOpacity
+                style={styles.newCookbookCard}
+                onPress={() => setShowCreateCookbook(true)}
+              >
+                <View style={styles.newCookbookIcon}>
+                  <Plus size={24} color={colors.primary[500]} />
+                </View>
+                <Text style={styles.newCookbookText}>New cookbook</Text>
+              </TouchableOpacity>
+
+              {/* Existing Cookbooks */}
+              {cookbooks.map((cookbook) => (
+                <CookbookCard
+                  key={cookbook.id}
+                  cookbook={cookbook}
+                  onClick={() => handleCookbookSelect(cookbook)}
+                />
+              ))}
+            </ScrollView>
+          </View>
         )}
+
+        {/* Recipes Section */}
+        <View style={styles.recipesSection}>
+          {viewType === 'library' && (
+            <Text style={styles.sectionTitle}>All Recipes</Text>
+          )}
+          
+          {filteredRecipes.length > 0 ? (
+            viewMode === 'grid' ? (
+              <View style={styles.recipesGrid}>
+                {filteredRecipes.map(recipe => (
+                  <View key={recipe.id} style={styles.gridCardContainer}>
+                    <RecipeCard
+                      recipe={recipe}
+                      viewMode="grid"
+                      onPress={() => {
+                        router.push(`/recipe/${recipe.id}`);
+                      }}
+                      onFavorite={() => handleFavorite(recipe.id)}
+                      onEdit={() => {
+                        console.log('Recipe edit form coming soon:', recipe.id);
+                      }}
+                      onDelete={() => handleDelete(recipe.id)}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              filteredRecipes.map(recipe => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  viewMode="list"
+                  onPress={() => {
+                    router.push(`/recipe/${recipe.id}`);
+                  }}
+                  onFavorite={() => handleFavorite(recipe.id)}
+                  onEdit={() => {
+                    console.log('Recipe edit form coming soon:', recipe.id);
+                  }}
+                  onDelete={() => handleDelete(recipe.id)}
+                />
+              ))
+            )
+          ) : (
+            <EmptyState
+              hasFilters={hasActiveFilters}
+              onAddRecipe={() => setShowImportOptions(true)}
+              onClearFilters={clearAllFilters}
+            />
+          )}
+        </View>
       </ScrollView>
       
       <ManualRecipeModal
@@ -1533,6 +1683,15 @@ export default function Library() {
         onImport={handleURLImport}
         selectedSource={selectedImportSource}
         loading={isImporting}
+      />
+
+      <CreateCookbookModal
+        visible={showCreateCookbook}
+        onClose={() => setShowCreateCookbook(false)}
+        onSuccess={() => {
+          setShowCreateCookbook(false);
+          loadLibraryData();
+        }}
       />
       
       <TouchableOpacity
@@ -1712,6 +1871,54 @@ const styles = StyleSheet.create({
   },
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
+  },
+  
+  // Cookbooks Section
+  cookbooksSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  cookbooksScroll: {
+    flexDirection: 'row',
+  },
+  newCookbookCard: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    height: 180,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  newCookbookIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  newCookbookText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  recipesSection: {
+    flex: 1,
   },
   
   // Import Options Modal Styles
