@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart, Settings } from 'lucide-react-native';
+import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart, Settings, BookOpen } from 'lucide-react-native';
 import { colors, components } from '@/lib/theme';
 
 export default function TabsLayout() {
@@ -120,6 +120,13 @@ export default function TabsLayout() {
         options={{
           title: 'Recipes',
           tabBarIcon: ({ size, color }) => <ChefHat size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="library"
+        options={{
+          title: 'Library',
+          tabBarIcon: ({ size, color }) => <BookOpen size={size} color={color} />,
         }}
       />
       <Tabs.Screen
