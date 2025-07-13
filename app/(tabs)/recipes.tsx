@@ -547,7 +547,7 @@ export default function Recipes() {
           <Text style={styles.quickActionText}>AI Recipes</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
+        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/(tabs)/library')}
           <Calendar size={20} color={colors.accent[500]} />
           <Text style={styles.quickActionText}>Library</Text>
         </TouchableOpacity>
