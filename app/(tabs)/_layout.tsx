@@ -123,13 +123,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="library"
-        options={{
-          title: 'Library',
-          tabBarIcon: ({ size, color }) => <BookOpen size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="shopping-list"
         options={{
           title: 'Shopping',
