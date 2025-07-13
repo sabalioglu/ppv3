@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { X, Check, Plus } from 'lucide-react-native';
+import { X, Check, Plus, Book } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
 import { Cookbook } from '../../types/cookbook';
 import { colors, spacing, typography } from '../../lib/theme';
@@ -20,18 +20,21 @@ interface AddToCookbookModalProps {
   onClose: () => void;
   recipeId: string;
   recipeTitle: string;
+  onCreateNewCookbook?: () => void; // New prop
 }
 
 export function AddToCookbookModal({ 
   visible, 
   onClose, 
   recipeId,
-  recipeTitle 
+  recipeTitle,
+  onCreateNewCookbook 
 }: AddToCookbookModalProps) {
   const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [initialCookbooks, setInitialCookbooks] = useState<string[]>([]);
 
   useEffect(() => {
     if (visible) {
@@ -47,16 +50,25 @@ export function AddToCookbookModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Load user's cookbooks
+      // Load user's cookbooks with recipe count
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
-        .select('*')
+        .select(`
+          *,
+          recipe_cookbooks(count)
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (cookbooksError) throw cookbooksError;
 
-      setCookbooks(cookbooksData || []);
+      // Process cookbook data to include recipe count
+      const processedCookbooks = cookbooksData?.map(cookbook => ({
+        ...cookbook,
+        recipe_count: cookbook.recipe_cookbooks?.[0]?.count || 0
+      })) || [];
+
+      setCookbooks(processedCookbooks);
 
       // Load existing associations for this recipe
       const { data: associations, error: assocError } = await supabase
@@ -68,6 +80,7 @@ export function AddToCookbookModal({
 
       const associatedCookbookIds = associations?.map(a => a.cookbook_id) || [];
       setSelectedCookbooks(associatedCookbookIds);
+      setInitialCookbooks(associatedCookbookIds); // Store initial state
 
     } catch (error) {
       console.error('Error loading cookbooks:', error);
@@ -89,6 +102,17 @@ export function AddToCookbookModal({
   const handleSave = async () => {
     try {
       setSaving(true);
+
+      // Check if any changes were made
+      const hasChanges = 
+        selectedCookbooks.length !== initialCookbooks.length ||
+        selectedCookbooks.some(id => !initialCookbooks.includes(id)) ||
+        initialCookbooks.some(id => !selectedCookbooks.includes(id));
+
+      if (!hasChanges) {
+        onClose();
+        return;
+      }
 
       // Get current associations
       const { data: currentAssociations, error: fetchError } = await supabase
@@ -129,7 +153,20 @@ export function AddToCookbookModal({
         if (addError) throw addError;
       }
 
-      Alert.alert('Success!', 'Recipe updated in cookbooks');
+      // Show success message with details
+      const addedCount = toAdd.length;
+      const removedCount = toRemove.length;
+      let message = 'Recipe updated successfully!';
+      
+      if (addedCount > 0 && removedCount === 0) {
+        message = `Added to ${addedCount} cookbook${addedCount > 1 ? 's' : ''}`;
+      } else if (removedCount > 0 && addedCount === 0) {
+        message = `Removed from ${removedCount} cookbook${removedCount > 1 ? 's' : ''}`;
+      } else if (addedCount > 0 && removedCount > 0) {
+        message = `Added to ${addedCount} and removed from ${removedCount} cookbook${addedCount + removedCount > 1 ? 's' : ''}`;
+      }
+
+      Alert.alert('Success!', message);
       onClose();
 
     } catch (error) {
@@ -137,6 +174,13 @@ export function AddToCookbookModal({
       Alert.alert('Error', 'Failed to update cookbooks');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCreateNewCookbook = () => {
+    onClose();
+    if (onCreateNewCookbook) {
+      onCreateNewCookbook();
     }
   };
 
@@ -169,6 +213,17 @@ export function AddToCookbookModal({
             </TouchableOpacity>
           </View>
 
+          {/* Create New Cookbook Button */}
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={handleCreateNewCookbook}
+          >
+            <View style={styles.createNewIcon}>
+              <Plus size={20} color={colors.primary[500]} />
+            </View>
+            <Text style={styles.createNewText}>Create New Cookbook</Text>
+          </TouchableOpacity>
+
           {/* Cookbooks List */}
           <ScrollView 
             style={styles.cookbooksList}
@@ -176,6 +231,7 @@ export function AddToCookbookModal({
           >
             {cookbooks.length === 0 ? (
               <View style={styles.emptyState}>
+                <Book size={48} color={colors.neutral[300]} />
                 <Text style={styles.emptyStateText}>
                   No cookbooks yet. Create your first cookbook!
                 </Text>
@@ -193,14 +249,19 @@ export function AddToCookbookModal({
                     onPress={() => toggleCookbook(cookbook.id)}
                   >
                     <View style={styles.cookbookInfo}>
-                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                      <Text style={styles.cookbookEmoji}>{cookbook.emoji || '📚'}</Text>
                       <View style={styles.cookbookText}>
                         <Text style={styles.cookbookName}>{cookbook.name}</Text>
-                        {cookbook.description && (
-                          <Text style={styles.cookbookDescription} numberOfLines={1}>
-                            {cookbook.description}
+                        <View style={styles.cookbookMeta}>
+                          {cookbook.description && (
+                            <Text style={styles.cookbookDescription} numberOfLines={1}>
+                              {cookbook.description}
+                            </Text>
+                          )}
+                          <Text style={styles.recipeCount}>
+                            {cookbook.recipe_count || 0} recipes
                           </Text>
-                        )}
+                        </View>
                       </View>
                     </View>
                     <View style={[
@@ -236,7 +297,7 @@ export function AddToCookbookModal({
               {saving ? (
                 <ActivityIndicator size="small" color={colors.neutral[0]} />
               ) : (
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text style={styles.saveButtonText}>Save Changes</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -289,18 +350,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  createNewIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  createNewText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
   cookbooksList: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   emptyState: {
-    paddingVertical: spacing.xl * 2,
+    paddingVertical: spacing.xl * 3,
     alignItems: 'center',
   },
   emptyStateText: {
     fontSize: typography.fontSize.base,
     color: colors.neutral[500],
     textAlign: 'center',
+    marginTop: spacing.md,
   },
   cookbookItem: {
     flexDirection: 'row',
@@ -336,9 +424,20 @@ const styles = StyleSheet.create({
     color: colors.neutral[800],
     marginBottom: 2,
   },
+  cookbookMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   cookbookDescription: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
+    flex: 1,
+  },
+  recipeCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[400],
+    fontWeight: '500',
   },
   checkbox: {
     width: 24,
