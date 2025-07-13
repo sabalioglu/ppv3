@@ -160,15 +160,6 @@ interface ImportCategory {
   icon: any;
   color: string;
   description: string;
-  sources?: ImportSource[];
-}
-
-interface ImportSource {
-  id: string;
-  name: string;
-  icon: any;
-  color: string;
-  description: string;
 }
 
 const importCategories: ImportCategory[] = [
@@ -185,36 +176,6 @@ const importCategories: ImportCategory[] = [
     icon: Share2,
     color: colors.secondary[500],
     description: 'Social media videos',
-    sources: [
-      {
-        id: 'instagram',
-        name: 'Instagram',
-        icon: Instagram,
-        color: '#E4405F',
-        description: 'Reels & posts'
-      },
-      {
-        id: 'tiktok',
-        name: 'TikTok',
-        icon: Video,
-        color: '#000000',
-        description: 'Video recipes'
-      },
-      {
-        id: 'facebook',
-        name: 'Facebook',
-        icon: Facebook,
-        color: '#1877F2',
-        description: 'Videos & posts'
-      },
-      {
-        id: 'youtube',
-        name: 'YouTube',
-        icon: Youtube,
-        color: '#FF0000',
-        description: 'Cooking videos'
-      },
-    ]
   },
   {
     id: 'camera',
@@ -675,57 +636,6 @@ const ImportOptionsModal: React.FC<{
   );
 };
 
-// **Social Media Source Selection Modal**
-const SocialSourceModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  onSelectSource: (sourceId: string) => void;
-}> = ({ visible, onClose, onSelectSource }) => {
-  const socialCategory = importCategories.find(cat => cat.id === 'socials');
-  const sources = socialCategory?.sources || [];
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.importModalOverlay}>
-        <View style={styles.socialModalContainer}>
-          <View style={styles.socialModalHeader}>
-            <View style={styles.socialModalTitleContainer}>
-              <View style={styles.socialModalIconContainer}>
-                <Share2 size={24} color={colors.secondary[500]} />
-              </View>
-              <View>
-                <Text style={styles.socialModalTitle}>Social Media</Text>
-                <Text style={styles.socialModalSubtitle}>Select platform</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.socialModalCloseButton}>
-              <X size={20} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.socialSourcesGrid}>
-            {sources.map((source) => (
-              <TouchableOpacity
-                key={source.id}
-                style={styles.socialSourceCard}
-                onPress={() => {
-                  onSelectSource(source.id);
-                  onClose();
-                }}
-              >
-                <View style={[styles.socialSourceIconContainer, { backgroundColor: `${source.color}15` }]}>
-                  <source.icon size={28} color={source.color} />
-                </View>
-                <Text style={styles.socialSourceName}>{source.name}</Text>
-                <Text style={styles.socialSourceDescription}>{source.description}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 // **Enhanced URL Import Modal with Edge Functions**
 const URLImportModal: React.FC<{
   visible: boolean;
@@ -815,9 +725,10 @@ const URLImportModal: React.FC<{
     if (selectedSource === 'web') {
       return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
     }
-    const allSources = importCategories.flatMap(cat => cat.sources || []);
-    const source = allSources.find(s => s.id === selectedSource);
-    return source || { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
+    if (selectedSource === 'socials') {
+      return { name: 'Social Media', color: colors.secondary[500], description: 'TikTok, Instagram, YouTube, Facebook' };
+    }
+    return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
   };
 
   const sourceInfo = getSourceInfo();
@@ -842,11 +753,8 @@ const URLImportModal: React.FC<{
 
   const getPlaceholderUrl = () => {
     if (selectedSource === 'web') return 'https://example.com/recipe';
-    if (selectedSource === 'youtube') return 'https://youtube.com/watch?v=...';
-    if (selectedSource === 'tiktok') return 'https://tiktok.com/@user/video/...';
-    if (selectedSource === 'instagram') return 'https://instagram.com/reel/...';
-    if (selectedSource === 'facebook') return 'https://facebook.com/watch/...';
-    return `https://${sourceInfo.name.toLowerCase()}.com/...`;
+    if (selectedSource === 'socials') return 'https://tiktok.com/@user/video/...';
+    return 'https://example.com/recipe';
   };
 
   return (
@@ -896,10 +804,12 @@ const URLImportModal: React.FC<{
           </View>
 
           <View style={styles.exampleUrlsContainer}>
-            <Text style={styles.exampleUrlsTitle}>Supported formats:</Text>
+            <Text style={styles.exampleUrlsTitle}>
+              {selectedSource === 'socials' ? 'Supported channels:' : 'Supported formats:'}
+            </Text>
             <Text style={styles.exampleUrlsText}>
               {selectedSource === 'web' && '- Recipe posts and articles\n- Food blog recipes\n- Cooking websites\n- Recipe sharing platforms'}
-              {selectedSource !== 'web' && '- Recipe posts and videos\n- Cooking tutorials\n- Food content\n- Recipe reels/stories'}
+              {selectedSource === 'socials' && '- TikTok video recipes\n- Instagram Reels & posts\n- YouTube cooking videos\n- Facebook recipe videos'}
             </Text>
           </View>
 
@@ -1141,7 +1051,6 @@ export default function Library() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showImportOptions, setShowImportOptions] = useState(false);
-  const [showSocialSources, setShowSocialSources] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
@@ -1265,16 +1174,13 @@ export default function Library() {
     } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
     } else if (categoryId === 'socials') {
-      setShowSocialSources(true);
+      // Direkt URL modal aç, social seçimi yok
+      setSelectedImportSource('socials');
+      setShowURLImport(true);
     } else if (categoryId === 'web') {
       setSelectedImportSource('web');
       setShowURLImport(true);
     }
-  };
-
-  const handleSocialSourceSelect = (sourceId: string) => {
-    setSelectedImportSource(sourceId);
-    setShowURLImport(true);
   };
 
   const handleManualRecipeSave = async (recipeData: any) => {
@@ -1613,12 +1519,6 @@ export default function Library() {
         onSelectCategory={handleImportCategorySelect}
       />
       
-      <SocialSourceModal
-        visible={showSocialSources}
-        onClose={() => setShowSocialSources(false)}
-        onSelectSource={handleSocialSourceSelect}
-      />
-      
       <FilterModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
@@ -1900,90 +1800,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   importCategoryDescription: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-    textAlign: 'center',
-  },
-  
-  // Social Source Modal Styles
-  socialModalContainer: {
-    backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    maxHeight: '60%',
-  },
-  socialModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xl,
-  },
-  socialModalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  socialModalIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.secondary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  socialModalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  socialModalSubtitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-  socialModalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialSourcesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  socialSourceCard: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  socialSourceIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  socialSourceName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  socialSourceDescription: {
     fontSize: typography.fontSize.xs,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
