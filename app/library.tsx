@@ -633,7 +633,7 @@ const ImportOptionsModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.importCategoriesContainer} showsVerticalScrollIndicator={false}>
+          <View style={styles.importCategoriesContainer}>
             <View style={styles.importCategoriesGrid}>
               {importCategories.map((category) => (
                 <TouchableOpacity
