@@ -861,6 +861,7 @@ interface RecipeCardProps {
   onFavorite: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onAddToCookbook: () => void;
 }
 
 const RecipeCard: React.FC<RecipeCardProps> = ({
