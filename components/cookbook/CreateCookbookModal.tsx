@@ -12,10 +12,9 @@ import {
   Alert,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-import { COOKBOOK_COLORS, COOKBOOK_EMOJIS } from '@/types/cookbook';
-import { colors, spacing, typography } from '@/lib/theme';
+import { supabase } from '../../lib/supabase'; // Relative path
+import { COOKBOOK_COLORS, COOKBOOK_EMOJIS } from '../../types/cookbook'; // Relative path
+import { colors, spacing, typography } from '../../lib/theme'; // Relative path
 
 interface CreateCookbookModalProps {
   visible: boolean;
@@ -24,7 +23,6 @@ interface CreateCookbookModalProps {
 }
 
 export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookbookModalProps) {
-  const { user } = useAuth();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('📚');
@@ -32,7 +30,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!user || !name.trim()) {
+    if (!name.trim()) {
       Alert.alert('Error', 'Please enter a cookbook name');
       return;
     }
@@ -40,6 +38,14 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
     setLoading(true);
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        Alert.alert('Error', 'Please log in to create cookbooks');
+        return;
+      }
+
       const { error } = await supabase
         .from('cookbooks')
         .insert({
