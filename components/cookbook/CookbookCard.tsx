@@ -9,8 +9,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { Book, MoreVertical } from 'lucide-react-native';
-import { Cookbook } from '@/types/cookbook';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { Cookbook } from '../../types/cookbook'; // Relative path
+import { colors, spacing, typography, shadows } from '../../lib/theme'; // Relative path
 
 const { width } = Dimensions.get('window');
 
