@@ -28,7 +28,8 @@ import {
   Trash2,
   Edit3,
   ExternalLink,
-  BookOpen,
+  BookOpen, 
+  Book,
   X,
   Flame,
   ChevronDown,
@@ -42,7 +43,6 @@ import {
   Globe,
   Share2,
   FileText,
-  Book,
   ChevronLeft,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
@@ -870,7 +870,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onPress,
   onFavorite,
   onEdit,
-  onDelete
+  onDelete,
+  onAddToCookbook
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -903,6 +904,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                   color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
                   fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
                 />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
+                <Book size={16} color={colors.secondary[500]} />
               </TouchableOpacity>
               <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
                 <Edit3 size={16} color={colors.neutral[400]} />
@@ -998,6 +1002,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
             <Edit3 size={14} color={colors.primary[500]} />
           </TouchableOpacity>
+          <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+            <Book size={14} color={colors.secondary[500]} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
             <Trash2 size={14} color={colors.error[500]} />
           </TouchableOpacity>
@@ -1055,6 +1062,8 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
+  const [showAddToCookbookModal, setShowAddToCookbookModal] = useState(false);
   const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1306,6 +1315,11 @@ export default function Library() {
       console.error('Error saving manual recipe:', error);
       Alert.alert('Error', 'Failed to save recipe');
     }
+  };
+
+  const handleAddToCookbook = (recipeId: string, recipeTitle: string) => {
+    setSelectedRecipeForCookbook({ id: recipeId, title: recipeTitle });
+    setShowAddToCookbookModal(true);
   };
 
   const handleFavoritesFilter = () => {
@@ -1623,6 +1637,7 @@ export default function Library() {
                         router.push(`/recipe/${recipe.id}`);
                       }}
                       onFavorite={() => handleFavorite(recipe.id)}
+                      onAddToCookbook={() => handleAddToCookbook(recipe.id, recipe.title)}
                       onEdit={() => {
                         console.log('Recipe edit form coming soon:', recipe.id);
                       }}
@@ -1641,6 +1656,7 @@ export default function Library() {
                     router.push(`/recipe/${recipe.id}`);
                   }}
                   onFavorite={() => handleFavorite(recipe.id)}
+                  onAddToCookbook={() => handleAddToCookbook(recipe.id, recipe.title)}
                   onEdit={() => {
                     console.log('Recipe edit form coming soon:', recipe.id);
                   }}
