@@ -597,7 +597,20 @@ const ImportOptionsModal: React.FC<{
   onClose: () => void;
   onSelectCategory: (categoryId: string) => void;
 }> = ({ visible, onClose, onSelectCategory }) => {
+  
+  // DEBUG KODLARI EKLE - BAŞI
+  console.log('=== IMPORT MODAL DEBUG ===');
+  console.log('Modal visible:', visible);
+  console.log('Categories length:', importCategories?.length);
+  console.log('First category:', importCategories?.[0]);
+  // DEBUG KODLARI EKLE - SONU
+
   const handleCategorySelect = (categoryId: string) => {
+    // DEBUG KODLARI EKLE - BAŞI
+    console.log('CLICKED! Category:', categoryId);
+    Alert.alert('Test', `Category clicked: ${categoryId}`);
+    // DEBUG KODLARI EKLE - SONU
+    
     onSelectCategory(categoryId);
     onClose();
   };
