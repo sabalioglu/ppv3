@@ -37,8 +37,11 @@ import {
   Instagram,
   Youtube,
   Facebook,
-  Video, // TikTok icon replacement
-  Bookmark, // Pinterest icon replacement
+  Video,
+  Bookmark,
+  Globe,
+  Share2,
+  FileText,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
@@ -68,6 +71,8 @@ interface Recipe {
     carbs?: number;
     fat?: number;
     fiber?: number;
+    sugar?: number;
+    sodium?: number;
   };
   tags: string[];
   category: string;
@@ -79,7 +84,7 @@ interface Recipe {
   updated_at: string;
 }
 
-// **Enhanced Filter Categories (Samsung Food Style)**
+// **Enhanced Filter Categories**
 interface FilterCategory {
   id: string;
   title: string;
@@ -148,7 +153,16 @@ const filterCategories: FilterCategory[] = [
   }
 ];
 
-// **Import Sources Configuration (Updated Icons)**
+// **Updated Import Categories**
+interface ImportCategory {
+  id: string;
+  name: string;
+  icon: any;
+  color: string;
+  description: string;
+  sources?: ImportSource[];
+}
+
 interface ImportSource {
   id: string;
   name: string;
@@ -157,48 +171,64 @@ interface ImportSource {
   description: string;
 }
 
-const importSources: ImportSource[] = [
+const importCategories: ImportCategory[] = [
   {
-    id: 'instagram',
-    name: 'Instagram',
-    icon: Instagram,
-    color: '#E4405F',
-    description: 'Reels & recipe posts'
+    id: 'web',
+    name: 'Web',
+    icon: Globe,
+    color: colors.primary[500],
+    description: 'Recipe websites & blogs',
   },
   {
-    id: 'tiktok',
-    name: 'TikTok',
-    icon: Video,
-    color: '#000000',
-    description: 'Video recipes'
-  },
-  {
-    id: 'facebook',
-    name: 'Facebook',
-    icon: Facebook,
-    color: '#1877F2',
-    description: 'Recipe posts and videos'
-  },
-  {
-    id: 'pinterest',
-    name: 'Pinterest',
-    icon: Bookmark,
-    color: '#BD081C',
-    description: 'Recipe pins and boards'
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    icon: Youtube,
-    color: '#FF0000',
-    description: 'Cooking videos'
+    id: 'socials',
+    name: 'Socials',
+    icon: Share2,
+    color: colors.secondary[500],
+    description: 'Social media videos',
+    sources: [
+      {
+        id: 'instagram',
+        name: 'Instagram',
+        icon: Instagram,
+        color: '#E4405F',
+        description: 'Reels & posts'
+      },
+      {
+        id: 'tiktok',
+        name: 'TikTok',
+        icon: Video,
+        color: '#000000',
+        description: 'Video recipes'
+      },
+      {
+        id: 'facebook',
+        name: 'Facebook',
+        icon: Facebook,
+        color: '#1877F2',
+        description: 'Videos & posts'
+      },
+      {
+        id: 'youtube',
+        name: 'YouTube',
+        icon: Youtube,
+        color: '#FF0000',
+        description: 'Cooking videos'
+      },
+    ]
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.primary[500],
-    description: 'Scan recipe from notebook'
+    color: colors.accent[500],
+    description: 'Scan from cookbook',
+  },
+  {
+    id: 'manual',
+    name: 'Manual',
+    icon: FileText,
+    color: colors.neutral[600],
+    description: 'Type it yourself',
   }
 ];
 
@@ -253,7 +283,6 @@ const ManualRecipeModal: React.FC<{
 
     setLoading(true);
     try {
-      // Process ingredients (split by line)
       const ingredientsList = formData.ingredients
         .split('\n')
         .filter(line => line.trim())
@@ -264,7 +293,6 @@ const ManualRecipeModal: React.FC<{
           notes: ''
         }));
 
-      // Process instructions (split by line)
       const instructionsList = formData.instructions
         .split('\n')
         .filter(line => line.trim())
@@ -274,7 +302,6 @@ const ManualRecipeModal: React.FC<{
           duration_mins: undefined
         }));
 
-      // Process tags (split by comma)
       const tagsList = formData.tags
         .split(',')
         .map(tag => tag.trim())
@@ -309,7 +336,6 @@ const ManualRecipeModal: React.FC<{
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.manualRecipeContainer}>
-        {/* Header */}
         <View style={styles.manualRecipeHeader}>
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
@@ -324,7 +350,6 @@ const ManualRecipeModal: React.FC<{
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.manualRecipeContent} showsVerticalScrollIndicator={false}>
-          {/* Basic Info */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Basic Information</Text>
             <View style={styles.formGroup}>
@@ -439,7 +464,6 @@ const ManualRecipeModal: React.FC<{
               </View>
             </View>
           </View>
-          {/* Ingredients */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Ingredients *</Text>
             <Text style={styles.formHint}>Enter each ingredient on a new line</Text>
@@ -453,7 +477,6 @@ const ManualRecipeModal: React.FC<{
               textAlignVertical="top"
             />
           </View>
-          {/* Instructions */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Instructions *</Text>
             <Text style={styles.formHint}>Enter each step on a new line</Text>
@@ -467,7 +490,6 @@ const ManualRecipeModal: React.FC<{
               textAlignVertical="top"
             />
           </View>
-          {/* Tags */}
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Tags</Text>
             <Text style={styles.formHint}>Separate tags with commas</Text>
@@ -485,7 +507,7 @@ const ManualRecipeModal: React.FC<{
   );
 };
 
-// **Enhanced Filter Modal Component (Samsung Food Style)**
+// **Enhanced Filter Modal Component**
 const FilterModal: React.FC<{
   visible: boolean;
   onClose: () => void;
@@ -495,7 +517,7 @@ const FilterModal: React.FC<{
 }> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
-    meal_type: true, // Default expanded
+    meal_type: true,
   });
 
   const toggleCategory = (categoryId: string) => {
@@ -530,7 +552,6 @@ const FilterModal: React.FC<{
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.filterModalContainer}>
-        {/* Header */}
         <View style={styles.filterModalHeader}>
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
@@ -540,7 +561,6 @@ const FilterModal: React.FC<{
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
         </View>
-        {/* Filter Categories */}
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
           {filterCategories.map((category) => (
             <View key={category.id} style={styles.filterCategoryContainer}>
@@ -590,7 +610,6 @@ const FilterModal: React.FC<{
             </View>
           ))}
         </ScrollView>
-        {/* Apply Button */}
         <View style={styles.filterModalFooter}>
           <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
             <Text style={styles.applyFiltersText}>
@@ -603,14 +622,14 @@ const FilterModal: React.FC<{
   );
 };
 
-// **Enhanced Import Options Modal Component**
+// **Updated Import Options Modal with 4 Categories**
 const ImportOptionsModal: React.FC<{
   visible: boolean;
   onClose: () => void;
-  onSelectSource: (sourceId: string) => void;
-}> = ({ visible, onClose, onSelectSource }) => {
-  const handleSourceSelect = (sourceId: string) => {
-    onSelectSource(sourceId);
+  onSelectCategory: (categoryId: string) => void;
+}> = ({ visible, onClose, onSelectCategory }) => {
+  const handleCategorySelect = (categoryId: string) => {
+    onSelectCategory(categoryId);
     onClose();
   };
 
@@ -618,7 +637,6 @@ const ImportOptionsModal: React.FC<{
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.importModalOverlay}>
         <View style={styles.importModalContainer}>
-          {/* Header */}
           <View style={styles.importModalHeader}>
             <View style={styles.importModalTitleContainer}>
               <View style={styles.importModalIconContainer}>
@@ -633,34 +651,74 @@ const ImportOptionsModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-          {/* Import Sources Grid */}
-          <ScrollView style={styles.importSourcesContainer} showsVerticalScrollIndicator={false}>
-            <View style={styles.importSourcesGrid}>
-              {importSources.map((source) => (
+          <ScrollView style={styles.importCategoriesContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.importCategoriesGrid}>
+              {importCategories.map((category) => (
                 <TouchableOpacity
-                  key={source.id}
-                  style={styles.importSourceCard}
-                  onPress={() => handleSourceSelect(source.id)}
+                  key={category.id}
+                  style={styles.importCategoryCard}
+                  onPress={() => handleCategorySelect(category.id)}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.importSourceIconContainer, { backgroundColor: `${source.color}15` }]}>
-                    <source.icon size={28} color={source.color} />
+                  <View style={[styles.importCategoryIconContainer, { backgroundColor: `${category.color}15` }]}>
+                    <category.icon size={32} color={category.color} />
                   </View>
-                  <Text style={styles.importSourceName}>{source.name}</Text>
-                  <Text style={styles.importSourceDescription}>{source.description}</Text>
+                  <Text style={styles.importCategoryName}>{category.name}</Text>
+                  <Text style={styles.importCategoryDescription}>{category.description}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </ScrollView>
-          {/* Manual Add Option */}
-          <View style={styles.manualAddContainer}>
-            <TouchableOpacity
-              style={styles.manualAddButton}
-              onPress={() => handleSourceSelect('manual')}
-            >
-              <Edit3 size={20} color={colors.neutral[600]} />
-              <Text style={styles.manualAddText}>Add Recipe Manually</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// **Social Media Source Selection Modal**
+const SocialSourceModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSelectSource: (sourceId: string) => void;
+}> = ({ visible, onClose, onSelectSource }) => {
+  const socialCategory = importCategories.find(cat => cat.id === 'socials');
+  const sources = socialCategory?.sources || [];
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.importModalOverlay}>
+        <View style={styles.socialModalContainer}>
+          <View style={styles.socialModalHeader}>
+            <View style={styles.socialModalTitleContainer}>
+              <View style={styles.socialModalIconContainer}>
+                <Share2 size={24} color={colors.secondary[500]} />
+              </View>
+              <View>
+                <Text style={styles.socialModalTitle}>Social Media</Text>
+                <Text style={styles.socialModalSubtitle}>Select platform</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.socialModalCloseButton}>
+              <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
+          </View>
+          <View style={styles.socialSourcesGrid}>
+            {sources.map((source) => (
+              <TouchableOpacity
+                key={source.id}
+                style={styles.socialSourceCard}
+                onPress={() => {
+                  onSelectSource(source.id);
+                  onClose();
+                }}
+              >
+                <View style={[styles.socialSourceIconContainer, { backgroundColor: `${source.color}15` }]}>
+                  <source.icon size={28} color={source.color} />
+                </View>
+                <Text style={styles.socialSourceName}>{source.name}</Text>
+                <Text style={styles.socialSourceDescription}>{source.description}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </View>
@@ -668,7 +726,7 @@ const ImportOptionsModal: React.FC<{
   );
 };
 
-// **Enhanced URL Import Modal Component with Intelligent Loading Messages**
+// **Enhanced URL Import Modal with Edge Functions**
 const URLImportModal: React.FC<{
   visible: boolean;
   onClose: () => void;
@@ -679,7 +737,6 @@ const URLImportModal: React.FC<{
   const [url, setUrl] = useState('');
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState('Our AI chef is cooking up your recipe...');
 
-  // Platform-aware and humorous loading messages
   const getLoadingMessages = (url: string) => {
     const baseMessages = [
       "Our AI chef is cooking up your recipe...",
@@ -694,43 +751,47 @@ const URLImportModal: React.FC<{
       "Just adding a pinch of AI magic..."
     ];
 
-    // Platform-specific messages
     const platformMessages: { [key: string]: string[] } = {
       tiktok: [
-        "🎬 TikTok videosunu analiz ediyorum...",
-        "👨‍🍳 Şefin hareketlerini takip ediyorum...",
-        "📝 Malzemeleri not alıyorum...",
-        "🔥 Pişirme tekniklerini öğreniyorum..."
+        "🎬 Analyzing TikTok video...",
+        "👨‍🍳 Following chef's movements...",
+        "📝 Taking notes on ingredients...",
+        "🔥 Learning cooking techniques..."
       ],
       instagram: [
-        "📸 Instagram Reel'i işliyorum...",
-        "✨ Tarif detaylarını çıkarıyorum...",
-        "🥘 Malzeme listesini hazırlıyorum...",
-        "📱 Story'deki notları okuyorum..."
+        "📸 Processing Instagram Reel...",
+        "✨ Extracting recipe details...",
+        "🥘 Preparing ingredient list...",
+        "📱 Reading story notes..."
       ],
       youtube: [
-        "🎥 YouTube videosunu inceliyorum...",
-        "📊 Video açıklamasını tarıyorum...",
-        "⏱️ Adım adım talimatları kaydediyorum...",
-        "🎯 En iyi kalitede analiz yapıyorum..."
+        "🎥 Examining YouTube video...",
+        "📊 Scanning video description...",
+        "⏱️ Recording step-by-step instructions...",
+        "🎯 Analyzing with best quality..."
       ],
       facebook: [
-        "📘 Facebook videosunu işliyorum...",
-        "👥 Yorumlardaki ipuçlarını topluyorum...",
-        "📹 Video kalitesini optimize ediyorum...",
-        "🍳 Tarif detaylarını birleştiriyorum..."
+        "📘 Processing Facebook video...",
+        "👥 Collecting tips from comments...",
+        "📹 Optimizing video quality...",
+        "🍳 Combining recipe details..."
+      ],
+      web: [
+        "🌐 Scanning recipe website...",
+        "📖 Reading through ingredients...",
+        "👩‍🍳 Extracting cooking instructions...",
+        "🎨 Finding the perfect recipe image..."
       ]
     };
 
-    // Detect platform
-    let platform = 'general';
-    if (url.includes('tiktok.com')) platform = 'tiktok';
+    let platform = selectedSource || 'web';
+    if (url.includes('tiktok.com') || url.includes('vt.tiktok.com')) platform = 'tiktok';
     else if (url.includes('instagram.com')) platform = 'instagram';
     else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
+    else if (url.includes('facebook.com') || url.includes('fb.watch')) platform = 'facebook';
 
-    // Combine platform-specific + general messages
-    const specificMessages = platformMessages[platform] || [];
-    return [...specificMessages, ...baseMessages].slice(0, 8); // Max 8 messages
+    const specificMessages = platformMessages[platform] || platformMessages.web;
+    return [...specificMessages, ...baseMessages].slice(0, 8);
   };
 
   useEffect(() => {
@@ -743,7 +804,7 @@ const URLImportModal: React.FC<{
       interval = setInterval(() => {
         messageIndex = (messageIndex + 1) % messages.length;
         setCurrentLoadingMessage(messages[messageIndex]);
-      }, 2500); // Change message every 2.5 seconds
+      }, 2500);
     } else {
       setCurrentLoadingMessage('Our AI chef is cooking up your recipe...');
     }
@@ -751,7 +812,11 @@ const URLImportModal: React.FC<{
   }, [loading, url]);
 
   const getSourceInfo = () => {
-    const source = importSources.find(s => s.id === selectedSource);
+    if (selectedSource === 'web') {
+      return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
+    }
+    const allSources = importCategories.flatMap(cat => cat.sources || []);
+    const source = allSources.find(s => s.id === selectedSource);
     return source || { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
   };
 
@@ -775,11 +840,19 @@ const URLImportModal: React.FC<{
     setUrl('');
   };
 
+  const getPlaceholderUrl = () => {
+    if (selectedSource === 'web') return 'https://example.com/recipe';
+    if (selectedSource === 'youtube') return 'https://youtube.com/watch?v=...';
+    if (selectedSource === 'tiktok') return 'https://tiktok.com/@user/video/...';
+    if (selectedSource === 'instagram') return 'https://instagram.com/reel/...';
+    if (selectedSource === 'facebook') return 'https://facebook.com/watch/...';
+    return `https://${sourceInfo.name.toLowerCase()}.com/...`;
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.urlModalOverlay}>
         <View style={styles.urlModalContainer}>
-          {/* Header */}
           <View style={styles.urlModalHeader}>
             <View style={styles.urlModalTitleContainer}>
               <View style={[styles.urlModalIconContainer, { backgroundColor: `${sourceInfo.color}15` }]}>
@@ -795,18 +868,16 @@ const URLImportModal: React.FC<{
             </TouchableOpacity>
           </View>
 
-          {/* Description */}
           <Text style={styles.urlModalDescription}>
             Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
             including ingredients, instructions, and nutritional information.
           </Text>
 
-          {/* URL Input */}
           <View style={styles.urlInputWrapper}>
             <View style={styles.urlInputContainer}>
               <TextInput
                 style={styles.urlInput}
-                placeholder={`https://${sourceInfo.name.toLowerCase()}.com/recipe`}
+                placeholder={getPlaceholderUrl()}
                 value={url}
                 onChangeText={setUrl}
                 placeholderTextColor={colors.neutral[400]}
@@ -824,18 +895,14 @@ const URLImportModal: React.FC<{
             </View>
           </View>
 
-          {/* Example URLs */}
           <View style={styles.exampleUrlsContainer}>
             <Text style={styles.exampleUrlsTitle}>Supported formats:</Text>
             <Text style={styles.exampleUrlsText}>
-              - Recipe posts and videos{'\n'}
-              - Cooking tutorials{'\n'}
-              - Food blog articles{'\n'}
-              - Recipe sharing posts
+              {selectedSource === 'web' && '- Recipe posts and articles\n- Food blog recipes\n- Cooking websites\n- Recipe sharing platforms'}
+              {selectedSource !== 'web' && '- Recipe posts and videos\n- Cooking tutorials\n- Food content\n- Recipe reels/stories'}
             </Text>
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
               <Text style={styles.urlCancelButtonText}>Cancel</Text>
@@ -869,7 +936,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component (keeping existing implementation)**
+// **Recipe Card Component**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -985,11 +1052,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             <ExternalLink size={12} color={colors.neutral[0]} />
           </View>
         )}
-        {recipe.ai_match_score !== undefined && (
-          <View style={styles.matchScore}>
-            <Text style={styles.matchScoreText}>{recipe.ai_match_score}%</Text>
-          </View>
-        )}
       </View>
       <View style={styles.gridContent}>
         <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
@@ -1027,7 +1089,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   );
 };
 
-// **Enhanced Empty State Component**
+// **Empty State Component**
 const EmptyState: React.FC<{
   hasFilters: boolean;
   onAddRecipe: () => void;
@@ -1079,14 +1141,14 @@ export default function Library() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showImportOptions, setShowImportOptions] = useState(false);
+  const [showSocialSources, setShowSocialSources] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
-  const [isImporting, setIsImporting] = useState(false); // **NEW: Loading state for AI import**
+  const [isImporting, setIsImporting] = useState(false);
 
-  // **Enhanced Filter State**
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
     diet: 'all',
@@ -1095,7 +1157,6 @@ export default function Library() {
     cuisine: 'all',
   });
 
-  // **Load Data from Supabase**
   const loadLibraryData = async () => {
     try {
       setLoading(true);
@@ -1152,7 +1213,6 @@ export default function Library() {
     loadLibraryData();
   }, []);
 
-  // **Enhanced Filter Logic**
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -1179,10 +1239,8 @@ export default function Library() {
     return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty && matchesFavorites;
   });
 
-  // **Check if any filters are active**
   const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all') || filterMode !== 'all';
 
-  // **Clear all filters**
   const clearAllFilters = () => {
     setFilters({
       meal_type: 'all',
@@ -1194,9 +1252,8 @@ export default function Library() {
     setFilterMode('all');
   };
 
-  // **Handle Import Source Selection**
-  const handleImportSourceSelect = (sourceId: string) => {
-    if (sourceId === 'camera') {
+  const handleImportCategorySelect = (categoryId: string) => {
+    if (categoryId === 'camera') {
       router.push({
         pathname: '/(tabs)/camera',
         params: {
@@ -1205,15 +1262,21 @@ export default function Library() {
           timestamp: Date.now().toString()
         }
       });
-    } else if (sourceId === 'manual') {
+    } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
-    } else {
-      setSelectedImportSource(sourceId);
+    } else if (categoryId === 'socials') {
+      setShowSocialSources(true);
+    } else if (categoryId === 'web') {
+      setSelectedImportSource('web');
       setShowURLImport(true);
     }
   };
 
-  // **Handle Manual Recipe Save**
+  const handleSocialSourceSelect = (sourceId: string) => {
+    setSelectedImportSource(sourceId);
+    setShowURLImport(true);
+  };
+
   const handleManualRecipeSave = async (recipeData: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1229,7 +1292,7 @@ export default function Library() {
         Alert.alert('Error', 'Failed to save recipe');
         return;
       }
-      Alert.alert('Success! ', 'Recipe added to your library');
+      Alert.alert('Success!', 'Recipe added to your library');
       await loadLibraryData();
     } catch (error) {
       console.error('Error saving manual recipe:', error);
@@ -1237,12 +1300,10 @@ export default function Library() {
     }
   };
 
-  // **Handle Favorites Toggle**
   const handleFavoritesFilter = () => {
     setFilterMode(filterMode === 'favorites' ? 'all' : 'favorites');
   };
 
-  // **Toggle Favorite**
   const handleFavorite = async (recipeId: string) => {
     try {
       const recipe = recipes.find(r => r.id === recipeId);
@@ -1265,7 +1326,6 @@ export default function Library() {
     }
   };
 
-  // **Delete Recipe**
   const handleDelete = async (recipeId: string) => {
     const recipe = recipes.find(r => r.id === recipeId);
     if (!recipe) return;
@@ -1298,7 +1358,6 @@ export default function Library() {
     );
   };
 
-  // **Enhanced AI-Powered URL Import Handler with Video Support**
   const handleURLImport = async (url: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1309,28 +1368,23 @@ export default function Library() {
 
       setIsImporting(true);
 
-      // URL validation
       if (!url.trim() || !url.includes('http')) {
         Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
         return;
       }
 
-      // Video platform detection
       const videoPlatforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'vt.tiktok.com', 'instagram.com', 'facebook.com', 'fb.watch'];
       const isVideoUrl = videoPlatforms.some(platform => url.includes(platform));
 
       if (isVideoUrl) {
-        // VIDEO EXTRACTION
         console.log('🎥 Detected video URL, using video extraction...');
         
-        // Check platform
         const platform = detectVideoPlatform(url);
         if (platform === 'Unknown') {
           Alert.alert('Unsupported Platform', 'This video platform is not supported yet.');
           return;
         }
 
-        // Extract from video
         const result = await extractVideoRecipe(url, user.id);
         
         if (!result.success || !result.recipe) {
@@ -1341,18 +1395,15 @@ export default function Library() {
           return;
         }
 
-        // Recipe already saved by edge function, just refresh the list
         Alert.alert(
           'Success! 🎉', 
           `"${result.recipe.title}" has been extracted from the video and saved to your library!`,
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-        // Refresh recipe list
         await loadLibraryData();
 
       } else {
-        // WEB EXTRACTION
         console.log('🌐 Detected web URL, using web extraction...');
         const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
         
@@ -1364,7 +1415,6 @@ export default function Library() {
           return;
         }
 
-        // Convert extracted data to Supabase recipe format
         const newRecipe = {
           user_id: user.id,
           title: extractedData.title,
@@ -1384,7 +1434,6 @@ export default function Library() {
           source_url: url.trim(),
         };
 
-        // Save to Supabase
         const { error } = await supabase.from('user_recipes').insert(newRecipe);
 
         if (error) {
@@ -1393,14 +1442,12 @@ export default function Library() {
           return;
         }
 
-        // Success feedback
         Alert.alert(
-          'Success! ', 
+          'Success!', 
           `"${newRecipe.title}" has been successfully imported to your library!`,
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-        // Refresh recipe list
         await loadLibraryData();
       }
 
@@ -1428,7 +1475,6 @@ export default function Library() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.neutral[800]} />
@@ -1451,7 +1497,7 @@ export default function Library() {
           )}
         </TouchableOpacity>
       </View>
-      {/* Search and Controls */}
+      
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
           <Search size={20} color={colors.neutral[400]} />
@@ -1471,7 +1517,7 @@ export default function Library() {
           {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
-      {/* Add Recipe Actions */}
+      
       <View style={styles.addActions}>
         <TouchableOpacity
           style={styles.addActionButton}
@@ -1500,7 +1546,7 @@ export default function Library() {
           </Text>
         </TouchableOpacity>
       </View>
-      {/* Recipes List */}
+      
       <ScrollView
         style={styles.recipesContainer}
         showsVerticalScrollIndicator={false}
@@ -1554,19 +1600,25 @@ export default function Library() {
           />
         )}
       </ScrollView>
-      {/* Manual Recipe Modal */}
+      
       <ManualRecipeModal
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
         onSave={handleManualRecipeSave}
       />
-      {/* Enhanced Import Options Modal */}
+      
       <ImportOptionsModal
         visible={showImportOptions}
         onClose={() => setShowImportOptions(false)}
-        onSelectSource={handleImportSourceSelect}
+        onSelectCategory={handleImportCategorySelect}
       />
-      {/* Enhanced Filter Modal */}
+      
+      <SocialSourceModal
+        visible={showSocialSources}
+        onClose={() => setShowSocialSources(false)}
+        onSelectSource={handleSocialSourceSelect}
+      />
+      
       <FilterModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
@@ -1574,15 +1626,15 @@ export default function Library() {
         onFiltersChange={setFilters}
         recipeCount={filteredRecipes.length}
       />
-      {/* Enhanced URL Import Modal with Intelligent Loading */}
+      
       <URLImportModal
         visible={showURLImport}
         onClose={() => setShowURLImport(false)}
         onImport={handleURLImport}
         selectedSource={selectedImportSource}
-        loading={isImporting} // **Pass intelligent loading state**
+        loading={isImporting}
       />
-      {/* Floating Add Button */}
+      
       <TouchableOpacity
         style={styles.floatingAddButton}
         onPress={() => setShowImportOptions(true)}
@@ -1761,7 +1813,8 @@ const styles = StyleSheet.create({
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
-  // **Enhanced Import Options Modal Styles**
+  
+  // Import Options Modal Styles
   importModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1773,7 +1826,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: spacing.lg,
     paddingTop: spacing.xl,
-    maxHeight: '85%',
+    maxHeight: '70%',
   },
   importModalHeader: {
     flexDirection: 'row',
@@ -1814,18 +1867,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  importSourcesContainer: {
+  importCategoriesContainer: {
     flex: 1,
-    marginBottom: spacing.lg,
   },
-  importSourcesGrid: {
+  importCategoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  importSourceCard: {
-    width: (width - spacing.lg * 2 - spacing.sm * 2) / 3,
+  importCategoryCard: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
     backgroundColor: colors.neutral[50],
     borderRadius: 16,
     padding: spacing.lg,
@@ -1833,7 +1884,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[200],
   },
-  importSourceIconContainer: {
+  importCategoryIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  importCategoryName: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  importCategoryDescription: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+    textAlign: 'center',
+  },
+  
+  // Social Source Modal Styles
+  socialModalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+    maxHeight: '60%',
+  },
+  socialModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
+  },
+  socialModalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  socialModalIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.secondary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  socialModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  socialModalSubtitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+  },
+  socialModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socialSourcesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  socialSourceCard: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 16,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  socialSourceIconContainer: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1841,42 +1976,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  importSourceName: {
+  socialSourceName: {
     fontSize: typography.fontSize.base,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
-    textAlign: 'center',
   },
-  importSourceDescription: {
+  socialSourceDescription: {
     fontSize: typography.fontSize.xs,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
     textAlign: 'center',
-    lineHeight: 16,
   },
-  manualAddContainer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-    paddingTop: spacing.lg,
-  },
-  manualAddButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    gap: spacing.sm,
-  },
-  manualAddText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[600],
-  },
-  // **Manual Recipe Modal Styles**
+  
+  // Manual Recipe Modal Styles
   manualRecipeContainer: {
     flex: 1,
     backgroundColor: colors.neutral[0],
@@ -1973,7 +2087,8 @@ const styles = StyleSheet.create({
   pickerOptionTextSelected: {
     color: colors.neutral[0],
   },
-  // **Enhanced Filter Modal Styles**
+  
+  // Filter Modal Styles
   filterModalContainer: {
     flex: 1,
     backgroundColor: colors.neutral[0],
@@ -2069,7 +2184,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-  // **Enhanced URL Import Modal Styles**
+  
+  // URL Import Modal Styles
   urlModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -2208,7 +2324,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-  // **NEW: Intelligent Loading Content Style**
   loadingContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2216,7 +2331,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
-  // **Recipe Card Styles (existing implementation)**
+  
+  // Recipe Card Styles
   gridCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -2289,23 +2405,6 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  matchScore: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: colors.success[500],
-    borderRadius: 16,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  matchScoreText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
-    fontWeight: 'bold',
-    color: colors.neutral[0],
   },
   gridContent: {
     padding: spacing.md,
@@ -2452,6 +2551,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
+  
+  // Empty State Styles
   emptyStateContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
