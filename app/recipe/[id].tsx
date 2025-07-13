@@ -11,18 +11,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import {
-  ArrowLeft,
-  Clock,
-  Users,
-  Flame,
-  Heart,
-  ExternalLink,
-  Play,
-  ShoppingCart,
-  Edit3,
-  Share,
-} from 'lucide-react-native';
+import { ArrowLeft, Clock, Users, Flame, Heart, ExternalLink, Play, ShoppingCart, CreditCard as Edit3, Share } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
