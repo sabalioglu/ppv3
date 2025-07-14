@@ -1,5 +1,4 @@
-// components/cookbook/AddToCookbookModal.tsx - GÜNCELLENMIŞ VERSİYON
-
+// components/cookbook/AddToCookbookModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -42,13 +41,13 @@ export function AddToCookbookModal({
   const [saving, setSaving] = useState(false);
   const [initialCookbooks, setInitialCookbooks] = useState<string[]>([]);
 
-  // Memoized load function - FIX: Web versiyonu ile aynı mantık
+  // Load cookbooks and recipe associations
   const loadCookbooksAndRecipeAssociations = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Loading cookbooks for recipe:', recipeId);
       
-      // Get current user - FIX: Tek seferlik check
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.error('No user found');
@@ -59,10 +58,10 @@ export function AddToCookbookModal({
 
       console.log('User ID:', user.id);
 
-      // FIX: Web versiyonu ile aynı query - recipe_count ile birlikte
+      // Load cookbooks
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
-        .select('*, recipe_count:recipe_cookbooks(count)')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -71,16 +70,37 @@ export function AddToCookbookModal({
         throw cookbooksError;
       }
 
-      console.log('Raw cookbooks data:', cookbooksData);
+      console.log('Loaded cookbooks:', cookbooksData);
 
-      // FIX: Web versiyonu ile aynı processing
-      const processedCookbooks = cookbooksData?.map(cookbook => ({
-        ...cookbook,
-        recipe_count: cookbook.recipe_count?.[0]?.count || 0
-      })) || [];
+      // Get recipe counts for each cookbook
+      const cookbooksWithCounts = await Promise.all(
+        (cookbooksData || []).map(async (cookbook) => {
+          try {
+            const { count, error: countError } = await supabase
+              .from('recipe_cookbooks')
+              .select('*', { count: 'exact', head: true })
+              .eq('cookbook_id', cookbook.id);
+            
+            if (countError) {
+              console.warn('Error getting count for cookbook:', cookbook.id, countError);
+            }
+            
+            return {
+              ...cookbook,
+              recipe_count: count || 0
+            };
+          } catch (error) {
+            console.warn('Error processing cookbook:', cookbook.id, error);
+            return {
+              ...cookbook,
+              recipe_count: 0
+            };
+          }
+        })
+      );
 
-      console.log('Processed cookbooks:', processedCookbooks);
-      setCookbooks(processedCookbooks);
+      console.log('Cookbooks with counts:', cookbooksWithCounts);
+      setCookbooks(cookbooksWithCounts);
 
       // Load existing associations for this recipe
       const { data: associations, error: assocError } = await supabase
@@ -90,7 +110,7 @@ export function AddToCookbookModal({
 
       if (assocError) {
         console.error('Error loading associations:', assocError);
-        throw assocError;
+        console.warn('Continuing with empty associations');
       }
 
       console.log('Recipe associations:', associations);
@@ -110,7 +130,6 @@ export function AddToCookbookModal({
 
   useEffect(() => {
     if (visible && recipeId) {
-      // FIX: Delay ekleyerek authentication sorununu çözme
       const timer = setTimeout(() => {
         loadCookbooksAndRecipeAssociations();
       }, 100);
@@ -163,7 +182,7 @@ export function AddToCookbookModal({
       console.log('To add:', toAdd);
       console.log('To remove:', toRemove);
 
-      // FIX: Web versiyonu ile aynı batch operations
+      // Batch operations
       const operations = [];
 
       if (toRemove.length > 0) {
@@ -193,6 +212,8 @@ export function AddToCookbookModal({
       const hasError = results.some(result => result.error);
 
       if (hasError) {
+        const errors = results.filter(result => result.error);
+        console.error('Batch operation errors:', errors);
         throw new Error('Failed to update some cookbooks');
       }
 
@@ -367,4 +388,198 @@ export function AddToCookbookModal({
   );
 }
 
-// Styles kısmı aynı kalabilir...
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: SCREEN_HEIGHT * 0.9,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 200,
+    margin: 20,
+    borderRadius: 16,
+  },
+  loadingText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+    marginTop: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  title: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    margin: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  createNewIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  createNewText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  cookbooksList: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  cookbooksListContent: {
+    paddingBottom: spacing.lg,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl * 2,
+  },
+  emptyStateText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  cookbookItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: colors.neutral[50],
+    marginBottom: spacing.sm,
+  },
+  cookbookItemSelected: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+  },
+  cookbookInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  cookbookEmoji: {
+    fontSize: 24,
+    marginRight: spacing.md,
+  },
+  cookbookText: {
+    flex: 1,
+  },
+  cookbookName: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs / 2,
+  },
+  cookbookMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cookbookDescription: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+    flex: 1,
+  },
+  recipeCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[500],
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: colors.primary[500],
+    borderColor: colors.primary[500],
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[600],
+  },
+  saveButton: {
+    flex: 2,
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: colors.neutral[300],
+  },
+  saveButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+});
