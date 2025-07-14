@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   previewDescription: {
     fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],.
+    color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   previewRecipeCount: {
