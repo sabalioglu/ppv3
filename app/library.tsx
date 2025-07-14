@@ -1,4 +1,3 @@
-console.log('APP/LIBRARY.TSX ÇALIŞIYOR');
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -1067,6 +1066,10 @@ export default function Library() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      // Debug logs
+      console.log('Cookbooks loaded:', cookbooksData);
+      console.log('Cookbooks count:', cookbooksData?.length || 0);
+
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
       } else {
@@ -1435,6 +1438,10 @@ export default function Library() {
     }
   };
 
+  // Debug log for rendering
+  console.log('Rendering - cookbooks length:', cookbooks.length);
+  console.log('ViewType:', viewType);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1561,7 +1568,7 @@ export default function Library() {
         ]}
       >
         {/* Cookbooks Section - Only show in library view */}
-        {viewType === 'library' && cookbooks.length > 0 && (
+        {viewType === 'library' && (
           <View style={styles.cookbooksSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Cookbooks</Text>
@@ -1569,31 +1576,46 @@ export default function Library() {
                 <Plus size={20} color={colors.primary[500]} />
               </TouchableOpacity>
             </View>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.cookbooksScroll}
-            >
-              {/* New Cookbook Card */}
-              <TouchableOpacity
-                style={styles.newCookbookCard}
-                onPress={() => setShowCreateCookbook(true)}
+            
+            {cookbooks.length === 0 ? (
+              <View style={styles.emptyCookbooksContainer}>
+                <TouchableOpacity
+                  style={styles.newCookbookCard}
+                  onPress={() => setShowCreateCookbook(true)}
+                >
+                  <View style={styles.newCookbookIcon}>
+                    <Plus size={24} color={colors.primary[500]} />
+                  </View>
+                  <Text style={styles.newCookbookText}>Create your first cookbook</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.cookbooksScroll}
               >
-                <View style={styles.newCookbookIcon}>
-                  <Plus size={24} color={colors.primary[500]} />
-                </View>
-                <Text style={styles.newCookbookText}>New cookbook</Text>
-              </TouchableOpacity>
+                {/* New Cookbook Card */}
+                <TouchableOpacity
+                  style={styles.newCookbookCard}
+                  onPress={() => setShowCreateCookbook(true)}
+                >
+                  <View style={styles.newCookbookIcon}>
+                    <Plus size={24} color={colors.primary[500]} />
+                  </View>
+                  <Text style={styles.newCookbookText}>New cookbook</Text>
+                </TouchableOpacity>
 
-              {/* Existing Cookbooks */}
-              {cookbooks.map((cookbook) => (
-                <CookbookCard
-                  key={cookbook.id}
-                  cookbook={cookbook}
-                  onClick={() => handleCookbookSelect(cookbook)}
-                />
-              ))}
-            </ScrollView>
+                {/* Existing Cookbooks */}
+                {cookbooks.map((cookbook) => (
+                  <CookbookCard
+                    key={cookbook.id}
+                    cookbook={cookbook}
+                    onClick={() => handleCookbookSelect(cookbook)}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
         )}
 
@@ -1692,6 +1714,10 @@ export default function Library() {
           }}
           recipeId={selectedRecipeForCookbook.id}
           recipeTitle={selectedRecipeForCookbook.title}
+          onCreateNewCookbook={() => {
+            setShowAddToCookbook(false);
+            setShowCreateCookbook(true);
+          }}
         />
       )}
       
@@ -1923,6 +1949,9 @@ const styles = StyleSheet.create({
   },
   cookbooksScroll: {
     flexDirection: 'row',
+  },
+  emptyCookbooksContainer: {
+    paddingVertical: spacing.md,
   },
   newCookbookCard: {
     width: (width - spacing.lg * 2 - spacing.md) / 2,
