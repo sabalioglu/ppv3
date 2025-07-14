@@ -19,7 +19,7 @@ import {
   Search,
   Filter,
   Grid,
-  List,s
+  List,
   Link,
   Heart,
   Clock,
