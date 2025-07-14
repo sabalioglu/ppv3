@@ -179,28 +179,28 @@ const importCategories: ImportCategory[] = [
     id: 'web',
     name: 'Web',
     icon: Globe,
-    color: colors.primary[500], // Mavi
+    color: colors.primary[500],
     description: 'Recipe websites & blogs',
   },
   {
     id: 'socials',
     name: 'Socials',
     icon: Video,
-    color: colors.secondary[500], // Mor/Pembe
+    color: colors.secondary[500],
     description: 'Social media videos',
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.accent[500], // Turuncu
+    color: colors.accent[500],
     description: 'Scan from cookbook',
   },
   {
     id: 'manual',
     name: 'Manual',
     icon: FileText,
-    color: colors.neutral[600], // Gri
+    color: colors.neutral[600],
     description: 'Type it yourself',
   }
 ];
@@ -863,7 +863,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component - NORMAL VERSION (Drag & Drop Kaldırıldı)**
+// **Recipe Card Component**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -1196,10 +1196,6 @@ export default function Library() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      // Debug logs
-      console.log('Cookbooks loaded:', cookbooksData);
-      console.log('Cookbooks count:', cookbooksData?.length || 0);
-
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
       } else {
@@ -1326,7 +1322,6 @@ export default function Library() {
   };
 
   const handleDeleteCookbook = async (cookbook: Cookbook) => {
-    // This is handled in the EditCookbookModal
     console.log('Delete cookbook:', cookbook.id);
   };
 
@@ -1418,7 +1413,6 @@ export default function Library() {
     } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
     } else if (categoryId === 'socials') {
-      // Direkt URL modal aç, social seçimi yok
       setSelectedImportSource('socials');
       setShowURLImport(true);
     } else if (categoryId === 'web') {
@@ -1613,10 +1607,6 @@ export default function Library() {
       setIsImporting(false);
     }
   };
-
-  // Debug log for rendering
-  console.log('Rendering - cookbooks length:', cookbooks.length);
-  console.log('ViewType:', viewType);
 
   if (loading) {
     return (
@@ -1911,6 +1901,7 @@ export default function Library() {
         }}
       />
 
+      {/* Single recipe add to cookbook modal */}
       {selectedRecipeForCookbook && (
         <AddToCookbookModal
           visible={showAddToCookbook}
@@ -1927,6 +1918,7 @@ export default function Library() {
         />
       )}
 
+      {/* Bulk add to cookbook modal - FIX: cookbooks prop eklendi */}
       <BulkAddToCookbookModal
         visible={showBulkAddToCookbook}
         onClose={() => {
@@ -1936,7 +1928,7 @@ export default function Library() {
         }}
         recipeIds={selectedRecipes}
         recipeCount={selectedRecipes.length}
-        cookbooks={cookbooks}
+        cookbooks={cookbooks} // ✅ Bu satır eklendi
         onCreateNewCookbook={() => {
           setShowBulkAddToCookbook(false);
           setShowCreateCookbook(true);
