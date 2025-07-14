@@ -650,7 +650,7 @@ const ImportOptionsModal: React.FC<{
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
+          </View>
         </View>
       </View>
     </Modal>
@@ -2024,6 +2024,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
+    paddingBottom: spacing.xl,
+    minHeight: 200,
   },
   importCategoryCard: {
     width: (width - spacing.lg * 2 - spacing.md) / 2,
