@@ -591,65 +591,6 @@ const FilterModal: React.FC<{
   );
 };
 
-// **Updated Import Options Modal with 4 Categories**
-const ImportOptionsModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  onSelectCategory: (categoryId: string) => void;
-}> = ({ visible, onClose, onSelectCategory }) => {
-
-  const handleCategorySelect = (categoryId: string) => {
-    onSelectCategory(categoryId);
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.importModalOverlay}>
-        <View style={styles.importModalContainer}>
-          <View style={styles.importModalHeader}>
-            <View style={styles.importModalTitleContainer}>
-              <View style={styles.importModalIconContainer}>
-                <Plus size={24} color={colors.primary[500]} />
-              </View>
-              <View>
-                <Text style={styles.importModalTitle}>Import Recipe</Text>
-                <Text style={styles.importModalSubtitle}>Choose your source</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.importModalCloseButton}>
-              <X size={20} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Kategoriler - Düzgün tasarım */}
-          <View style={styles.importCategoriesContainer}>
-            <View style={styles.importCategoriesGrid}>
-              {importCategories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={styles.importCategoryCard}
-                    onPress={() => handleCategorySelect(category.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.importCategoryIconContainer, { backgroundColor: `${category.color}15` }]}>
-                      <IconComponent size={32} color={category.color} />
-                    </View>
-                    <Text style={styles.importCategoryName}>{category.name}</Text>
-                    <Text style={styles.importCategoryDescription}>{category.description}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 // **Enhanced URL Import Modal with Edge Functions**
 const URLImportModal: React.FC<{
   visible: boolean;
@@ -1553,13 +1494,42 @@ export default function Library() {
       </View>
       
       <View style={styles.addActions}>
-        <TouchableOpacity
-          style={styles.addActionButton}
-          onPress={() => setShowImportOptions(true)}
-        >
-          <Plus size={18} color={colors.primary[500]} />
-          <Text style={styles.addActionText}>Add Recipe</Text>
-        </TouchableOpacity>
+        <View style={{ position: 'relative', flex: 1 }}>
+          <TouchableOpacity
+            style={styles.addActionButton}
+            onPress={() => setShowImportOptions(!showImportOptions)}
+          >
+            <Plus size={18} color={colors.primary[500]} />
+            <Text style={styles.addActionText}>Add Recipe</Text>
+          </TouchableOpacity>
+          
+          {showImportOptions && (
+            <View style={styles.importDropdown}>
+              {importCategories.map((category, index) => {
+                const IconComponent = category.icon;
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={[
+                      styles.importDropdownItem,
+                      index === importCategories.length - 1 && { borderBottomWidth: 0 }
+                    ]}
+                    onPress={() => {
+                      handleImportCategorySelect(category.id);
+                      setShowImportOptions(false);
+                    }}
+                  >
+                    <View style={[styles.importDropdownIcon, { backgroundColor: `${category.color}15` }]}>
+                      <IconComponent size={20} color={category.color} />
+                    </View>
+                    <Text style={styles.importDropdownText}>{category.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+        
         <TouchableOpacity
           style={[
             styles.addActionButtonSecondary,
@@ -1685,12 +1655,6 @@ export default function Library() {
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
         onSave={handleManualRecipeSave}
-      />
-      
-      <ImportOptionsModal
-        visible={showImportOptions}
-        onClose={() => setShowImportOptions(false)}
-        onSelectCategory={handleImportCategorySelect}
       />
       
       <FilterModal
@@ -1909,6 +1873,38 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   
+  // Dropdown Styles
+  importDropdown: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    ...shadows.lg,
+    zIndex: 1000,
+  },
+  importDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  importDropdownIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  importDropdownText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
+    fontWeight: '500',
+  },
+  
   // Cookbooks Section
   cookbooksSection: {
     marginBottom: spacing.xl,
@@ -1955,100 +1951,6 @@ const styles = StyleSheet.create({
   },
   recipesSection: {
     flex: 1,
-  },
-  
-  // Import Options Modal Styles
-  importModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  importModalContainer: {
-    backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    maxHeight: '70%',
-  },
-  importModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xl,
-  },
-  importModalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  importModalIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  importModalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  importModalSubtitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-  importModalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  importCategoriesContainer: {
-    flex: 1,
-  },
-  importCategoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-    minHeight: 200,
-  },
-  importCategoryCard: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  importCategoryIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  importCategoryName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  importCategoryDescription: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-    textAlign: 'center',
   },
   
   // Manual Recipe Modal Styles
