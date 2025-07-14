@@ -8,7 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,,
+  Alert,
 } from 'react-native';
 import { X, Check, Plus, Book } from 'lucide-react-native';
 import { supabase } from '../../lib/supabase';
