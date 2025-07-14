@@ -633,23 +633,26 @@ const ImportOptionsModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-          <View style={styles.importCategoriesContainer}>
-            <View style={styles.importCategoriesGrid}>
-              {importCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.importCategoryCard}
-                  onPress={() => handleCategorySelect(category.id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.importCategoryIconContainer, { backgroundColor: `${category.color}15` }]}>
-                    <category.icon size={32} color={category.color} />
-                  </View>
-                  <Text style={styles.importCategoryName}>{category.name}</Text>
-                  <Text style={styles.importCategoryDescription}>{category.description}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          
+          {/* DEBUG - EKLE */}
+          <Text style={{ padding: 20, color: 'red' }}>
+            Categories count: {importCategories.length}
+          </Text>
+          
+          {/* KATEGORİLER - BASİT TEST */}
+          <View style={{ padding: 20 }}>
+            {importCategories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={{ padding: 15, backgroundColor: '#f0f0f0', marginBottom: 10 }}
+                onPress={() => {
+                  Alert.alert('Clicked', category.name);
+                  handleCategorySelect(category.id);
+                }}
+              >
+                <Text>{category.name}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </View>
