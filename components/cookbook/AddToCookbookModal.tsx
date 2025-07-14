@@ -45,31 +45,50 @@ export function AddToCookbookModal({
   const loadCookbooksAndRecipeAssociations = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('Loading cookbooks for recipe:', recipeId);
       
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.error('No user found');
         Alert.alert('Authentication Required', 'Please log in to manage cookbooks');
         onClose();
         return;
       }
 
-      // Load user's cookbooks with recipe count - Optimized query
+      console.log('User ID:', user.id);
+
+      // Load user's cookbooks - Simplified query
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
-        .select('*, recipe_count:recipe_cookbooks(count)')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (cookbooksError) throw cookbooksError;
+      if (cookbooksError) {
+        console.error('Error loading cookbooks:', cookbooksError);
+        throw cookbooksError;
+      }
 
-      // Process cookbook data to include recipe count
-      const processedCookbooks = cookbooksData?.map(cookbook => ({
-        ...cookbook,
-        recipe_count: cookbook.recipe_count?.[0]?.count || 0
-      })) || [];
+      console.log('Loaded cookbooks:', cookbooksData);
 
-      setCookbooks(processedCookbooks);
+      // Get recipe counts separately for better compatibility
+      const cookbooksWithCounts = await Promise.all(
+        (cookbooksData || []).map(async (cookbook) => {
+          const { count } = await supabase
+            .from('recipe_cookbooks')
+            .select('*', { count: 'exact', head: true })
+            .eq('cookbook_id', cookbook.id);
+          
+          return {
+            ...cookbook,
+            recipe_count: count || 0
+          };
+        })
+      );
+
+      console.log('Cookbooks with counts:', cookbooksWithCounts);
+      setCookbooks(cookbooksWithCounts);
 
       // Load existing associations for this recipe
       const { data: associations, error: assocError } = await supabase
@@ -77,14 +96,19 @@ export function AddToCookbookModal({
         .select('cookbook_id')
         .eq('recipe_id', recipeId);
 
-      if (assocError) throw assocError;
+      if (assocError) {
+        console.error('Error loading associations:', assocError);
+        throw assocError;
+      }
+
+      console.log('Recipe associations:', associations);
 
       const associatedCookbookIds = associations?.map(a => a.cookbook_id) || [];
       setSelectedCookbooks(associatedCookbookIds);
       setInitialCookbooks(associatedCookbookIds);
 
     } catch (error) {
-      console.error('Error loading cookbooks:', error);
+      console.error('Error in loadCookbooksAndRecipeAssociations:', error);
       Alert.alert('Error', 'Failed to load cookbooks. Please try again.');
       onClose();
     } finally {
@@ -101,10 +125,12 @@ export function AddToCookbookModal({
     if (!visible) {
       setSelectedCookbooks([]);
       setInitialCookbooks([]);
+      setCookbooks([]);
     }
   }, [visible, recipeId, loadCookbooksAndRecipeAssociations]);
 
   const toggleCookbook = useCallback((cookbookId: string) => {
+    console.log('Toggling cookbook:', cookbookId);
     setSelectedCookbooks(prev => {
       if (prev.includes(cookbookId)) {
         return prev.filter(id => id !== cookbookId);
@@ -116,6 +142,9 @@ export function AddToCookbookModal({
   const handleSave = async () => {
     try {
       setSaving(true);
+      console.log('Saving cookbook associations...');
+      console.log('Selected:', selectedCookbooks);
+      console.log('Initial:', initialCookbooks);
 
       // Check if any changes were made
       const hasChanges = 
@@ -124,6 +153,7 @@ export function AddToCookbookModal({
         initialCookbooks.some(id => !selectedCookbooks.includes(id));
 
       if (!hasChanges) {
+        console.log('No changes detected');
         onClose();
         return;
       }
@@ -132,40 +162,45 @@ export function AddToCookbookModal({
       const toAdd = selectedCookbooks.filter(id => !initialCookbooks.includes(id));
       const toRemove = initialCookbooks.filter(id => !selectedCookbooks.includes(id));
 
-      // Batch operations for better performance
-      const operations = [];
+      console.log('To add:', toAdd);
+      console.log('To remove:', toRemove);
 
       // Remove associations
       if (toRemove.length > 0) {
-        operations.push(
-          supabase
+        for (const cookbookId of toRemove) {
+          const { error } = await supabase
             .from('recipe_cookbooks')
             .delete()
             .eq('recipe_id', recipeId)
-            .in('cookbook_id', toRemove)
-        );
+            .eq('cookbook_id', cookbookId);
+          
+          if (error) {
+            console.error('Error removing association:', error);
+            throw error;
+          }
+        }
       }
 
       // Add new associations
       if (toAdd.length > 0) {
-        const newAssociations = toAdd.map(cookbookId => ({
-          recipe_id: recipeId,
-          cookbook_id: cookbookId,
-        }));
-
-        operations.push(
-          supabase
+        for (const cookbookId of toAdd) {
+          const { error } = await supabase
             .from('recipe_cookbooks')
-            .insert(newAssociations)
-        );
-      }
-
-      // Execute all operations
-      const results = await Promise.all(operations);
-      const hasError = results.some(result => result.error);
-
-      if (hasError) {
-        throw new Error('Failed to update some cookbooks');
+            .insert({
+              recipe_id: recipeId,
+              cookbook_id: cookbookId,
+            });
+          
+          if (error) {
+            // Handle duplicate key error
+            if (error.code === '23505') {
+              console.log('Association already exists, skipping');
+              continue;
+            }
+            console.error('Error adding association:', error);
+            throw error;
+          }
+        }
       }
 
       // Show success message with details
@@ -181,6 +216,7 @@ export function AddToCookbookModal({
         message = `Updated ${addedCount + removedCount} cookbook${addedCount + removedCount > 1 ? 's' : ''}`;
       }
 
+      console.log('Success:', message);
       Alert.alert('Success!', message, [
         { text: 'OK', onPress: onClose }
       ]);
@@ -351,199 +387,3 @@ export function AddToCookbookModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: colors.neutral[0],
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.8,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24, // Safe area
-  },
-  loadingContainer: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  title: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  createNewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    backgroundColor: colors.primary[50],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary[200],
-  },
-  createNewIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  createNewText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  cookbooksList: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  cookbooksListContent: {
-    paddingBottom: spacing.lg,
-  },
-  emptyState: {
-    paddingVertical: spacing.xl * 3,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  cookbookItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  cookbookItemSelected: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
-  },
-  cookbookInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cookbookEmoji: {
-    fontSize: 32,
-    marginRight: spacing.md,
-  },
-  cookbookText: {
-    flex: 1,
-  },
-  cookbookName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: 2,
-  },
-  cookbookMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  cookbookDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    flex: 1,
-  },
-  recipeCount: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[400],
-    fontWeight: '500',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.neutral[300],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: colors.primary[500],
-    borderColor: colors.primary[500],
-  },
-  actions: {
-    flexDirection: 'row',
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[600],
-  },
-  saveButton: {
-    flex: 2,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-});
