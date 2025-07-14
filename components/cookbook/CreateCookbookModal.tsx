@@ -49,13 +49,22 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
   }, []);
 
   const handleSubmit = async () => {
+    console.log('=== CREATE COOKBOOK DEBUG ===');
+    console.log('1. Button clicked!');
+    console.log('2. Name:', name);
+    console.log('3. Name trimmed:', name.trim());
+    console.log('4. Loading state:', loading);
+    
     // Trim and validate name
     const trimmedName = name.trim();
     
     if (!trimmedName) {
+      console.log('5. Name is empty - showing alert');
       Alert.alert('Required Field', 'Please enter a cookbook name');
       return;
     }
+
+    console.log('6. Starting cookbook creation...');
 
     // Check name length
     if (trimmedName.length > 50) {
@@ -67,15 +76,20 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
 
     try {
       // Get current user
+      console.log('7. Getting current user...');
       const { data: { user } } = await supabase.auth.getUser();
       
+      console.log('8. User:', user?.id);
+      
       if (!user) {
+        console.log('9. No user found - showing alert');
         Alert.alert('Authentication Required', 'Please log in to create cookbooks');
         onClose();
         return;
       }
 
       // Check if cookbook name already exists for this user
+      console.log('10. Checking for duplicate cookbook names...');
       const { data: existingCookbooks, error: checkError } = await supabase
         .from('cookbooks')
         .select('id')
@@ -83,15 +97,31 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
         .eq('name', trimmedName)
         .limit(1);
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error('11. Error checking duplicates:', checkError);
+        throw checkError;
+      }
+
+      console.log('12. Existing cookbooks with same name:', existingCookbooks);
 
       if (existingCookbooks && existingCookbooks.length > 0) {
+        console.log('13. Duplicate name found - showing alert');
         Alert.alert('Duplicate Name', 'You already have a cookbook with this name');
         setLoading(false);
         return;
       }
 
       // Create cookbook
+      console.log('14. Creating cookbook with data:', {
+        user_id: user.id,
+        name: trimmedName,
+        description: description.trim() || null,
+        emoji: selectedEmoji,
+        color: selectedColor,
+        is_default: false,
+        recipe_count: 0
+      });
+
       const { error } = await supabase
         .from('cookbooks')
         .insert({
@@ -104,7 +134,12 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
           recipe_count: 0 // Initialize with 0 recipes
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('15. Error creating cookbook:', error);
+        throw error;
+      }
+
+      console.log('16. Cookbook created successfully!');
 
       Alert.alert(
         'Success!', 
@@ -113,6 +148,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
           {
             text: 'OK',
             onPress: () => {
+              console.log('17. Success alert OK pressed');
               resetForm();
               onSuccess();
               onClose();
@@ -121,7 +157,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
         ]
       );
     } catch (err: any) {
-      console.error('Error creating cookbook:', err);
+      console.error('18. Error in handleSubmit:', err);
       
       let errorMessage = 'Failed to create cookbook. Please try again.';
       if (err.message?.includes('duplicate')) {
@@ -130,6 +166,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
       
       Alert.alert('Error', errorMessage);
     } finally {
+      console.log('19. Setting loading to false');
       setLoading(false);
     }
   };
@@ -178,7 +215,10 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
           </TouchableOpacity>
           <Text style={styles.title}>Create New Cookbook</Text>
           <TouchableOpacity 
-            onPress={handleSubmit} 
+            onPress={() => {
+              console.log('Create button pressed - calling handleSubmit');
+              handleSubmit();
+            }} 
             disabled={loading || !name.trim()}
             style={styles.saveButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
