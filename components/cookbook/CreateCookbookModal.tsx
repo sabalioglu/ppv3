@@ -1,4 +1,3 @@
-// components/cookbook/CreateCookbookModal.tsx (React Native version)
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -141,23 +140,23 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
 
       console.log('16. Cookbook created successfully!');
 
-      Alert.alert(
-        'Success!', 
-        'Cookbook created successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              console.log('17. Success alert OK pressed');
-              resetForm();
-              onSuccess();
-              onClose();
-            }
-          }
-        ]
-      );
+      // Önce form'u temizle
+      console.log('17. Resetting form...');
+      resetForm();
+      
+      // onSuccess callback'i çağır
+      console.log('18. Calling onSuccess...');
+      await onSuccess();
+      
+      // Modal'ı kapat
+      console.log('19. Closing modal...');
+      onClose();
+      
+      // Success alert'i göster (opsiyonel - eğer isterseniz kaldırabilirsiniz)
+      Alert.alert('Success!', 'Cookbook created successfully');
+      
     } catch (err: any) {
-      console.error('18. Error in handleSubmit:', err);
+      console.error('20. Error in handleSubmit:', err);
       
       let errorMessage = 'Failed to create cookbook. Please try again.';
       if (err.message?.includes('duplicate')) {
@@ -166,7 +165,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
       
       Alert.alert('Error', errorMessage);
     } finally {
-      console.log('19. Setting loading to false');
+      console.log('21. Setting loading to false');
       setLoading(false);
     }
   };
