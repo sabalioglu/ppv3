@@ -1,18 +1,6 @@
-// components/cookbook/CookbookCard.tsx
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Dimensions,
-} from 'react-native';
-import { Book, MoreVertical } from 'lucide-react-native';
+import { Book, MoreVertical } from 'lucide-react';
 import { Cookbook } from '../../types/cookbook';
-import { colors, spacing, typography, shadows } from '../../lib/theme';
-
-const { width } = Dimensions.get('window');
 
 interface CookbookCardProps {
   cookbook: Cookbook;
@@ -23,111 +11,144 @@ interface CookbookCardProps {
 
 export function CookbookCard({ cookbook, onClick, onEdit, onDelete }: CookbookCardProps) {
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onClick}
-      activeOpacity={0.7}
+    <div
+      className="cookbook-card"
+      onClick={onClick}
+      style={{ cursor: 'pointer' }}
     >
-      <View 
-        style={[styles.coverContainer, { backgroundColor: cookbook.color || colors.primary[500] }]}
+      <div 
+        className="cover-container"
+        style={{ backgroundColor: cookbook.color || '#3B82F6' }}
       >
         {cookbook.cover_image ? (
-          <Image
-            source={{ uri: cookbook.cover_image }}
-            style={styles.coverImage}
+          <img
+            src={cookbook.cover_image}
+            alt={cookbook.name}
+            className="cover-image"
           />
         ) : (
-          <Text style={styles.emoji}>{cookbook.emoji || '📚'}</Text>
+          <span className="emoji">{cookbook.emoji || '📚'}</span>
         )}
         
-        <View style={styles.recipeBadge}>
-          <Text style={styles.recipeCount}>{cookbook.recipe_count || 0} recipes</Text>
-        </View>
-      </View>
+        <div className="recipe-badge">
+          <span className="recipe-count">{cookbook.recipe_count || 0} recipes</span>
+        </div>
+      </div>
 
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>{cookbook.name}</Text>
+      <div className="content">
+        <h3 className="name">{cookbook.name}</h3>
         {cookbook.description && (
-          <Text style={styles.description} numberOfLines={1}>
+          <p className="description">
             {cookbook.description}
-          </Text>
+          </p>
         )}
-      </View>
+      </div>
 
       {!cookbook.is_default && (onEdit || onDelete) && (
-        <TouchableOpacity
-          style={styles.menuButton}
-          onPress={(e) => {
+        <button
+          className="menu-button"
+          onClick={(e) => {
             e.stopPropagation();
             // Menu açma logic'i eklenecek
           }}
         >
-          <MoreVertical size={16} color={colors.neutral[600]} />
-        </TouchableOpacity>
+          <MoreVertical size={16} />
+        </button>
       )}
-    </TouchableOpacity>
+
+      <style jsx>{`
+        .cookbook-card {
+          width: calc(50% - 8px);
+          background-color: white;
+          border-radius: 16px;
+          overflow: hidden;
+          margin-bottom: 16px;
+          margin-right: 16px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cookbook-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .cover-container {
+          height: 120px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: relative;
+        }
+
+        .cover-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .emoji {
+          font-size: 48px;
+        }
+
+        .recipe-badge {
+          position: absolute;
+          bottom: 8px;
+          right: 8px;
+          background-color: rgba(0, 0, 0, 0.5);
+          border-radius: 8px;
+          padding: 2px 8px;
+        }
+
+        .recipe-count {
+          font-size: 12px;
+          color: white;
+          font-weight: 600;
+        }
+
+        .content {
+          padding: 16px;
+        }
+
+        .name {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1F2937;
+          margin: 0 0 4px 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .description {
+          font-size: 14px;
+          color: #6B7280;
+          margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .menu-button {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: 14px;
+          background-color: rgba(255, 255, 255, 0.9);
+          border: none;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .menu-button:hover {
+          background-color: rgba(255, 255, 255, 1);
+        }
+      `}</style>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    marginRight: spacing.md,
-    ...shadows.sm,
-  },
-  coverContainer: {
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  emoji: {
-    fontSize: 48,
-  },
-  recipeBadge: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 8,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  recipeCount: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[0],
-    fontWeight: '600',
-  },
-  content: {
-    padding: spacing.md,
-  },
-  name: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  description: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  menuButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
