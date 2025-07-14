@@ -175,28 +175,28 @@ const importCategories: ImportCategory[] = [
     id: 'web',
     name: 'Web',
     icon: Globe,
-    color: colors.primary[500],
+    color: colors.primary[500], // Mavi
     description: 'Recipe websites & blogs',
   },
   {
     id: 'socials',
     name: 'Socials',
-    icon: Share2,
-    color: colors.secondary[500],
+    icon: Video,
+    color: colors.secondary[500], // Mor/Pembe
     description: 'Social media videos',
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.accent[500],
+    color: colors.accent[500], // Turuncu
     description: 'Scan from cookbook',
   },
   {
     id: 'manual',
     name: 'Manual',
     icon: FileText,
-    color: colors.neutral[600],
+    color: colors.neutral[600], // Gri
     description: 'Type it yourself',
   }
 ];
@@ -597,20 +597,8 @@ const ImportOptionsModal: React.FC<{
   onClose: () => void;
   onSelectCategory: (categoryId: string) => void;
 }> = ({ visible, onClose, onSelectCategory }) => {
-  
-  // DEBUG KODLARI EKLE - BAŞI
-  console.log('=== IMPORT MODAL DEBUG ===');
-  console.log('Modal visible:', visible);
-  console.log('Categories length:', importCategories?.length);
-  console.log('First category:', importCategories?.[0]);
-  // DEBUG KODLARI EKLE - SONU
 
   const handleCategorySelect = (categoryId: string) => {
-    // DEBUG KODLARI EKLE - BAŞI
-    console.log('CLICKED! Category:', categoryId);
-    Alert.alert('Test', `Category clicked: ${categoryId}`);
-    // DEBUG KODLARI EKLE - SONU
-    
     onSelectCategory(categoryId);
     onClose();
   };
@@ -634,25 +622,27 @@ const ImportOptionsModal: React.FC<{
             </TouchableOpacity>
           </View>
           
-          {/* DEBUG - EKLE */}
-          <Text style={{ padding: 20, color: 'red' }}>
-            Categories count: {importCategories.length}
-          </Text>
-          
-          {/* KATEGORİLER - BASİT TEST */}
-          <View style={{ padding: 20 }}>
-            {importCategories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={{ padding: 15, backgroundColor: '#f0f0f0', marginBottom: 10 }}
-                onPress={() => {
-                  Alert.alert('Clicked', category.name);
-                  handleCategorySelect(category.id);
-                }}
-              >
-                <Text>{category.name}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* Kategoriler - Düzgün tasarım */}
+          <View style={styles.importCategoriesContainer}>
+            <View style={styles.importCategoriesGrid}>
+              {importCategories.map((category) => {
+                const IconComponent = category.icon;
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={styles.importCategoryCard}
+                    onPress={() => handleCategorySelect(category.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.importCategoryIconContainer, { backgroundColor: `${category.color}15` }]}>
+                      <IconComponent size={32} color={category.color} />
+                    </View>
+                    <Text style={styles.importCategoryName}>{category.name}</Text>
+                    <Text style={styles.importCategoryDescription}>{category.description}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </View>
       </View>
