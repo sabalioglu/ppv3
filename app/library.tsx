@@ -202,6 +202,64 @@ const importCategories: ImportCategory[] = [
   }
 ];
 
+// **Import Categories Modal Component**
+const ImportCategoriesModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (categoryId: string) => void;
+}> = ({ visible, onClose, onSelect }) => {
+  if (!visible) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <TouchableOpacity 
+        style={styles.importModalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={styles.importModalContainer}>
+          <View style={styles.importModalHeader}>
+            <Text style={styles.importModalTitle}>Add Recipe</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={20} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.importModalContent}>
+            {importCategories.map((category, index) => {
+              const IconComponent = category.icon;
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.importModalItem,
+                    index === importCategories.length - 1 && { borderBottomWidth: 0 }
+                  ]}
+                  onPress={() => {
+                    onSelect(category.id);
+                    onClose();
+                  }}
+                >
+                  <View style={[styles.importModalIcon, { backgroundColor: `${category.color}15` }]}>
+                    <IconComponent size={24} color={category.color} />
+                  </View>
+                  <View style={styles.importModalTextContainer}>
+                    <Text style={styles.importModalItemTitle}>{category.name}</Text>
+                    <Text style={styles.importModalItemDescription}>{category.description}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 // **Manual Recipe Form Modal Component**
 const ManualRecipeModal: React.FC<{
   visible: boolean;
@@ -1015,7 +1073,7 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showImportOptions, setShowImportOptions] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
@@ -1515,41 +1573,13 @@ export default function Library() {
       </View>
       
       <View style={styles.addActions}>
-        <View style={{ position: 'relative', flex: 1 }}>
-          <TouchableOpacity
-            style={styles.addActionButton}
-            onPress={() => setShowImportOptions(!showImportOptions)}
-          >
-            <Plus size={18} color={colors.primary[500]} />
-            <Text style={styles.addActionText}>Add Recipe</Text>
-          </TouchableOpacity>
-          
-          {showImportOptions && (
-            <View style={styles.importDropdown}>
-              {importCategories.map((category, index) => {
-                const IconComponent = category.icon;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.importDropdownItem,
-                      index === importCategories.length - 1 && { borderBottomWidth: 0 }
-                    ]}
-                    onPress={() => {
-                      handleImportCategorySelect(category.id);
-                      setShowImportOptions(false);
-                    }}
-                  >
-                    <View style={[styles.importDropdownIcon, { backgroundColor: `${category.color}15` }]}>
-                      <IconComponent size={20} color={category.color} />
-                    </View>
-                    <Text style={styles.importDropdownText}>{category.name}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
+        <TouchableOpacity
+          style={styles.addActionButton}
+          onPress={() => setShowImportModal(true)}
+        >
+          <Plus size={18} color={colors.primary[500]} />
+          <Text style={styles.addActionText}>Add Recipe</Text>
+        </TouchableOpacity>
         
         <TouchableOpacity
           style={[
@@ -1682,12 +1712,18 @@ export default function Library() {
           ) : (
             <EmptyState
               hasFilters={hasActiveFilters}
-              onAddRecipe={() => setShowImportOptions(true)}
+              onAddRecipe={() => setShowImportModal(true)}
               onClearFilters={clearAllFilters}
             />
           )}
         </View>
       </ScrollView>
+      
+      <ImportCategoriesModal
+        visible={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSelect={handleImportCategorySelect}
+      />
       
       <ManualRecipeModal
         visible={showManualRecipe}
@@ -1757,7 +1793,7 @@ export default function Library() {
       
       <TouchableOpacity
         style={styles.floatingAddButton}
-        onPress={() => setShowImportOptions(true)}
+        onPress={() => setShowImportModal(true)}
       >
         <Plus size={28} color={colors.neutral[0]} />
       </TouchableOpacity>
@@ -1934,36 +1970,63 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   
-  // Dropdown Styles
-  importDropdown: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    ...shadows.lg,
-    zIndex: 1000,
+  // Import Modal Styles
+  importModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  importDropdownItem: {
+  importModalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    width: '85%',
+    maxWidth: 350,
+    ...shadows.lg,
+  },
+  importModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  importModalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  importModalContent: {
+    paddingVertical: spacing.sm,
+  },
+  importModalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[100],
   },
-  importDropdownIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  importModalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
-  importDropdownText: {
+  importModalTextContainer: {
+    flex: 1,
+  },
+  importModalItemTitle: {
     fontSize: typography.fontSize.base,
+    fontWeight: '600',
     color: colors.neutral[800],
-    fontWeight: '500',
+    marginBottom: spacing.xs / 2,
+  },
+  importModalItemDescription: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
   },
   
   // Cookbooks Section
