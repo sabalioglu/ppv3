@@ -22,7 +22,7 @@ import {
   Flame,
   Heart,
   Plus,
-  TrendingUp,
+  Share2,
   Calendar,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
@@ -320,7 +320,9 @@ export default function Recipes() {
         updated_at: dbRecipe.updated_at,
       }));
 
-      setRecipes(formattedRecipes);
+      // Show only AI generated recipes
+      const aiGeneratedRecipes = formattedRecipes.filter(recipe => recipe.is_ai_generated);
+      setRecipes(aiGeneratedRecipes);
     } catch (error) {
       console.error('Error loading recipes:', error);
       Alert.alert('Error', 'Failed to load recipes');
@@ -414,7 +416,7 @@ export default function Recipes() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recipe Discovery</Text>
         <Text style={styles.headerSubtitle}>
-          {filteredRecipes.length} recipes in your collection
+          {filteredRecipes.length} AI recipes in your collection
         </Text>
       </View>
 
@@ -527,21 +529,17 @@ export default function Recipes() {
       {/* Quick Actions */}
       <View style={styles.quickActions}>
         <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Sort by most recent
-          const sortedRecipes = [...recipes].sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          setRecipes(sortedRecipes);
+          // Social/Community recipes
+          Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
         }}>
-          <TrendingUp size={20} color={colors.primary[500]} />
-          <Text style={styles.quickActionText}>Recent</Text>
+          <Share2 size={20} color={colors.primary[500]} />
+          <Text style={styles.quickActionText}>Social</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Show AI generated recipes
-          setSelectedDiet('All');
-          setSelectedCategory('All');
-          setSelectedDifficulty('All');
+          // Show only AI generated recipes
+          const aiRecipes = recipes.filter(r => r.is_ai_generated);
+          setRecipes(aiRecipes);
         }}>
           <ChefHat size={20} color={colors.secondary[500]} />
           <Text style={styles.quickActionText}>AI Recipes</Text>
