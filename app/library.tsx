@@ -52,6 +52,7 @@ import { supabase } from '@/lib/supabase';
 // **Import Cookbook Components**
 import { CookbookCard } from '@/components/cookbook/CookbookCard';
 import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { EditCookbookModal } from '@/components/cookbook/EditCookbookModal';
 import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
 import { Cookbook } from '@/types/cookbook';
 
@@ -1019,6 +1020,8 @@ export default function Library() {
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
+  const [showEditCookbook, setShowEditCookbook] = useState(false);
+  const [selectedCookbookForEdit, setSelectedCookbookForEdit] = useState<Cookbook | null>(null);
   const [showAddToCookbook, setShowAddToCookbook] = useState(false);
   const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
@@ -1188,6 +1191,16 @@ export default function Library() {
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
     setShowAddToCookbook(true);
+  };
+
+  const handleEditCookbook = (cookbook: Cookbook) => {
+    setSelectedCookbookForEdit(cookbook);
+    setShowEditCookbook(true);
+  };
+
+  const handleDeleteCookbook = async (cookbook: Cookbook) => {
+    // This is handled in the EditCookbookModal
+    console.log('Delete cookbook:', cookbook.id);
   };
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -1612,6 +1625,8 @@ export default function Library() {
                     key={cookbook.id}
                     cookbook={cookbook}
                     onClick={() => handleCookbookSelect(cookbook)}
+                    onEdit={() => handleEditCookbook(cookbook)}
+                    onDelete={() => handleDeleteCookbook(cookbook)}
                   />
                 ))}
               </ScrollView>
@@ -1701,6 +1716,25 @@ export default function Library() {
         onClose={() => setShowCreateCookbook(false)}
         onSuccess={() => {
           setShowCreateCookbook(false);
+          loadLibraryData();
+        }}
+      />
+
+      <EditCookbookModal
+        visible={showEditCookbook}
+        cookbook={selectedCookbookForEdit}
+        onClose={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
+        }}
+        onSuccess={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
+          loadLibraryData();
+        }}
+        onDelete={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
           loadLibraryData();
         }}
       />
