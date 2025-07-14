@@ -289,6 +289,7 @@ export default function Recipes() {
         .from('user_recipes')
         .select('*')
         .eq('user_id', user.id)
+        .eq('is_ai_generated', true) // SADECE AI RECIPES
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -320,9 +321,7 @@ export default function Recipes() {
         updated_at: dbRecipe.updated_at,
       }));
 
-      // Show only AI generated recipes
-      const aiGeneratedRecipes = formattedRecipes.filter(recipe => recipe.is_ai_generated);
-      setRecipes(aiGeneratedRecipes);
+      setRecipes(formattedRecipes);
     } catch (error) {
       console.error('Error loading recipes:', error);
       Alert.alert('Error', 'Failed to load recipes');
@@ -414,9 +413,9 @@ export default function Recipes() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Recipe Discovery</Text>
+        <Text style={styles.headerTitle}>AI Recipe Discovery</Text>
         <Text style={styles.headerSubtitle}>
-          {filteredRecipes.length} AI recipes in your collection
+          {filteredRecipes.length} AI-generated recipes
         </Text>
       </View>
 
@@ -548,6 +547,7 @@ export default function Recipes() {
         <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
           <Calendar size={20} color={colors.accent[500]} />
           <Text style={styles.quickActionText}>Library</Text>
+          <Text style={styles.quickActionSubtext}>Import your own</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.quickAction} onPress={() => {
@@ -733,6 +733,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     color: colors.neutral[600],
+  },
+  quickActionSubtext: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[400],
+    marginTop: 2,
   },
   recipesContainer: {
     flex: 1,
