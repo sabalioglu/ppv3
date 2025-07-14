@@ -44,10 +44,20 @@ import {
   FileText,
   Book,
   ChevronLeft,
+  CheckSquare,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  useAnimatedGestureHandler,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 
 // **Import Cookbook Components**
 import { CookbookCard } from '@/components/cookbook/CookbookCard';
@@ -253,6 +263,169 @@ const ImportCategoriesModal: React.FC<{
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+// **Bulk Add to Cookbook Modal**
+const BulkAddToCookbookModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  recipeIds: string[];
+  recipeCount: number;
+  onCreateNewCookbook?: () => void;
+}> = ({ visible, onClose, recipeIds, recipeCount, onCreateNewCookbook }) => {
+  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
+  const [selectedCookbook, setSelectedCookbook] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      loadCookbooks();
+    }
+  }, [visible]);
+
+  const loadCookbooks = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('cookbooks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCookbooks(data || []);
+    } catch (error) {
+      console.error('Error loading cookbooks:', error);
+      Alert.alert('Error', 'Failed to load cookbooks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCookbook) {
+      Alert.alert('Select Cookbook', 'Please select a cookbook');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Add all recipes to the selected cookbook
+      const associations = recipeIds.map(recipeId => ({
+        recipe_id: recipeId,
+        cookbook_id: selectedCookbook,
+      }));
+
+      const { error } = await supabase
+        .from('recipe_cookbooks')
+        .insert(associations);
+
+      if (error) throw error;
+
+      // Save last used cookbook
+      await AsyncStorage.setItem('lastUsedCookbook', selectedCookbook);
+
+      Alert.alert(
+        'Success!',
+        `Added ${recipeCount} recipe${recipeCount > 1 ? 's' : ''} to cookbook`,
+        [{ text: 'OK', onPress: onClose }]
+      );
+    } catch (error) {
+      console.error('Error adding recipes to cookbook:', error);
+      Alert.alert('Error', 'Failed to add recipes to cookbook');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Modal visible={visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, styles.loadingContainer]}>
+            <ActivityIndicator size="large" color={colors.primary[500]} />
+            <Text style={styles.loadingText}>Loading cookbooks...</Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add {recipeCount} Recipes to Cookbook</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={24} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={() => {
+              onClose();
+              if (onCreateNewCookbook) onCreateNewCookbook();
+            }}
+          >
+            <Plus size={20} color={colors.primary[500]} />
+            <Text style={styles.createNewText}>Create New Cookbook</Text>
+          </TouchableOpacity>
+
+          <ScrollView style={styles.cookbooksList}>
+            {cookbooks.map((cookbook) => (
+              <TouchableOpacity
+                key={cookbook.id}
+                style={[
+                  styles.cookbookItem,
+                  selectedCookbook === cookbook.id && styles.cookbookItemSelected
+                ]}
+                onPress={() => setSelectedCookbook(cookbook.id)}
+              >
+                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                <View style={styles.cookbookInfo}>
+                  <Text style={styles.cookbookName}>{cookbook.name}</Text>
+                  <Text style={styles.cookbookDescription}>
+                    {cookbook.recipe_count} recipes
+                  </Text>
+                </View>
+                {selectedCookbook === cookbook.id && (
+                  <Check size={20} color={colors.primary[500]} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving || !selectedCookbook}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.neutral[0]} />
+              ) : (
+                <Text style={styles.saveButtonText}>Add to Cookbook</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -860,8 +1033,8 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component with Cookbook Support**
-interface RecipeCardProps {
+// **Draggable Recipe Card Component**
+interface DraggableRecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
   onPress: () => void;
@@ -869,17 +1042,64 @@ interface RecipeCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onAddToCookbook: () => void;
+  onDrop?: (cookbookId: string) => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  selectionMode?: boolean;
+  lastUsedCookbook?: Cookbook | null;
+  onQuickAddToCookbook?: (cookbookId: string) => void;
 }
 
-const RecipeCard: React.FC<RecipeCardProps> = ({
+const DraggableRecipeCard: React.FC<DraggableRecipeCardProps> = ({
   recipe,
   viewMode,
   onPress,
   onFavorite,
   onEdit,
   onDelete,
-  onAddToCookbook
+  onAddToCookbook,
+  onDrop,
+  isSelected,
+  onSelect,
+  selectionMode,
+  lastUsedCookbook,
+  onQuickAddToCookbook,
 }) => {
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: () => {
+      scale.value = withSpring(1.05);
+    },
+    onActive: (event) => {
+      translateX.value = event.translationX;
+      translateY.value = event.translationY;
+    },
+    onEnd: () => {
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      scale.value = withSpring(1);
+      
+      // Check if dropped on a cookbook
+      if (onDrop) {
+        // This would need cookbook positions to work properly
+        // For now, just reset position
+      }
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    };
+  });
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return colors.success[500];
@@ -889,135 +1109,176 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     }
   };
 
-  if (viewMode === 'list') {
-    return (
-      <TouchableOpacity style={styles.listCard} onPress={onPress}>
-        <View style={styles.listImageContainer}>
-          {recipe.image_url ? (
-            <Image source={{ uri: recipe.image_url }} style={styles.listImage} />
-          ) : (
-            <View style={styles.listPlaceholder}>
-              <ChefHat size={24} color={colors.neutral[400]} />
+  const RecipeContent = () => {
+    if (viewMode === 'list') {
+      return (
+        <TouchableOpacity 
+          style={[styles.listCard, isSelected && styles.selectedCard]} 
+          onPress={selectionMode ? onSelect : onPress}
+          onLongPress={onSelect}
+        >
+          {selectionMode && (
+            <View style={styles.selectionCheckbox}>
+              {isSelected && <Check size={16} color={colors.neutral[0]} />}
             </View>
           )}
-        </View>
-        <View style={styles.listContent}>
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
-            <View style={styles.listActions}>
-              <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
-                <Heart
-                  size={16}
-                  color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
-                  fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
-                <Book size={16} color={colors.secondary[500]} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
-                <Edit3 size={16} color={colors.neutral[400]} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
-                <Trash2 size={16} color={colors.error[400]} />
-              </TouchableOpacity>
+          <View style={styles.listImageContainer}>
+            {recipe.image_url ? (
+              <Image source={{ uri: recipe.image_url }} style={styles.listImage} />
+            ) : (
+              <View style={styles.listPlaceholder}>
+                <ChefHat size={24} color={colors.neutral[400]} />
+              </View>
+            )}
+          </View>
+          <View style={styles.listContent}>
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
+              <View style={styles.listActions}>
+                <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
+                  <Heart
+                    size={16}
+                    color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
+                    fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onAddToCookbook} style={[styles.listActionButton, styles.cookbookActionButton]}>
+                  <Book size={16} color={colors.secondary[500]} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
+                  <Edit3 size={16} color={colors.neutral[400]} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
+                  <Trash2 size={16} color={colors.error[400]} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <Text style={styles.listDescription} numberOfLines={2}>
+              {recipe.description}
+            </Text>
+            <View style={styles.listMeta}>
+              <View style={styles.listMetaItem}>
+                <Clock size={12} color={colors.neutral[500]} />
+                <Text style={styles.listMetaText}>
+                  {recipe.prep_time + recipe.cook_time}m
+                </Text>
+              </View>
+              <View style={styles.listMetaItem}>
+                <Users size={12} color={colors.neutral[500]} />
+                <Text style={styles.listMetaText}>{recipe.servings}</Text>
+              </View>
+              <View style={[styles.difficultyChip, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
+                <Text style={styles.difficultyChipText}>{recipe.difficulty}</Text>
+              </View>
+              {recipe.is_ai_generated && (
+                <View style={styles.aiChip}>
+                  <Text style={styles.aiChipText}>AI</Text>
+                </View>
+              )}
             </View>
           </View>
-          <Text style={styles.listDescription} numberOfLines={2}>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.gridCard, isSelected && styles.selectedCard]} 
+        onPress={selectionMode ? onSelect : onPress}
+        onLongPress={onSelect}
+      >
+        {selectionMode && (
+          <View style={[styles.selectionCheckbox, styles.gridSelectionCheckbox]}>
+            {isSelected && <Check size={16} color={colors.neutral[0]} />}
+          </View>
+        )}
+        <View style={styles.gridImageContainer}>
+          {recipe.image_url ? (
+            <Image source={{ uri: recipe.image_url }} style={styles.gridImage} />
+          ) : (
+            <View style={styles.gridPlaceholder}>
+              <ChefHat size={32} color={colors.neutral[400]} />
+            </View>
+          )}
+          <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
+            <Heart
+              size={18}
+              color={recipe.is_favorite ? colors.error[500] : colors.neutral[0]}
+              fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+            />
+          </TouchableOpacity>
+          <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
+            <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+          </View>
+          {recipe.is_ai_generated && (
+            <View style={styles.aiBadge}>
+              <Text style={styles.aiText}>AI</Text>
+            </View>
+          )}
+          {recipe.source_url && (
+            <View style={styles.sourceBadge}>
+              <ExternalLink size={12} color={colors.neutral[0]} />
+            </View>
+          )}
+          {lastUsedCookbook && onQuickAddToCookbook && (
+            <TouchableOpacity
+              style={styles.quickAddButton}
+              onPress={() => onQuickAddToCookbook(lastUsedCookbook.id)}
+            >
+              <Plus size={12} color={colors.primary[500]} />
+              <Text style={styles.quickAddText}>{lastUsedCookbook.emoji}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.gridContent}>
+          <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
+          <Text style={styles.gridDescription} numberOfLines={2}>
             {recipe.description}
           </Text>
-          <View style={styles.listMeta}>
-            <View style={styles.listMetaItem}>
+          <View style={styles.gridMeta}>
+            <View style={styles.gridMetaItem}>
               <Clock size={12} color={colors.neutral[500]} />
-              <Text style={styles.listMetaText}>
+              <Text style={styles.gridMetaText}>
                 {recipe.prep_time + recipe.cook_time}m
               </Text>
             </View>
-            <View style={styles.listMetaItem}>
+            <View style={styles.gridMetaItem}>
               <Users size={12} color={colors.neutral[500]} />
-              <Text style={styles.listMetaText}>{recipe.servings}</Text>
+              <Text style={styles.gridMetaText}>{recipe.servings}</Text>
             </View>
-            <View style={[styles.difficultyChip, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-              <Text style={styles.difficultyChipText}>{recipe.difficulty}</Text>
-            </View>
-            {recipe.is_ai_generated && (
-              <View style={styles.aiChip}>
-                <Text style={styles.aiChipText}>AI</Text>
+            {recipe.nutrition?.calories && (
+              <View style={styles.gridMetaItem}>
+                <Flame size={12} color={colors.neutral[500]} />
+                <Text style={styles.gridMetaText}>{recipe.nutrition.calories} cal</Text>
               </View>
             )}
+          </View>
+          <View style={styles.gridActions}>
+            <TouchableOpacity 
+              onPress={onAddToCookbook} 
+              style={[styles.gridActionButton, styles.cookbookActionButton]}
+            >
+              <Book size={14} color={colors.secondary[500]} />
+              <Text style={styles.actionButtonText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
+              <Edit3 size={14} color={colors.primary[500]} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
+              <Trash2 size={14} color={colors.error[500]} />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
     );
-  }
+  };
 
   return (
-    <TouchableOpacity style={styles.gridCard} onPress={onPress}>
-      <View style={styles.gridImageContainer}>
-        {recipe.image_url ? (
-          <Image source={{ uri: recipe.image_url }} style={styles.gridImage} />
-        ) : (
-          <View style={styles.gridPlaceholder}>
-            <ChefHat size={32} color={colors.neutral[400]} />
-          </View>
-        )}
-        <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
-          <Heart
-            size={18}
-            color={recipe.is_favorite ? colors.error[500] : colors.neutral[0]}
-            fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-          />
-        </TouchableOpacity>
-        <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-          <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
-        </View>
-        {recipe.is_ai_generated && (
-          <View style={styles.aiBadge}>
-            <Text style={styles.aiText}>AI</Text>
-          </View>
-        )}
-        {recipe.source_url && (
-          <View style={styles.sourceBadge}>
-            <ExternalLink size={12} color={colors.neutral[0]} />
-          </View>
-        )}
-      </View>
-      <View style={styles.gridContent}>
-        <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
-        <Text style={styles.gridDescription} numberOfLines={2}>
-          {recipe.description}
-        </Text>
-        <View style={styles.gridMeta}>
-          <View style={styles.gridMetaItem}>
-            <Clock size={12} color={colors.neutral[500]} />
-            <Text style={styles.gridMetaText}>
-              {recipe.prep_time + recipe.cook_time}m
-            </Text>
-          </View>
-          <View style={styles.gridMetaItem}>
-            <Users size={12} color={colors.neutral[500]} />
-            <Text style={styles.gridMetaText}>{recipe.servings}</Text>
-          </View>
-          {recipe.nutrition?.calories && (
-            <View style={styles.gridMetaItem}>
-              <Flame size={12} color={colors.neutral[500]} />
-              <Text style={styles.gridMetaText}>{recipe.nutrition.calories} cal</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.gridActions}>
-          <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
-            <Book size={14} color={colors.secondary[500]} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
-            <Edit3 size={14} color={colors.primary[500]} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
-            <Trash2 size={14} color={colors.error[500]} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={animatedStyle}>
+        <RecipeContent />
+      </Animated.View>
+    </PanGestureHandler>
   );
 };
 
@@ -1081,10 +1342,18 @@ export default function Library() {
   const [showEditCookbook, setShowEditCookbook] = useState(false);
   const [selectedCookbookForEdit, setSelectedCookbookForEdit] = useState<Cookbook | null>(null);
   const [showAddToCookbook, setShowAddToCookbook] = useState(false);
+  const [showBulkAddToCookbook, setShowBulkAddToCookbook] = useState(false);
   const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
+  
+  // Selection mode states
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
+  
+  // Last used cookbook
+  const [lastUsedCookbook, setLastUsedCookbook] = useState<Cookbook | null>(null);
   
   // **Cookbook view states**
   const [viewType, setViewType] = useState<'library' | 'cookbook'>('library');
@@ -1097,6 +1366,23 @@ export default function Library() {
     difficulty: 'all',
     cuisine: 'all',
   });
+
+  // Load last used cookbook
+  useEffect(() => {
+    loadLastUsedCookbook();
+  }, [cookbooks]);
+
+  const loadLastUsedCookbook = async () => {
+    try {
+      const lastCookbookId = await AsyncStorage.getItem('lastUsedCookbook');
+      if (lastCookbookId && cookbooks.length > 0) {
+        const cookbook = cookbooks.find(c => c.id === lastCookbookId);
+        if (cookbook) setLastUsedCookbook(cookbook);
+      }
+    } catch (error) {
+      console.error('Error loading last used cookbook:', error);
+    }
+  };
 
   const loadLibraryData = async () => {
     try {
@@ -1259,6 +1545,42 @@ export default function Library() {
   const handleDeleteCookbook = async (cookbook: Cookbook) => {
     // This is handled in the EditCookbookModal
     console.log('Delete cookbook:', cookbook.id);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedRecipes([]);
+  };
+
+  const toggleRecipeSelection = (recipeId: string) => {
+    setSelectedRecipes(prev => {
+      if (prev.includes(recipeId)) {
+        return prev.filter(id => id !== recipeId);
+      }
+      return [...prev, recipeId];
+    });
+  };
+
+  const handleQuickAddToCookbook = async (recipeId: string, cookbookId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_cookbooks')
+        .insert({
+          recipe_id: recipeId,
+          cookbook_id: cookbookId,
+        });
+
+      if (error) throw error;
+
+      // Update last used cookbook
+      await AsyncStorage.setItem('lastUsedCookbook', cookbookId);
+
+      const cookbook = cookbooks.find(c => c.id === cookbookId);
+      Alert.alert('Success!', `Added to ${cookbook?.name || 'cookbook'}`);
+    } catch (error) {
+      console.error('Error adding to cookbook:', error);
+      Alert.alert('Error', 'Failed to add to cookbook');
+    }
   };
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -1541,6 +1863,14 @@ export default function Library() {
           </Text>
         </View>
         <TouchableOpacity
+          style={styles.selectionModeButton}
+          onPress={toggleSelectionMode}
+        >
+          <Text style={[styles.selectionModeText, selectionMode && styles.selectionModeActive]}>
+            {selectionMode ? 'Cancel' : 'Select'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.viewToggleButton}
           onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
         >
@@ -1675,7 +2005,7 @@ export default function Library() {
               <View style={styles.recipesGrid}>
                 {filteredRecipes.map(recipe => (
                   <View key={recipe.id} style={styles.gridCardContainer}>
-                    <RecipeCard
+                    <DraggableRecipeCard
                       recipe={recipe}
                       viewMode="grid"
                       onPress={() => {
@@ -1687,13 +2017,18 @@ export default function Library() {
                       }}
                       onDelete={() => handleDelete(recipe.id)}
                       onAddToCookbook={() => handleAddToCookbook(recipe)}
+                      isSelected={selectedRecipes.includes(recipe.id)}
+                      onSelect={() => toggleRecipeSelection(recipe.id)}
+                      selectionMode={selectionMode}
+                      lastUsedCookbook={lastUsedCookbook}
+                      onQuickAddToCookbook={(cookbookId) => handleQuickAddToCookbook(recipe.id, cookbookId)}
                     />
                   </View>
                 ))}
               </View>
             ) : (
               filteredRecipes.map(recipe => (
-                <RecipeCard
+                <DraggableRecipeCard
                   key={recipe.id}
                   recipe={recipe}
                   viewMode="list"
@@ -1706,6 +2041,11 @@ export default function Library() {
                   }}
                   onDelete={() => handleDelete(recipe.id)}
                   onAddToCookbook={() => handleAddToCookbook(recipe)}
+                  isSelected={selectedRecipes.includes(recipe.id)}
+                  onSelect={() => toggleRecipeSelection(recipe.id)}
+                  selectionMode={selectionMode}
+                  lastUsedCookbook={lastUsedCookbook}
+                  onQuickAddToCookbook={(cookbookId) => handleQuickAddToCookbook(recipe.id, cookbookId)}
                 />
               ))
             )
@@ -1718,6 +2058,19 @@ export default function Library() {
           )}
         </View>
       </ScrollView>
+
+      {/* Bulk action button */}
+      {selectionMode && selectedRecipes.length > 0 && (
+        <TouchableOpacity
+          style={styles.bulkActionButton}
+          onPress={() => setShowBulkAddToCookbook(true)}
+        >
+          <Book size={20} color={colors.neutral[0]} />
+          <Text style={styles.bulkActionText}>
+            Add {selectedRecipes.length} to Cookbook
+          </Text>
+        </TouchableOpacity>
+      )}
       
       <ImportCategoriesModal
         visible={showImportModal}
@@ -1790,6 +2143,21 @@ export default function Library() {
           }}
         />
       )}
+
+      <BulkAddToCookbookModal
+        visible={showBulkAddToCookbook}
+        onClose={() => {
+          setShowBulkAddToCookbook(false);
+          setSelectionMode(false);
+          setSelectedRecipes([]);
+        }}
+        recipeIds={selectedRecipes}
+        recipeCount={selectedRecipes.length}
+        onCreateNewCookbook={() => {
+          setShowBulkAddToCookbook(false);
+          setShowCreateCookbook(true);
+        }}
+      />
       
       <TouchableOpacity
         style={styles.floatingAddButton}
@@ -1850,6 +2218,19 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
+  },
+  selectionModeButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  selectionModeText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[500],
+  },
+  selectionModeActive: {
+    color: colors.error[500],
   },
   viewToggleButton: {
     width: 40,
@@ -1970,6 +2351,83 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   
+  // Selection mode styles
+  selectedCard: {
+    borderWidth: 2,
+    borderColor: colors.primary[500],
+  },
+  selectionCheckbox: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  gridSelectionCheckbox: {
+    backgroundColor: colors.primary[500],
+    borderWidth: 2,
+    borderColor: colors.neutral[0],
+  },
+  bulkActionButton: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.primary[500],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    gap: spacing.sm,
+    ...shadows.lg,
+  },
+  bulkActionText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  
+  // Quick add button styles
+  quickAddButton: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  quickAddText: {
+    fontSize: 12,
+  },
+  
+  // Cookbook action button styles
+  cookbookActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.secondary[50],
+    borderColor: colors.secondary[200],
+    borderWidth: 1,
+    width: 'auto',
+    minWidth: 60,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.secondary[600],
+  },
+  
   // Import Modal Styles
   importModalOverlay: {
     flex: 1,
@@ -2027,6 +2485,118 @@ const styles = StyleSheet.create({
   importModalItemDescription: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
+  },
+  
+  // Bulk modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    margin: spacing.lg,
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    gap: spacing.sm,
+  },
+  createNewText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  cookbooksList: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  cookbookItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  cookbookItemSelected: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+  },
+  cookbookEmoji: {
+    fontSize: 32,
+    marginRight: spacing.md,
+  },
+  cookbookInfo: {
+    flex: 1,
+  },
+  cookbookName: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  cookbookDescription: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+  },
+  modalActions: {
+    flexDirection: 'row',
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[600],
+  },
+  saveButton: {
+    flex: 2,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
   },
   
   // Cookbooks Section
