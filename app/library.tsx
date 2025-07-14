@@ -57,7 +57,7 @@ import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
 import { EditCookbookModal } from '@/components/cookbook/EditCookbookModal';
 import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
 import { Cookbook } from '@/types/cookbook';
-
+import { BulkAddToCookbookModal } from '@/components/cookbook/BulkAddToCookbookModal';
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
 import { extractVideoRecipe, detectVideoPlatform } from '@/lib/supabase-functions';
