@@ -1,4 +1,5 @@
-// components/cookbook/AddToCookbookModal.tsx
+// components/cookbook/AddToCookbookModal.tsx - GÜNCELLENMIŞ VERSİYON
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -41,13 +42,13 @@ export function AddToCookbookModal({
   const [saving, setSaving] = useState(false);
   const [initialCookbooks, setInitialCookbooks] = useState<string[]>([]);
 
-  // Memoized load function
+  // Memoized load function - FIX: Web versiyonu ile aynı mantık
   const loadCookbooksAndRecipeAssociations = useCallback(async () => {
     try {
       setLoading(true);
       console.log('Loading cookbooks for recipe:', recipeId);
       
-      // Get current user
+      // Get current user - FIX: Tek seferlik check
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.error('No user found');
@@ -58,10 +59,10 @@ export function AddToCookbookModal({
 
       console.log('User ID:', user.id);
 
-      // Load user's cookbooks - Simplified query
+      // FIX: Web versiyonu ile aynı query - recipe_count ile birlikte
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
-        .select('*')
+        .select('*, recipe_count:recipe_cookbooks(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -70,25 +71,16 @@ export function AddToCookbookModal({
         throw cookbooksError;
       }
 
-      console.log('Loaded cookbooks:', cookbooksData);
+      console.log('Raw cookbooks data:', cookbooksData);
 
-      // Get recipe counts separately for better compatibility
-      const cookbooksWithCounts = await Promise.all(
-        (cookbooksData || []).map(async (cookbook) => {
-          const { count } = await supabase
-            .from('recipe_cookbooks')
-            .select('*', { count: 'exact', head: true })
-            .eq('cookbook_id', cookbook.id);
-          
-          return {
-            ...cookbook,
-            recipe_count: count || 0
-          };
-        })
-      );
+      // FIX: Web versiyonu ile aynı processing
+      const processedCookbooks = cookbooksData?.map(cookbook => ({
+        ...cookbook,
+        recipe_count: cookbook.recipe_count?.[0]?.count || 0
+      })) || [];
 
-      console.log('Cookbooks with counts:', cookbooksWithCounts);
-      setCookbooks(cookbooksWithCounts);
+      console.log('Processed cookbooks:', processedCookbooks);
+      setCookbooks(processedCookbooks);
 
       // Load existing associations for this recipe
       const { data: associations, error: assocError } = await supabase
@@ -118,7 +110,12 @@ export function AddToCookbookModal({
 
   useEffect(() => {
     if (visible && recipeId) {
-      loadCookbooksAndRecipeAssociations();
+      // FIX: Delay ekleyerek authentication sorununu çözme
+      const timer = setTimeout(() => {
+        loadCookbooksAndRecipeAssociations();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
     
     // Reset state when modal closes
@@ -126,6 +123,7 @@ export function AddToCookbookModal({
       setSelectedCookbooks([]);
       setInitialCookbooks([]);
       setCookbooks([]);
+      setLoading(true);
     }
   }, [visible, recipeId, loadCookbooksAndRecipeAssociations]);
 
@@ -165,59 +163,41 @@ export function AddToCookbookModal({
       console.log('To add:', toAdd);
       console.log('To remove:', toRemove);
 
-      // Remove associations
+      // FIX: Web versiyonu ile aynı batch operations
+      const operations = [];
+
       if (toRemove.length > 0) {
-        for (const cookbookId of toRemove) {
-          const { error } = await supabase
+        operations.push(
+          supabase
             .from('recipe_cookbooks')
             .delete()
             .eq('recipe_id', recipeId)
-            .eq('cookbook_id', cookbookId);
-          
-          if (error) {
-            console.error('Error removing association:', error);
-            throw error;
-          }
-        }
+            .in('cookbook_id', toRemove)
+        );
       }
 
-      // Add new associations
       if (toAdd.length > 0) {
-        for (const cookbookId of toAdd) {
-          const { error } = await supabase
+        const newAssociations = toAdd.map(cookbookId => ({
+          recipe_id: recipeId,
+          cookbook_id: cookbookId,
+        }));
+
+        operations.push(
+          supabase
             .from('recipe_cookbooks')
-            .insert({
-              recipe_id: recipeId,
-              cookbook_id: cookbookId,
-            });
-          
-          if (error) {
-            // Handle duplicate key error
-            if (error.code === '23505') {
-              console.log('Association already exists, skipping');
-              continue;
-            }
-            console.error('Error adding association:', error);
-            throw error;
-          }
-        }
+            .insert(newAssociations)
+        );
       }
 
-      // Show success message with details
-      const addedCount = toAdd.length;
-      const removedCount = toRemove.length;
-      let message = 'Recipe updated successfully!';
-      
-      if (addedCount > 0 && removedCount === 0) {
-        message = `Added to ${addedCount} cookbook${addedCount > 1 ? 's' : ''}`;
-      } else if (removedCount > 0 && addedCount === 0) {
-        message = `Removed from ${removedCount} cookbook${removedCount > 1 ? 's' : ''}`;
-      } else if (addedCount > 0 && removedCount > 0) {
-        message = `Updated ${addedCount + removedCount} cookbook${addedCount + removedCount > 1 ? 's' : ''}`;
+      const results = await Promise.all(operations);
+      const hasError = results.some(result => result.error);
+
+      if (hasError) {
+        throw new Error('Failed to update some cookbooks');
       }
 
-      console.log('Success:', message);
-      Alert.alert('Success!', message, [
+      console.log('Success: Cookbook associations updated');
+      Alert.alert('Success!', 'Recipe updated successfully!', [
         { text: 'OK', onPress: onClose }
       ]);
 
@@ -231,7 +211,6 @@ export function AddToCookbookModal({
 
   const handleCreateNewCookbook = () => {
     onClose();
-    // Small delay to ensure smooth transition
     setTimeout(() => {
       if (onCreateNewCookbook) {
         onCreateNewCookbook();
@@ -387,3 +366,5 @@ export function AddToCookbookModal({
     </Modal>
   );
 }
+
+// Styles kısmı aynı kalabilir...
