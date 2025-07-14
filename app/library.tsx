@@ -1,3 +1,4 @@
+console.log('APP/LIBRARY.TSX ÇALIŞIYOR');
 import React, { useState, useEffect } from 'react';
 import {
   View,
