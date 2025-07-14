@@ -1,5 +1,5 @@
 // components/cookbook/CreateCookbookModal.tsx (React Native version)
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,16 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase'; // Relative path
-import { COOKBOOK_COLORS, COOKBOOK_EMOJIS } from '../../types/cookbook'; // Relative path
-import { colors, spacing, typography } from '../../lib/theme'; // Relative path
+import { supabase } from '../../lib/supabase';
+import { COOKBOOK_COLORS, COOKBOOK_EMOJIS } from '../../types/cookbook';
+import { colors, spacing, typography } from '../../lib/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface CreateCookbookModalProps {
   visible: boolean;
@@ -29,9 +34,32 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
   const [selectedColor, setSelectedColor] = useState('#F97316');
   const [loading, setLoading] = useState(false);
 
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!visible) {
+      resetForm();
+    }
+  }, [visible]);
+
+  const resetForm = useCallback(() => {
+    setName('');
+    setDescription('');
+    setSelectedEmoji('📚');
+    setSelectedColor('#F97316');
+  }, []);
+
   const handleSubmit = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a cookbook name');
+    // Trim and validate name
+    const trimmedName = name.trim();
+    
+    if (!trimmedName) {
+      Alert.alert('Required Field', 'Please enter a cookbook name');
+      return;
+    }
+
+    // Check name length
+    if (trimmedName.length > 50) {
+      Alert.alert('Name Too Long', 'Cookbook name must be 50 characters or less');
       return;
     }
 
@@ -42,40 +70,90 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        Alert.alert('Error', 'Please log in to create cookbooks');
+        Alert.alert('Authentication Required', 'Please log in to create cookbooks');
+        onClose();
         return;
       }
 
+      // Check if cookbook name already exists for this user
+      const { data: existingCookbooks, error: checkError } = await supabase
+        .from('cookbooks')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('name', trimmedName)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (existingCookbooks && existingCookbooks.length > 0) {
+        Alert.alert('Duplicate Name', 'You already have a cookbook with this name');
+        setLoading(false);
+        return;
+      }
+
+      // Create cookbook
       const { error } = await supabase
         .from('cookbooks')
         .insert({
           user_id: user.id,
-          name: name.trim(),
+          name: trimmedName,
           description: description.trim() || null,
           emoji: selectedEmoji,
           color: selectedColor,
-          is_default: false
+          is_default: false,
+          recipe_count: 0 // Initialize with 0 recipes
         });
 
       if (error) throw error;
 
-      Alert.alert('Success!', 'Cookbook created successfully');
-      resetForm();
-      onSuccess();
-      onClose();
-    } catch (err) {
+      Alert.alert(
+        'Success!', 
+        'Cookbook created successfully',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              resetForm();
+              onSuccess();
+              onClose();
+            }
+          }
+        ]
+      );
+    } catch (err: any) {
       console.error('Error creating cookbook:', err);
-      Alert.alert('Error', 'Failed to create cookbook. Please try again.');
+      
+      let errorMessage = 'Failed to create cookbook. Please try again.';
+      if (err.message?.includes('duplicate')) {
+        errorMessage = 'A cookbook with this name already exists.';
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setName('');
-    setDescription('');
-    setSelectedEmoji('📚');
-    setSelectedColor('#F97316');
+  const handleClose = () => {
+    if (name.trim() || description.trim()) {
+      Alert.alert(
+        'Discard Changes?',
+        'Are you sure you want to close? Your changes will be lost.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Discard', 
+            style: 'destructive',
+            onPress: () => {
+              resetForm();
+              onClose();
+            }
+          }
+        ]
+      );
+    } else {
+      onClose();
+    }
   };
 
   return (
@@ -83,12 +161,19 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <TouchableOpacity 
+            onPress={handleClose} 
+            style={styles.closeButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
           <Text style={styles.title}>Create New Cookbook</Text>
@@ -96,6 +181,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
             onPress={handleSubmit} 
             disabled={loading || !name.trim()}
             style={styles.saveButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary[500]} />
@@ -110,7 +196,11 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Name Input */}
           <View style={styles.section}>
             <Text style={styles.label}>Name *</Text>
@@ -120,7 +210,13 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
               value={name}
               onChangeText={setName}
               placeholderTextColor={colors.neutral[400]}
+              maxLength={50}
+              autoCapitalize="words"
+              returnKeyType="next"
             />
+            <Text style={styles.charCount}>
+              {name.length}/50
+            </Text>
           </View>
 
           {/* Description Input */}
@@ -134,7 +230,12 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
               placeholderTextColor={colors.neutral[400]}
               multiline
               numberOfLines={3}
+              maxLength={200}
+              textAlignVertical="top"
             />
+            <Text style={styles.charCount}>
+              {description.length}/200
+            </Text>
           </View>
 
           {/* Emoji Selection */}
@@ -144,6 +245,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
               horizontal 
               showsHorizontalScrollIndicator={false}
               style={styles.emojiContainer}
+              contentContainerStyle={styles.emojiContent}
             >
               {COOKBOOK_EMOJIS.map((emoji) => (
                 <TouchableOpacity
@@ -153,6 +255,7 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
                     styles.emojiButton,
                     selectedEmoji === emoji && styles.emojiButtonSelected
                   ]}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.emojiText}>{emoji}</Text>
                 </TouchableOpacity>
@@ -173,13 +276,14 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
                     { backgroundColor: color },
                     selectedColor === color && styles.colorButtonSelected
                   ]}
+                  activeOpacity={0.7}
                 />
               ))}
             </View>
           </View>
 
           {/* Preview */}
-          <View style={styles.section}>
+          <View style={[styles.section, styles.lastSection]}>
             <Text style={styles.label}>Preview</Text>
             <View 
               style={[
@@ -189,19 +293,20 @@ export function CreateCookbookModal({ visible, onClose, onSuccess }: CreateCookb
             >
               <Text style={styles.previewEmoji}>{selectedEmoji}</Text>
               <View style={styles.previewContent}>
-                <Text style={styles.previewName}>
+                <Text style={styles.previewName} numberOfLines={1}>
                   {name || 'Cookbook Name'}
                 </Text>
-                {description && (
-                  <Text style={styles.previewDescription}>
+                {description ? (
+                  <Text style={styles.previewDescription} numberOfLines={2}>
                     {description}
                   </Text>
-                )}
+                ) : null}
+                <Text style={styles.previewRecipeCount}>0 recipes</Text>
               </View>
             </View>
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -215,7 +320,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
@@ -238,6 +343,7 @@ const styles = StyleSheet.create({
   saveButton: {
     minWidth: 60,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonText: {
     fontSize: typography.fontSize.base,
@@ -253,6 +359,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: spacing.xl,
+  },
+  lastSection: {
+    marginBottom: spacing.xl * 2,
   },
   label: {
     fontSize: typography.fontSize.base,
@@ -272,11 +381,22 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 80,
+    maxHeight: 120,
     textAlignVertical: 'top',
+    paddingTop: spacing.md,
+  },
+  charCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[400],
+    textAlign: 'right',
+    marginTop: spacing.xs,
   },
   emojiContainer: {
-    flexDirection: 'row',
     marginTop: spacing.sm,
+    marginHorizontal: -spacing.xs,
+  },
+  emojiContent: {
+    paddingHorizontal: spacing.xs,
   },
   emojiButton: {
     width: 56,
@@ -285,7 +405,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    marginHorizontal: spacing.xs / 2,
   },
   emojiButtonSelected: {
     backgroundColor: colors.primary[100],
@@ -298,15 +418,14 @@ const styles = StyleSheet.create({
   colorGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
     marginTop: spacing.sm,
+    marginHorizontal: -spacing.xs / 2,
   },
   colorButton: {
-    width: 48,
-    height: 48,
+    width: (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm * 7) / 8,
+    aspectRatio: 1,
     borderRadius: 24,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
+    margin: spacing.xs / 2,
   },
   colorButtonSelected: {
     borderWidth: 3,
@@ -335,5 +454,11 @@ const styles = StyleSheet.create({
   previewDescription: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[600],
+    marginBottom: spacing.xs,
+  },
+  previewRecipeCount: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[400],
+    fontWeight: '500',
   },
 });
