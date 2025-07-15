@@ -37,10 +37,16 @@ import {
   Video,
   Globe,
   FileText,
+  Book,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+
+// **Cookbook Imports**
+import { Cookbook } from '@/types/cookbook';
+import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
+import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
 
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
@@ -854,6 +860,7 @@ interface RecipeCardProps {
   onFavorite: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onAddToCookbook: () => void;
   isSelected?: boolean;
   onSelect?: () => void;
   selectionMode?: boolean;
@@ -866,6 +873,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onFavorite,
   onEdit,
   onDelete,
+  onAddToCookbook,
   isSelected,
   onSelect,
   selectionMode,
@@ -911,6 +919,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                     color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
                     fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
                   />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
+                  <Book size={16} color={colors.secondary[500]} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
                   <Edit3 size={16} color={colors.neutral[400]} />
@@ -1014,6 +1025,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </View>
         {!selectionMode && (
           <View style={styles.gridActions}>
+            <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+              <Book size={14} color={colors.secondary[500]} />
+            </TouchableOpacity>
             <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
               <Edit3 size={14} color={colors.primary[500]} />
             </TouchableOpacity>
@@ -1075,6 +1089,7 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -1082,6 +1097,9 @@ export default function Library() {
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
+  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
+  const [showAddToCookbook, setShowAddToCookbook] = useState(false);
+  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
@@ -1120,6 +1138,19 @@ export default function Library() {
         return;
       }
 
+      // Load cookbooks
+      const { data: cookbooksData, error: cookbooksError } = await supabase
+        .from('cookbooks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (cookbooksError) {
+        console.error('Error loading cookbooks:', cookbooksError);
+      } else {
+        setCookbooks(cookbooksData || []);
+      }
+
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
         id: dbRecipe.id,
         title: dbRecipe.title,
@@ -1154,6 +1185,11 @@ export default function Library() {
   useEffect(() => {
     loadLibraryData();
   }, []);
+
+  const handleAddToCookbook = (recipe: Recipe) => {
+    setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
+    setShowAddToCookbook(true);
+  };
 
   const toggleSelectionMode = () => {
     setSelectionMode(!selectionMode);
@@ -1535,6 +1571,7 @@ export default function Library() {
                       console.log('Recipe edit form coming soon:', recipe.id);
                     }}
                     onDelete={() => handleDelete(recipe.id)}
+                    onAddToCookbook={() => handleAddToCookbook(recipe)}
                     isSelected={selectedRecipes.includes(recipe.id)}
                     onSelect={() => toggleRecipeSelection(recipe.id)}
                     selectionMode={selectionMode}
@@ -1556,6 +1593,7 @@ export default function Library() {
                   console.log('Recipe edit form coming soon:', recipe.id);
                 }}
                 onDelete={() => handleDelete(recipe.id)}
+                onAddToCookbook={() => handleAddToCookbook(recipe)}
                 isSelected={selectedRecipes.includes(recipe.id)}
                 onSelect={() => toggleRecipeSelection(recipe.id)}
                 selectionMode={selectionMode}
@@ -1598,6 +1636,31 @@ export default function Library() {
         selectedSource={selectedImportSource}
         loading={isImporting}
       />
+
+      <CreateCookbookModal
+        visible={showCreateCookbook}
+        onClose={() => setShowCreateCookbook(false)}
+        onSuccess={() => {
+          setShowCreateCookbook(false);
+          loadLibraryData();
+        }}
+      />
+
+      {selectedRecipeForCookbook && (
+        <AddToCookbookModal
+          visible={showAddToCookbook}
+          onClose={() => {
+            setShowAddToCookbook(false);
+            setSelectedRecipeForCookbook(null);
+          }}
+          recipeId={selectedRecipeForCookbook.id}
+          recipeTitle={selectedRecipeForCookbook.title}
+          onCreateNewCookbook={() => {
+            setShowAddToCookbook(false);
+            setShowCreateCookbook(true);
+          }}
+        />
+      )}
       
       <TouchableOpacity
         style={styles.floatingAddButton}
