@@ -1125,9 +1125,6 @@ export default function Library() {
         return;
       }
 
-      console.log('👤 Current User ID:', user.id);
-      console.log('👤 Current User Email:', user.email);
-
       // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
         .from('user_recipes')
@@ -1141,26 +1138,17 @@ export default function Library() {
         return;
       }
 
-      console.log('📚 Recipes loaded:', recipesData?.length || 0);
-
-      // Load cookbooks - WITH DEBUG LOGS
-      console.log('🔍 Loading cookbooks...');
+      // Load cookbooks
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('📚 Cookbooks data:', cookbooksData);
-      console.log('❌ Cookbooks error:', cookbooksError);
-      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
-
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
-        Alert.alert('Cookbook Error', `Failed to load cookbooks: ${cookbooksError.message}`);
       } else {
         setCookbooks(cookbooksData || []);
-        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
       }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
@@ -1186,7 +1174,6 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
-      console.log('✅ Library data loaded successfully');
     } catch (error) {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
@@ -1200,8 +1187,6 @@ export default function Library() {
   }, []);
 
   const handleAddToCookbook = (recipe: Recipe) => {
-    console.log('🔍 Opening AddToCookbook modal for recipe:', recipe.title);
-    console.log('📚 Available cookbooks:', cookbooks.length);
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
     setShowAddToCookbook(true);
   };
