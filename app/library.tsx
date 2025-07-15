@@ -900,8 +900,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
         <View style={styles.listImageContainer}>
+          {console.log('Recipe image_url:', recipe.image_url)}
           {recipe.image_url ? (
-            <Image source={{ uri: recipe.image_url }} style={styles.listImage} />
+            <Image 
+              source={{ uri: recipe.image_url }} 
+              style={styles.listImage}
+              onError={(error) => console.log('Image load error:', error)}
+            />
           ) : (
             <View style={styles.listPlaceholder}>
               <ChefHat size={24} color={colors.neutral[400]} />
@@ -972,8 +977,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </View>
       )}
       <View style={styles.gridImageContainer}>
+        {console.log('Recipe image_url:', recipe.image_url)}
         {recipe.image_url ? (
-          <Image source={{ uri: recipe.image_url }} style={styles.gridImage} />
+          <Image 
+            source={{ uri: recipe.image_url }} 
+            style={styles.gridImage}
+            onError={(error) => console.log('Image load error:', error)}
+          />
         ) : (
           <View style={styles.gridPlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
@@ -1119,11 +1129,15 @@ export default function Library() {
   const loadLibraryData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading library data...');
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
         return;
       }
+
+      console.log('👤 User ID:', user.id);
 
       // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
@@ -1133,22 +1147,29 @@ export default function Library() {
         .order('created_at', { ascending: false });
 
       if (recipesError) {
-        console.error('Error loading recipes:', recipesError);
+        console.error('❌ Error loading recipes:', recipesError);
         Alert.alert('Error', 'Failed to load recipes');
         return;
       }
 
+      console.log('📝 Recipes loaded:', recipesData?.length || 0);
+
       // Load cookbooks
+      console.log('📚 Loading cookbooks...');
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      console.log('❌ Cookbooks error:', cookbooksError);
+      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
+
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
       } else {
         setCookbooks(cookbooksData || []);
+        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
       }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
@@ -1174,6 +1195,7 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
+      console.log('✅ Library data loaded successfully');
     } catch (error) {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
@@ -1555,58 +1577,103 @@ export default function Library() {
           viewMode === 'grid' && styles.recipesGridContent
         ]}
       >
-        {filteredRecipes.length > 0 ? (
-          viewMode === 'grid' ? (
-            <View style={styles.recipesGrid}>
-              {filteredRecipes.map(recipe => (
-                <View key={recipe.id} style={styles.gridCardContainer}>
-                  <RecipeCard
-                    recipe={recipe}
-                    viewMode="grid"
-                    onPress={() => {
-                      router.push(`/recipe/${recipe.id}`);
-                    }}
-                    onFavorite={() => handleFavorite(recipe.id)}
-                    onEdit={() => {
-                      console.log('Recipe edit form coming soon:', recipe.id);
-                    }}
-                    onDelete={() => handleDelete(recipe.id)}
-                    onAddToCookbook={() => handleAddToCookbook(recipe)}
-                    isSelected={selectedRecipes.includes(recipe.id)}
-                    onSelect={() => toggleRecipeSelection(recipe.id)}
-                    selectionMode={selectionMode}
-                  />
-                </View>
-              ))}
-            </View>
+        {/* 📚 COOKBOOK SECTION */}
+        <View style={styles.cookbooksSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>My Cookbooks</Text>
+            <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+              <Plus size={20} color={colors.primary[500]} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.cookbooksScroll}
+          >
+            {/* New Cookbook Card */}
+            <TouchableOpacity
+              style={styles.newCookbookCard}
+              onPress={() => setShowCreateCookbook(true)}
+            >
+              <View style={styles.newCookbookIcon}>
+                <Plus size={24} color={colors.primary[500]} />
+              </View>
+              <Text style={styles.newCookbookText}>New cookbook</Text>
+            </TouchableOpacity>
+
+            {/* Existing Cookbooks */}
+            {cookbooks.map((cookbook) => (
+              <TouchableOpacity
+                key={cookbook.id}
+                style={styles.cookbookCard}
+                onPress={() => console.log('Cookbook clicked:', cookbook.name)}
+              >
+                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                <Text style={styles.cookbookName}>{cookbook.name}</Text>
+                <Text style={styles.cookbookCount}>0 recipes</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Recipes Section */}
+        <View style={styles.recipesSection}>
+          <Text style={styles.sectionTitle}>All Recipes</Text>
+          
+          {filteredRecipes.length > 0 ? (
+            viewMode === 'grid' ? (
+              <View style={styles.recipesGrid}>
+                {filteredRecipes.map(recipe => (
+                  <View key={recipe.id} style={styles.gridCardContainer}>
+                    <RecipeCard
+                      recipe={recipe}
+                      viewMode="grid"
+                      onPress={() => {
+                        router.push(`/recipe/${recipe.id}`);
+                      }}
+                      onFavorite={() => handleFavorite(recipe.id)}
+                      onEdit={() => {
+                        console.log('Recipe edit form coming soon:', recipe.id);
+                      }}
+                      onDelete={() => handleDelete(recipe.id)}
+                      onAddToCookbook={() => handleAddToCookbook(recipe)}
+                      isSelected={selectedRecipes.includes(recipe.id)}
+                      onSelect={() => toggleRecipeSelection(recipe.id)}
+                      selectionMode={selectionMode}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              filteredRecipes.map(recipe => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  viewMode="list"
+                  onPress={() => {
+                    router.push(`/recipe/${recipe.id}`);
+                  }}
+                  onFavorite={() => handleFavorite(recipe.id)}
+                  onEdit={() => {
+                    console.log('Recipe edit form coming soon:', recipe.id);
+                  }}
+                  onDelete={() => handleDelete(recipe.id)}
+                  onAddToCookbook={() => handleAddToCookbook(recipe)}
+                  isSelected={selectedRecipes.includes(recipe.id)}
+                  onSelect={() => toggleRecipeSelection(recipe.id)}
+                  selectionMode={selectionMode}
+                />
+              ))
+            )
           ) : (
-            filteredRecipes.map(recipe => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                viewMode="list"
-                onPress={() => {
-                  router.push(`/recipe/${recipe.id}`);
-                }}
-                onFavorite={() => handleFavorite(recipe.id)}
-                onEdit={() => {
-                  console.log('Recipe edit form coming soon:', recipe.id);
-                }}
-                onDelete={() => handleDelete(recipe.id)}
-                onAddToCookbook={() => handleAddToCookbook(recipe)}
-                isSelected={selectedRecipes.includes(recipe.id)}
-                onSelect={() => toggleRecipeSelection(recipe.id)}
-                selectionMode={selectionMode}
-              />
-            ))
-          )
-        ) : (
-          <EmptyState
-            hasFilters={hasActiveFilters}
-            onAddRecipe={() => setShowImportModal(true)}
-            onClearFilters={clearAllFilters}
-          />
-        )}
+            <EmptyState
+              hasFilters={hasActiveFilters}
+              onAddRecipe={() => setShowImportModal(true)}
+              onClearFilters={clearAllFilters}
+            />
+          )}
+        </View>
       </ScrollView>
       
       <ImportCategoriesModal
@@ -1852,6 +1919,80 @@ const styles = StyleSheet.create({
   },
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
+  },
+  
+  // Cookbook Section Styles
+  cookbooksSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  recipesSection: {
+    flex: 1,
+  },
+  cookbooksScroll: {
+    flexDirection: 'row',
+  },
+  newCookbookCard: {
+    width: 140,
+    height: 180,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  newCookbookIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  newCookbookText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  cookbookCard: {
+    width: 140,
+    height: 180,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    padding: spacing.md,
+    marginRight: spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.md,
+  },
+  cookbookEmoji: {
+    fontSize: 32,
+    marginBottom: spacing.sm,
+  },
+  cookbookName: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  cookbookCount: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
   },
   
   // Selection mode styles
