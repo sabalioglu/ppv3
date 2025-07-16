@@ -11,10 +11,9 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { X, Check, Plus } from 'lucide-react-native';
-import { supabase } from '../../lib/supabase';
-import { Cookbook } from '../../types/cookbook';
+import { X, Check, Plus, AlertTriangle } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../lib/theme';
+import { useCookbookManager } from '../../hooks/useCookbookManager';
 
 interface AddToCookbookModalProps {
   visible: boolean;
@@ -22,6 +21,7 @@ interface AddToCookbookModalProps {
   recipeId: string;
   recipeTitle: string;
   onCreateNewCookbook?: () => void;
+  onSuccess?: () => void;
 }
 
 export function AddToCookbookModal({ 
@@ -29,64 +29,43 @@ export function AddToCookbookModal({
   onClose, 
   recipeId,
   recipeTitle,
-  onCreateNewCookbook 
+  onCreateNewCookbook,
+  onSuccess
 }: AddToCookbookModalProps) {
-  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
+  // Use the hook instead of local state
+  const {
+    cookbooks,
+    loading: cookbooksLoading,
+    error: cookbooksError,
+    getRecipeCookbooks,
+    replaceRecipeCookbooks
+  } = useCookbookManager();
+
   const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [initializing, setInitializing] = useState(false);
 
-  const loadCookbooks = async () => {
+  // Load initial data when modal opens
+  useEffect(() => {
+    if (visible && recipeId) {
+      initializeModal();
+    }
+  }, [visible, recipeId]);
+
+  const initializeModal = async () => {
     try {
-      setLoading(true);
+      setInitializing(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get cookbooks
-      const { data: cookbooksData, error } = await supabase
-        .from('cookbooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Get recipe counts
-      const cookbooksWithCounts = await Promise.all(
-        (cookbooksData || []).map(async (cookbook) => {
-          const { count } = await supabase
-            .from('recipe_cookbooks')
-            .select('*', { count: 'exact', head: true })
-            .eq('cookbook_id', cookbook.id);
-          
-          return { ...cookbook, recipe_count: count || 0 };
-        })
-      );
-
-      setCookbooks(cookbooksWithCounts);
-
-      // Get current associations
-      const { data: associations } = await supabase
-        .from('recipe_cookbooks')
-        .select('cookbook_id')
-        .eq('recipe_id', recipeId);
-
-      setSelectedCookbooks(associations?.map(a => a.cookbook_id) || []);
-
+      // Get current associations for this recipe
+      const currentAssociations = await getRecipeCookbooks(recipeId);
+      setSelectedCookbooks(currentAssociations);
     } catch (error) {
-      console.error('Error loading cookbooks:', error);
-      Alert.alert('Error', 'Failed to load cookbooks');
+      console.error('❌ Error initializing modal:', error);
+      Alert.alert('Error', 'Failed to load cookbook data');
     } finally {
-      setLoading(false);
+      setInitializing(false);
     }
   };
-
-  useEffect(() => {
-    if (visible) {
-      loadCookbooks();
-    }
-  }, [visible]);
 
   const toggleCookbook = (cookbookId: string) => {
     setSelectedCookbooks(prev => {
@@ -101,36 +80,63 @@ export function AddToCookbookModal({
     try {
       setSaving(true);
 
-      // Remove all existing associations
-      await supabase
-        .from('recipe_cookbooks')
-        .delete()
-        .eq('recipe_id', recipeId);
+      const result = await replaceRecipeCookbooks(recipeId, selectedCookbooks);
 
-      // Add new associations
-      if (selectedCookbooks.length > 0) {
-        const associations = selectedCookbooks.map(cookbookId => ({
-          recipe_id: recipeId,
-          cookbook_id: cookbookId,
-        }));
-
-        const { error } = await supabase
-          .from('recipe_cookbooks')
-          .insert(associations);
-
-        if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update cookbooks');
       }
 
-      Alert.alert('Success!', 'Recipe updated successfully!');
+      Alert.alert(
+        'Success!', 
+        `Recipe ${selectedCookbooks.length > 0 
+          ? `added to ${selectedCookbooks.length} cookbook(s)` 
+          : 'removed from all cookbooks'
+        }`
+      );
+
+      onSuccess?.();
       onClose();
 
-    } catch (error) {
-      console.error('Error saving:', error);
-      Alert.alert('Error', 'Failed to update cookbooks');
+    } catch (error: any) {
+      console.error('❌ Error saving cookbook associations:', error);
+      Alert.alert('Error', error.message || 'Failed to update cookbooks');
     } finally {
       setSaving(false);
     }
   };
+
+  const handleCreateNew = () => {
+    onClose();
+    setTimeout(() => onCreateNewCookbook?.(), 300);
+  };
+
+  const handleClose = () => {
+    setSelectedCookbooks([]);
+    onClose();
+  };
+
+  // Error state
+  if (cookbooksError) {
+    return (
+      <Modal visible={visible} transparent animationType="slide">
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            <View style={styles.errorContainer}>
+              <AlertTriangle size={48} color={colors.error[500]} />
+              <Text style={styles.errorTitle}>Error Loading Cookbooks</Text>
+              <Text style={styles.errorMessage}>{cookbooksError}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={initializeModal}>
+                <Text style={styles.retryText}>Try Again</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+                <Text style={styles.cancelText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -138,30 +144,34 @@ export function AddToCookbookModal({
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Add to Cookbook</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose} disabled={saving}>
               <X size={24} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subtitle}>{recipeTitle}</Text>
+          <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
 
           <TouchableOpacity
             style={styles.createButton}
-            onPress={() => {
-              onClose();
-              setTimeout(() => onCreateNewCookbook?.(), 300);
-            }}
+            onPress={handleCreateNew}
+            disabled={saving}
           >
             <Plus size={20} color={colors.primary[500]} />
             <Text style={styles.createButtonText}>Create New Cookbook</Text>
           </TouchableOpacity>
 
-          {loading ? (
+          {(cookbooksLoading || initializing) ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary[500]} />
+              <Text style={styles.loadingText}>Loading cookbooks...</Text>
+            </View>
+          ) : cookbooks.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No cookbooks yet</Text>
+              <Text style={styles.emptySubtext}>Create your first cookbook to organize recipes</Text>
             </View>
           ) : (
-            <ScrollView style={styles.list}>
+            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {cookbooks.map((cookbook) => (
                 <TouchableOpacity
                   key={cookbook.id}
@@ -170,13 +180,16 @@ export function AddToCookbookModal({
                     selectedCookbooks.includes(cookbook.id) && styles.itemSelected
                   ]}
                   onPress={() => toggleCookbook(cookbook.id)}
+                  disabled={saving}
                 >
                   <View style={styles.itemLeft}>
                     <Text style={styles.emoji}>{cookbook.emoji}</Text>
-                    <View>
-                      <Text style={styles.name}>{cookbook.name}</Text>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.name} numberOfLines={1}>
+                        {cookbook.name}
+                      </Text>
                       <Text style={styles.count}>
-                        {cookbook.recipe_count || 0} recipes
+                        {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
                       </Text>
                     </View>
                   </View>
@@ -194,18 +207,27 @@ export function AddToCookbookModal({
           )}
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={handleClose}
+              disabled={saving}
+            >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              style={[
+                styles.saveButton, 
+                saving && styles.saveButtonDisabled
+              ]}
               onPress={handleSave}
-              disabled={saving}
+              disabled={saving || cookbooksLoading || initializing}
             >
               {saving ? (
                 <ActivityIndicator size="small" color={colors.neutral[0]} />
               ) : (
-                <Text style={styles.saveText}>Save</Text>
+                <Text style={styles.saveText}>
+                  Save ({selectedCookbooks.length})
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -263,12 +285,68 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary[600],
   },
+  // Error states
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  errorTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.error[600],
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  errorMessage: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 8,
+    marginBottom: spacing.sm,
+  },
+  retryText: {
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  // Loading states
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
   },
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+  },
+  // Empty state
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.sm,
+  },
+  emptySubtext: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[500],
+    textAlign: 'center',
+  },
+  // List styles
   list: {
     flex: 1,
     paddingHorizontal: spacing.lg,
@@ -290,6 +368,9 @@ const styles = StyleSheet.create({
   itemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  itemInfo: {
     flex: 1,
   },
   emoji: {
@@ -318,6 +399,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     borderColor: colors.primary[500],
   },
+  // Action buttons
   actions: {
     flexDirection: 'row',
     gap: spacing.md,
