@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+mport React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -1116,7 +1116,6 @@ export default function Library() {
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
-  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
   const [showAddToCookbook, setShowAddToCookbook] = useState(false);
   const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
@@ -1581,7 +1580,7 @@ export default function Library() {
         <View style={styles.cookbooksSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Cookbooks</Text>
-            <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+            <TouchableOpacity onPress={() => router.push('/cookbooks/create')}>
               <Plus size={20} color={colors.primary[500]} />
             </TouchableOpacity>
           </View>
@@ -1594,7 +1593,7 @@ export default function Library() {
             {/* New Cookbook Card */}
             <TouchableOpacity
               style={styles.newCookbookCard}
-              onPress={() => setShowCreateCookbook(true)}
+              onPress={() => router.push('/cookbooks/create')}
             >
               <View style={styles.newCookbookIcon}>
                 <Plus size={24} color={colors.primary[500]} />
@@ -1704,17 +1703,9 @@ export default function Library() {
         loading={isImporting}
       />
 
-      <CreateCookbookModal
-        visible={showCreateCookbook}
-        onClose={() => setShowCreateCookbook(false)}
-        onSuccess={() => {
-          setShowCreateCookbook(false);
-          loadCookbooks();
-        }}
-      />
-
+      {/* Cookbook Selection Modal */}
       {selectedRecipeForCookbook && (
-        <AddToCookbookModal
+        <CookbookSelectionModal
           visible={showAddToCookbook}
           onClose={() => {
             setShowAddToCookbook(false);
@@ -1722,14 +1713,6 @@ export default function Library() {
           }}
           recipeId={selectedRecipeForCookbook.id}
           recipeTitle={selectedRecipeForCookbook.title}
-          onCreateNewCookbook={() => {
-            setShowAddToCookbook(false);
-            setShowCreateCookbook(true);
-          }}
-          onSuccess={() => {
-            // ✅ Add this callback to refresh cookbooks after adding recipe
-            loadCookbooks();
-          }}
         />
       )}
       
