@@ -1,5 +1,5 @@
 // components/library/modals/CookbookSelectionModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,8 @@ export function CookbookSelectionModal({
     loading: cookbooksLoading,
     manageRecipeCookbooks,
     getRecipeCookbooks,
-    createCookbook
+    createCookbook,
+    loadCookbooks
   } = useCookbookManager();
 
   const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
@@ -42,17 +43,22 @@ export function CookbookSelectionModal({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCookbookName, setNewCookbookName] = useState('');
 
-  // Debug için
-  React.useEffect(() => {
-    console.log('🔍 Modal Debug:');
-    console.log('📚 Cookbooks count:', cookbooks.length);
-    console.log('📚 Cookbooks:', cookbooks.map(c => ({ id: c.id, name: c.name })));
-    console.log('⏳ Loading:', cookbooksLoading);
-    console.log('📝 Selected:', selectedCookbooks);
-  }, [cookbooks, cookbooksLoading, selectedCookbooks]);
+  // Load cookbooks when modal opens
+  useEffect(() => {
+    if (visible) {
+      console.log('🔄 Modal opened, loading cookbooks...');
+      loadCookbooks();
+    }
+  }, [visible, loadCookbooks]);
+
+  // Debug cookbooks
+  useEffect(() => {
+    console.log('📚 Modal - Cookbooks updated:', cookbooks.length);
+    console.log('📚 Modal - Cookbooks data:', cookbooks.map(c => ({ id: c.id, name: c.name })));
+  }, [cookbooks]);
 
   // Load current associations when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && recipeId) {
       loadCurrentAssociations();
     }
@@ -109,7 +115,7 @@ export function CookbookSelectionModal({
     try {
       setLoading(true);
       
-      // ✅ Doğru method signature'ı kullan
+      // ✅ Doğru method'u kullan
       await manageRecipeCookbooks(recipeId, selectedCookbooks, 'replace');
       
       Alert.alert(
@@ -198,6 +204,11 @@ export function CookbookSelectionModal({
           <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
           
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Debug Info */}
+            <Text style={{ padding: 10, fontSize: 12, color: 'red' }}>
+              Debug: {cookbooks.length} cookbooks, loading: {cookbooksLoading ? 'true' : 'false'}
+            </Text>
+            
             {/* Create New Cookbook Option */}
             <TouchableOpacity 
               style={styles.option}
@@ -214,32 +225,38 @@ export function CookbookSelectionModal({
             </TouchableOpacity>
             
             {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
-              <TouchableOpacity
-                key={cookbook.id}
-                style={[
-                  styles.option,
-                  selectedCookbooks.includes(cookbook.id) && styles.optionSelected
-                ]}
-                onPress={() => handleCookbookToggle(cookbook.id)}
-                disabled={loading}
-              >
-                <View style={[styles.iconContainer, { backgroundColor: `${cookbook.color}15` }]}>
-                  <Text style={styles.emoji}>{cookbook.emoji}</Text>
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionTitle}>{cookbook.name}</Text>
-                  <Text style={styles.optionDescription}>
-                    {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                {selectedCookbooks.includes(cookbook.id) && (
-                  <View style={styles.checkIcon}>
-                    <Check size={20} color={colors.primary[500]} />
+            {cookbooksLoading ? (
+              <Text style={{ padding: 20, textAlign: 'center' }}>Loading cookbooks...</Text>
+            ) : cookbooks.length === 0 ? (
+              <Text style={{ padding: 20, textAlign: 'center' }}>No cookbooks found</Text>
+            ) : (
+              cookbooks.map((cookbook) => (
+                <TouchableOpacity
+                  key={cookbook.id}
+                  style={[
+                    styles.option,
+                    selectedCookbooks.includes(cookbook.id) && styles.optionSelected
+                  ]}
+                  onPress={() => handleCookbookToggle(cookbook.id)}
+                  disabled={loading}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: `${cookbook.color}15` }]}>
+                    <Text style={styles.emoji}>{cookbook.emoji}</Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.optionContent}>
+                    <Text style={styles.optionTitle}>{cookbook.name}</Text>
+                    <Text style={styles.optionDescription}>
+                      {cookbook.recipe_count || 0} recipe{(cookbook.recipe_count || 0) !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  {selectedCookbooks.includes(cookbook.id) && (
+                    <View style={styles.checkIcon}>
+                      <Check size={20} color={colors.primary[500]} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
           </ScrollView>
           
           <View style={styles.actions}>
