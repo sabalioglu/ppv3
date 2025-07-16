@@ -45,7 +45,7 @@ import { supabase } from '../../lib/supabase';
 
 // **Cookbook Imports**
 import { Cookbook } from '../../types/cookbook';
-
+import { CookbookBottomSheet } from './modals/CookbookBottomSheet';
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '../../lib/recipeAIService';
 import { extractVideoRecipe, detectVideoPlatform } from '../../lib/supabase-functions';
@@ -1703,17 +1703,17 @@ export default function Library() {
       />
 
       {/* Cookbook Selection Modal */}
-      {/*// {selectedRecipeForCookbook && (
-        <CookbookSelectionModal
-          visible={showAddToCookbook}
-          onClose={() => {
-            setShowAddToCookbook(false);
-            setSelectedRecipeForCookbook(null);
-          }}
-          recipeId={selectedRecipeForCookbook.id}
-          recipeTitle={selectedRecipeForCookbook.title}
-        />
-      )} */}
+      {{selectedRecipeForCookbook && (
+  <CookbookBottomSheet
+    visible={showAddToCookbook}
+    onClose={() => {
+      setShowAddToCookbook(false);
+      setSelectedRecipeForCookbook(null);
+    }}
+    recipeId={selectedRecipeForCookbook.id}
+    recipeTitle={selectedRecipeForCookbook.title}
+  />
+)}
       
       <TouchableOpacity
         style={styles.floatingAddButton}
