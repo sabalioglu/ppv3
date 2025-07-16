@@ -32,7 +32,7 @@ export function CookbookSelectionModal({
   const {
     cookbooks,
     loading: cookbooksLoading,
-    addRecipeToCookbooks,
+    manageRecipeCookbooks,
     getRecipeCookbooks,
     createCookbook
   } = useCookbookManager();
@@ -41,6 +41,15 @@ export function CookbookSelectionModal({
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newCookbookName, setNewCookbookName] = useState('');
+
+  // Debug için
+  React.useEffect(() => {
+    console.log('🔍 Modal Debug:');
+    console.log('📚 Cookbooks count:', cookbooks.length);
+    console.log('📚 Cookbooks:', cookbooks.map(c => ({ id: c.id, name: c.name })));
+    console.log('⏳ Loading:', cookbooksLoading);
+    console.log('📝 Selected:', selectedCookbooks);
+  }, [cookbooks, cookbooksLoading, selectedCookbooks]);
 
   // Load current associations when modal opens
   React.useEffect(() => {
@@ -100,7 +109,8 @@ export function CookbookSelectionModal({
     try {
       setLoading(true);
       
-      await addRecipeToCookbooks(recipeId, selectedCookbooks);
+      // ✅ Doğru method signature'ı kullan
+      await manageRecipeCookbooks(recipeId, selectedCookbooks, 'replace');
       
       Alert.alert(
         'Success!',
