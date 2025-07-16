@@ -45,8 +45,6 @@ import { supabase } from '../../lib/supabase';
 
 // **Cookbook Imports**
 import { Cookbook } from '../../types/cookbook';
-import { AddToCookbookModal } from '../cookbook/AddToCookbookModal';
-import { CreateCookbookModal } from '../cookbook/CreateCookbookModal';
 
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '../../lib/recipeAIService';
