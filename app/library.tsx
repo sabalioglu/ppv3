@@ -1619,7 +1619,7 @@ export default function Library() {
             viewMode === 'grid' ? (
               <View style={styles.recipesGrid}>
                 {filteredRecipes.map(recipe => (
-                  <View key={recipe.id} style={styles.gridCardContainer}>
+                  <View key={`recipe-${recipe.id}`} style={styles.gridCardContainer}>
                     <RecipeCard
                       recipe={recipe}
                       viewMode="grid"
@@ -1642,7 +1642,7 @@ export default function Library() {
             ) : (
               filteredRecipes.map(recipe => (
                 <RecipeCard
-                  key={recipe.id}
+                  key={`recipe-${recipe.id}`}
                   recipe={recipe}
                   viewMode="list"
                   onPress={() => {
