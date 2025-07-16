@@ -1599,7 +1599,7 @@ export default function Library() {
             {/* Existing Cookbooks */}
             {cookbooks.map((cookbook) => (
               <TouchableOpacity
-                key={cookbook.id}
+                key={`cookbook-${cookbook.id}`}
                 style={styles.cookbookCard}
                 onPress={() => console.log('Cookbook clicked:', cookbook.name)}
               >
