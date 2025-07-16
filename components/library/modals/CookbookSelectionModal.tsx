@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  TextInput,
 } from 'react-native';
 import { X, Plus, Check } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../../lib/theme';
