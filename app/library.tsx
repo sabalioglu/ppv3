@@ -34,19 +34,29 @@ import {
   ChevronDown,
   Check,
   Camera,
+  Instagram,
+  Youtube,
+  Facebook,
   Video,
+  Bookmark,
   Globe,
+  Share2,
   FileText,
   Book,
+  ChevronLeft,
+  CheckSquare,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// **Cookbook Imports**
-import { Cookbook } from '@/types/cookbook';
-import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
+// **Import Cookbook Components**
+import { CookbookCard } from '@/components/cookbook/CookbookCard';
 import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { EditCookbookModal } from '@/components/cookbook/EditCookbookModal';
+import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
+import { Cookbook } from '@/types/cookbook';
 
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
@@ -168,28 +178,28 @@ const importCategories: ImportCategory[] = [
     id: 'web',
     name: 'Web',
     icon: Globe,
-    color: colors.primary[500],
+    color: colors.primary[500], // Mavi
     description: 'Recipe websites & blogs',
   },
   {
     id: 'socials',
     name: 'Socials',
     icon: Video,
-    color: colors.secondary[500],
+    color: colors.secondary[500], // Mor/Pembe
     description: 'Social media videos',
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.accent[500],
+    color: colors.accent[500], // Turuncu
     description: 'Scan from cookbook',
   },
   {
     id: 'manual',
     name: 'Manual',
     icon: FileText,
-    color: colors.neutral[600],
+    color: colors.neutral[600], // Gri
     description: 'Type it yourself',
   }
 ];
@@ -247,6 +257,213 @@ const ImportCategoriesModal: React.FC<{
             })}
           </View>
         </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+// **Bulk Add to Cookbook Modal - DÜZELTILMIŞ**
+const BulkAddToCookbookModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  recipeIds: string[];
+  recipeCount: number;
+  onCreateNewCookbook?: () => void;
+}> = ({ visible, onClose, recipeIds, recipeCount, onCreateNewCookbook }) => {
+  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
+  const [selectedCookbook, setSelectedCookbook] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      loadCookbooks();
+    }
+  }, [visible]);
+
+  const loadCookbooks = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.log('Loading cookbooks for bulk add...');
+
+      const { data, error } = await supabase
+        .from('cookbooks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      console.log('Cookbooks loaded:', data);
+
+      if (error) {
+        console.error('Error loading cookbooks:', error);
+        throw error;
+      }
+      
+      setCookbooks(data || []);
+    } catch (error) {
+      console.error('Error loading cookbooks:', error);
+      Alert.alert('Error', 'Failed to load cookbooks');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedCookbook) {
+      Alert.alert('Select Cookbook', 'Please select a cookbook');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Check for existing associations first
+      const { data: existingAssociations } = await supabase
+        .from('recipe_cookbooks')
+        .select('recipe_id')
+        .eq('cookbook_id', selectedCookbook)
+        .in('recipe_id', recipeIds);
+
+      // Filter out recipes that are already in the cookbook
+      const existingRecipeIds = existingAssociations?.map(a => a.recipe_id) || [];
+      const newRecipeIds = recipeIds.filter(id => !existingRecipeIds.includes(id));
+
+      if (newRecipeIds.length === 0) {
+        Alert.alert('Already Added', 'All selected recipes are already in this cookbook');
+        setSaving(false);
+        return;
+      }
+
+      // Add only new recipes to the selected cookbook
+      const associations = newRecipeIds.map(recipeId => ({
+        recipe_id: recipeId,
+        cookbook_id: selectedCookbook,
+      }));
+
+      const { error } = await supabase
+        .from('recipe_cookbooks')
+        .insert(associations);
+
+      if (error) throw error;
+
+      // Save last used cookbook
+      await AsyncStorage.setItem('lastUsedCookbook', selectedCookbook);
+
+      const addedCount = newRecipeIds.length;
+      const skippedCount = recipeIds.length - newRecipeIds.length;
+
+      let message = `Added ${addedCount} recipe${addedCount > 1 ? 's' : ''} to cookbook`;
+      if (skippedCount > 0) {
+        message += `\n(${skippedCount} already in cookbook)`;
+      }
+
+      Alert.alert('Success!', message, [{ text: 'OK', onPress: onClose }]);
+    } catch (error) {
+      console.error('Error adding recipes to cookbook:', error);
+      Alert.alert('Error', 'Failed to add recipes to cookbook');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Modal visible={visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { height: 200, justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={colors.primary[500]} />
+            <Text style={styles.loadingText}>Loading cookbooks...</Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide">
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity 
+          activeOpacity={1}
+          style={styles.modalContainer}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add {recipeCount} Recipe{recipeCount > 1 ? 's' : ''} to Cookbook</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={24} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={styles.createNewButton}
+            onPress={() => {
+              onClose();
+              if (onCreateNewCookbook) onCreateNewCookbook();
+            }}
+          >
+            <Plus size={20} color={colors.primary[500]} />
+            <Text style={styles.createNewText}>Create New Cookbook</Text>
+          </TouchableOpacity>
+
+          <ScrollView style={styles.cookbooksList} showsVerticalScrollIndicator={false}>
+            {cookbooks.length === 0 ? (
+              <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
+                <Text style={{ fontSize: typography.fontSize.base, color: colors.neutral[500] }}>
+                  No cookbooks found. Create your first cookbook!
+                </Text>
+              </View>
+            ) : (
+              cookbooks.map((cookbook) => (
+                <TouchableOpacity
+                  key={cookbook.id}
+                  style={[
+                    styles.cookbookItem,
+                    selectedCookbook === cookbook.id && styles.cookbookItemSelected
+                  ]}
+                  onPress={() => setSelectedCookbook(cookbook.id)}
+                >
+                  <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                  <View style={styles.cookbookInfo}>
+                    <Text style={styles.cookbookName}>{cookbook.name}</Text>
+                    <Text style={styles.cookbookDescription}>
+                      {cookbook.recipe_count || 0} recipes
+                    </Text>
+                  </View>
+                  {selectedCookbook === cookbook.id && (
+                    <Check size={20} color={colors.primary[500]} />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveButton, 
+                (saving || !selectedCookbook) && styles.saveButtonDisabled
+              ]}
+              onPress={handleSave}
+              disabled={saving || !selectedCookbook}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.neutral[0]} />
+              ) : (
+                <Text style={styles.saveButtonText}>Add to Cookbook</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
   );
@@ -852,7 +1069,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component**
+// **Recipe Card Component - NORMAL VERSION (Drag & Drop Kaldırıldı)**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -864,6 +1081,8 @@ interface RecipeCardProps {
   isSelected?: boolean;
   onSelect?: () => void;
   selectionMode?: boolean;
+  lastUsedCookbook?: Cookbook | null;
+  onQuickAddToCookbook?: (cookbookId: string) => void;
 }
 
 const RecipeCard: React.FC<RecipeCardProps> = ({
@@ -877,6 +1096,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   isSelected,
   onSelect,
   selectionMode,
+  lastUsedCookbook,
+  onQuickAddToCookbook,
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -900,13 +1121,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
         <View style={styles.listImageContainer}>
-          {console.log('Recipe image_url:', recipe.image_url)}
           {recipe.image_url ? (
-            <Image 
-              source={{ uri: recipe.image_url }} 
-              style={styles.listImage}
-              onError={(error) => console.log('Image load error:', error)}
-            />
+            <Image source={{ uri: recipe.image_url }} style={styles.listImage} />
           ) : (
             <View style={styles.listPlaceholder}>
               <ChefHat size={24} color={colors.neutral[400]} />
@@ -916,26 +1132,24 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         <View style={styles.listContent}>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
-            {!selectionMode && (
-              <View style={styles.listActions}>
-                <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
-                  <Heart
-                    size={16}
-                    color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
-                    fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
-                  <Book size={16} color={colors.secondary[500]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
-                  <Edit3 size={16} color={colors.neutral[400]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
-                  <Trash2 size={16} color={colors.error[400]} />
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.listActions}>
+              <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
+                <Heart
+                  size={16}
+                  color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
+                  fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onAddToCookbook} style={[styles.listActionButton, styles.cookbookActionButton]}>
+                <Book size={16} color={colors.secondary[500]} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
+                <Edit3 size={16} color={colors.neutral[400]} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
+                <Trash2 size={16} color={colors.error[400]} />
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={styles.listDescription} numberOfLines={2}>
             {recipe.description}
@@ -977,13 +1191,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </View>
       )}
       <View style={styles.gridImageContainer}>
-        {console.log('Recipe image_url:', recipe.image_url)}
         {recipe.image_url ? (
-          <Image 
-            source={{ uri: recipe.image_url }} 
-            style={styles.gridImage}
-            onError={(error) => console.log('Image load error:', error)}
-          />
+          <Image source={{ uri: recipe.image_url }} style={styles.gridImage} />
         ) : (
           <View style={styles.gridPlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
@@ -1009,6 +1218,15 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             <ExternalLink size={12} color={colors.neutral[0]} />
           </View>
         )}
+        {lastUsedCookbook && onQuickAddToCookbook && (
+          <TouchableOpacity
+            style={styles.quickAddButton}
+            onPress={() => onQuickAddToCookbook(lastUsedCookbook.id)}
+          >
+            <Plus size={12} color={colors.primary[500]} />
+            <Text style={styles.quickAddText}>{lastUsedCookbook.emoji}</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <View style={styles.gridContent}>
         <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
@@ -1033,19 +1251,21 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             </View>
           )}
         </View>
-        {!selectionMode && (
-          <View style={styles.gridActions}>
-            <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
-              <Book size={14} color={colors.secondary[500]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
-              <Edit3 size={14} color={colors.primary[500]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
-              <Trash2 size={14} color={colors.error[500]} />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.gridActions}>
+          <TouchableOpacity 
+            onPress={onAddToCookbook} 
+            style={[styles.gridActionButton, styles.cookbookActionButton]}
+          >
+            <Book size={14} color={colors.secondary[500]} />
+            <Text style={styles.actionButtonText}>Add</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
+            <Edit3 size={14} color={colors.primary[500]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
+            <Trash2 size={14} color={colors.error[500]} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -1108,7 +1328,10 @@ export default function Library() {
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
+  const [showEditCookbook, setShowEditCookbook] = useState(false);
+  const [selectedCookbookForEdit, setSelectedCookbookForEdit] = useState<Cookbook | null>(null);
   const [showAddToCookbook, setShowAddToCookbook] = useState(false);
+  const [showBulkAddToCookbook, setShowBulkAddToCookbook] = useState(false);
   const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
@@ -1117,6 +1340,13 @@ export default function Library() {
   // Selection mode states
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
+  
+  // Last used cookbook
+  const [lastUsedCookbook, setLastUsedCookbook] = useState<Cookbook | null>(null);
+  
+  // **Cookbook view states**
+  const [viewType, setViewType] = useState<'library' | 'cookbook'>('library');
+  const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
 
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
@@ -1126,18 +1356,31 @@ export default function Library() {
     cuisine: 'all',
   });
 
+  // Load last used cookbook
+  useEffect(() => {
+    loadLastUsedCookbook();
+  }, [cookbooks]);
+
+  const loadLastUsedCookbook = async () => {
+    try {
+      const lastCookbookId = await AsyncStorage.getItem('lastUsedCookbook');
+      if (lastCookbookId && cookbooks.length > 0) {
+        const cookbook = cookbooks.find(c => c.id === lastCookbookId);
+        if (cookbook) setLastUsedCookbook(cookbook);
+      }
+    } catch (error) {
+      console.error('Error loading last used cookbook:', error);
+    }
+  };
+
   const loadLibraryData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading library data...');
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
         return;
       }
-
-      console.log('👤 User ID:', user.id);
 
       // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
@@ -1147,29 +1390,26 @@ export default function Library() {
         .order('created_at', { ascending: false });
 
       if (recipesError) {
-        console.error('❌ Error loading recipes:', recipesError);
+        console.error('Error loading recipes:', recipesError);
         Alert.alert('Error', 'Failed to load recipes');
         return;
       }
 
-      console.log('📝 Recipes loaded:', recipesData?.length || 0);
-
       // Load cookbooks
-      console.log('📚 Loading cookbooks...');
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('❌ Cookbooks error:', cookbooksError);
-      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
+      // Debug logs
+      console.log('Cookbooks loaded:', cookbooksData);
+      console.log('Cookbooks count:', cookbooksData?.length || 0);
 
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
       } else {
         setCookbooks(cookbooksData || []);
-        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
       }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
@@ -1195,7 +1435,6 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
-      console.log('✅ Library data loaded successfully');
     } catch (error) {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
@@ -1204,13 +1443,97 @@ export default function Library() {
     }
   };
 
+  const loadCookbookRecipes = async (cookbookId: string) => {
+    try {
+      setLoading(true);
+      
+      // Get recipe IDs from recipe_cookbooks junction table
+      const { data: recipeIds, error: junctionError } = await supabase
+        .from('recipe_cookbooks')
+        .select('recipe_id')
+        .eq('cookbook_id', cookbookId);
+
+      if (junctionError) {
+        console.error('Error loading cookbook recipes:', junctionError);
+        return;
+      }
+
+      if (!recipeIds || recipeIds.length === 0) {
+        setRecipes([]);
+        return;
+      }
+
+      // Get full recipe data
+      const { data: recipesData, error: recipesError } = await supabase
+        .from('user_recipes')
+        .select('*')
+        .in('id', recipeIds.map(r => r.recipe_id));
+
+      if (recipesError) {
+        console.error('Error loading recipes:', recipesError);
+        return;
+      }
+
+      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+        id: dbRecipe.id,
+        title: dbRecipe.title,
+        description: dbRecipe.description || '',
+        image_url: dbRecipe.image_url,
+        prep_time: dbRecipe.prep_time || 0,
+        cook_time: dbRecipe.cook_time || 0,
+        servings: dbRecipe.servings || 1,
+        difficulty: dbRecipe.difficulty || 'Easy',
+        ingredients: dbRecipe.ingredients || [],
+        instructions: dbRecipe.instructions || [],
+        nutrition: dbRecipe.nutrition,
+        tags: dbRecipe.tags || [],
+        category: dbRecipe.category || 'General',
+        is_favorite: dbRecipe.is_favorite || false,
+        is_ai_generated: dbRecipe.is_ai_generated || false,
+        source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
+        created_at: dbRecipe.created_at,
+        updated_at: dbRecipe.updated_at,
+      }));
+
+      setRecipes(formattedRecipes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (viewType === 'library') {
+      loadLibraryData();
+    } else if (viewType === 'cookbook' && selectedCookbook) {
+      loadCookbookRecipes(selectedCookbook.id);
+    }
+  }, [viewType, selectedCookbook]);
+
+  const handleCookbookSelect = (cookbook: Cookbook) => {
+    setSelectedCookbook(cookbook);
+    setViewType('cookbook');
+  };
+
+  const handleBackToLibrary = () => {
+    setViewType('library');
+    setSelectedCookbook(null);
     loadLibraryData();
-  }, []);
+  };
 
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
     setShowAddToCookbook(true);
+  };
+
+  const handleEditCookbook = (cookbook: Cookbook) => {
+    setSelectedCookbookForEdit(cookbook);
+    setShowEditCookbook(true);
+  };
+
+  const handleDeleteCookbook = async (cookbook: Cookbook) => {
+    // This is handled in the EditCookbookModal
+    console.log('Delete cookbook:', cookbook.id);
   };
 
   const toggleSelectionMode = () => {
@@ -1225,6 +1548,28 @@ export default function Library() {
       }
       return [...prev, recipeId];
     });
+  };
+
+  const handleQuickAddToCookbook = async (recipeId: string, cookbookId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_cookbooks')
+        .insert({
+          recipe_id: recipeId,
+          cookbook_id: cookbookId,
+        });
+
+      if (error) throw error;
+
+      // Update last used cookbook
+      await AsyncStorage.setItem('lastUsedCookbook', cookbookId);
+
+      const cookbook = cookbooks.find(c => c.id === cookbookId);
+      Alert.alert('Success!', `Added to ${cookbook?.name || 'cookbook'}`);
+    } catch (error) {
+      console.error('Error adding to cookbook:', error);
+      Alert.alert('Error', 'Failed to add to cookbook');
+    }
   };
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -1279,6 +1624,7 @@ export default function Library() {
     } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
     } else if (categoryId === 'socials') {
+      // Direkt URL modal aç, social seçimi yok
       setSelectedImportSource('socials');
       setShowURLImport(true);
     } else if (categoryId === 'web') {
@@ -1474,6 +1820,10 @@ export default function Library() {
     }
   };
 
+  // Debug log for rendering
+  console.log('Rendering - cookbooks length:', cookbooks.length);
+  console.log('ViewType:', viewType);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1487,16 +1837,18 @@ export default function Library() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
-          onPress={() => router.back()} 
+          onPress={viewType === 'cookbook' ? handleBackToLibrary : () => router.back()} 
           style={styles.backButton}
         >
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Recipe Library</Text>
+          <Text style={styles.headerTitle}>
+            {viewType === 'library' ? 'My Recipe Library' : selectedCookbook?.name}
+          </Text>
           <Text style={styles.headerSubtitle}>
             {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''}
-            {hasActiveFilters ? ' filtered' : ' in your collection'}
+            {hasActiveFilters ? ' filtered' : viewType === 'cookbook' ? ' in this cookbook' : ' in your collection'}
           </Text>
         </View>
         <TouchableOpacity
@@ -1577,49 +1929,65 @@ export default function Library() {
           viewMode === 'grid' && styles.recipesGridContent
         ]}
       >
-        {/* 📚 COOKBOOK SECTION */}
-        <View style={styles.cookbooksSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Cookbooks</Text>
-            <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
-              <Plus size={20} color={colors.primary[500]} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.cookbooksScroll}
-          >
-            {/* New Cookbook Card */}
-            <TouchableOpacity
-              style={styles.newCookbookCard}
-              onPress={() => setShowCreateCookbook(true)}
-            >
-              <View style={styles.newCookbookIcon}>
-                <Plus size={24} color={colors.primary[500]} />
-              </View>
-              <Text style={styles.newCookbookText}>New cookbook</Text>
-            </TouchableOpacity>
-
-            {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
-              <TouchableOpacity
-                key={cookbook.id}
-                style={styles.cookbookCard}
-                onPress={() => console.log('Cookbook clicked:', cookbook.name)}
-              >
-                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                <Text style={styles.cookbookName}>{cookbook.name}</Text>
-                <Text style={styles.cookbookCount}>0 recipes</Text>
+        {/* Cookbooks Section - Only show in library view */}
+        {viewType === 'library' && (
+          <View style={styles.cookbooksSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Cookbooks</Text>
+              <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+                <Plus size={20} color={colors.primary[500]} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            </View>
+            
+            {cookbooks.length === 0 ? (
+              <View style={styles.emptyCookbooksContainer}>
+                <TouchableOpacity
+                  style={styles.newCookbookCard}
+                  onPress={() => setShowCreateCookbook(true)}
+                >
+                  <View style={styles.newCookbookIcon}>
+                    <Plus size={24} color={colors.primary[500]} />
+                  </View>
+                  <Text style={styles.newCookbookText}>Create your first cookbook</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.cookbooksScroll}
+              >
+                {/* New Cookbook Card */}
+                <TouchableOpacity
+                  style={styles.newCookbookCard}
+                  onPress={() => setShowCreateCookbook(true)}
+                >
+                  <View style={styles.newCookbookIcon}>
+                    <Plus size={24} color={colors.primary[500]} />
+                  </View>
+                  <Text style={styles.newCookbookText}>New cookbook</Text>
+                </TouchableOpacity>
+
+                {/* Existing Cookbooks */}
+                {cookbooks.map((cookbook) => (
+                  <CookbookCard
+                    key={cookbook.id}
+                    cookbook={cookbook}
+                    onClick={() => handleCookbookSelect(cookbook)}
+                    onEdit={() => handleEditCookbook(cookbook)}
+                    onDelete={() => handleDeleteCookbook(cookbook)}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
 
         {/* Recipes Section */}
         <View style={styles.recipesSection}>
-          <Text style={styles.sectionTitle}>All Recipes</Text>
+          {viewType === 'library' && (
+            <Text style={styles.sectionTitle}>All Recipes</Text>
+          )}
           
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
@@ -1641,6 +2009,8 @@ export default function Library() {
                       isSelected={selectedRecipes.includes(recipe.id)}
                       onSelect={() => toggleRecipeSelection(recipe.id)}
                       selectionMode={selectionMode}
+                      lastUsedCookbook={lastUsedCookbook}
+                      onQuickAddToCookbook={(cookbookId) => handleQuickAddToCookbook(recipe.id, cookbookId)}
                     />
                   </View>
                 ))}
@@ -1663,6 +2033,8 @@ export default function Library() {
                   isSelected={selectedRecipes.includes(recipe.id)}
                   onSelect={() => toggleRecipeSelection(recipe.id)}
                   selectionMode={selectionMode}
+                  lastUsedCookbook={lastUsedCookbook}
+                  onQuickAddToCookbook={(cookbookId) => handleQuickAddToCookbook(recipe.id, cookbookId)}
                 />
               ))
             )
@@ -1675,6 +2047,19 @@ export default function Library() {
           )}
         </View>
       </ScrollView>
+
+      {/* Bulk action button */}
+      {selectionMode && selectedRecipes.length > 0 && (
+        <TouchableOpacity
+          style={styles.bulkActionButton}
+          onPress={() => setShowBulkAddToCookbook(true)}
+        >
+          <Book size={20} color={colors.neutral[0]} />
+          <Text style={styles.bulkActionText}>
+            Add {selectedRecipes.length} to Cookbook
+          </Text>
+        </TouchableOpacity>
+      )}
       
       <ImportCategoriesModal
         visible={showImportModal}
@@ -1713,6 +2098,25 @@ export default function Library() {
         }}
       />
 
+      <EditCookbookModal
+        visible={showEditCookbook}
+        cookbook={selectedCookbookForEdit}
+        onClose={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
+        }}
+        onSuccess={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
+          loadLibraryData();
+        }}
+        onDelete={() => {
+          setShowEditCookbook(false);
+          setSelectedCookbookForEdit(null);
+          loadLibraryData();
+        }}
+      />
+
       {selectedRecipeForCookbook && (
         <AddToCookbookModal
           visible={showAddToCookbook}
@@ -1728,6 +2132,21 @@ export default function Library() {
           }}
         />
       )}
+
+      <BulkAddToCookbookModal
+        visible={showBulkAddToCookbook}
+        onClose={() => {
+          setShowBulkAddToCookbook(false);
+          setSelectionMode(false);
+          setSelectedRecipes([]);
+        }}
+        recipeIds={selectedRecipes}
+        recipeCount={selectedRecipes.length}
+        onCreateNewCookbook={() => {
+          setShowBulkAddToCookbook(false);
+          setShowCreateCookbook(true);
+        }}
+      />
       
       <TouchableOpacity
         style={styles.floatingAddButton}
@@ -1921,80 +2340,6 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   
-  // Cookbook Section Styles
-  cookbooksSection: {
-    marginBottom: spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  recipesSection: {
-    flex: 1,
-  },
-  cookbooksScroll: {
-    flexDirection: 'row',
-  },
-  newCookbookCard: {
-    width: 140,
-    height: 180,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.neutral[300],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  newCookbookIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  newCookbookText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  cookbookCard: {
-    width: 140,
-    height: 180,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.md,
-    marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.md,
-  },
-  cookbookEmoji: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  cookbookName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  cookbookCount: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  
   // Selection mode styles
   selectedCard: {
     borderWidth: 2,
@@ -2016,6 +2361,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
     borderWidth: 2,
     borderColor: colors.neutral[0],
+  },
+  bulkActionButton: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: colors.primary[500],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    gap: spacing.sm,
+    ...shadows.lg,
+  },
+  bulkActionText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  
+  // Quick add button styles
+  quickAddButton: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  quickAddText: {
+    fontSize: 12,
+  },
+  
+  // Cookbook action button styles
+  cookbookActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.secondary[50],
+    borderColor: colors.secondary[200],
+    borderWidth: 1,
+    width: 'auto',
+    minWidth: 60,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.secondary[600],
   },
   
   // Import Modal Styles
@@ -2075,6 +2474,169 @@ const styles = StyleSheet.create({
   importModalItemDescription: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
+  },
+  
+  // Bulk modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: colors.neutral[0],
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    margin: spacing.lg,
+    backgroundColor: colors.primary[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    gap: spacing.sm,
+  },
+  createNewText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  cookbooksList: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  cookbookItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  cookbookItemSelected: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+  },
+  cookbookEmoji: {
+    fontSize: 32,
+    marginRight: spacing.md,
+  },
+  cookbookInfo: {
+    flex: 1,
+  },
+  cookbookName: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  cookbookDescription: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+  },
+  modalActions: {
+    flexDirection: 'row',
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[100],
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[600],
+  },
+  saveButton: {
+    flex: 2,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  
+  // Cookbooks Section
+  cookbooksSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  cookbooksScroll: {
+    flexDirection: 'row',
+  },
+  emptyCookbooksContainer: {
+    paddingVertical: spacing.md,
+  },
+  newCookbookCard: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    height: 180,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  newCookbookIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  newCookbookText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  recipesSection: {
+    flex: 1,
   },
   
   // Manual Recipe Modal Styles
