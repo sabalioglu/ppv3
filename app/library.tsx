@@ -228,7 +228,7 @@ const ImportCategoriesModal: React.FC<{
               const IconComponent = category.icon;
               return (
                 <TouchableOpacity
-                  key={category.id}
+                  key={`import-${category.id}-${index}`}
                   style={[
                     styles.importModalItem,
                     index === importCategories.length - 1 && { borderBottomWidth: 0 }
@@ -437,9 +437,9 @@ const ManualRecipeModal: React.FC<{
                 <Text style={styles.formLabel}>Difficulty</Text>
                 <View style={styles.pickerContainer}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {['Easy', 'Medium', 'Hard'].map((level) => (
+                    {['Easy', 'Medium', 'Hard'].map((level, levelIndex) => (
                       <TouchableOpacity
-                        key={level}
+                        key={`difficulty-${level}-${levelIndex}`}
                         style={[
                           styles.pickerOption,
                           formData.difficulty === level && styles.pickerOptionSelected
@@ -464,9 +464,9 @@ const ManualRecipeModal: React.FC<{
               <Text style={styles.formLabel}>Category</Text>
               <View style={styles.pickerContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat) => (
+                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat, catIndex) => (
                     <TouchableOpacity
-                      key={cat}
+                      key={`category-${cat}-${catIndex}`}
                       style={[
                         styles.pickerOption,
                         formData.category === cat && styles.pickerOptionSelected
@@ -585,8 +585,8 @@ const FilterModal: React.FC<{
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
-          {filterCategories.map((category) => (
-            <View key={category.id} style={styles.filterCategoryContainer}>
+          {filterCategories.map((category, categoryIndex) => (
+            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
@@ -603,11 +603,11 @@ const FilterModal: React.FC<{
               </TouchableOpacity>
               {expandedCategories[category.id] && (
                 <View style={styles.filterOptionsContainer}>
-                  {category.options.map((option) => {
+                  {category.options.map((option, optionIndex) => {
                     const isSelected = localFilters[category.id] === option.id;
                     return (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`${category.id}-${option.id}-${optionIndex}`}
                         style={[
                           styles.filterOption,
                           isSelected && styles.filterOptionSelected
@@ -903,7 +903,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
         <View style={styles.listImageContainer}>
-          {console.log('Recipe image_url:', recipe.image_url)}
           {recipe.image_url ? (
             <Image 
               source={{ uri: recipe.image_url }} 
@@ -980,7 +979,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </View>
       )}
       <View style={styles.gridImageContainer}>
-        {console.log('Recipe image_url:', recipe.image_url)}
         {recipe.image_url ? (
           <Image 
             source={{ uri: recipe.image_url }} 
@@ -1597,9 +1595,9 @@ export default function Library() {
             </TouchableOpacity>
 
             {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
+            {cookbooks.map((cookbook, cookbookIndex) => (
               <TouchableOpacity
-                key={cookbook.id}
+                key={`cookbook-${cookbook.id}-${cookbookIndex}`}
                 style={styles.cookbookCard}
                 onPress={() => console.log('Cookbook clicked:', cookbook.name)}
               >
@@ -1618,8 +1616,8 @@ export default function Library() {
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
               <View style={styles.recipesGrid}>
-                {filteredRecipes.map(recipe => (
-                  <View key={recipe.id} style={styles.gridCardContainer}>
+                {filteredRecipes.map((recipe, recipeIndex) => (
+                  <View key={`recipe-grid-${recipe.id}-${recipeIndex}`} style={styles.gridCardContainer}>
                     <RecipeCard
                       recipe={recipe}
                       viewMode="grid"
@@ -1640,9 +1638,9 @@ export default function Library() {
                 ))}
               </View>
             ) : (
-              filteredRecipes.map(recipe => (
+              filteredRecipes.map((recipe, recipeIndex) => (
                 <RecipeCard
-                  key={recipe.id}
+                  key={`recipe-list-${recipe.id}-${recipeIndex}`}
                   recipe={recipe}
                   viewMode="list"
                   onPress={() => {
