@@ -39,21 +39,21 @@ import {
   FileText,
   Book,
 } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 // **Cookbook Imports**
-import { Cookbook } from '@/types/cookbook';
-import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
-import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { Cookbook } from '../../types/cookbook';
+import { AddToCookbookModal } from '../cookbook/AddToCookbookModal';
+import { CreateCookbookModal } from '../cookbook/CreateCookbookModal';
 
 // **Recipe AI Service Imports**
-import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
-import { extractVideoRecipe, detectVideoPlatform } from '@/lib/supabase-functions';
+import { extractRecipeFromUrl, ExtractedRecipeData } from '../../lib/recipeAIService';
+import { extractVideoRecipe, detectVideoPlatform } from '../../lib/supabase-functions';
 
 // **Import the hook**
-import { useCookbookManager } from '../hooks/useCookbookManager';
+import { useCookbookManager } from '../../hooks/useCookbookManager';
 
 const { width, height } = Dimensions.get('window');
 
