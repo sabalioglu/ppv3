@@ -52,6 +52,9 @@ import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
 import { extractVideoRecipe, detectVideoPlatform } from '@/lib/supabase-functions';
 
+// **Import the hook**
+import { useCookbookManager } from '../hooks/useCookbookManager';
+
 const { width, height } = Dimensions.get('window');
 
 // **Recipe Interface (Supabase Schema Aligned)**
@@ -225,7 +228,7 @@ const ImportCategoriesModal: React.FC<{
               const IconComponent = category.icon;
               return (
                 <TouchableOpacity
-                  key={category.id}
+                  key={`import-${category.id}-${index}`}
                   style={[
                     styles.importModalItem,
                     index === importCategories.length - 1 && { borderBottomWidth: 0 }
@@ -434,9 +437,9 @@ const ManualRecipeModal: React.FC<{
                 <Text style={styles.formLabel}>Difficulty</Text>
                 <View style={styles.pickerContainer}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {['Easy', 'Medium', 'Hard'].map((level) => (
+                    {['Easy', 'Medium', 'Hard'].map((level, levelIndex) => (
                       <TouchableOpacity
-                        key={level}
+                        key={`difficulty-${level}-${levelIndex}`}
                         style={[
                           styles.pickerOption,
                           formData.difficulty === level && styles.pickerOptionSelected
@@ -461,9 +464,9 @@ const ManualRecipeModal: React.FC<{
               <Text style={styles.formLabel}>Category</Text>
               <View style={styles.pickerContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat) => (
+                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat, catIndex) => (
                     <TouchableOpacity
-                      key={cat}
+                      key={`category-${cat}-${catIndex}`}
                       style={[
                         styles.pickerOption,
                         formData.category === cat && styles.pickerOptionSelected
@@ -582,8 +585,8 @@ const FilterModal: React.FC<{
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
-          {filterCategories.map((category) => (
-            <View key={category.id} style={styles.filterCategoryContainer}>
+          {filterCategories.map((category, categoryIndex) => (
+            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
@@ -600,11 +603,11 @@ const FilterModal: React.FC<{
               </TouchableOpacity>
               {expandedCategories[category.id] && (
                 <View style={styles.filterOptionsContainer}>
-                  {category.options.map((option) => {
+                  {category.options.map((option, optionIndex) => {
                     const isSelected = localFilters[category.id] === option.id;
                     return (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`${category.id}-${option.id}-${optionIndex}`}
                         style={[
                           styles.filterOption,
                           isSelected && styles.filterOptionSelected
@@ -900,7 +903,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
         <View style={styles.listImageContainer}>
-          {console.log('Recipe image_url:', recipe.image_url)}
           {recipe.image_url ? (
             <Image 
               source={{ uri: recipe.image_url }} 
@@ -977,7 +979,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </View>
       )}
       <View style={styles.gridImageContainer}>
-        {console.log('Recipe image_url:', recipe.image_url)}
         {recipe.image_url ? (
           <Image 
             source={{ uri: recipe.image_url }} 
@@ -1099,8 +1100,8 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recipesLoading, setRecipesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1118,6 +1119,14 @@ export default function Library() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
 
+  // Use the cookbook manager hook
+  const { 
+    cookbooks, 
+    loading: cookbooksLoading,
+    createCookbook,
+    loadCookbooks 
+  } = useCookbookManager();
+
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
     diet: 'all',
@@ -1128,7 +1137,7 @@ export default function Library() {
 
   const loadLibraryData = async () => {
     try {
-      setLoading(true);
+      setRecipesLoading(true);
       console.log('🔄 Loading library data...');
       
       const { data: { user } } = await supabase.auth.getUser();
@@ -1153,24 +1162,6 @@ export default function Library() {
       }
 
       console.log('📝 Recipes loaded:', recipesData?.length || 0);
-
-      // Load cookbooks
-      console.log('📚 Loading cookbooks...');
-      const { data: cookbooksData, error: cookbooksError } = await supabase
-        .from('cookbooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      console.log('❌ Cookbooks error:', cookbooksError);
-      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
-
-      if (cookbooksError) {
-        console.error('Error loading cookbooks:', cookbooksError);
-      } else {
-        setCookbooks(cookbooksData || []);
-        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
-      }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
         id: dbRecipe.id,
@@ -1200,6 +1191,7 @@ export default function Library() {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
     } finally {
+      setRecipesLoading(false);
       setLoading(false);
     }
   };
@@ -1474,7 +1466,7 @@ export default function Library() {
     }
   };
 
-  if (loading) {
+  if (loading || cookbooksLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
@@ -1603,9 +1595,9 @@ export default function Library() {
             </TouchableOpacity>
 
             {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
+            {cookbooks.map((cookbook, cookbookIndex) => (
               <TouchableOpacity
-                key={cookbook.id}
+                key={`cookbook-${cookbook.id}-${cookbookIndex}`}
                 style={styles.cookbookCard}
                 onPress={() => console.log('Cookbook clicked:', cookbook.name)}
               >
@@ -1624,8 +1616,8 @@ export default function Library() {
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
               <View style={styles.recipesGrid}>
-                {filteredRecipes.map(recipe => (
-                  <View key={recipe.id} style={styles.gridCardContainer}>
+                {filteredRecipes.map((recipe, recipeIndex) => (
+                  <View key={`recipe-grid-${recipe.id}-${recipeIndex}`} style={styles.gridCardContainer}>
                     <RecipeCard
                       recipe={recipe}
                       viewMode="grid"
@@ -1646,9 +1638,9 @@ export default function Library() {
                 ))}
               </View>
             ) : (
-              filteredRecipes.map(recipe => (
+              filteredRecipes.map((recipe, recipeIndex) => (
                 <RecipeCard
-                  key={recipe.id}
+                  key={`recipe-list-${recipe.id}-${recipeIndex}`}
                   recipe={recipe}
                   viewMode="list"
                   onPress={() => {
@@ -1709,7 +1701,7 @@ export default function Library() {
         onClose={() => setShowCreateCookbook(false)}
         onSuccess={() => {
           setShowCreateCookbook(false);
-          loadLibraryData();
+          loadCookbooks();
         }}
       />
 
