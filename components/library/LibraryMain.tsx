@@ -1157,7 +1157,7 @@ export default function Library() {
 
       console.log('👤 User ID:', user.id);
 
-      // Load recipes
+      // Load recipes only - cookbooks are handled by the hook
       const { data: recipesData, error: recipesError } = await supabase
         .from('user_recipes')
         .select('*')
@@ -1726,6 +1726,10 @@ export default function Library() {
           onCreateNewCookbook={() => {
             setShowAddToCookbook(false);
             setShowCreateCookbook(true);
+          }}
+          onSuccess={() => {
+            // ✅ Add this callback to refresh cookbooks after adding recipe
+            loadCookbooks();
           }}
         />
       )}
