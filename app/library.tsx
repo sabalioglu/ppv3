@@ -607,7 +607,7 @@ const FilterModal: React.FC<{
                     const isSelected = localFilters[category.id] === option.id;
                     return (
                       <TouchableOpacity
-                        key={option.id}
+                        key={`option-${category.id}-${option.id}`}
                         style={[
                           styles.filterOption,
                           isSelected && styles.filterOptionSelected
