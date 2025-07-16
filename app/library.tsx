@@ -537,7 +537,7 @@ const FilterModal: React.FC<{
   filters: { [key: string]: string };
   onFiltersChange: (filters: { [key: string]: string }) => void;
   recipeCount: number;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {
+}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {   const [localFilters, setLocalFilters] = useState(filters);   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({     meal_type: true,   });
   const [localFilters, setLocalFilters] = useState(filters);
   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
     meal_type: true,
