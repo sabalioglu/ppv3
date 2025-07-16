@@ -904,12 +904,16 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           </View>
         )}
         <View style={styles.listImageContainer}>
-          {recipe.image_url ? (
-            <Image 
-              source={{ uri: recipe.image_url }} 
-              style={styles.listImage}
-              onError={(error) => console.log('Image load error:', error)}
-            />
+         {recipe.image_url ? (
+  <Image
+    source={{ 
+      uri: recipe.source_url?.includes('instagram.com') 
+        ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=300&h=200&fit=cover&maxage=7d`
+        : recipe.image_url 
+    }}
+    style={styles.listImage}
+    onError={(error) => console.log('Image load error:', error)}
+  />
           ) : (
             <View style={styles.listPlaceholder}>
               <ChefHat size={24} color={colors.neutral[400]} />
