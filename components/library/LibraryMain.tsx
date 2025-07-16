@@ -658,50 +658,51 @@ const URLImportModal: React.FC<{
 
   const getLoadingMessages = (url: string) => {
     const baseMessages = [
-      "Our AI chef is cooking up your recipe...",
-      "Scanning the digital pantry for ingredients...",
-      "Teaching our robots to chop onions (virtually, of course)...",
-      "Brewing the perfect digital coffee for our recipe AI...",
-      "Wrangling pixels to find the best recipe image...",
-      "Making sure no digital crumbs are left behind...",
-      "Consulting the ancient scrolls of culinary wisdom...",
-      "Don't worry, we're faster than a slow cooker!",
-      "Almost ready to serve your new favorite dish!",
-      "Just adding a pinch of AI magic..."
-    ];
+  "AI chef is cooking...",
+  "Scanning ingredients...",
+  "Teaching robots to cook...",
+  "Brewing digital coffee...",
+  "Finding recipe image...",
+  "Cleaning digital crumbs...",
+  "Reading recipe wisdom...",
+  "Faster than slow cooking!",
+  "Almost ready to serve!",
+  "Adding AI magic..."
+];
 
-    const platformMessages: { [key: string]: string[] } = {
-      tiktok: [
-        "🎬 Analyzing TikTok video...",
-        "👨‍🍳 Following chef's movements...",
-        "📝 Taking notes on ingredients...",
-        "🔥 Learning cooking techniques..."
-      ],
-      instagram: [
-        "📸 Processing Instagram Reel...",
-        "✨ Extracting recipe details...",
-        "🥘 Preparing ingredient list...",
-        "📱 Reading story notes..."
-      ],
-      youtube: [
-        "🎥 Examining YouTube video...",
-        "📊 Scanning video description...",
-        "⏱️ Recording step-by-step instructions...",
-        "🎯 Analyzing with best quality..."
-      ],
-      facebook: [
-        "📘 Processing Facebook video...",
-        "👥 Collecting tips from comments...",
-        "📹 Optimizing video quality...",
-        "🍳 Combining recipe details..."
-      ],
-      web: [
-        "🌐 Scanning recipe website...",
-        "📖 Reading through ingredients...",
-        "👩‍🍳 Extracting cooking instructions...",
-        "🎨 Finding the perfect recipe image..."
-      ]
-    };
+const platformMessages: { [key: string]: string[] } = {
+  tiktok: [
+    "🎬 Analyzing TikTok...",
+    "👨‍🍳 Following chef...",
+    "📝 Taking notes...",
+    "🔥 Learning techniques..."
+  ],
+  instagram: [
+    "📸 Processing Reel...",
+    "✨ Extracting recipe...",
+    "🥘 Preparing list...",
+    "📱 Reading notes..."
+  ],
+  youtube: [
+    "🎥 Examining video...",
+    "📊 Scanning description...",
+    "⏱️ Recording steps...",
+    "🎯 Analyzing quality..."
+  ],
+  facebook: [
+    "📘 Processing video...",
+    "👥 Collecting tips...",
+    "📹 Optimizing quality...",
+    "🍳 Combining details..."
+  ],
+  web: [
+    "🌐 Scanning website...",
+    "📖 Reading ingredients...",
+    "👩‍🍳 Extracting steps...",
+    "🎨 Finding image..."
+  ]
+};
+
 
     let platform = selectedSource || 'web';
     if (url.includes('tiktok.com') || url.includes('vt.tiktok.com')) platform = 'tiktok';
