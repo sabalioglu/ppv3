@@ -1703,7 +1703,7 @@ export default function Library() {
       />
 
       {/* Cookbook Selection Modal */}
-      {{selectedRecipeForCookbook && (
+      {selectedRecipeForCookbook && (
   <CookbookBottomSheet
     visible={showAddToCookbook}
     onClose={() => {
