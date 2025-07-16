@@ -52,6 +52,9 @@ import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
 import { extractVideoRecipe, detectVideoPlatform } from '@/lib/supabase-functions';
 
+// **Import the hook**
+import { useCookbookManager } from '../hooks/useCookbookManager';
+
 const { width, height } = Dimensions.get('window');
 
 // **Recipe Interface (Supabase Schema Aligned)**
@@ -1099,8 +1102,8 @@ const EmptyState: React.FC<{
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recipesLoading, setRecipesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1118,6 +1121,14 @@ export default function Library() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
 
+  // Use the cookbook manager hook
+  const { 
+    cookbooks, 
+    loading: cookbooksLoading,
+    createCookbook,
+    loadCookbooks 
+  } = useCookbookManager();
+
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
     diet: 'all',
@@ -1128,7 +1139,7 @@ export default function Library() {
 
   const loadLibraryData = async () => {
     try {
-      setLoading(true);
+      setRecipesLoading(true);
       console.log('🔄 Loading library data...');
       
       const { data: { user } } = await supabase.auth.getUser();
@@ -1153,24 +1164,6 @@ export default function Library() {
       }
 
       console.log('📝 Recipes loaded:', recipesData?.length || 0);
-
-      // Load cookbooks
-      console.log('📚 Loading cookbooks...');
-      const { data: cookbooksData, error: cookbooksError } = await supabase
-        .from('cookbooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      console.log('❌ Cookbooks error:', cookbooksError);
-      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
-
-      if (cookbooksError) {
-        console.error('Error loading cookbooks:', cookbooksError);
-      } else {
-        setCookbooks(cookbooksData || []);
-        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
-      }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
         id: dbRecipe.id,
@@ -1200,6 +1193,7 @@ export default function Library() {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
     } finally {
+      setRecipesLoading(false);
       setLoading(false);
     }
   };
@@ -1474,7 +1468,7 @@ export default function Library() {
     }
   };
 
-  if (loading) {
+  if (loading || cookbooksLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
@@ -1709,7 +1703,7 @@ export default function Library() {
         onClose={() => setShowCreateCookbook(false)}
         onSuccess={() => {
           setShowCreateCookbook(false);
-          loadLibraryData();
+          loadCookbooks();
         }}
       />
 
