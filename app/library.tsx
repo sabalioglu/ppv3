@@ -586,7 +586,7 @@ const FilterModal: React.FC<{
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
           {filterCategories.map((category) => (
-            <View key={category.id} style={styles.filterCategoryContainer}>
+            <View key={`category-${category.id}-${index}`} style={styles.filterCategoryContainer}>
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
