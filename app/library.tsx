@@ -225,13 +225,13 @@ const ImportCategoriesModal: React.FC<{
 
           <View style={styles.importModalContent}>
             {importCategories.map((category, index) => {
-              const IconComponent = category.icon;
-              return (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.importModalItem,
-                    index === importCategories.length - 1 && { borderBottomWidth: 0 }
+  const IconComponent = category.icon;
+  return (
+    <TouchableOpacity
+      key={`import-${category.id}-${index}`} // ✅ Unique key
+      style={[
+        styles.importModalItem,
+        index === importCategories.length - 1 && { borderBottomWidth: 0 }
                   ]}
                   onPress={() => {
                     onSelect(category.id);
