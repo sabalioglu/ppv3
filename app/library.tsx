@@ -34,19 +34,26 @@ import {
   ChevronDown,
   Check,
   Camera,
+  Instagram,
+  Youtube,
+  Facebook,
   Video,
+  Bookmark,
   Globe,
+  Share2,
   FileText,
   Book,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-// **Cookbook Imports**
-import { Cookbook } from '@/types/cookbook';
-import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
+// **Import Cookbook Components**
+import { CookbookCard } from '@/components/cookbook/CookbookCard';
 import { CreateCookbookModal } from '@/components/cookbook/CreateCookbookModal';
+import { AddToCookbookModal } from '@/components/cookbook/AddToCookbookModal';
+import { Cookbook } from '@/types/cookbook';
 
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '@/lib/recipeAIService';
@@ -174,7 +181,7 @@ const importCategories: ImportCategory[] = [
   {
     id: 'socials',
     name: 'Socials',
-    icon: Video,
+    icon: Share2,
     color: colors.secondary[500],
     description: 'Social media videos',
   },
@@ -193,64 +200,6 @@ const importCategories: ImportCategory[] = [
     description: 'Type it yourself',
   }
 ];
-
-// **Import Categories Modal Component**
-const ImportCategoriesModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  onSelect: (categoryId: string) => void;
-}> = ({ visible, onClose, onSelect }) => {
-  if (!visible) return null;
-
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <TouchableOpacity 
-        style={styles.importModalOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <View style={styles.importModalContainer}>
-          <View style={styles.importModalHeader}>
-            <Text style={styles.importModalTitle}>Add Recipe</Text>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <X size={20} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.importModalContent}>
-            {importCategories.map((category, index) => {
-              const IconComponent = category.icon;
-              return (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.importModalItem,
-                    index === importCategories.length - 1 && { borderBottomWidth: 0 }
-                  ]}
-                  onPress={() => {
-                    onSelect(category.id);
-                    onClose();
-                  }}
-                >
-                  <View style={[styles.importModalIcon, { backgroundColor: `${category.color}15` }]}>
-                    <IconComponent size={24} color={category.color} />
-                  </View>
-                  <View style={styles.importModalTextContainer}>
-                    <Text style={styles.importModalItemTitle}>{category.name}</Text>
-                    <Text style={styles.importModalItemDescription}>{category.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-};
 
 // **Manual Recipe Form Modal Component**
 const ManualRecipeModal: React.FC<{
@@ -642,6 +591,59 @@ const FilterModal: React.FC<{
   );
 };
 
+// **Updated Import Options Modal with 4 Categories**
+const ImportOptionsModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSelectCategory: (categoryId: string) => void;
+}> = ({ visible, onClose, onSelectCategory }) => {
+  const handleCategorySelect = (categoryId: string) => {
+    onSelectCategory(categoryId);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={styles.importModalOverlay}>
+        <View style={styles.importModalContainer}>
+          <View style={styles.importModalHeader}>
+            <View style={styles.importModalTitleContainer}>
+              <View style={styles.importModalIconContainer}>
+                <Plus size={24} color={colors.primary[500]} />
+              </View>
+              <View>
+                <Text style={styles.importModalTitle}>Import Recipe</Text>
+                <Text style={styles.importModalSubtitle}>Choose your source</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.importModalCloseButton}>
+              <X size={20} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.importCategoriesContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.importCategoriesGrid}>
+              {importCategories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={styles.importCategoryCard}
+                  onPress={() => handleCategorySelect(category.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.importCategoryIconContainer, { backgroundColor: `${category.color}15` }]}>
+                    <category.icon size={32} color={category.color} />
+                  </View>
+                  <Text style={styles.importCategoryName}>{category.name}</Text>
+                  <Text style={styles.importCategoryDescription}>{category.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // **Enhanced URL Import Modal with Edge Functions**
 const URLImportModal: React.FC<{
   visible: boolean;
@@ -852,7 +854,7 @@ const URLImportModal: React.FC<{
   );
 };
 
-// **Recipe Card Component**
+// **Recipe Card Component with Cookbook Support**
 interface RecipeCardProps {
   recipe: Recipe;
   viewMode: 'grid' | 'list';
@@ -861,9 +863,6 @@ interface RecipeCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onAddToCookbook: () => void;
-  isSelected?: boolean;
-  onSelect?: () => void;
-  selectionMode?: boolean;
 }
 
 const RecipeCard: React.FC<RecipeCardProps> = ({
@@ -873,10 +872,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onFavorite,
   onEdit,
   onDelete,
-  onAddToCookbook,
-  isSelected,
-  onSelect,
-  selectionMode,
+  onAddToCookbook
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -889,24 +885,10 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 
   if (viewMode === 'list') {
     return (
-      <TouchableOpacity 
-        style={[styles.listCard, isSelected && styles.selectedCard]} 
-        onPress={selectionMode ? onSelect : onPress}
-        onLongPress={onSelect}
-      >
-        {selectionMode && (
-          <View style={styles.selectionCheckbox}>
-            {isSelected && <Check size={16} color={colors.neutral[0]} />}
-          </View>
-        )}
+      <TouchableOpacity style={styles.listCard} onPress={onPress}>
         <View style={styles.listImageContainer}>
-          {console.log('Recipe image_url:', recipe.image_url)}
           {recipe.image_url ? (
-            <Image 
-              source={{ uri: recipe.image_url }} 
-              style={styles.listImage}
-              onError={(error) => console.log('Image load error:', error)}
-            />
+            <Image source={{ uri: recipe.image_url }} style={styles.listImage} />
           ) : (
             <View style={styles.listPlaceholder}>
               <ChefHat size={24} color={colors.neutral[400]} />
@@ -916,26 +898,24 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         <View style={styles.listContent}>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
-            {!selectionMode && (
-              <View style={styles.listActions}>
-                <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
-                  <Heart
-                    size={16}
-                    color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
-                    fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
-                  <Book size={16} color={colors.secondary[500]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
-                  <Edit3 size={16} color={colors.neutral[400]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
-                  <Trash2 size={16} color={colors.error[400]} />
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.listActions}>
+              <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
+                <Heart
+                  size={16}
+                  color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
+                  fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
+                <Book size={16} color={colors.secondary[500]} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
+                <Edit3 size={16} color={colors.neutral[400]} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
+                <Trash2 size={16} color={colors.error[400]} />
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={styles.listDescription} numberOfLines={2}>
             {recipe.description}
@@ -966,24 +946,10 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   }
 
   return (
-    <TouchableOpacity 
-      style={[styles.gridCard, isSelected && styles.selectedCard]} 
-      onPress={selectionMode ? onSelect : onPress}
-      onLongPress={onSelect}
-    >
-      {selectionMode && (
-        <View style={[styles.selectionCheckbox, styles.gridSelectionCheckbox]}>
-          {isSelected && <Check size={16} color={colors.neutral[0]} />}
-        </View>
-      )}
+    <TouchableOpacity style={styles.gridCard} onPress={onPress}>
       <View style={styles.gridImageContainer}>
-        {console.log('Recipe image_url:', recipe.image_url)}
         {recipe.image_url ? (
-          <Image 
-            source={{ uri: recipe.image_url }} 
-            style={styles.gridImage}
-            onError={(error) => console.log('Image load error:', error)}
-          />
+          <Image source={{ uri: recipe.image_url }} style={styles.gridImage} />
         ) : (
           <View style={styles.gridPlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
@@ -1033,19 +999,17 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             </View>
           )}
         </View>
-        {!selectionMode && (
-          <View style={styles.gridActions}>
-            <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
-              <Book size={14} color={colors.secondary[500]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
-              <Edit3 size={14} color={colors.primary[500]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
-              <Trash2 size={14} color={colors.error[500]} />
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.gridActions}>
+          <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+            <Book size={14} color={colors.secondary[500]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
+            <Edit3 size={14} color={colors.primary[500]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
+            <Trash2 size={14} color={colors.error[500]} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -1103,7 +1067,7 @@ export default function Library() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const [showURLImport, setShowURLImport] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
@@ -1114,9 +1078,9 @@ export default function Library() {
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
   
-  // Selection mode states
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
+  // **Cookbook view states**
+  const [viewType, setViewType] = useState<'library' | 'cookbook'>('library');
+  const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
 
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
@@ -1129,15 +1093,11 @@ export default function Library() {
   const loadLibraryData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Loading library data...');
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
         return;
       }
-
-      console.log('👤 User ID:', user.id);
 
       // Load recipes
       const { data: recipesData, error: recipesError } = await supabase
@@ -1147,29 +1107,22 @@ export default function Library() {
         .order('created_at', { ascending: false });
 
       if (recipesError) {
-        console.error('❌ Error loading recipes:', recipesError);
+        console.error('Error loading recipes:', recipesError);
         Alert.alert('Error', 'Failed to load recipes');
         return;
       }
 
-      console.log('📝 Recipes loaded:', recipesData?.length || 0);
-
       // Load cookbooks
-      console.log('📚 Loading cookbooks...');
       const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('❌ Cookbooks error:', cookbooksError);
-      console.log('📊 Cookbooks count:', cookbooksData?.length || 0);
-
       if (cookbooksError) {
         console.error('Error loading cookbooks:', cookbooksError);
       } else {
         setCookbooks(cookbooksData || []);
-        console.log('✅ Cookbooks set in state:', cookbooksData?.length || 0);
       }
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
@@ -1195,7 +1148,6 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
-      console.log('✅ Library data loaded successfully');
     } catch (error) {
       console.error('Error loading library data:', error);
       Alert.alert('Error', 'Failed to load library data');
@@ -1204,27 +1156,87 @@ export default function Library() {
     }
   };
 
+  const loadCookbookRecipes = async (cookbookId: string) => {
+    try {
+      setLoading(true);
+      
+      // Get recipe IDs from recipe_cookbooks junction table
+      const { data: recipeIds, error: junctionError } = await supabase
+        .from('recipe_cookbooks')
+        .select('recipe_id')
+        .eq('cookbook_id', cookbookId);
+
+      if (junctionError) {
+        console.error('Error loading cookbook recipes:', junctionError);
+        return;
+      }
+
+      if (!recipeIds || recipeIds.length === 0) {
+        setRecipes([]);
+        return;
+      }
+
+      // Get full recipe data
+      const { data: recipesData, error: recipesError } = await supabase
+        .from('user_recipes')
+        .select('*')
+        .in('id', recipeIds.map(r => r.recipe_id));
+
+      if (recipesError) {
+        console.error('Error loading recipes:', recipesError);
+        return;
+      }
+
+      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+        id: dbRecipe.id,
+        title: dbRecipe.title,
+        description: dbRecipe.description || '',
+        image_url: dbRecipe.image_url,
+        prep_time: dbRecipe.prep_time || 0,
+        cook_time: dbRecipe.cook_time || 0,
+        servings: dbRecipe.servings || 1,
+        difficulty: dbRecipe.difficulty || 'Easy',
+        ingredients: dbRecipe.ingredients || [],
+        instructions: dbRecipe.instructions || [],
+        nutrition: dbRecipe.nutrition,
+        tags: dbRecipe.tags || [],
+        category: dbRecipe.category || 'General',
+        is_favorite: dbRecipe.is_favorite || false,
+        is_ai_generated: dbRecipe.is_ai_generated || false,
+        source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
+        created_at: dbRecipe.created_at,
+        updated_at: dbRecipe.updated_at,
+      }));
+
+      setRecipes(formattedRecipes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (viewType === 'library') {
+      loadLibraryData();
+    } else if (viewType === 'cookbook' && selectedCookbook) {
+      loadCookbookRecipes(selectedCookbook.id);
+    }
+  }, [viewType, selectedCookbook]);
+
+  const handleCookbookSelect = (cookbook: Cookbook) => {
+    setSelectedCookbook(cookbook);
+    setViewType('cookbook');
+  };
+
+  const handleBackToLibrary = () => {
+    setViewType('library');
+    setSelectedCookbook(null);
     loadLibraryData();
-  }, []);
+  };
 
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
     setShowAddToCookbook(true);
-  };
-
-  const toggleSelectionMode = () => {
-    setSelectionMode(!selectionMode);
-    setSelectedRecipes([]);
-  };
-
-  const toggleRecipeSelection = (recipeId: string) => {
-    setSelectedRecipes(prev => {
-      if (prev.includes(recipeId)) {
-        return prev.filter(id => id !== recipeId);
-      }
-      return [...prev, recipeId];
-    });
   };
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -1279,6 +1291,7 @@ export default function Library() {
     } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
     } else if (categoryId === 'socials') {
+      // Direkt URL modal aç, social seçimi yok
       setSelectedImportSource('socials');
       setShowURLImport(true);
     } else if (categoryId === 'web') {
@@ -1487,26 +1500,20 @@ export default function Library() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
-          onPress={() => router.back()} 
+          onPress={viewType === 'cookbook' ? handleBackToLibrary : () => router.back()} 
           style={styles.backButton}
         >
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Recipe Library</Text>
+          <Text style={styles.headerTitle}>
+            {viewType === 'library' ? 'My Recipe Library' : selectedCookbook?.name}
+          </Text>
           <Text style={styles.headerSubtitle}>
             {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''}
-            {hasActiveFilters ? ' filtered' : ' in your collection'}
+            {hasActiveFilters ? ' filtered' : viewType === 'cookbook' ? ' in this cookbook' : ' in your collection'}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.selectionModeButton}
-          onPress={toggleSelectionMode}
-        >
-          <Text style={[styles.selectionModeText, selectionMode && styles.selectionModeActive]}>
-            {selectionMode ? 'Cancel' : 'Select'}
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={styles.viewToggleButton}
           onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
@@ -1542,12 +1549,11 @@ export default function Library() {
       <View style={styles.addActions}>
         <TouchableOpacity
           style={styles.addActionButton}
-          onPress={() => setShowImportModal(true)}
+          onPress={() => setShowImportOptions(true)}
         >
           <Plus size={18} color={colors.primary[500]} />
           <Text style={styles.addActionText}>Add Recipe</Text>
         </TouchableOpacity>
-        
         <TouchableOpacity
           style={[
             styles.addActionButtonSecondary,
@@ -1577,49 +1583,48 @@ export default function Library() {
           viewMode === 'grid' && styles.recipesGridContent
         ]}
       >
-        {/* 📚 COOKBOOK SECTION */}
-        <View style={styles.cookbooksSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Cookbooks</Text>
-            <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
-              <Plus size={20} color={colors.primary[500]} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.cookbooksScroll}
-          >
-            {/* New Cookbook Card */}
-            <TouchableOpacity
-              style={styles.newCookbookCard}
-              onPress={() => setShowCreateCookbook(true)}
-            >
-              <View style={styles.newCookbookIcon}>
-                <Plus size={24} color={colors.primary[500]} />
-              </View>
-              <Text style={styles.newCookbookText}>New cookbook</Text>
-            </TouchableOpacity>
-
-            {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
-              <TouchableOpacity
-                key={cookbook.id}
-                style={styles.cookbookCard}
-                onPress={() => console.log('Cookbook clicked:', cookbook.name)}
-              >
-                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                <Text style={styles.cookbookName}>{cookbook.name}</Text>
-                <Text style={styles.cookbookCount}>0 recipes</Text>
+        {/* Cookbooks Section - Only show in library view */}
+        {viewType === 'library' && cookbooks.length > 0 && (
+          <View style={styles.cookbooksSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Cookbooks</Text>
+              <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+                <Plus size={20} color={colors.primary[500]} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            </View>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.cookbooksScroll}
+            >
+              {/* New Cookbook Card */}
+              <TouchableOpacity
+                style={styles.newCookbookCard}
+                onPress={() => setShowCreateCookbook(true)}
+              >
+                <View style={styles.newCookbookIcon}>
+                  <Plus size={24} color={colors.primary[500]} />
+                </View>
+                <Text style={styles.newCookbookText}>New cookbook</Text>
+              </TouchableOpacity>
+
+              {/* Existing Cookbooks */}
+              {cookbooks.map((cookbook) => (
+                <CookbookCard
+                  key={cookbook.id}
+                  cookbook={cookbook}
+                  onClick={() => handleCookbookSelect(cookbook)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Recipes Section */}
         <View style={styles.recipesSection}>
-          <Text style={styles.sectionTitle}>All Recipes</Text>
+          {viewType === 'library' && (
+            <Text style={styles.sectionTitle}>All Recipes</Text>
+          )}
           
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
@@ -1638,9 +1643,6 @@ export default function Library() {
                       }}
                       onDelete={() => handleDelete(recipe.id)}
                       onAddToCookbook={() => handleAddToCookbook(recipe)}
-                      isSelected={selectedRecipes.includes(recipe.id)}
-                      onSelect={() => toggleRecipeSelection(recipe.id)}
-                      selectionMode={selectionMode}
                     />
                   </View>
                 ))}
@@ -1660,32 +1662,29 @@ export default function Library() {
                   }}
                   onDelete={() => handleDelete(recipe.id)}
                   onAddToCookbook={() => handleAddToCookbook(recipe)}
-                  isSelected={selectedRecipes.includes(recipe.id)}
-                  onSelect={() => toggleRecipeSelection(recipe.id)}
-                  selectionMode={selectionMode}
                 />
               ))
             )
           ) : (
             <EmptyState
               hasFilters={hasActiveFilters}
-              onAddRecipe={() => setShowImportModal(true)}
+              onAddRecipe={() => setShowImportOptions(true)}
               onClearFilters={clearAllFilters}
             />
           )}
         </View>
       </ScrollView>
       
-      <ImportCategoriesModal
-        visible={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onSelect={handleImportCategorySelect}
-      />
-      
       <ManualRecipeModal
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
         onSave={handleManualRecipeSave}
+      />
+      
+      <ImportOptionsModal
+        visible={showImportOptions}
+        onClose={() => setShowImportOptions(false)}
+        onSelectCategory={handleImportCategorySelect}
       />
       
       <FilterModal
@@ -1722,16 +1721,12 @@ export default function Library() {
           }}
           recipeId={selectedRecipeForCookbook.id}
           recipeTitle={selectedRecipeForCookbook.title}
-          onCreateNewCookbook={() => {
-            setShowAddToCookbook(false);
-            setShowCreateCookbook(true);
-          }}
         />
       )}
       
       <TouchableOpacity
         style={styles.floatingAddButton}
-        onPress={() => setShowImportModal(true)}
+        onPress={() => setShowImportOptions(true)}
       >
         <Plus size={28} color={colors.neutral[0]} />
       </TouchableOpacity>
@@ -1788,19 +1783,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[600],
-  },
-  selectionModeButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.sm,
-  },
-  selectionModeText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[500],
-  },
-  selectionModeActive: {
-    color: colors.error[500],
   },
   viewToggleButton: {
     width: 40,
@@ -1921,7 +1903,7 @@ const styles = StyleSheet.create({
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
   
-  // Cookbook Section Styles
+  // Cookbooks Section
   cookbooksSection: {
     marginBottom: spacing.xl,
   },
@@ -1936,14 +1918,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[800],
   },
-  recipesSection: {
-    flex: 1,
-  },
   cookbooksScroll: {
     flexDirection: 'row',
   },
   newCookbookCard: {
-    width: 140,
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
     height: 180,
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -1968,113 +1947,100 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary[600],
   },
-  cookbookCard: {
-    width: 140,
-    height: 180,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.md,
-    marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.md,
-  },
-  cookbookEmoji: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  cookbookName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  cookbookCount: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
+  recipesSection: {
+    flex: 1,
   },
   
-  // Selection mode styles
-  selectedCard: {
-    borderWidth: 2,
-    borderColor: colors.primary[500],
-  },
-  selectionCheckbox: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  gridSelectionCheckbox: {
-    backgroundColor: colors.primary[500],
-    borderWidth: 2,
-    borderColor: colors.neutral[0],
-  },
-  
-  // Import Modal Styles
+  // Import Options Modal Styles
   importModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   importModalContainer: {
     backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    width: '85%',
-    maxWidth: 350,
-    ...shadows.lg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+    maxHeight: '70%',
   },
   importModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
   },
-  importModalTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  importModalContent: {
-    paddingVertical: spacing.sm,
-  },
-  importModalItem: {
+  importModalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    flex: 1,
   },
-  importModalIcon: {
+  importModalIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 24,
+    backgroundColor: colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
-  importModalTextContainer: {
-    flex: 1,
-  },
-  importModalItemTitle: {
-    fontSize: typography.fontSize.base,
+  importModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
     fontWeight: '600',
     color: colors.neutral[800],
-    marginBottom: spacing.xs / 2,
   },
-  importModalItemDescription: {
+  importModalSubtitle: {
     fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
     color: colors.neutral[500],
+  },
+  importModalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  importCategoriesContainer: {
+    flex: 1,
+  },
+  importCategoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  importCategoryCard: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 16,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  importCategoryIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  importCategoryName: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  importCategoryDescription: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+    textAlign: 'center',
   },
   
   // Manual Recipe Modal Styles
