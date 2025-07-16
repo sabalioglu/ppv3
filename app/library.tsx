@@ -225,13 +225,13 @@ const ImportCategoriesModal: React.FC<{
 
           <View style={styles.importModalContent}>
             {importCategories.map((category, index) => {
-  const IconComponent = category.icon;
-  return (
-    <TouchableOpacity
-      key={`import-${category.id}-${index}`} // ✅ Unique key
-      style={[
-        styles.importModalItem,
-        index === importCategories.length - 1 && { borderBottomWidth: 0 }
+              const IconComponent = category.icon;
+              return (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.importModalItem,
+                    index === importCategories.length - 1 && { borderBottomWidth: 0 }
                   ]}
                   onPress={() => {
                     onSelect(category.id);
@@ -537,7 +537,7 @@ const FilterModal: React.FC<{
   filters: { [key: string]: string };
   onFiltersChange: (filters: { [key: string]: string }) => void;
   recipeCount: number;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {   const [localFilters, setLocalFilters] = useState(filters);   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({     meal_type: true,   });
+}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
     meal_type: true,
@@ -586,7 +586,7 @@ const FilterModal: React.FC<{
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
           {filterCategories.map((category) => (
-            <View key={`category-${category.id}-${index}`} style={styles.filterCategoryContainer}>
+            <View key={category.id} style={styles.filterCategoryContainer}>
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
@@ -607,7 +607,7 @@ const FilterModal: React.FC<{
                     const isSelected = localFilters[category.id] === option.id;
                     return (
                       <TouchableOpacity
-                        key={`option-${category.id}-${option.id}`}
+                        key={option.id}
                         style={[
                           styles.filterOption,
                           isSelected && styles.filterOptionSelected
@@ -1599,7 +1599,7 @@ export default function Library() {
             {/* Existing Cookbooks */}
             {cookbooks.map((cookbook) => (
               <TouchableOpacity
-                key={`cookbook-${cookbook.id}`}
+                key={cookbook.id}
                 style={styles.cookbookCard}
                 onPress={() => console.log('Cookbook clicked:', cookbook.name)}
               >
@@ -1619,7 +1619,7 @@ export default function Library() {
             viewMode === 'grid' ? (
               <View style={styles.recipesGrid}>
                 {filteredRecipes.map(recipe => (
-                  <View key={`recipe-${recipe.id}`} style={styles.gridCardContainer}>
+                  <View key={recipe.id} style={styles.gridCardContainer}>
                     <RecipeCard
                       recipe={recipe}
                       viewMode="grid"
@@ -1642,7 +1642,7 @@ export default function Library() {
             ) : (
               filteredRecipes.map(recipe => (
                 <RecipeCard
-                  key={`recipe-${recipe.id}`}
+                  key={recipe.id}
                   recipe={recipe}
                   viewMode="list"
                   onPress={() => {
