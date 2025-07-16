@@ -985,11 +985,15 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       )}
       <View style={styles.gridImageContainer}>
         {recipe.image_url ? (
-          <Image 
-            source={{ uri: recipe.image_url }} 
-            style={styles.gridImage}
-            onError={(error) => console.log('Image load error:', error)}
-          />
+  <Image
+    source={{ 
+      uri: recipe.source_url?.includes('instagram.com') 
+        ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=400&h=300&fit=cover&maxage=7d`
+        : recipe.image_url 
+    }}
+    style={styles.gridImage}
+    onError={(error) => console.log('Image load error:', error)}
+  />
         ) : (
           <View style={styles.gridPlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
