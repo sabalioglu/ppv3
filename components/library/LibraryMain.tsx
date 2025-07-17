@@ -1700,7 +1700,7 @@ export default function Library() {
               <TouchableOpacity
                 key={`cookbook-${cookbook.id}-${cookbookIndex}`}
                 style={styles.cookbookCard}
-                onPress={() => console.log('Cookbook clicked:', cookbook.name)}
+                onPress={() => router.push(`/cookbook/${cookbook.id}`)}
               >
                 <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
                 <Text style={styles.cookbookName}>{cookbook.name}</Text>
