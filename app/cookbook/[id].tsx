@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Image,
 } from 'react-native';
-import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame } from 'lucide-react-native';
+import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -165,10 +166,36 @@ export default function CookbookDetail() {
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerActionButton}>
+          <TouchableOpacity 
+            style={styles.headerActionButton}
+            onPress={() => {
+              // Edit cookbook modal açılacak
+              Alert.alert('Edit Cookbook', `Edit "${cookbook.name}" functionality coming soon!`);
+            }}
+          >
             <Edit3 size={20} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton}>
+          <TouchableOpacity 
+            style={styles.headerActionButton}
+            onPress={() => {
+              // Delete confirmation
+              Alert.alert(
+                'Delete Cookbook',
+                `Are you sure you want to delete "${cookbook.name}"? This action cannot be undone.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Delete', 
+                    style: 'destructive',
+                    onPress: () => {
+                      // Delete cookbook logic buraya
+                      Alert.alert('Coming Soon!', 'Delete cookbook functionality will be implemented.');
+                    }
+                  }
+                ]
+              );
+            }}
+          >
             <Trash2 size={20} color={colors.error[500]} />
           </TouchableOpacity>
         </View>
@@ -221,7 +248,27 @@ export default function CookbookDetail() {
                 style={styles.recipeCard}
                 onPress={() => router.push(`/recipe/${recipe.id}`)}
               >
-                <View style={styles.recipeInfo}>
+                {/* Recipe Image */}
+                <View style={styles.recipeImageContainer}>
+                  {recipe.image_url ? (
+                    <Image
+                      source={{ 
+                        uri: recipe.source_url?.includes('instagram.com') 
+                          ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=120&h=80&fit=cover&maxage=7d`
+                          : recipe.image_url 
+                      }}
+                      style={styles.recipeImage}
+                      onError={(error) => console.log('Recipe image load error:', error)}
+                    />
+                  ) : (
+                    <View style={styles.recipeImagePlaceholder}>
+                      <ChefHat size={24} color={colors.neutral[400]} />
+                    </View>
+                  )}
+                </View>
+
+                {/* Recipe Info */}
+                <View style={styles.recipeInfoContainer}>
                   <Text style={styles.recipeTitle}>{recipe.title}</Text>
                   <Text style={styles.recipeDescription} numberOfLines={2}>
                     {recipe.description}
@@ -413,13 +460,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   recipeCard: {
+    flexDirection: 'row',
     backgroundColor: colors.neutral[50],
     borderRadius: 12,
-    padding: spacing.lg,
+    padding: spacing.md,
     marginBottom: spacing.md,
     ...shadows.sm,
   },
-  recipeInfo: {
+  recipeImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginRight: spacing.md,
+  },
+  recipeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  recipeImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.neutral[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recipeInfoContainer: {
     flex: 1,
   },
   recipeTitle: {
