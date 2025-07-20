@@ -14,25 +14,8 @@ import {
 import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
-// app/cookbook/[id].tsx
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Image,
-} from 'react-native';
-import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
-import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';  // 👈 BURAYA EKLE
-import { supabase } from '@/lib/supabase';
+import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';
 
 interface CookbookRecipe {
   id: string;
@@ -68,6 +51,7 @@ export default function CookbookDetail() {
   const [cookbook, setCookbook] = useState<Cookbook | null>(null);
   const [recipes, setRecipes] = useState<CookbookRecipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const loadCookbookDetails = async () => {
     try {
@@ -147,6 +131,37 @@ export default function CookbookDetail() {
     loadCookbookDetails();
   }, [id]);
 
+  const handleDeleteCookbook = async () => {
+    Alert.alert(
+      'Delete Cookbook',
+      `Are you sure you want to delete "${cookbook?.name}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('cookbooks')
+                .delete()
+                .eq('id', cookbook?.id);
+
+              if (error) throw error;
+
+              Alert.alert('Success', 'Cookbook deleted successfully', [
+                { text: 'OK', onPress: () => router.back() }
+              ]);
+            } catch (error) {
+              console.error('Error deleting cookbook:', error);
+              Alert.alert('Error', 'Failed to delete cookbook');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return colors.success[500];
@@ -186,33 +201,13 @@ export default function CookbookDetail() {
         <View style={styles.headerActions}>
           <TouchableOpacity 
             style={styles.headerActionButton}
-            onPress={() => {
-              // Edit cookbook modal açılacak
-              Alert.alert('Edit Cookbook', `Edit "${cookbook.name}" functionality coming soon!`);
-            }}
+            onPress={() => setShowEditModal(true)}
           >
             <Edit3 size={20} color={colors.neutral[600]} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.headerActionButton}
-            onPress={() => {
-              // Delete confirmation
-              Alert.alert(
-                'Delete Cookbook',
-                `Are you sure you want to delete "${cookbook.name}"? This action cannot be undone.`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Delete', 
-                    style: 'destructive',
-                    onPress: () => {
-                      // Delete cookbook logic buraya
-                      Alert.alert('Coming Soon!', 'Delete cookbook functionality will be implemented.');
-                    }
-                  }
-                ]
-              );
-            }}
+            onPress={handleDeleteCookbook}
           >
             <Trash2 size={20} color={colors.error[500]} />
           </TouchableOpacity>
@@ -270,11 +265,7 @@ export default function CookbookDetail() {
                 <View style={styles.recipeImageContainer}>
                   {recipe.image_url ? (
                     <Image
-                      source={{ 
-                        uri: recipe.source_url?.includes('instagram.com') 
-                          ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=120&h=80&fit=cover&maxage=7d`
-                          : recipe.image_url 
-                      }}
+                      source={{ uri: recipe.image_url }}
                       style={styles.recipeImage}
                       onError={(error) => console.log('Recipe image load error:', error)}
                     />
@@ -319,6 +310,16 @@ export default function CookbookDetail() {
           )}
         </View>
       </ScrollView>
+
+      {/* Edit Cookbook Modal */}
+      {cookbook && (
+        <EditCookbookBottomSheet
+          visible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          cookbook={cookbook}
+          onUpdate={loadCookbookDetails}
+        />
+      )}
     </View>
   );
 }
