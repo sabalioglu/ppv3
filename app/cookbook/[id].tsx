@@ -14,6 +14,24 @@ import {
 import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
+// app/cookbook/[id].tsx
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Image,
+} from 'react-native';
+import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
+import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { router, useLocalSearchParams } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';  // 👈 BURAYA EKLE
 import { supabase } from '@/lib/supabase';
 
 interface CookbookRecipe {
