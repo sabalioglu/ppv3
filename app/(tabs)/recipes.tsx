@@ -1,5 +1,4 @@
-//app>(tabs)>recipes.tsx
-import React, { useState, useEffect } from 'react';
+//app>(tabs)>recipes.tsximport React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import {
   Search,
@@ -25,6 +25,9 @@ import {
   Plus,
   Share2,
   Calendar,
+  X,
+  ChevronDown,
+  Check,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
@@ -63,11 +66,248 @@ interface Recipe {
   updated_at: string;
 }
 
+// Filter Categories
+interface FilterCategory {
+  id: string;
+  title: string;
+  options: Array<{ id: string; label: string }>;
+}
 
-const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'];
-const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
-const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
+const filterCategories: FilterCategory[] = [
+  {
+    id: 'meal_type',
+    title: 'Meal Type',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'breakfast', label: 'Breakfast' },
+      { id: 'lunch', label: 'Lunch' },
+      { id: 'dinner', label: 'Dinner' },
+      { id: 'snacks', label: 'Snacks' },
+      { id: 'desserts', label: 'Desserts' },
+    ]
+  },
+  {
+    id: 'diet',
+    title: 'Diet',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'vegetarian', label: 'Vegetarian' },
+      { id: 'vegan', label: 'Vegan' },
+      { id: 'keto', label: 'Keto' },
+      { id: 'low-carb', label: 'Low Carb' },
+      { id: 'high-protein', label: 'High Protein' },
+      { id: 'gluten-free', label: 'Gluten Free' },
+    ]
+  },
+  {
+    id: 'difficulty',
+    title: 'Difficulty',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'easy', label: 'Easy' },
+      { id: 'medium', label: 'Medium' },
+      { id: 'hard', label: 'Hard' },
+    ]
+  },
+  {
+    id: 'cook_time',
+    title: 'Cook Time',
+    options: [
+      { id: 'all', label: 'All' },
+      { id: 'under_15', label: 'Under 15 min' },
+      { id: 'under_30', label: 'Under 30 min' },
+      { id: 'under_60', label: 'Under 60 min' },
+      { id: 'over_60', label: 'Over 60 min' },
+    ]
+  }
+];
 
+// Enhanced Filter Modal Component
+const FilterModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  filters: { [key: string]: string };
+  onFiltersChange: (filters: { [key: string]: string }) => void;
+  recipeCount: number;
+  userCookbooks: any[];
+  selectedCookbook: string;
+  onCookbookChange: (cookbookId: string) => void;
+}> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
+  const [localFilters, setLocalFilters] = useState(filters);
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+    cookbook: true,
+    meal_type: true,
+  });
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
+
+  const updateFilter = (categoryId: string, optionId: string) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      [categoryId]: optionId
+    }));
+  };
+
+  const applyFilters = () => {
+    onFiltersChange(localFilters);
+    onClose();
+  };
+
+  const clearAllFilters = () => {
+    const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
+      acc[key] = 'all';
+      return acc;
+    }, {} as { [key: string]: string });
+    setLocalFilters(clearedFilters);
+    onFiltersChange(clearedFilters);
+    onCookbookChange('all');
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.filterModalContainer}>
+        <View style={styles.filterModalHeader}>
+          <TouchableOpacity onPress={onClose}>
+            <X size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
+          <TouchableOpacity onPress={clearAllFilters}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
+          {/* Cookbook Filter */}
+          <View style={styles.filterCategoryContainer}>
+            <TouchableOpacity
+              style={styles.filterCategoryHeader}
+              onPress={() => toggleCategory('cookbook')}
+            >
+              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
+              <ChevronDown
+                size={20}
+                color={colors.neutral[600]}
+                style={[
+                  styles.chevronIcon,
+                  expandedCategories.cookbook && styles.chevronIconExpanded
+                ]}
+              />
+            </TouchableOpacity>
+            {expandedCategories.cookbook && (
+              <View style={styles.filterOptionsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterOption,
+                    selectedCookbook === 'all' && styles.filterOptionSelected
+                  ]}
+                  onPress={() => onCookbookChange('all')}
+                >
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      selectedCookbook === 'all' && styles.filterOptionTextSelected
+                    ]}
+                  >
+                    All Recipes
+                  </Text>
+                  {selectedCookbook === 'all' && (
+                    <Check size={16} color={colors.primary[500]} />
+                  )}
+                </TouchableOpacity>
+                {userCookbooks.map((cookbook) => (
+                  <TouchableOpacity
+                    key={cookbook.id}
+                    style={[
+                      styles.filterOption,
+                      selectedCookbook === cookbook.id && styles.filterOptionSelected
+                    ]}
+                    onPress={() => onCookbookChange(cookbook.id)}
+                  >
+                    <View style={styles.filterOptionWithEmoji}>
+                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.filterOptionText,
+                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
+                        ]}
+                      >
+                        {cookbook.name}
+                      </Text>
+                    </View>
+                    {selectedCookbook === cookbook.id && (
+                      <Check size={16} color={colors.primary[500]} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Existing Filter Categories */}
+          {filterCategories.map((category, categoryIndex) => (
+            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
+              <TouchableOpacity
+                style={styles.filterCategoryHeader}
+                onPress={() => toggleCategory(category.id)}
+              >
+                <Text style={styles.filterCategoryTitle}>{category.title}</Text>
+                <ChevronDown
+                  size={20}
+                  color={colors.neutral[600]}
+                  style={[
+                    styles.chevronIcon,
+                    expandedCategories[category.id] && styles.chevronIconExpanded
+                  ]}
+                />
+              </TouchableOpacity>
+              {expandedCategories[category.id] && (
+                <View style={styles.filterOptionsContainer}>
+                  {category.options.map((option, optionIndex) => {
+                    const isSelected = localFilters[category.id] === option.id;
+                    return (
+                      <TouchableOpacity
+                        key={`${category.id}-${option.id}-${optionIndex}`}
+                        style={[
+                          styles.filterOption,
+                          isSelected && styles.filterOptionSelected
+                        ]}
+                        onPress={() => updateFilter(category.id, option.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.filterOptionText,
+                            isSelected && styles.filterOptionTextSelected
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                        {isSelected && (
+                          <Check size={16} color={colors.primary[500]} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+        <View style={styles.filterModalFooter}>
+          <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
+            <Text style={styles.applyFiltersText}>
+              Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -281,14 +521,18 @@ export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedDiet, setSelectedDiet] = useState('All');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
   
   // Cookbook filter states
-  const [selectedCookbook, setSelectedCookbook] = useState('All');
+  const [selectedCookbook, setSelectedCookbook] = useState('all');
   const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+
+  const [filters, setFilters] = useState<{ [key: string]: string }>({
+    meal_type: 'all',
+    diet: 'all',
+    cook_time: 'all',
+    difficulty: 'all',
+  });
 
 
   // Load user cookbooks
@@ -376,43 +620,12 @@ export default function Recipes() {
     loadUserCookbooks();
   }, []);
 
-
-  // Filter recipes based on search and filters
-  const getFilteredRecipes = async () => {
-    let filtered = [...recipes];
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        recipe.description.toLowerCase().includes(query)
-      );
-    }
-
-    // Category filter
-    if (selectedCategory !== 'All') {
-      filtered = filtered.filter(recipe => 
-        recipe.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-
-    // Diet filter
-    if (selectedDiet !== 'All') {
-      filtered = filtered.filter(recipe => 
-        recipe.tags.some(tag => tag.toLowerCase().includes(selectedDiet.toLowerCase()))
-      );
-    }
-
-    // Difficulty filter
-    if (selectedDifficulty !== 'All') {
-      filtered = filtered.filter(recipe => 
-        recipe.difficulty === selectedDifficulty
-      );
-    }
+  const applyFilters = async (recipesToFilter: Recipe[]) => {
+    let filtered = [...recipesToFilter];
 
     // Cookbook filter
-    if (selectedCookbook !== 'All') {
+    if (selectedCookbook !== 'all') {
+      // Cookbook'taki recipe ID'lerini al
       const { data: cookbookRecipes } = await supabase
         .from('recipe_cookbooks')
         .select('recipe_id')
@@ -422,44 +635,85 @@ export default function Recipes() {
       filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
     }
 
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(recipe =>
+        recipe.title.toLowerCase().includes(query) ||
+        recipe.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Meal type filter
+    if (filters.meal_type !== 'all') {
+      filtered = filtered.filter(recipe => 
+        recipe.category.toLowerCase() === filters.meal_type.toLowerCase()
+      );
+    }
+
+    // Diet filter
+    if (filters.diet !== 'all') {
+      filtered = filtered.filter(recipe => 
+        recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()))
+      );
+    }
+
+    // Cook time filter
+    if (filters.cook_time !== 'all') {
+      const totalTime = (recipe: Recipe) => recipe.prep_time + recipe.cook_time;
+      filtered = filtered.filter(recipe => {
+        const time = totalTime(recipe);
+        switch (filters.cook_time) {
+          case 'under_15': return time < 15;
+          case 'under_30': return time < 30;
+          case 'under_60': return time < 60;
+          case 'over_60': return time >= 60;
+          default: return true;
+        }
+      });
+    }
+
+    // Difficulty filter
+    if (filters.difficulty !== 'all') {
+      filtered = filtered.filter(recipe => 
+        recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
+      );
+    }
+
     return filtered;
   };
 
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
 
   useEffect(() => {
-    const applyFilters = async () => {
-      const filtered = await getFilteredRecipes();
+    const filterRecipes = async () => {
+      const filtered = await applyFilters(recipes);
       setFilteredRecipes(filtered);
     };
-    applyFilters();
-  }, [recipes, searchQuery, selectedCategory, selectedDiet, selectedDifficulty, selectedCookbook]);
+    filterRecipes();
+  }, [recipes, searchQuery, filters, selectedCookbook]);
 
-
-  // Check if any filters are active
-  const hasActiveFilters = selectedCategory !== 'All' || 
-    selectedDiet !== 'All' || 
-    selectedDifficulty !== 'All' || 
-    selectedCookbook !== 'All';
-
-  // Get active filter count
   const getActiveFilterCount = () => {
     let count = 0;
-    if (selectedCategory !== 'All') count++;
-    if (selectedDiet !== 'All') count++;
-    if (selectedDifficulty !== 'All') count++;
-    if (selectedCookbook !== 'All') count++;
+    if (filters.meal_type !== 'all') count++;
+    if (filters.diet !== 'all') count++;
+    if (filters.cook_time !== 'all') count++;
+    if (filters.difficulty !== 'all') count++;
+    if (selectedCookbook !== 'all') count++;
     return count;
   };
 
+  const hasActiveFilters = getActiveFilterCount() > 0;
 
   // Clear all filters
   const clearAllFilters = () => {
-    setSelectedCategory('All');
-    setSelectedDiet('All');
-    setSelectedDifficulty('All');
-    setSelectedCookbook('All');
-    setShowFilters(false);
+    setFilters({
+      meal_type: 'all',
+      diet: 'all',
+      cook_time: 'all',
+      difficulty: 'all',
+    });
+    setSelectedCookbook('all');
   };
 
 
@@ -543,7 +797,7 @@ export default function Recipes() {
         </View>
         <TouchableOpacity
           style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
-          onPress={() => setShowFilters(!showFilters)}
+          onPress={() => setShowFilters(true)}
         >
           <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
           {getActiveFilterCount() > 0 && (
@@ -553,139 +807,6 @@ export default function Recipes() {
           )}
         </TouchableOpacity>
       </View>
-
-
-      {/* Filters */}
-      {showFilters && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {/* Cookbook Filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Cookbook:</Text>
-            <View style={styles.filterChips}>
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  selectedCookbook === 'All' && styles.filterChipActive
-                ]}
-                onPress={() => setSelectedCookbook('All')}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedCookbook === 'All' && styles.filterChipTextActive
-                  ]}
-                >
-                  All Recipes
-                </Text>
-              </TouchableOpacity>
-              {userCookbooks.map(cookbook => (
-                <TouchableOpacity
-                  key={cookbook.id}
-                  style={[
-                    styles.filterChip,
-                    selectedCookbook === cookbook.id && styles.filterChipActive
-                  ]}
-                  onPress={() => setSelectedCookbook(cookbook.id)}
-                >
-                  <View style={styles.filterChipWithEmoji}>
-                    <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        selectedCookbook === cookbook.id && styles.filterChipTextActive
-                      ]}
-                    >
-                      {cookbook.name}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Category:</Text>
-            <View style={styles.filterChips}>
-              {categories.map(category => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.filterChip,
-                    selectedCategory === category && styles.filterChipActive
-                  ]}
-                  onPress={() => setSelectedCategory(category)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedCategory === category && styles.filterChipTextActive
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Diet:</Text>
-            <View style={styles.filterChips}>
-              {dietTags.map(diet => (
-                <TouchableOpacity
-                  key={diet}
-                  style={[
-                    styles.filterChip,
-                    selectedDiet === diet && styles.filterChipActive
-                  ]}
-                  onPress={() => setSelectedDiet(diet)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedDiet === diet && styles.filterChipTextActive
-                    ]}
-                  >
-                    {diet}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Difficulty:</Text>
-            <View style={styles.filterChips}>
-              {difficulties.map(difficulty => (
-                <TouchableOpacity
-                  key={difficulty}
-                  style={[
-                    styles.filterChip,
-                    selectedDifficulty === difficulty && styles.filterChipActive
-                  ]}
-                  onPress={() => setSelectedDifficulty(difficulty)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      selectedDifficulty === difficulty && styles.filterChipTextActive
-                    ]}
-                  >
-                    {difficulty}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </ScrollView>
-      )}
 
 
       {/* Quick Actions */}
@@ -750,6 +871,17 @@ export default function Recipes() {
         )}
       </ScrollView>
 
+      {/* Filter Modal */}
+      <FilterModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+        recipeCount={filteredRecipes.length}
+        userCookbooks={userCookbooks}
+        selectedCookbook={selectedCookbook}
+        onCookbookChange={setSelectedCookbook}
+      />
 
       {/* Add Recipe Button */}
       <TouchableOpacity style={styles.addButton} onPress={handleAddRecipe}>
@@ -832,15 +964,6 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: colors.primary[50],
   },
-  filterDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary[500],
-  },
   filterBadge: {
     position: 'absolute',
     top: 8,
@@ -857,53 +980,112 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
-  filtersContainer: {
+  
+  // Filter Modal Styles
+  filterModalContainer: {
+    flex: 1,
     backgroundColor: colors.neutral[0],
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
-  filtersContent: {
-    paddingVertical: spacing.md,
+  filterModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  clearAllText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[500],
+  },
+  filterModalContent: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
   },
-  filterSection: {
-    marginRight: spacing.xl,
+  filterCategoryContainer: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
   },
-  filterLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral[600],
-    marginBottom: spacing.xs,
-  },
-  filterChips: {
+  filterCategoryHeader: {
     flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  filterChip: {
-    backgroundColor: colors.neutral[100],
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: spacing.sm,
   },
-  filterChipActive: {
-    backgroundColor: colors.primary[500],
+  filterCategoryTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
   },
-  filterChipText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral[600],
+  chevronIcon: {
+    transform: [{ rotate: '0deg' }],
   },
-  filterChipTextActive: {
-    color: colors.neutral[0],
+  chevronIconExpanded: {
+    transform: [{ rotate: '180deg' }],
   },
-  filterChipWithEmoji: {
+  filterOptionsContainer: {
+    paddingTop: spacing.sm,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginVertical: 2,
+    borderRadius: 8,
+  },
+  filterOptionSelected: {
+    backgroundColor: colors.primary[50],
+  },
+  filterOptionText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[700],
+  },
+  filterOptionTextSelected: {
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  filterOptionWithEmoji: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   cookbookEmoji: {
-    fontSize: 14,
-    marginRight: 4,
+    fontSize: 16,
+    marginRight: spacing.sm,
   },
+  filterModalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  applyFiltersButton: {
+    backgroundColor: colors.primary[500],
+    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  applyFiltersText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
