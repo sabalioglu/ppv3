@@ -1,6 +1,6 @@
 // components/library/modals/CookbookBottomSheet.tsx
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import BottomSheet, { 
   BottomSheetView, 
   BottomSheetScrollView,
@@ -9,7 +9,7 @@ import BottomSheet, {
 import { X, Plus, Check } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../../lib/theme';
 import { useCookbookManager } from '../../../hooks/useCookbookManager';
-import CreateCookbook from '../../cookbook/CreateCookbook';
+import { EditCookbookBottomSheet } from './EditCookbookBottomSheet';
 
 interface CookbookBottomSheetProps {
   visible: boolean;
@@ -107,7 +107,7 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
               style={styles.createOption}
               onPress={() => {
                 onClose();
-                setShowCreateCookbook(true);
+                setTimeout(() => setShowCreateCookbook(true), 300);
               }}
             >
               <View style={styles.createIconContainer}>
@@ -159,21 +159,22 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
         </BottomSheetView>
       </BottomSheet>
 
-      {/* Create Cookbook Modal */}
-      {showCreateCookbook && (
-        <Modal
-          visible={showCreateCookbook}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <CreateCookbook 
-            onClose={() => {
-              setShowCreateCookbook(false);
-              loadCookbooks();
-            }}
-          />
-        </Modal>
-      )}
+      {/* Create Cookbook BottomSheet */}
+      <EditCookbookBottomSheet
+        visible={showCreateCookbook}
+        onClose={() => setShowCreateCookbook(false)}
+        cookbook={{
+          id: 'new',
+          name: '',
+          description: '',
+          emoji: '📚',
+          color: colors.primary[500]
+        }}
+        onUpdate={() => {
+          setShowCreateCookbook(false);
+          loadCookbooks();
+        }}
+      />
     </>
   );
 };
