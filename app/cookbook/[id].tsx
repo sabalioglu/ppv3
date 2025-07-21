@@ -16,6 +16,7 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';
+import { RecipeSelectionBottomSheet } from '@/components/library/modals/RecipeSelectionBottomSheet';
 
 interface CookbookRecipe {
   id: string;
@@ -52,6 +53,7 @@ export default function CookbookDetail() {
   const [recipes, setRecipes] = useState<CookbookRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRecipeSelection, setShowRecipeSelection] = useState(false);
 
   const loadCookbookDetails = async () => {
     try {
@@ -162,16 +164,8 @@ export default function CookbookDetail() {
     );
   };
 
-  // handleAddRecipes fonksiyonunu güncelle
   const handleAddRecipes = () => {
-    router.push({
-      pathname: '/(tabs)/library',
-      params: { 
-        mode: 'selection',
-        cookbookId: id,
-        cookbookName: cookbook?.name
-      }
-    });
+    setShowRecipeSelection(true);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -327,6 +321,20 @@ export default function CookbookDetail() {
           onClose={() => setShowEditModal(false)}
           cookbook={cookbook}
           onUpdate={loadCookbookDetails}
+        />
+      )}
+
+      {/* Recipe Selection Modal */}
+      {cookbook && (
+        <RecipeSelectionBottomSheet
+          visible={showRecipeSelection}
+          onClose={() => setShowRecipeSelection(false)}
+          cookbookId={cookbook.id}
+          cookbookName={cookbook.name}
+          onRecipesAdded={() => {
+            setShowRecipeSelection(false);
+            loadCookbookDetails(); // Refresh the cookbook details
+          }}
         />
       )}
     </View>
