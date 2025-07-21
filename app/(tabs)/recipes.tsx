@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Alert,
   Platform,
   Modal,
+  Animated,
 } from 'react-native';
 import {
   Search,
@@ -27,6 +28,8 @@ import {
   Calendar,
   X,
   ChevronDown,
+  ChevronUp,
+  ChevronRight,
   Check,
   Grid3X3,
   List,
@@ -122,6 +125,119 @@ const filterCategories: FilterCategory[] = [
     ]
   }
 ];
+
+// YENİ: Quick Actions Dropdown Component
+const QuickActionsDropdown: React.FC<{
+  onSocialPress: () => void;
+  onAIRecipesPress: () => void;
+  onLibraryPress: () => void;
+  onFavoritesPress: () => void;
+}> = ({ onSocialPress, onAIRecipesPress, onLibraryPress, onFavoritesPress }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const animatedHeight = useRef(new Animated.Value(0)).current;
+
+  const toggleDropdown = () => {
+    const toValue = isOpen ? 0 : 1;
+    
+    Animated.timing(animatedHeight, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+    
+    setIsOpen(!isOpen);
+  };
+
+  const animatedStyle = {
+    maxHeight: animatedHeight.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 300], // Max height for dropdown content
+    }),
+    opacity: animatedHeight.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+  };
+
+  return (
+    <View style={styles.quickActionsDropdown}>
+      <TouchableOpacity 
+        style={styles.dropdownHeader}
+        onPress={toggleDropdown}
+        activeOpacity={0.7}
+      >
+        <View style={styles.dropdownHeaderLeft}>
+          {isOpen ? (
+            <ChevronUp size={20} color={colors.neutral[600]} />
+          ) : (
+            <ChevronDown size={20} color={colors.neutral[600]} />
+          )}
+          <Text style={styles.dropdownTitle}>Quick Actions</Text>
+        </View>
+        <Text style={styles.dropdownSubtitle}>
+          Discover • Import • Save
+        </Text>
+      </TouchableOpacity>
+
+      <Animated.View style={[styles.dropdownContent, animatedStyle]}>
+        <TouchableOpacity style={styles.dropdownItem} onPress={onSocialPress}>
+          <View style={[styles.dropdownIcon, { backgroundColor: '#E8F5E9' }]}>
+            <Share2 size={20} color="#4CAF50" />
+          </View>
+          <View style={styles.dropdownItemText}>
+            <Text style={styles.dropdownItemTitle}>Social Media Import</Text>
+            <Text style={styles.dropdownItemSubtitle}>
+              Import from TikTok, Instagram
+            </Text>
+          </View>
+          <ChevronRight size={20} color={colors.neutral[300]} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.dropdownItem} onPress={onAIRecipesPress}>
+          <View style={[styles.dropdownIcon, { backgroundColor: '#FFF3E0' }]}>
+            <ChefHat size={20} color="#FF9800" />
+          </View>
+          <View style={styles.dropdownItemText}>
+            <Text style={styles.dropdownItemTitle}>AI Recipe Ideas</Text>
+            <Text style={styles.dropdownItemSubtitle}>
+              Get personalized suggestions
+            </Text>
+          </View>
+          <ChevronRight size={20} color={colors.neutral[300]} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
+          <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
+            <Calendar size={20} color="#2196F3" />
+          </View>
+          <View style={styles.dropdownItemText}>
+            <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
+            <Text style={styles.dropdownItemSubtitle}>
+              View your saved recipes
+            </Text>
+          </View>
+          <ChevronRight size={20} color={colors.neutral[300]} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.dropdownItem, styles.dropdownItemLast]} 
+          onPress={onFavoritesPress}
+        >
+          <View style={[styles.dropdownIcon, { backgroundColor: '#FFEBEE' }]}>
+            <Heart size={20} color="#F44336" />
+          </View>
+          <View style={styles.dropdownItemText}>
+            <Text style={styles.dropdownItemTitle}>Favorite Recipes</Text>
+            <Text style={styles.dropdownItemSubtitle}>
+              Quick access to favorites
+            </Text>
+          </View>
+          <ChevronRight size={20} color={colors.neutral[300]} />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+};
 
 // Enhanced Filter Modal Component
 const FilterModal: React.FC<{
@@ -360,7 +476,7 @@ export default function Recipes() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showFilters, setShowFilters] = React.useState(false);
   
-  // VIEW MODE STATE - YENİ EKLENEN
+  // VIEW MODE STATE
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   
   // Cookbook filter states
@@ -550,7 +666,7 @@ export default function Recipes() {
     setSelectedCookbook('all');
   };
 
-  // Handle recipe press - FIXED NAVIGATION
+  // Handle recipe press
   const handleRecipePress = (recipe: Recipe) => {
     console.log('Recipe pressed:', recipe.id);
     router.push(`/recipe/${recipe.id}`);
@@ -601,6 +717,31 @@ export default function Recipes() {
     );
   };
 
+  // YENİ: Quick Action handlers
+  const handleSocialPress = () => {
+    Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
+  };
+
+  const handleAIRecipesPress = () => {
+    // Show only AI generated recipes
+    const aiRecipes = recipes.filter(r => r.is_ai_generated);
+    setRecipes(aiRecipes);
+  };
+
+  const handleLibraryPress = () => {
+    router.push('/library');
+  };
+
+  const handleFavoritesPress = () => {
+    // Show only favorites
+    const favoriteRecipes = recipes.filter(r => r.is_favorite);
+    if (favoriteRecipes.length === 0) {
+      Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
+    } else {
+      setFilteredRecipes(favoriteRecipes);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -621,7 +762,7 @@ export default function Recipes() {
           </Text>
         </View>
         
-        {/* VIEW MODE TOGGLE - YENİ EKLENEN */}
+        {/* VIEW MODE TOGGLE */}
         <View style={styles.viewToggle}>
           <TouchableOpacity
             style={[
@@ -676,44 +817,15 @@ export default function Recipes() {
         </TouchableOpacity>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Social/Community recipes
-          Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
-        }}>
-          <Share2 size={20} color={colors.primary[500]} />
-          <Text style={styles.quickActionText}>Social</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Show only AI generated recipes
-          const aiRecipes = recipes.filter(r => r.is_ai_generated);
-          setRecipes(aiRecipes);
-        }}>
-          <ChefHat size={20} color={colors.secondary[500]} />
-          <Text style={styles.quickActionText}>AI Recipes</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
-          <Calendar size={20} color={colors.accent[500]} />
-          <Text style={styles.quickActionText}>Library</Text>
-          <Text style={styles.quickActionSubtext}>Import your own</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Show only favorites
-          const favoriteRecipes = recipes.filter(r => r.is_favorite);
-          if (favoriteRecipes.length === 0) {
-            Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
-          }
-        }}>
-          <Heart size={20} color={colors.error[500]} />
-          <Text style={styles.quickActionText}>Favorites</Text>
-        </TouchableOpacity>
-      </View>
+      {/* YENİ: Quick Actions Dropdown */}
+      <QuickActionsDropdown
+        onSocialPress={handleSocialPress}
+        onAIRecipesPress={handleAIRecipesPress}
+        onLibraryPress={handleLibraryPress}
+        onFavoritesPress={handleFavoritesPress}
+      />
 
-      {/* Recipes List/Grid - YENİ RecipeGrid COMPONENT KULLANIMI */}
+      {/* Recipes List/Grid */}
       <ScrollView
         style={styles.recipesContainer}
         showsVerticalScrollIndicator={false}
@@ -799,7 +911,7 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
   },
   
-  // VIEW TOGGLE STYLES - YENİ EKLENEN
+  // VIEW TOGGLE STYLES
   viewToggle: {
     flexDirection: 'row',
     backgroundColor: colors.neutral[100],
@@ -871,6 +983,77 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: colors.neutral[0],
+  },
+
+  // YENİ: Quick Actions Dropdown Styles
+  quickActionsDropdown: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  dropdownHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.neutral[800],
+  },
+  dropdownSubtitle: {
+    fontSize: 13,
+    color: colors.neutral[500],
+  },
+  dropdownContent: {
+    backgroundColor: colors.neutral[50],
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  dropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  dropdownIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  dropdownItemText: {
+    flex: 1,
+  },
+  dropdownItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: 2,
+  },
+  dropdownItemSubtitle: {
+    fontSize: 13,
+    color: colors.neutral[500],
   },
   
   // Filter Modal Styles
@@ -978,32 +1161,6 @@ const styles = StyleSheet.create({
     color: colors.neutral[0],
   },
 
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.md,
-  },
-  quickAction: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-    gap: spacing.xs,
-    ...shadows.sm,
-  },
-  quickActionText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    color: colors.neutral[600],
-  },
-  quickActionSubtext: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[400],
-    marginTop: 2,
-  },
   recipesContainer: {
     flex: 1,
   },
