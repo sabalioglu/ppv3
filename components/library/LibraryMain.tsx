@@ -44,21 +44,18 @@ import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
-
 // **Cookbook Imports**
 import { Cookbook } from '../../types/cookbook';
 import { CookbookBottomSheet } from './modals/CookbookBottomSheet';
+import { EditCookbookBottomSheet } from './modals/EditCookbookBottomSheet';
 // **Recipe AI Service Imports**
 import { extractRecipeFromUrl, ExtractedRecipeData } from '../../lib/recipeAIService';
 import { extractVideoRecipe, detectVideoPlatform } from '../../lib/supabase-functions';
 
-
 // **Import the hook**
 import { useCookbookManager } from '../../hooks/useCookbookManager';
 
-
 const { width, height } = Dimensions.get('window');
-
 
 // **Recipe Interface (Supabase Schema Aligned)**
 interface Recipe {
@@ -91,14 +88,12 @@ interface Recipe {
   updated_at: string;
 }
 
-
 // **Enhanced Filter Categories**
 interface FilterCategory {
   id: string;
   title: string;
   options: Array<{ id: string; label: string; count?: number }>;
 }
-
 
 const filterCategories: FilterCategory[] = [
   {
@@ -162,7 +157,6 @@ const filterCategories: FilterCategory[] = [
   }
 ];
 
-
 // **Updated Import Categories**
 interface ImportCategory {
   id: string;
@@ -171,7 +165,6 @@ interface ImportCategory {
   color: string;
   description: string;
 }
-
 
 const importCategories: ImportCategory[] = [
   {
@@ -204,7 +197,6 @@ const importCategories: ImportCategory[] = [
   }
 ];
 
-
 // **Import Categories Modal Component**
 const ImportCategoriesModal: React.FC<{
   visible: boolean;
@@ -212,7 +204,6 @@ const ImportCategoriesModal: React.FC<{
   onSelect: (categoryId: string) => void;
 }> = ({ visible, onClose, onSelect }) => {
   if (!visible) return null;
-
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -231,7 +222,6 @@ const ImportCategoriesModal: React.FC<{
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-
 
           <View style={styles.importModalContent}>
             {importCategories.map((category, index) => {
@@ -265,7 +255,6 @@ const ImportCategoriesModal: React.FC<{
   );
 };
 
-
 // **Manual Recipe Form Modal Component**
 const ManualRecipeModal: React.FC<{
   visible: boolean;
@@ -286,7 +275,6 @@ const ManualRecipeModal: React.FC<{
   });
   const [loading, setLoading] = useState(false);
 
-
   const resetForm = () => {
     setFormData({
       title: '',
@@ -302,7 +290,6 @@ const ManualRecipeModal: React.FC<{
     });
   };
 
-
   const handleSave = async () => {
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Recipe title is required');
@@ -317,7 +304,6 @@ const ManualRecipeModal: React.FC<{
       return;
     }
 
-
     setLoading(true);
     try {
       const ingredientsList = formData.ingredients
@@ -330,7 +316,6 @@ const ManualRecipeModal: React.FC<{
           notes: ''
         }));
 
-
       const instructionsList = formData.instructions
         .split('\n')
         .filter(line => line.trim())
@@ -340,12 +325,10 @@ const ManualRecipeModal: React.FC<{
           duration_mins: undefined
         }));
 
-
       const tagsList = formData.tags
         .split(',')
         .map(tag => tag.trim())
         .filter(tag => tag);
-
 
       const recipeData = {
         title: formData.title.trim(),
@@ -362,7 +345,6 @@ const ManualRecipeModal: React.FC<{
         is_favorite: false,
       };
 
-
       await onSave(recipeData);
       resetForm();
       onClose();
@@ -373,7 +355,6 @@ const ManualRecipeModal: React.FC<{
       setLoading(false);
     }
   };
-
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -549,7 +530,6 @@ const ManualRecipeModal: React.FC<{
   );
 };
 
-
 // **Enhanced Filter Modal Component**
 const FilterModal: React.FC<{
   visible: boolean;
@@ -563,14 +543,12 @@ const FilterModal: React.FC<{
     meal_type: true,
   });
 
-
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => ({
       ...prev,
       [categoryId]: !prev[categoryId]
     }));
   };
-
 
   const updateFilter = (categoryId: string, optionId: string) => {
     setLocalFilters(prev => ({
@@ -579,12 +557,10 @@ const FilterModal: React.FC<{
     }));
   };
 
-
   const applyFilters = () => {
     onFiltersChange(localFilters);
     onClose();
   };
-
 
   const clearAllFilters = () => {
     const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
@@ -595,7 +571,6 @@ const FilterModal: React.FC<{
     onFiltersChange(clearedFilters);
     onClose();
   };
-
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -670,7 +645,6 @@ const FilterModal: React.FC<{
   );
 };
 
-
 // **Enhanced URL Import Modal with Edge Functions**
 const URLImportModal: React.FC<{
   visible: boolean;
@@ -681,7 +655,6 @@ const URLImportModal: React.FC<{
 }> = ({ visible, onClose, onImport, selectedSource, loading }) => {
   const [url, setUrl] = useState('');
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState('Our AI chef is cooking up your recipe...');
-
 
   const getLoadingMessages = (url: string) => {
     const baseMessages = [
@@ -696,7 +669,6 @@ const URLImportModal: React.FC<{
   "Almost ready to serve!",
   "Adding AI magic..."
 ];
-
 
 const platformMessages: { [key: string]: string[] } = {
   tiktok: [
@@ -731,20 +703,15 @@ const platformMessages: { [key: string]: string[] } = {
   ]
 };
 
-
-
-
     let platform = selectedSource || 'web';
     if (url.includes('tiktok.com') || url.includes('vt.tiktok.com')) platform = 'tiktok';
     else if (url.includes('instagram.com')) platform = 'instagram';
     else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
     else if (url.includes('facebook.com') || url.includes('fb.watch')) platform = 'facebook';
 
-
     const specificMessages = platformMessages[platform] || platformMessages.web;
     return [...specificMessages, ...baseMessages].slice(0, 8);
   };
-
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -763,7 +730,6 @@ const platformMessages: { [key: string]: string[] } = {
     return () => clearInterval(interval);
   }, [loading, url]);
 
-
   const getSourceInfo = () => {
     if (selectedSource === 'web') {
       return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
@@ -774,9 +740,7 @@ const platformMessages: { [key: string]: string[] } = {
     return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
   };
 
-
   const sourceInfo = getSourceInfo();
-
 
   const handleImport = async () => {
     if (!url.trim()) {
@@ -792,18 +756,15 @@ const platformMessages: { [key: string]: string[] } = {
     }
   };
 
-
   const clearInput = () => {
     setUrl('');
   };
-
 
   const getPlaceholderUrl = () => {
     if (selectedSource === 'web') return 'https://example.com/recipe';
     if (selectedSource === 'socials') return 'https://tiktok.com/@user/video/...';
     return 'https://example.com/recipe';
   };
-
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -824,12 +785,10 @@ const platformMessages: { [key: string]: string[] } = {
             </TouchableOpacity>
           </View>
 
-
           <Text style={styles.urlModalDescription}>
             Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
             including ingredients, instructions, and nutritional information.
           </Text>
-
 
           <View style={styles.urlInputWrapper}>
             <View style={styles.urlInputContainer}>
@@ -853,7 +812,6 @@ const platformMessages: { [key: string]: string[] } = {
             </View>
           </View>
 
-
           <View style={styles.exampleUrlsContainer}>
             <Text style={styles.exampleUrlsTitle}>
               {selectedSource === 'socials' ? 'Supported channels:' : 'Supported formats:'}
@@ -863,7 +821,6 @@ const platformMessages: { [key: string]: string[] } = {
               {selectedSource === 'socials' && '- TikTok video recipes\n- Instagram Reels & posts\n- YouTube cooking videos\n- Facebook recipe videos'}
             </Text>
           </View>
-
 
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
@@ -898,7 +855,6 @@ const platformMessages: { [key: string]: string[] } = {
   );
 };
 
-
 // **Recipe Card Component**
 interface RecipeCardProps {
   recipe: Recipe;
@@ -912,7 +868,6 @@ interface RecipeCardProps {
   onSelect?: () => void;
   selectionMode?: boolean;
 }
-
 
 const RecipeCard: React.FC<RecipeCardProps> = ({
   recipe,
@@ -934,7 +889,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       default: return colors.neutral[500];
     }
   };
-
 
   if (viewMode === 'list') {
     return (
@@ -1016,7 +970,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       </TouchableOpacity>
     );
   }
-
 
   return (
     <TouchableOpacity 
@@ -1107,7 +1060,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   );
 };
 
-
 // **Empty State Component**
 const EmptyState: React.FC<{
   hasFilters: boolean;
@@ -1136,7 +1088,6 @@ const EmptyState: React.FC<{
     );
   }
 
-
   return (
     <View style={styles.emptyStateContainer}>
       <BookOpen size={64} color={colors.primary[500]} />
@@ -1154,7 +1105,6 @@ const EmptyState: React.FC<{
   );
 };
 
-
 // **Main Library Component**
 export default function Library() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -1171,11 +1121,11 @@ export default function Library() {
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
+  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
   
   // Selection mode states
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
-
 
   // Use the cookbook manager hook
   const { 
@@ -1185,7 +1135,6 @@ export default function Library() {
     loadCookbooks 
   } = useCookbookManager();
 
-
   const [filters, setFilters] = useState<{ [key: string]: string }>({
     meal_type: 'all',
     diet: 'all',
@@ -1193,7 +1142,6 @@ export default function Library() {
     difficulty: 'all',
     cuisine: 'all',
   });
-
 
   const loadLibraryData = async () => {
     try {
@@ -1206,9 +1154,7 @@ export default function Library() {
         return;
       }
 
-
       console.log('👤 User ID:', user.id);
-
 
       // Load recipes only - cookbooks are handled by the hook
       const { data: recipesData, error: recipesError } = await supabase
@@ -1217,16 +1163,13 @@ export default function Library() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-
       if (recipesError) {
         console.error('❌ Error loading recipes:', recipesError);
         Alert.alert('Error', 'Failed to load recipes');
         return;
       }
 
-
       console.log('📝 Recipes loaded:', recipesData?.length || 0);
-
 
       const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
         id: dbRecipe.id,
@@ -1250,7 +1193,6 @@ export default function Library() {
         updated_at: dbRecipe.updated_at,
       }));
 
-
       setRecipes(formattedRecipes);
       console.log('✅ Library data loaded successfully');
     } catch (error) {
@@ -1262,23 +1204,19 @@ export default function Library() {
     }
   };
 
-
   useEffect(() => {
     loadLibraryData();
   }, []);
-
 
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
     setShowAddToCookbook(true);
   };
 
-
   const toggleSelectionMode = () => {
     setSelectionMode(!selectionMode);
     setSelectedRecipes([]);
   };
-
 
   const toggleRecipeSelection = (recipeId: string) => {
     setSelectedRecipes(prev => {
@@ -1289,19 +1227,15 @@ export default function Library() {
     });
   };
 
-
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-
     const matchesMealType = filters.meal_type === 'all' ||
       recipe.category.toLowerCase() === filters.meal_type.toLowerCase();
 
-
     const matchesDiet = filters.diet === 'all' ||
       recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()));
-
 
     const totalTime = recipe.prep_time + recipe.cook_time;
     const matchesCookTime = filters.cook_time === 'all' ||
@@ -1310,21 +1244,16 @@ export default function Library() {
       (filters.cook_time === 'under_60' && totalTime < 60) ||
       (filters.cook_time === 'over_60' && totalTime >= 60);
 
-
     const matchesDifficulty = filters.difficulty === 'all' ||
       recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
-
 
     const matchesFavorites = filterMode === 'all' ||
       (filterMode === 'favorites' && recipe.is_favorite);
 
-
     return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty && matchesFavorites;
   });
 
-
   const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all') || filterMode !== 'all';
-
 
   const clearAllFilters = () => {
     setFilters({
@@ -1336,7 +1265,6 @@ export default function Library() {
     });
     setFilterMode('all');
   };
-
 
   const handleImportCategorySelect = (categoryId: string) => {
     if (categoryId === 'camera') {
@@ -1358,7 +1286,6 @@ export default function Library() {
       setShowURLImport(true);
     }
   };
-
 
   const handleManualRecipeSave = async (recipeData: any) => {
     try {
@@ -1383,11 +1310,9 @@ export default function Library() {
     }
   };
 
-
   const handleFavoritesFilter = () => {
     setFilterMode(filterMode === 'favorites' ? 'all' : 'favorites');
   };
-
 
   const handleFavorite = async (recipeId: string) => {
     try {
@@ -1410,7 +1335,6 @@ export default function Library() {
       Alert.alert('Error', 'Failed to update favorite status');
     }
   };
-
 
   const handleDelete = async (recipeId: string) => {
     const recipe = recipes.find(r => r.id === recipeId);
@@ -1444,7 +1368,6 @@ export default function Library() {
     );
   };
 
-
   const handleURLImport = async (url: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1453,19 +1376,15 @@ export default function Library() {
         return;
       }
 
-
       setIsImporting(true);
-
 
       if (!url.trim() || !url.includes('http')) {
         Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
         return;
       }
 
-
       const videoPlatforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'vt.tiktok.com', 'instagram.com', 'facebook.com', 'fb.watch'];
       const isVideoUrl = videoPlatforms.some(platform => url.includes(platform));
-
 
       if (isVideoUrl) {
         console.log('🎥 Detected video URL, using video extraction...');
@@ -1475,7 +1394,6 @@ export default function Library() {
           Alert.alert('Unsupported Platform', 'This video platform is not supported yet.');
           return;
         }
-
 
         const result = await extractVideoRecipe(url, user.id);
         
@@ -1487,16 +1405,13 @@ export default function Library() {
           return;
         }
 
-
         Alert.alert(
           'Success! 🎉', 
           `"${result.recipe.title}" has been extracted from the video and saved to your library!`,
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-
         await loadLibraryData();
-
 
       } else {
         console.log('🌐 Detected web URL, using web extraction...');
@@ -1509,7 +1424,6 @@ export default function Library() {
           );
           return;
         }
-
 
         const newRecipe = {
           user_id: user.id,
@@ -1530,9 +1444,7 @@ export default function Library() {
           source_url: url.trim(),
         };
 
-
         const { error } = await supabase.from('user_recipes').insert(newRecipe);
-
 
         if (error) {
           console.error('Error saving AI extracted recipe:', error);
@@ -1540,17 +1452,14 @@ export default function Library() {
           return;
         }
 
-
         Alert.alert(
           'Success!', 
           `"${newRecipe.title}" has been successfully imported to your library!`,
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-
         await loadLibraryData();
       }
-
 
     } catch (error: any) {
       console.error('URL import process error:', error);
@@ -1565,7 +1474,6 @@ export default function Library() {
     }
   };
 
-
   if (loading || cookbooksLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1574,7 +1482,6 @@ export default function Library() {
       </View>
     );
   }
-
 
   return (
     <View style={styles.container}>
@@ -1674,9 +1581,9 @@ export default function Library() {
         <View style={styles.cookbooksSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Cookbooks</Text>
-            <TouchableOpacity onPress={() => router.push('/library/create-cookbook')}>
-  <Plus size={20} color={colors.primary[500]} />
-</TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
+              <Plus size={20} color={colors.primary[500]} />
+            </TouchableOpacity>
           </View>
           
           <ScrollView 
@@ -1686,15 +1593,14 @@ export default function Library() {
           >
             {/* New Cookbook Card */}
             <TouchableOpacity
-  style={styles.newCookbookCard}
-  onPress={() => router.push('/library/create-cookbook')}
+              style={styles.newCookbookCard}
+              onPress={() => setShowCreateCookbook(true)}
             >
               <View style={styles.newCookbookIcon}>
                 <Plus size={24} color={colors.primary[500]} />
               </View>
               <Text style={styles.newCookbookText}>New cookbook</Text>
             </TouchableOpacity>
-
 
             {/* Existing Cookbooks */}
             {cookbooks.map((cookbook, cookbookIndex) => (
@@ -1710,7 +1616,6 @@ export default function Library() {
             ))}
           </ScrollView>
         </View>
-
 
         {/* Recipes Section */}
         <View style={styles.recipesSection}>
@@ -1799,7 +1704,6 @@ export default function Library() {
         loading={isImporting}
       />
 
-
       {/* Cookbook Selection Modal */}
       {selectedRecipeForCookbook && (
         <CookbookBottomSheet
@@ -1813,6 +1717,23 @@ export default function Library() {
           recipeTitle={selectedRecipeForCookbook.title}
         />
       )}
+
+      {/* Create Cookbook BottomSheet */}
+      <EditCookbookBottomSheet
+        visible={showCreateCookbook}
+        onClose={() => setShowCreateCookbook(false)}
+        cookbook={{
+          id: 'new',
+          name: '',
+          description: '',
+          emoji: '📚',
+          color: colors.primary[500]
+        }}
+        onUpdate={() => {
+          setShowCreateCookbook(false);
+          loadCookbooks();
+        }}
+      />
       
       <TouchableOpacity
         style={styles.floatingAddButton}
@@ -1823,7 +1744,6 @@ export default function Library() {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
