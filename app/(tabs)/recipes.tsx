@@ -1,3 +1,4 @@
+//app>(tabs)>recipes.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  Modal,
 } from 'react-native';
 import {
   Search,
@@ -25,16 +25,14 @@ import {
   Plus,
   Share2,
   Calendar,
-  X,
-  ChevronDown,
-  Check,
-  Book,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
+
 const { width } = Dimensions.get('window');
+
 
 // Recipe interface (aligned with Supabase schema)
 interface Recipe {
@@ -65,711 +63,18 @@ interface Recipe {
   updated_at: string;
 }
 
-// Filter Categories
-interface FilterCategory {
-  id: string;
-  title: string;
-  options: Array<{ id: string; label: string }>;
-}
 
-const filterCategories: FilterCategory[] = [
-  {
-    id: 'category',
-    title: 'Category',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'breakfast', label: 'Breakfast' },
-      { id: 'lunch', label: 'Lunch' },
-      { id: 'dinner', label: 'Dinner' },
-      { id: 'snacks', label: 'Snacks' },
-      { id: 'desserts', label: 'Desserts' },
-    ]
-  },
-  {
-    id: 'diet',
-    title: 'Diet',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'vegetarian', label: 'Vegetarian' },
-      { id: 'vegan', label: 'Vegan' },
-      { id: 'keto', label: 'Keto' },
-      { id: 'low-carb', label: 'Low-Carb' },
-      { id: 'high-protein', label: 'High-Protein' },
-      { id: 'gluten-free', label: 'Gluten-Free' },
-    ]
-  },
-  {
-    id: 'difficulty',
-    title: 'Difficulty',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'easy', label: 'Easy' },
-      { id: 'medium', label: 'Medium' },
-      { id: 'hard', label: 'Hard' },
-    ]
-  }
-];
+const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'];
+const dietTags = ['All', 'Vegetarian', 'Vegan', 'Keto', 'Low-Carb', 'High-Protein', 'Gluten-Free'];
+const difficulties = ['All', 'Easy', 'Medium', 'Hard'];
 
-// Enhanced Filter Modal Component
-const FilterModal: React.FC<{
-  visible: boolean;
-  onClose: () => void;
-  filters: { [key: string]: string };
-  onFiltersChange: (filters: { [key: string]: string }) => void;
-  recipeCount: number;
-  userCookbooks: any[];
-  selectedCookbook: string;
-  onCookbookChange: (cookbookId: string) => void;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
-  const [localFilters, setLocalFilters] = useState(filters);
-  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
-    category: true,
-    cookbook: true,
-  });
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [categoryId]: !prev[categoryId]
-    }));
-  };
-
-  const updateFilter = (categoryId: string, optionId: string) => {
-    setLocalFilters(prev => ({
-      ...prev,
-      [categoryId]: optionId
-    }));
-  };
-
-  const applyFilters = () => {
-    onFiltersChange(localFilters);
-    onClose();
-  };
-
-  const clearAllFilters = () => {
-    const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
-      acc[key] = 'all';
-      return acc;
-    }, {} as { [key: string]: string });
-    setLocalFilters(clearedFilters);
-    onFiltersChange(clearedFilters);
-    onCookbookChange('all');
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.filterModalContainer}>
-        <View style={styles.filterModalHeader}>
-          <TouchableOpacity onPress={onClose}>
-            <X size={24} color={colors.neutral[600]} />
-          </TouchableOpacity>
-          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
-          <TouchableOpacity onPress={clearAllFilters}>
-            <Text style={styles.clearAllText}>Clear All</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
-          {/* Cookbook Filter */}
-          <View style={styles.filterCategoryContainer}>
-            <TouchableOpacity
-              style={styles.filterCategoryHeader}
-              onPress={() => toggleCategory('cookbook')}
-            >
-              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
-              <ChevronDown
-                size={20}
-                color={colors.neutral[600]}
-                style={[
-                  styles.chevronIcon,
-                  expandedCategories.cookbook && styles.chevronIconExpanded
-                ]}
-              />
-            </TouchableOpacity>
-            {expandedCategories.cookbook && (
-              <View style={styles.filterOptionsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterOption,
-                    selectedCookbook === 'all' && styles.filterOptionSelected
-                  ]}
-                  onPress={() => onCookbookChange('all')}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      selectedCookbook === 'all' && styles.filterOptionTextSelected
-                    ]}
-                  >
-                    All Recipes
-                  </Text>
-                  {selectedCookbook === 'all' && (
-                    <Check size={16} color={colors.primary[500]} />
-                  )}
-                </TouchableOpacity>
-                {userCookbooks.map((cookbook) => (
-                  <TouchableOpacity
-                    key={cookbook.id}
-                    style={[
-                      styles.filterOption,
-                      selectedCookbook === cookbook.id && styles.filterOptionSelected
-                    ]}
-                    onPress={() => onCookbookChange(cookbook.id)}
-                  >
-                    <View style={styles.filterOptionWithEmoji}>
-                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
-                        ]}
-                      >
-                        {cookbook.name}
-                      </Text>
-                    </View>
-                    {selectedCookbook === cookbook.id && (
-                      <Check size={16} color={colors.primary[500]} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Existing Filter Categories */}
-          {filterCategories.map((category, categoryIndex) => (
-            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
-              <TouchableOpacity
-                style={styles.filterCategoryHeader}
-                onPress={() => toggleCategory(category.id)}
-              >
-                <Text style={styles.filterCategoryTitle}>{category.title}</Text>
-                <ChevronDown
-                  size={20}
-                  color={colors.neutral[600]}
-                  style={[
-                    styles.chevronIcon,
-                    expandedCategories[category.id] && styles.chevronIconExpanded
-                  ]}
-                />
-              </TouchableOpacity>
-              {expandedCategories[category.id] && (
-                <View style={styles.filterOptionsContainer}>
-                  {category.options.map((option, optionIndex) => {
-                    const isSelected = localFilters[category.id] === option.id;
-                    return (
-                      <TouchableOpacity
-                        key={`${category.id}-${option.id}-${optionIndex}`}
-                        style={[
-                          styles.filterOption,
-                          isSelected && styles.filterOptionSelected
-                        ]}
-                        onPress={() => updateFilter(category.id, option.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.filterOptionText,
-                            isSelected && styles.filterOptionTextSelected
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                        {isSelected && (
-                          <Check size={16} color={colors.primary[500]} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.filterModalFooter}>
-          <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
-            <Text style={styles.applyFiltersText}>
-              Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// RecipeCard ve EmptyState componentleri aynı kalacak...
-
-export default function Recipes() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  
-  // Cookbook filter state
-  const [selectedCookbook, setSelectedCookbook] = useState('all');
-  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
-
-  const [filters, setFilters] = useState<{ [key: string]: string }>({
-    category: 'all',
-    diet: 'all',
-    difficulty: 'all',
-  });
-
-  // Load user cookbooks
-  useEffect(() => {
-    loadUserCookbooks();
-  }, []);
-
-  const loadUserCookbooks = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('cookbooks')
-        .select('*, recipe_cookbooks(count)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUserCookbooks(data || []);
-    } catch (error) {
-      console.error('Error loading cookbooks:', error);
-    }
-  };
-
-  // Load recipes from Supabase
-  const loadRecipes = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view recipes.');
-        return;
-      }
-
-      const { data: recipesData, error } = await supabase
-        .from('user_recipes')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_ai_generated', true) // SADECE AI RECIPES
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error loading recipes:', error);
-        Alert.alert('Error', 'Failed to load recipes');
-        return;
-      }
-
-      // Format recipes (aligned with Supabase schema)
-      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
-        id: dbRecipe.id,
-        title: dbRecipe.title,
-        description: dbRecipe.description || '',
-        image_url: dbRecipe.image_url,
-        prep_time: dbRecipe.prep_time || 0,
-        cook_time: dbRecipe.cook_time || 0,
-        servings: dbRecipe.servings || 1,
-        difficulty: dbRecipe.difficulty || 'Easy',
-        ingredients: dbRecipe.ingredients || [],
-        instructions: dbRecipe.instructions || [],
-        nutrition: dbRecipe.nutrition,
-        tags: dbRecipe.tags || [],
-        category: dbRecipe.category || 'General',
-        is_favorite: dbRecipe.is_favorite || false,
-        is_ai_generated: dbRecipe.is_ai_generated || false,
-        source_url: dbRecipe.source_url,
-        ai_match_score: dbRecipe.ai_match_score,
-        created_at: dbRecipe.created_at,
-        updated_at: dbRecipe.updated_at,
-      }));
-
-      setRecipes(formattedRecipes);
-    } catch (error) {
-      console.error('Error loading recipes:', error);
-      Alert.alert('Error', 'Failed to load recipes');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadRecipes();
-  }, []);
-
-  // Apply filters function
-  const applyFilters = async (recipesToFilter: Recipe[]) => {
-    let filtered = [...recipesToFilter];
-
-    // Cookbook filter
-    if (selectedCookbook !== 'all') {
-      // Cookbook'taki recipe ID'lerini al
-      const { data: cookbookRecipes } = await supabase
-        .from('recipe_cookbooks')
-        .select('recipe_id')
-        .eq('cookbook_id', selectedCookbook);
-
-      const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
-      filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
-    }
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        recipe.description?.toLowerCase().includes(query)
-      );
-    }
-
-    // Category filter
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.category.toLowerCase() === filters.category.toLowerCase()
-      );
-    }
-
-    // Diet filter
-    if (filters.diet !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()))
-      );
-    }
-
-    // Difficulty filter
-    if (filters.difficulty !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
-      );
-    }
-
-    return filtered;
-  };
-
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
-
-  useEffect(() => {
-    const filterRecipes = async () => {
-      const filtered = await applyFilters(recipes);
-      setFilteredRecipes(filtered);
-    };
-    filterRecipes();
-  }, [recipes, searchQuery, filters, selectedCookbook]);
-
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.category !== 'all') count++;
-    if (filters.diet !== 'all') count++;
-    if (filters.difficulty !== 'all') count++;
-    if (selectedCookbook !== 'all') count++;
-    return count;
-  };
-
-  const hasActiveFilters = getActiveFilterCount() > 0;
-
-  const clearAllFilters = () => {
-    setFilters({
-      category: 'all',
-      diet: 'all',
-      difficulty: 'all',
-    });
-    setSelectedCookbook('all');
-  };
-
-  // Handle recipe press - FIXED NAVIGATION
-  const handleRecipePress = (recipeId: string) => {
-    console.log('Recipe pressed:', recipeId);
-    router.push(`/recipe/${recipeId}`);
-  };
-
-  // Handle favorite toggle
-  const handleFavorite = async (recipeId: string) => {
-    try {
-      const recipe = recipes.find(r => r.id === recipeId);
-      if (!recipe) return;
-
-      const newFavoriteStatus = !recipe.is_favorite;
-
-      const { error } = await supabase
-        .from('user_recipes')
-        .update({ is_favorite: newFavoriteStatus })
-        .eq('id', recipeId);
-
-      if (error) {
-        Alert.alert('Error', 'Failed to update favorite status');
-        return;
-      }
-
-      setRecipes(prev => prev.map(r =>
-        r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
-      ));
-    } catch (error) {
-      console.error('Error updating favorite:', error);
-      Alert.alert('Error', 'Failed to update favorite status');
-    }
-  };
-
-  // Handle add recipe (navigate to library)
-  const handleAddRecipe = () => {
-    router.push('/library');
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading your recipes...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI Recipe Discovery</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredRecipes.length} AI-generated recipes
-        </Text>
-      </View>
-
-      {/* Search and Controls */}
-      <View style={styles.controls}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[400]} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search recipes..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={colors.neutral[400]}
-          />
-        </View>
-        <TouchableOpacity
-          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
-          {getActiveFilterCount() > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{getActiveFilterCount()}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Social/Community recipes
-          Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
-        }}>
-          <Share2 size={20} color={colors.primary[500]} />
-          <Text style={styles.quickActionText}>Social</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Show only AI generated recipes
-          const aiRecipes = recipes.filter(r => r.is_ai_generated);
-          setRecipes(aiRecipes);
-        }}>
-          <ChefHat size={20} color={colors.secondary[500]} />
-          <Text style={styles.quickActionText}>AI Recipes</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
-          <Calendar size={20} color={colors.accent[500]} />
-          <Text style={styles.quickActionText}>Library</Text>
-          <Text style={styles.quickActionSubtext}>Import your own</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.quickAction} onPress={() => {
-          // Show only favorites
-          const favoriteRecipes = recipes.filter(r => r.is_favorite);
-          if (favoriteRecipes.length === 0) {
-            Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
-          }
-        }}>
-          <Heart size={20} color={colors.error[500]} />
-          <Text style={styles.quickActionText}>Favorites</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Recipes List */}
-      <ScrollView
-        style={styles.recipesContainer}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.recipesContent}
-      >
-        {filteredRecipes.length > 0 ? (
-          filteredRecipes.map(recipe => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              onPress={() => handleRecipePress(recipe.id)}
-              onFavorite={() => handleFavorite(recipe.id)}
-            />
-          ))
-        ) : (
-          <EmptyState
-            hasFilters={hasActiveFilters}
-            onAddRecipe={handleAddRecipe}
-            onClearFilters={clearAllFilters}
-          />
-        )}
-      </ScrollView>
-
-      {/* Filter Modal */}
-      <FilterModal
-        visible={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        filters={filters}
-        onFiltersChange={setFilters}
-        recipeCount={filteredRecipes.length}
-        userCookbooks={userCookbooks}
-        selectedCookbook={selectedCookbook}
-        onCookbookChange={setSelectedCookbook}
-      />
-
-      {/* Add Recipe Button */}
-      <TouchableOpacity style={styles.addButton} onPress={handleAddRecipe}>
-        <Plus size={28} color={colors.neutral[0]} />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// Styles'a eklenecek yeni stiller:
-const styles = StyleSheet.create({
-  // ... mevcut stiller aynı kalacak ...
-  
-  // Filter Modal Styles
-  filterModalContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  filterModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  filterModalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  clearAllText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[500],
-  },
-  filterModalContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  filterCategoryContainer: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  filterCategoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  filterCategoryTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  chevronIcon: {
-    transform: [{ rotate: '0deg' }],
-  },
-  chevronIconExpanded: {
-    transform: [{ rotate: '180deg' }],
-  },
-  filterOptionsContainer: {
-    paddingTop: spacing.sm,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginVertical: 2,
-    borderRadius: 8,
-  },
-  filterOptionSelected: {
-    backgroundColor: colors.primary[50],
-  },
-  filterOptionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[700],
-  },
-  filterOptionTextSelected: {
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  filterModalFooter: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  applyFiltersButton: {
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  applyFiltersText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
-  },
-  filterOptionWithEmoji: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cookbookEmoji: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-// RecipeCard Component
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
   onFavorite: () => void;
 }
+
 
 const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) => {
   const getDifficultyColor = (difficulty: string) => {
@@ -780,6 +85,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
       default: return colors.neutral[500];
     }
   };
+
 
   const calculateNutritionScore = (nutrition?: Recipe['nutrition']) => {
     if (!nutrition) return 85; // Default score
@@ -805,9 +111,11 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
     return Math.min(score, 100);
   };
 
+
   const nutritionScore = calculateNutritionScore(recipe.nutrition);
   const totalTime = recipe.prep_time + recipe.cook_time;
   const totalIngredients = recipe.ingredients.length;
+
 
   return (
     <TouchableOpacity style={styles.recipeCard} onPress={onPress}>
@@ -922,6 +230,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavorite }) 
   );
 };
 
+
 // Empty State Component
 const EmptyState: React.FC<{
   hasFilters: boolean;
@@ -949,6 +258,7 @@ const EmptyState: React.FC<{
     );
   }
 
+
   return (
     <View style={styles.emptyStateContainer}>
       <ChefHat size={64} color={colors.primary[500]} />
@@ -966,7 +276,490 @@ const EmptyState: React.FC<{
   );
 };
 
-// Mevcut stiller (devamı)
+
+export default function Recipes() {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedDiet, setSelectedDiet] = useState('All');
+  const [selectedDifficulty, setSelectedDifficulty] = useState('All');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Cookbook filter states
+  const [selectedCookbook, setSelectedCookbook] = useState('All');
+  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+
+
+  // Load user cookbooks
+  const loadUserCookbooks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('cookbooks')
+        .select('*, recipe_cookbooks(count)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUserCookbooks(data || []);
+    } catch (error) {
+      console.error('Error loading cookbooks:', error);
+    }
+  };
+
+  // Load recipes from Supabase
+  const loadRecipes = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to view recipes.');
+        return;
+      }
+
+
+      const { data: recipesData, error } = await supabase
+        .from('user_recipes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_ai_generated', true) // SADECE AI RECIPES
+        .order('created_at', { ascending: false });
+
+
+      if (error) {
+        console.error('Error loading recipes:', error);
+        Alert.alert('Error', 'Failed to load recipes');
+        return;
+      }
+
+
+      // Format recipes (aligned with Supabase schema)
+      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+        id: dbRecipe.id,
+        title: dbRecipe.title,
+        description: dbRecipe.description || '',
+        image_url: dbRecipe.image_url,
+        prep_time: dbRecipe.prep_time || 0,
+        cook_time: dbRecipe.cook_time || 0,
+        servings: dbRecipe.servings || 1,
+        difficulty: dbRecipe.difficulty || 'Easy',
+        ingredients: dbRecipe.ingredients || [],
+        instructions: dbRecipe.instructions || [],
+        nutrition: dbRecipe.nutrition,
+        tags: dbRecipe.tags || [],
+        category: dbRecipe.category || 'General',
+        is_favorite: dbRecipe.is_favorite || false,
+        is_ai_generated: dbRecipe.is_ai_generated || false,
+        source_url: dbRecipe.source_url,
+        ai_match_score: dbRecipe.ai_match_score,
+        created_at: dbRecipe.created_at,
+        updated_at: dbRecipe.updated_at,
+      }));
+
+
+      setRecipes(formattedRecipes);
+    } catch (error) {
+      console.error('Error loading recipes:', error);
+      Alert.alert('Error', 'Failed to load recipes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    loadRecipes();
+    loadUserCookbooks();
+  }, []);
+
+
+  // Filter recipes based on search and filters
+  const getFilteredRecipes = async () => {
+    let filtered = [...recipes];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(recipe =>
+        recipe.title.toLowerCase().includes(query) ||
+        recipe.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Category filter
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(recipe => 
+        recipe.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Diet filter
+    if (selectedDiet !== 'All') {
+      filtered = filtered.filter(recipe => 
+        recipe.tags.some(tag => tag.toLowerCase().includes(selectedDiet.toLowerCase()))
+      );
+    }
+
+    // Difficulty filter
+    if (selectedDifficulty !== 'All') {
+      filtered = filtered.filter(recipe => 
+        recipe.difficulty === selectedDifficulty
+      );
+    }
+
+    // Cookbook filter
+    if (selectedCookbook !== 'All') {
+      const { data: cookbookRecipes } = await supabase
+        .from('recipe_cookbooks')
+        .select('recipe_id')
+        .eq('cookbook_id', selectedCookbook);
+
+      const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
+      filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
+    }
+
+    return filtered;
+  };
+
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
+
+  useEffect(() => {
+    const applyFilters = async () => {
+      const filtered = await getFilteredRecipes();
+      setFilteredRecipes(filtered);
+    };
+    applyFilters();
+  }, [recipes, searchQuery, selectedCategory, selectedDiet, selectedDifficulty, selectedCookbook]);
+
+
+  // Check if any filters are active
+  const hasActiveFilters = selectedCategory !== 'All' || 
+    selectedDiet !== 'All' || 
+    selectedDifficulty !== 'All' || 
+    selectedCookbook !== 'All';
+
+  // Get active filter count
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (selectedCategory !== 'All') count++;
+    if (selectedDiet !== 'All') count++;
+    if (selectedDifficulty !== 'All') count++;
+    if (selectedCookbook !== 'All') count++;
+    return count;
+  };
+
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSelectedCategory('All');
+    setSelectedDiet('All');
+    setSelectedDifficulty('All');
+    setSelectedCookbook('All');
+    setShowFilters(false);
+  };
+
+
+  // Handle recipe press - FIXED NAVIGATION
+  const handleRecipePress = (recipeId: string) => {
+    console.log('Recipe pressed:', recipeId);
+    router.push(`/recipe/${recipeId}`);
+  };
+
+
+  // Handle favorite toggle
+  const handleFavorite = async (recipeId: string) => {
+    try {
+      const recipe = recipes.find(r => r.id === recipeId);
+      if (!recipe) return;
+
+
+      const newFavoriteStatus = !recipe.is_favorite;
+
+
+      const { error } = await supabase
+        .from('user_recipes')
+        .update({ is_favorite: newFavoriteStatus })
+        .eq('id', recipeId);
+
+
+      if (error) {
+        Alert.alert('Error', 'Failed to update favorite status');
+        return;
+      }
+
+
+      setRecipes(prev => prev.map(r =>
+        r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
+      ));
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+      Alert.alert('Error', 'Failed to update favorite status');
+    }
+  };
+
+
+  // Handle add recipe (navigate to library)
+  const handleAddRecipe = () => {
+    router.push('/library');
+  };
+
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <Text style={styles.loadingText}>Loading your recipes...</Text>
+      </View>
+    );
+  }
+
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>AI Recipe Discovery</Text>
+        <Text style={styles.headerSubtitle}>
+          {filteredRecipes.length} AI-generated recipes
+        </Text>
+      </View>
+
+
+      {/* Search and Controls */}
+      <View style={styles.controls}>
+        <View style={styles.searchContainer}>
+          <Search size={20} color={colors.neutral[400]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search recipes..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={colors.neutral[400]}
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
+          {getActiveFilterCount() > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{getActiveFilterCount()}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+
+      {/* Filters */}
+      {showFilters && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {/* Cookbook Filter */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Cookbook:</Text>
+            <View style={styles.filterChips}>
+              <TouchableOpacity
+                style={[
+                  styles.filterChip,
+                  selectedCookbook === 'All' && styles.filterChipActive
+                ]}
+                onPress={() => setSelectedCookbook('All')}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedCookbook === 'All' && styles.filterChipTextActive
+                  ]}
+                >
+                  All Recipes
+                </Text>
+              </TouchableOpacity>
+              {userCookbooks.map(cookbook => (
+                <TouchableOpacity
+                  key={cookbook.id}
+                  style={[
+                    styles.filterChip,
+                    selectedCookbook === cookbook.id && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedCookbook(cookbook.id)}
+                >
+                  <View style={styles.filterChipWithEmoji}>
+                    <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedCookbook === cookbook.id && styles.filterChipTextActive
+                      ]}
+                    >
+                      {cookbook.name}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Category:</Text>
+            <View style={styles.filterChips}>
+              {categories.map(category => (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.filterChip,
+                    selectedCategory === category && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedCategory === category && styles.filterChipTextActive
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Diet:</Text>
+            <View style={styles.filterChips}>
+              {dietTags.map(diet => (
+                <TouchableOpacity
+                  key={diet}
+                  style={[
+                    styles.filterChip,
+                    selectedDiet === diet && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedDiet(diet)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedDiet === diet && styles.filterChipTextActive
+                    ]}
+                  >
+                    {diet}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Difficulty:</Text>
+            <View style={styles.filterChips}>
+              {difficulties.map(difficulty => (
+                <TouchableOpacity
+                  key={difficulty}
+                  style={[
+                    styles.filterChip,
+                    selectedDifficulty === difficulty && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedDifficulty(difficulty)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedDifficulty === difficulty && styles.filterChipTextActive
+                    ]}
+                  >
+                    {difficulty}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      )}
+
+
+      {/* Quick Actions */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Social/Community recipes
+          Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
+        }}>
+          <Share2 size={20} color={colors.primary[500]} />
+          <Text style={styles.quickActionText}>Social</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Show only AI generated recipes
+          const aiRecipes = recipes.filter(r => r.is_ai_generated);
+          setRecipes(aiRecipes);
+        }}>
+          <ChefHat size={20} color={colors.secondary[500]} />
+          <Text style={styles.quickActionText}>AI Recipes</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => router.push('/library')}>
+          <Calendar size={20} color={colors.accent[500]} />
+          <Text style={styles.quickActionText}>Library</Text>
+          <Text style={styles.quickActionSubtext}>Import your own</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.quickAction} onPress={() => {
+          // Show only favorites
+          const favoriteRecipes = recipes.filter(r => r.is_favorite);
+          if (favoriteRecipes.length === 0) {
+            Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
+          }
+        }}>
+          <Heart size={20} color={colors.error[500]} />
+          <Text style={styles.quickActionText}>Favorites</Text>
+        </TouchableOpacity>
+      </View>
+
+
+      {/* Recipes List */}
+      <ScrollView
+        style={styles.recipesContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.recipesContent}
+      >
+        {filteredRecipes.length > 0 ? (
+          filteredRecipes.map(recipe => (
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              onPress={() => handleRecipePress(recipe.id)}
+              onFavorite={() => handleFavorite(recipe.id)}
+            />
+          ))
+        ) : (
+          <EmptyState
+            hasFilters={hasActiveFilters}
+            onAddRecipe={handleAddRecipe}
+            onClearFilters={clearAllFilters}
+          />
+        )}
+      </ScrollView>
+
+
+      {/* Add Recipe Button */}
+      <TouchableOpacity style={styles.addButton} onPress={handleAddRecipe}>
+        <Plus size={28} color={colors.neutral[0]} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1048,6 +841,69 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primary[500],
   },
+  filterBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.neutral[0],
+  },
+  filtersContainer: {
+    backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  filtersContent: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  filterSection: {
+    marginRight: spacing.xl,
+  },
+  filterLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[600],
+    marginBottom: spacing.xs,
+  },
+  filterChips: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  filterChip: {
+    backgroundColor: colors.neutral[100],
+    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary[500],
+  },
+  filterChipText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[600],
+  },
+  filterChipTextActive: {
+    color: colors.neutral[0],
+  },
+  filterChipWithEmoji: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cookbookEmoji: {
+    fontSize: 14,
+    marginRight: 4,
+  },
   quickActions: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
@@ -1085,7 +941,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: spacing.lg,
     ...shadows.md,
   },
   recipeImageContainer: {
@@ -1328,126 +1183,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.lg,
-  },
-  
-  // Filter Modal Styles
-  filterModalContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  filterModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  filterModalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  clearAllText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[500],
-  },
-  filterModalContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  filterCategoryContainer: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  filterCategoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  filterCategoryTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  chevronIcon: {
-    transform: [{ rotate: '0deg' }],
-  },
-  chevronIconExpanded: {
-    transform: [{ rotate: '180deg' }],
-  },
-  filterOptionsContainer: {
-    paddingTop: spacing.sm,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginVertical: 2,
-    borderRadius: 8,
-  },
-  filterOptionSelected: {
-    backgroundColor: colors.primary[50],
-  },
-  filterOptionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[700],
-  },
-  filterOptionTextSelected: {
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  filterModalFooter: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  applyFiltersButton: {
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  applyFiltersText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
-  },
-  filterOptionWithEmoji: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cookbookEmoji: {
-    fontSize: 16,
-    marginRight: 8,
   },
 });
