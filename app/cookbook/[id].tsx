@@ -162,6 +162,18 @@ export default function CookbookDetail() {
     );
   };
 
+  // handleAddRecipes fonksiyonunu güncelle
+  const handleAddRecipes = () => {
+    router.push({
+      pathname: '/(tabs)/library',
+      params: { 
+        mode: 'selection',
+        cookbookId: id,
+        cookbookName: cookbook?.name
+      }
+    });
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return colors.success[500];
@@ -233,10 +245,7 @@ export default function CookbookDetail() {
         <View style={styles.addRecipeSection}>
           <TouchableOpacity 
             style={styles.addRecipeButton}
-            onPress={() => {
-              // Navigate to library with this cookbook pre-selected
-              Alert.alert('Coming Soon!', 'Add recipes from library will be implemented soon.');
-            }}
+            onPress={handleAddRecipes}
           >
             <Plus size={20} color={colors.primary[500]} />
             <Text style={styles.addRecipeButtonText}>Add Recipes</Text>
