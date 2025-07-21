@@ -1,4 +1,4 @@
-//components>library>LibraryMain.tsx
+//components>library>librarymain.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -43,6 +43,7 @@ import {
 import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 // **Cookbook Imports**
 import { Cookbook } from '../../types/cookbook';
@@ -1065,7 +1066,21 @@ const EmptyState: React.FC<{
   hasFilters: boolean;
   onAddRecipe: () => void;
   onClearFilters: () => void;
-}> = ({ hasFilters, onAddRecipe, onClearFilters }) => {
+  selectedCookbookFilter: string | null;
+  selectedCookbookName?: string;
+}> = ({ hasFilters, onAddRecipe, onClearFilters, selectedCookbookFilter, selectedCookbookName }) => {
+  if (selectedCookbookFilter) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateEmoji}>📚</Text>
+        <Text style={styles.emptyStateTitle}>No recipes in this cookbook</Text>
+        <Text style={styles.emptyStateText}>
+          Add some recipes to {selectedCookbookName || 'this cookbook'} to see them here
+        </Text>
+      </View>
+    );
+  }
+
   if (hasFilters) {
     return (
       <View style={styles.emptyStateContainer}>
@@ -1123,6 +1138,10 @@ export default function Library() {
   const [isImporting, setIsImporting] = useState(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
   
+  // Cookbook filter states
+  const [selectedCookbookFilter, setSelectedCookbookFilter] = useState<string | null>(null);
+  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+  
   // Selection mode states
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
@@ -1143,35 +1162,67 @@ export default function Library() {
     cuisine: 'all',
   });
 
-  const loadLibraryData = async () => {
+  // Load user cookbooks for filter
+  useEffect(() => {
+    loadUserCookbooks();
+  }, []);
+
+  const loadUserCookbooks = async () => {
     try {
-      setRecipesLoading(true);
-      console.log('🔄 Loading library data...');
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
-        return;
-      }
+      if (!user) return;
 
-      console.log('👤 User ID:', user.id);
-
-      // Load recipes only - cookbooks are handled by the hook
-      const { data: recipesData, error: recipesError } = await supabase
-        .from('user_recipes')
+      const { data, error } = await supabase
+        .from('cookbooks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (recipesError) {
-        console.error('❌ Error loading recipes:', recipesError);
-        Alert.alert('Error', 'Failed to load recipes');
-        return;
+      if (error) throw error;
+      setUserCookbooks(data || []);
+    } catch (error) {
+      console.error('Error loading cookbooks:', error);
+    }
+  };
+
+  const loadRecipes = async () => {
+    try {
+      setRecipesLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let query = supabase
+        .from('user_recipes')
+        .select('*')
+        .eq('user_id', user.id);
+
+      // Cookbook filter uygula
+      if (selectedCookbookFilter) {
+        // Önce cookbook'taki recipe ID'lerini al
+        const { data: cookbookRecipes, error: cookbookError } = await supabase
+          .from('recipe_cookbooks')
+          .select('recipe_id')
+          .eq('cookbook_id', selectedCookbookFilter);
+
+        if (cookbookError) throw cookbookError;
+
+        const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
+        
+        if (recipeIds.length > 0) {
+          query = query.in('id', recipeIds);
+        } else {
+          // Cookbook boşsa, boş array döndür
+          setRecipes([]);
+          setRecipesLoading(false);
+          return;
+        }
       }
 
-      console.log('📝 Recipes loaded:', recipesData?.length || 0);
+      const { data, error } = await query.order('created_at', { ascending: false });
 
-      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
+      if (error) throw error;
+      
+      const formattedRecipes: Recipe[] = (data || []).map(dbRecipe => ({
         id: dbRecipe.id,
         title: dbRecipe.title,
         description: dbRecipe.description || '',
@@ -1194,19 +1245,18 @@ export default function Library() {
       }));
 
       setRecipes(formattedRecipes);
-      console.log('✅ Library data loaded successfully');
     } catch (error) {
-      console.error('Error loading library data:', error);
-      Alert.alert('Error', 'Failed to load library data');
+      console.error('Error loading recipes:', error);
     } finally {
       setRecipesLoading(false);
       setLoading(false);
     }
   };
 
+  // useEffect'e selectedCookbookFilter ekle
   useEffect(() => {
-    loadLibraryData();
-  }, []);
+    loadRecipes();
+  }, [selectedCookbookFilter]);
 
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
@@ -1303,7 +1353,7 @@ export default function Library() {
         return;
       }
       Alert.alert('Success!', 'Recipe added to your library');
-      await loadLibraryData();
+      await loadRecipes();
     } catch (error) {
       console.error('Error saving manual recipe:', error);
       Alert.alert('Error', 'Failed to save recipe');
@@ -1411,7 +1461,7 @@ export default function Library() {
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-        await loadLibraryData();
+        await loadRecipes();
 
       } else {
         console.log('🌐 Detected web URL, using web extraction...');
@@ -1458,7 +1508,7 @@ export default function Library() {
           [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
         );
 
-        await loadLibraryData();
+        await loadRecipes();
       }
 
     } catch (error: any) {
@@ -1568,6 +1618,18 @@ export default function Library() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Active filter göstergesi */}
+      {selectedCookbookFilter && (
+        <View style={styles.activeFilterBar}>
+          <Text style={styles.activeFilterText}>
+            Showing recipes from: {userCookbooks.find(c => c.id === selectedCookbookFilter)?.name}
+          </Text>
+          <TouchableOpacity onPress={() => setSelectedCookbookFilter(null)}>
+            <Ionicons name="close-circle" size={20} color="#4CAF50" />
+          </TouchableOpacity>
+        </View>
+      )}
       
       <ScrollView
         style={styles.recipesContainer}
@@ -1612,6 +1674,46 @@ export default function Library() {
                 <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
                 <Text style={styles.cookbookName}>{cookbook.name}</Text>
                 <Text style={styles.cookbookCount}>{cookbook.recipe_count || 0} recipes</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Cookbook Filter Section */}
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Cookbook</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                !selectedCookbookFilter && styles.filterChipActive
+              ]}
+              onPress={() => setSelectedCookbookFilter(null)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                !selectedCookbookFilter && styles.filterChipTextActive
+              ]}>
+                All Recipes
+              </Text>
+            </TouchableOpacity>
+            
+            {userCookbooks.map((cookbook) => (
+              <TouchableOpacity
+                key={cookbook.id}
+                style={[
+                  styles.filterChip,
+                  selectedCookbookFilter === cookbook.id && styles.filterChipActive
+                ]}
+                onPress={() => setSelectedCookbookFilter(cookbook.id)}
+              >
+                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                <Text style={[
+                  styles.filterChipText,
+                  selectedCookbookFilter === cookbook.id && styles.filterChipTextActive
+                ]}>
+                  {cookbook.name}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -1671,6 +1773,8 @@ export default function Library() {
               hasFilters={hasActiveFilters}
               onAddRecipe={() => setShowImportModal(true)}
               onClearFilters={clearAllFilters}
+              selectedCookbookFilter={selectedCookbookFilter}
+              selectedCookbookName={userCookbooks.find(c => c.id === selectedCookbookFilter)?.name}
             />
           )}
         </View>
@@ -1999,6 +2103,79 @@ const styles = StyleSheet.create({
   cookbookCount: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
+  },
+  
+  // Cookbook Filter Styles
+  filterSection: {
+    marginBottom: 12,
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  filterChipTextActive: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  activeFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+  },
+  activeFilterText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  
+  // Empty State Styles
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl * 2,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyStateEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  emptyStateTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+    textAlign: 'center',
   },
   
   // Selection mode styles
