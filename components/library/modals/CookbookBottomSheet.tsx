@@ -1,6 +1,6 @@
 // components/library/modals/CookbookBottomSheet.tsx
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import BottomSheet, { 
   BottomSheetView, 
   BottomSheetScrollView,
@@ -9,7 +9,8 @@ import BottomSheet, {
 import { X, Plus, Check } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../../lib/theme';
 import { useCookbookManager } from '../../../hooks/useCookbookManager';
-import { router } from 'expo-router';
+import CreateCookbook from '../../cookbook/CreateCookbook';
+
 interface CookbookBottomSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -26,8 +27,9 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['50%', '85%'], []);
   
-  const { cookbooks, createCookbook, manageRecipeCookbooks } = useCookbookManager();
+  const { cookbooks, loadCookbooks, manageRecipeCookbooks } = useCookbookManager();
   const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
+  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
 
   // Backdrop component - tap to close
   const renderBackdrop = useCallback(
@@ -72,89 +74,107 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
   if (!visible) return null;
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      enablePanDownToClose={true}
-      backdropComponent={renderBackdrop}
-      onClose={onClose}
-      handleIndicatorStyle={styles.handleIndicator}
-      backgroundStyle={styles.bottomSheetBackground}
-    >
-      <BottomSheetView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>Add to Cookbook</Text>
-            <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
+    <>
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        enablePanDownToClose={true}
+        backdropComponent={renderBackdrop}
+        onClose={onClose}
+        handleIndicatorStyle={styles.handleIndicator}
+        backgroundStyle={styles.bottomSheetBackground}
+      >
+        <BottomSheetView style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Add to Cookbook</Text>
+              <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <X size={24} color={colors.neutral[600]} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={colors.neutral[600]} />
-          </TouchableOpacity>
-        </View>
 
-        {/* Scrollable Content */}
-        <BottomSheetScrollView 
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Create New Cookbook */}
-          <TouchableOpacity 
-  style={styles.createOption}
-  onPress={() => {
-    onClose();
-    router.push('/library/create-cookbook');
-  }}
->
-  <View style={styles.createIconContainer}>
-    <Plus size={24} color={colors.primary[500]} />
-  </View>
-  <View style={styles.optionContent}>
-    <Text style={styles.optionTitle}>Create New Cookbook</Text>
-    <Text style={styles.optionDescription}>Start a new collection</Text>
-  </View>
-</TouchableOpacity>
-
-          {/* Existing Cookbooks */}
-          {cookbooks.map((cookbook) => (
-            <TouchableOpacity
-              key={cookbook.id}
-              style={[
-                styles.cookbookOption,
-                selectedCookbooks.includes(cookbook.id) && styles.selectedOption
-              ]}
-              onPress={() => handleCookbookToggle(cookbook.id)}
+          {/* Scrollable Content */}
+          <BottomSheetScrollView 
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Create New Cookbook */}
+            <TouchableOpacity 
+              style={styles.createOption}
+              onPress={() => {
+                onClose();
+                setShowCreateCookbook(true);
+              }}
             >
-              <View style={[styles.emojiContainer, { backgroundColor: `${cookbook.color}15` }]}>
-                <Text style={styles.emoji}>{cookbook.emoji}</Text>
+              <View style={styles.createIconContainer}>
+                <Plus size={24} color={colors.primary[500]} />
               </View>
               <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>{cookbook.name}</Text>
-                <Text style={styles.optionDescription}>
-                  {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
-                </Text>
+                <Text style={styles.optionTitle}>Create New Cookbook</Text>
+                <Text style={styles.optionDescription}>Start a new collection</Text>
               </View>
-              {selectedCookbooks.includes(cookbook.id) && (
-                <Check size={20} color={colors.primary[500]} />
-              )}
             </TouchableOpacity>
-          ))}
-        </BottomSheetScrollView>
 
-        {/* Save Button */}
-        <View style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.saveButton} 
-            onPress={handleSave}
-          >
-            <Text style={styles.saveButtonText}>
-              Save ({selectedCookbooks.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </BottomSheetView>
-    </BottomSheet>
+            {/* Existing Cookbooks */}
+            {cookbooks.map((cookbook) => (
+              <TouchableOpacity
+                key={cookbook.id}
+                style={[
+                  styles.cookbookOption,
+                  selectedCookbooks.includes(cookbook.id) && styles.selectedOption
+                ]}
+                onPress={() => handleCookbookToggle(cookbook.id)}
+              >
+                <View style={[styles.emojiContainer, { backgroundColor: `${cookbook.color}15` }]}>
+                  <Text style={styles.emoji}>{cookbook.emoji}</Text>
+                </View>
+                <View style={styles.optionContent}>
+                  <Text style={styles.optionTitle}>{cookbook.name}</Text>
+                  <Text style={styles.optionDescription}>
+                    {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                {selectedCookbooks.includes(cookbook.id) && (
+                  <Check size={20} color={colors.primary[500]} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </BottomSheetScrollView>
+
+          {/* Save Button */}
+          <View style={styles.footer}>
+            <TouchableOpacity 
+              style={styles.saveButton} 
+              onPress={handleSave}
+            >
+              <Text style={styles.saveButtonText}>
+                Save ({selectedCookbooks.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      {/* Create Cookbook Modal */}
+      {showCreateCookbook && (
+        <Modal
+          visible={showCreateCookbook}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <CreateCookbook 
+            onClose={() => {
+              setShowCreateCookbook(false);
+              loadCookbooks();
+            }}
+          />
+        </Modal>
+      )}
+    </>
   );
 };
 
