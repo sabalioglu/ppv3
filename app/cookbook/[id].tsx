@@ -1,4 +1,3 @@
-// app/cookbook/[id].tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -115,9 +114,15 @@ export default function CookbookDetail() {
         setRecipes(formattedRecipes);
       }
 
+      // Recipe count'u güncelle
+      const { count } = await supabase
+        .from('recipe_cookbooks')
+        .select('*', { count: 'exact', head: true })
+        .eq('cookbook_id', id);
+
       setCookbook({
         ...cookbookData,
-        recipe_count: recipesData?.length || 0
+        recipe_count: count || 0
       });
 
     } catch (error) {
