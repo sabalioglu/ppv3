@@ -1089,77 +1089,76 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         ]} 
         onPress={handlePress}
       >
-        {/* Edit mode checkbox */}
-        {isEditMode && (
-          <View style={styles.checkboxContainer}>
-            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-              {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+        <View style={styles.listCardContent}>
+          {/* Edit mode checkbox */}
+          {isEditMode && (
+            <View style={styles.listCheckbox}>
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+              </View>
             </View>
-          </View>
-        )}
-
-        <View style={styles.listImageContainer}>
-         {recipe.image_url ? (
-  <Image
-    source={{ 
-      uri: recipe.source_url?.includes('instagram.com') 
-        ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=300&h=200&fit=cover&maxage=7d`
-        : recipe.image_url 
-    }}
-    style={styles.listImage}
-    onError={(error) => console.log('Image load error:', error)}
-  />
+          )}
+          
+          {recipe.image_url ? (
+            <Image 
+              source={{ 
+                uri: recipe.source_url?.includes('instagram.com') 
+                  ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=300&h=200&fit=cover&maxage=7d`
+                  : recipe.image_url 
+              }} 
+              style={styles.listCardImage}
+            />
           ) : (
-            <View style={styles.listPlaceholder}>
+            <View style={[styles.listCardImage, { backgroundColor: colors.neutral[100], justifyContent: 'center', alignItems: 'center' }]}>
               <ChefHat size={24} color={colors.neutral[400]} />
             </View>
           )}
-        </View>
-        <View style={styles.listContent}>
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle} numberOfLines={1}>{recipe.title}</Text>
-            {!isEditMode && (
-              <View style={styles.listActions}>
-                <TouchableOpacity onPress={onFavorite} style={styles.listActionButton}>
-                  <Heart
-                    size={16}
-                    color={recipe.is_favorite ? colors.error[500] : colors.neutral[400]}
-                    fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onAddToCookbook} style={styles.listActionButton}>
-                  <Book size={16} color={colors.secondary[500]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onEdit} style={styles.listActionButton}>
-                  <Edit3 size={16} color={colors.neutral[400]} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={onDelete} style={styles.listActionButton}>
-                  <Trash2 size={16} color={colors.error[400]} />
-                </TouchableOpacity>
+          
+          <View style={styles.listCardInfo}>
+            <Text style={styles.listCardTitle} numberOfLines={1}>
+              {recipe.title}
+            </Text>
+            <Text style={styles.listCardDescription} numberOfLines={2}>
+              {recipe.description || `Data sources: ${recipe.source_url ? 'video visuals + metadata text' : 'manual entry'}. Nutrition is an estimate.`}
+            </Text>
+            
+            <View style={styles.listCardMeta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="time-outline" size={14} color="#666" />
+                <Text style={styles.metaText}>
+                  {recipe.prep_time + recipe.cook_time}m
+                </Text>
               </View>
-            )}
+              <View style={styles.metaItem}>
+                <Ionicons name="people-outline" size={14} color="#666" />
+                <Text style={styles.metaText}>{recipe.servings}</Text>
+              </View>
+              <View style={[styles.difficultyBadge, styles[`difficulty${recipe.difficulty}`]]}>
+                <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+              </View>
+              {recipe.is_ai_generated && (
+                <View style={styles.aiBadge}>
+                  <Text style={styles.aiBadgeText}>AI</Text>
+                </View>
+              )}
+            </View>
           </View>
-          <Text style={styles.listDescription} numberOfLines={2}>
-            {recipe.description}
-          </Text>
-          <View style={styles.listMeta}>
-            <View style={styles.listMetaItem}>
-              <Clock size={12} color={colors.neutral[500]} />
-              <Text style={styles.listMetaText}>
-                {recipe.prep_time + recipe.cook_time}m
-              </Text>
-            </View>
-            <View style={styles.listMetaItem}>
-              <Users size={12} color={colors.neutral[500]} />
-              <Text style={styles.listMetaText}>{recipe.servings}</Text>
-            </View>
-            <View style={[styles.difficultyChip, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-              <Text style={styles.difficultyChipText}>{recipe.difficulty}</Text>
-            </View>
-            {recipe.is_ai_generated && (
-              <View style={styles.aiChip}>
-                <Text style={styles.aiChipText}>AI</Text>
-              </View>
+          
+          <View style={styles.listCardActions}>
+            <TouchableOpacity onPress={onFavorite}>
+              <Ionicons 
+                name={recipe.is_favorite ? "heart" : "heart-outline"} 
+                size={20} 
+                color={recipe.is_favorite ? "#FF5252" : "#666"} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onAddToCookbook}>
+              <Ionicons name="bookmark-outline" size={20} color="#666" />
+            </TouchableOpacity>
+            {!isEditMode && (
+              <TouchableOpacity onPress={onEdit}>
+                <Ionicons name="ellipsis-vertical" size={20} color="#666" />
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -1362,14 +1361,30 @@ export default function Library() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      const { data: cookbooksData, error: cookbooksError } = await supabase
         .from('cookbooks')
-        .select('*, recipe_cookbooks(count)')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setUserCookbooks(data || []);
+      if (cookbooksError) throw cookbooksError;
+
+      // Recipe count'ları ekle
+      const cookbooksWithCount = await Promise.all(
+        cookbooksData.map(async (cookbook) => {
+          const { count, error } = await supabase
+            .from('recipe_cookbooks')
+            .select('*', { count: 'exact', head: true })
+            .eq('cookbook_id', cookbook.id);
+
+          return {
+            ...cookbook,
+            recipe_count: count || 0
+          };
+        })
+      );
+
+      setUserCookbooks(cookbooksWithCount);
     } catch (error) {
       console.error('Error loading cookbooks:', error);
     }
@@ -1830,19 +1845,12 @@ export default function Library() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => router.back()} 
-          style={styles.backButton}
-        >
-          <ArrowLeft size={24} color={colors.neutral[800]} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Recipe Library</Text>
-          <Text style={styles.headerSubtitle}>
-            {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''}
-            {hasActiveFilters ? ' filtered' : ' in your collection'}
-          </Text>
-        </View>
+        
+        <Text style={styles.headerTitle}>My Recipe Library</Text>
+        
         <View style={styles.headerActions}>
           <TouchableOpacity 
             onPress={() => {
@@ -1855,15 +1863,17 @@ export default function Library() {
               {isEditMode ? 'Done' : 'Edit'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.viewToggleButton}
+          
+          {/* YENİ: View mode toggle butonu */}
+          <TouchableOpacity 
             onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+            style={styles.viewModeButton}
           >
-            {viewMode === 'grid' ? (
-              <List size={20} color={colors.neutral[600]} />
-            ) : (
-              <Grid size={20} color={colors.neutral[600]} />
-            )}
+            <Ionicons 
+              name={viewMode === 'grid' ? 'list' : 'grid'} 
+              size={20} 
+              color="#666" 
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -2157,12 +2167,16 @@ export default function Library() {
         }}
       />
       
-      <TouchableOpacity
-        style={styles.floatingAddButton}
-        onPress={() => setShowImportModal(true)}
-      >
-        <Plus size={28} color={colors.neutral[0]} />
-      </TouchableOpacity>
+      {/* DEĞİŞTİR: Floating Action Button (edit mode kontrolü ekle) */}
+      {!isEditMode && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowImportModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="white" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -2194,31 +2208,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  headerContent: {
-    flex: 1,
-  },
   headerTitle: {
+    flex: 1,
     fontSize: typography.fontSize['2xl'],
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
     color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  headerSubtitle: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
+    marginLeft: spacing.md,
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   editButton: {
@@ -2232,13 +2231,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  viewToggleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
+  viewModeButton: {
+    padding: 4,
   },
   selectionBar: {
     flexDirection: 'row',
@@ -2457,6 +2451,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
+  // List view styles
+  listCard: {
+    backgroundColor: 'white',
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    ...shadows.sm,
+  },
+  listCardContent: {
+    flexDirection: 'row',
+    padding: 12,
+    alignItems: 'center',
+  },
+  listCheckbox: {
+    marginRight: 12,
+  },
+  listCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  listCardInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  listCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginBottom: 4,
+  },
+  listCardDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  listCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  difficultyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  difficultyMedium: {
+    backgroundColor: '#FFF3E0',
+  },
+  difficultyText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F57C00',
+  },
+  aiBadge: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  aiBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1976D2',
+  },
+  listCardActions: {
+    flexDirection: 'column',
+    gap: 16,
+    marginLeft: 12,
+  },
+  
   // Bulk Actions Styles
   bulkActionsBar: {
     position: 'absolute',
@@ -2470,7 +2548,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     justifyContent: 'space-around',
-    paddingBottom: 32, // Safe area için
+    paddingBottom: 32,
+    zIndex: 100,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   bulkAction: {
     alignItems: 'center',
@@ -2810,6 +2894,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary[600],
   },
+  cookbookEmoji: {
+    fontSize: 16,
+    marginRight: spacing.sm,
+  },
   filterModalFooter: {
     padding: spacing.lg,
     borderTopWidth: 1,
@@ -3095,105 +3183,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  listCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  listImageContainer: {
-    width: 80,
-    height: 80,
-    backgroundColor: colors.neutral[100],
-  },
-  listImage: {
-    width: '100%',
-    height: '100%',
-  },
-  listPlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-  },
-  listContent: {
-    flex: 1,
-    padding: spacing.md,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
-  },
-  listTitle: {
-    flex: 1,
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginRight: spacing.sm,
-  },
-  listActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  listActionButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listDescription: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
-    marginBottom: spacing.sm,
-  },
-  listMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  listMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  listMetaText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    fontWeight: '500',
-    color: colors.neutral[500],
-  },
-  difficultyChip: {
-    borderRadius: 8,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  difficultyChipText: {
-    fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
-    fontWeight: 'bold',
-    color: colors.neutral[0],
-  },
-  aiChip: {
-    backgroundColor: colors.secondary[500],
-    borderRadius: 6,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  aiChipText: {
-    fontSize: 9,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
-    fontWeight: 'bold',
-    color: colors.neutral[0],
-  },
   
   // Empty State Styles
   emptyStateContainer: {
@@ -3251,7 +3240,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[600],
   },
-  floatingAddButton: {
+  fab: {
     position: 'absolute',
     bottom: spacing.xl,
     right: spacing.lg,
