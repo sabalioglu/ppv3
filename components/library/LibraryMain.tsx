@@ -1,4 +1,5 @@
 //components>library>librarymain.tsx
+```tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -43,6 +44,7 @@ import {
 import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 // **Cookbook Imports**
 import { Cookbook } from '../../types/cookbook';
@@ -537,14 +539,10 @@ const FilterModal: React.FC<{
   filters: { [key: string]: string };
   onFiltersChange: (filters: { [key: string]: string }) => void;
   recipeCount: number;
-  userCookbooks: any[];
-  selectedCookbook: string;
-  onCookbookChange: (cookbookId: string) => void;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
+}> = ({ visible, onClose, filters, onFiltersChange, recipeCount }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
     meal_type: true,
-    cookbook: true,
   });
 
   const toggleCategory = (categoryId: string) => {
@@ -573,7 +571,6 @@ const FilterModal: React.FC<{
     }, {} as { [key: string]: string });
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
-    onCookbookChange('all');
     onClose();
   };
 
@@ -590,73 +587,6 @@ const FilterModal: React.FC<{
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
-          {/* Cookbook Filter */}
-          <View style={styles.filterCategoryContainer}>
-            <TouchableOpacity
-              style={styles.filterCategoryHeader}
-              onPress={() => toggleCategory('cookbook')}
-            >
-              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
-              <ChevronDown
-                size={20}
-                color={colors.neutral[600]}
-                style={[
-                  styles.chevronIcon,
-                  expandedCategories.cookbook && styles.chevronIconExpanded
-                ]}
-              />
-            </TouchableOpacity>
-            {expandedCategories.cookbook && (
-              <View style={styles.filterOptionsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterOption,
-                    selectedCookbook === 'all' && styles.filterOptionSelected
-                  ]}
-                  onPress={() => onCookbookChange('all')}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      selectedCookbook === 'all' && styles.filterOptionTextSelected
-                    ]}
-                  >
-                    All Recipes
-                  </Text>
-                  {selectedCookbook === 'all' && (
-                    <Check size={16} color={colors.primary[500]} />
-                  )}
-                </TouchableOpacity>
-                {userCookbooks.map((cookbook) => (
-                  <TouchableOpacity
-                    key={cookbook.id}
-                    style={[
-                      styles.filterOption,
-                      selectedCookbook === cookbook.id && styles.filterOptionSelected
-                    ]}
-                    onPress={() => onCookbookChange(cookbook.id)}
-                  >
-                    <View style={styles.filterOptionWithEmoji}>
-                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
-                        ]}
-                      >
-                        {cookbook.name}
-                      </Text>
-                    </View>
-                    {selectedCookbook === cookbook.id && (
-                      <Check size={16} color={colors.primary[500]} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Existing Filter Categories */}
           {filterCategories.map((category, categoryIndex) => (
             <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
               <TouchableOpacity
@@ -1195,13 +1125,15 @@ export default function Library() {
   const [isImporting, setIsImporting] = useState(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
   
+  // Cookbook filter states
+  const [selectedCookbookFilter, setSelectedCookbookFilter] = useState<string | null>(null);
+  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+  
   // Selection mode states
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
-  
-  // Cookbook filter state
-  const [selectedCookbook, setSelectedCookbook] = useState('all');
-  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Use the cookbook manager hook
   const { 
@@ -1219,7 +1151,7 @@ export default function Library() {
     cuisine: 'all',
   });
 
-  // Load user cookbooks
+  // Load user cookbooks for filter
   useEffect(() => {
     loadUserCookbooks();
   }, []);
@@ -1231,7 +1163,7 @@ export default function Library() {
 
       const { data, error } = await supabase
         .from('cookbooks')
-        .select('*, recipe_cookbooks(count)')
+        .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -1242,70 +1174,57 @@ export default function Library() {
     }
   };
 
-  const loadLibraryData = async () => {
+  const loadRecipes = async () => {
     try {
       setRecipesLoading(true);
-      console.log('🔄 Loading library data...');
-      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
-        return;
-      }
+      if (!user) return;
 
-      console.log('👤 User ID:', user.id);
-
-      // Load recipes only - cookbooks are handled by the hook
-      const { data: recipesData, error: recipesError } = await supabase
+      let query = supabase
         .from('user_recipes')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', user.id);
 
-      if (recipesError) {
-        console.error('❌ Error loading recipes:', recipesError);
-        Alert.alert('Error', 'Failed to load recipes');
-        return;
+      // Cookbook filter uygula
+      if (selectedCookbookFilter) {
+        // Önce cookbook'taki recipe ID'lerini al
+        const { data: cookbookRecipes, error: cookbookError } = await supabase
+          .from('recipe_cookbooks')
+          .select('recipe_id')
+          .eq('cookbook_id', selectedCookbookFilter);
+
+        if (cookbookError) throw cookbookError;
+
+        const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
+        
+        if (recipeIds.length > 0) {
+          query = query.in('id', recipeIds);
+        } else {
+          // Cookbook boşsa, boş array döndür
+          setRecipes([]);
+          setFilteredRecipes([]);
+          setRecipesLoading(false);
+          return;
+        }
       }
 
-      console.log('📝 Recipes loaded:', recipesData?.length || 0);
+      const { data, error } = await query.order('created_at', { ascending: false });
 
-      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
-        id: dbRecipe.id,
-        title: dbRecipe.title,
-        description: dbRecipe.description || '',
-        image_url: dbRecipe.image_url,
-        prep_time: dbRecipe.prep_time || 0,
-        cook_time: dbRecipe.cook_time || 0,
-        servings: dbRecipe.servings || 1,
-        difficulty: dbRecipe.difficulty || 'Easy',
-        ingredients: dbRecipe.ingredients || [],
-        instructions: dbRecipe.instructions || [],
-        nutrition: dbRecipe.nutrition,
-        tags: dbRecipe.tags || [],
-        category: dbRecipe.category || 'General',
-        is_favorite: dbRecipe.is_favorite || false,
-        is_ai_generated: dbRecipe.is_ai_generated || false,
-        source_url: dbRecipe.source_url,
-        ai_match_score: dbRecipe.ai_match_score,
-        created_at: dbRecipe.created_at,
-        updated_at: dbRecipe.updated_at,
-      }));
-
-      setRecipes(formattedRecipes);
-      console.log('✅ Library data loaded successfully');
+      if (error) throw error;
+      
+      setRecipes(data || []);
+      applyFilters(data || []);
     } catch (error) {
-      console.error('Error loading library data:', error);
-      Alert.alert('Error', 'Failed to load library data');
+      console.error('Error loading recipes:', error);
     } finally {
       setRecipesLoading(false);
-      setLoading(false);
     }
   };
 
+  // useEffect'e selectedCookbookFilter ekle
   useEffect(() => {
-    loadLibraryData();
-  }, []);
+    loadRecipes();
+  }, [selectedCookbookFilter]);
 
   const handleAddToCookbook = (recipe: Recipe) => {
     setSelectedRecipeForCookbook({ id: recipe.id, title: recipe.title });
@@ -1326,97 +1245,33 @@ export default function Library() {
     });
   };
 
-  const applyFilters = async (recipesToFilter: Recipe[]) => {
-    let filtered = [...recipesToFilter];
+  const filteredRecipes = recipes.filter(recipe => {
+    const matchesSearch = recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      recipe.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Cookbook filter
-    if (selectedCookbook !== 'all') {
-      // Cookbook'taki recipe ID'lerini al
-      const { data: cookbookRecipes } = await supabase
-        .from('recipe_cookbooks')
-        .select('recipe_id')
-        .eq('cookbook_id', selectedCookbook);
+    const matchesMealType = filters.meal_type === 'all' ||
+      recipe.category.toLowerCase() === filters.meal_type.toLowerCase();
 
-      const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
-      filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
-    }
+    const matchesDiet = filters.diet === 'all' ||
+      recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()));
 
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        recipe.description?.toLowerCase().includes(query)
-      );
-    }
+    const totalTime = recipe.prep_time + recipe.cook_time;
+    const matchesCookTime = filters.cook_time === 'all' ||
+      (filters.cook_time === 'under_15' && totalTime < 15) ||
+      (filters.cook_time === 'under_30' && totalTime < 30) ||
+      (filters.cook_time === 'under_60' && totalTime < 60) ||
+      (filters.cook_time === 'over_60' && totalTime >= 60);
 
-    // Meal type filter
-    if (filters.meal_type !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.category.toLowerCase() === filters.meal_type.toLowerCase()
-      );
-    }
+    const matchesDifficulty = filters.difficulty === 'all' ||
+      recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase();
 
-    // Diet filter
-    if (filters.diet !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()))
-      );
-    }
+    const matchesFavorites = filterMode === 'all' ||
+      (filterMode === 'favorites' && recipe.is_favorite);
 
-    // Cook time filter
-    if (filters.cook_time !== 'all') {
-      const totalTime = (recipe: Recipe) => recipe.prep_time + recipe.cook_time;
-      filtered = filtered.filter(recipe => {
-        const time = totalTime(recipe);
-        switch (filters.cook_time) {
-          case 'under_15': return time < 15;
-          case 'under_30': return time < 30;
-          case 'under_60': return time < 60;
-          case 'over_60': return time >= 60;
-          default: return true;
-        }
-      });
-    }
+    return matchesSearch && matchesMealType && matchesDiet && matchesCookTime && matchesDifficulty && matchesFavorites;
+  });
 
-    // Difficulty filter
-    if (filters.difficulty !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
-      );
-    }
-
-    // Favorites filter
-    if (filterMode === 'favorites') {
-      filtered = filtered.filter(recipe => recipe.is_favorite);
-    }
-
-    return filtered;
-  };
-
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
-
-  useEffect(() => {
-    const filterRecipes = async () => {
-      const filtered = await applyFilters(recipes);
-      setFilteredRecipes(filtered);
-    };
-    filterRecipes();
-  }, [recipes, searchQuery, filters, filterMode, selectedCookbook]);
-
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.meal_type !== 'all') count++;
-    if (filters.diet !== 'all') count++;
-    if (filters.cook_time !== 'all') count++;
-    if (filters.difficulty !== 'all') count++;
-    if (filters.cuisine !== 'all') count++;
-    if (selectedCookbook !== 'all') count++;
-    if (filterMode === 'favorites') count++;
-    return count;
-  };
-
-  const hasActiveFilters = getActiveFilterCount() > 0;
+  const hasActiveFilters = Object.values(filters).some(filter => filter !== 'all') || filterMode !== 'all';
 
   const clearAllFilters = () => {
     setFilters({
@@ -1427,7 +1282,6 @@ export default function Library() {
       cuisine: 'all',
     });
     setFilterMode('all');
-    setSelectedCookbook('all');
   };
 
   const handleImportCategorySelect = (categoryId: string) => {
@@ -1699,11 +1553,7 @@ export default function Library() {
           onPress={() => setShowFilters(true)}
         >
           <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
-          {getActiveFilterCount() > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{getActiveFilterCount()}</Text>
-            </View>
-          )}
+          {hasActiveFilters && <View style={styles.filterDot} />}
         </TouchableOpacity>
       </View>
       
@@ -1780,6 +1630,46 @@ export default function Library() {
                 <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
                 <Text style={styles.cookbookName}>{cookbook.name}</Text>
                 <Text style={styles.cookbookCount}>{cookbook.recipe_count || 0} recipes</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Cookbook Filter Section */}
+        <View style={styles.filterSection}>
+          <Text style={styles.filterTitle}>Cookbook</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                !selectedCookbookFilter && styles.filterChipActive
+              ]}
+              onPress={() => setSelectedCookbookFilter(null)}
+            >
+              <Text style={[
+                styles.filterChipText,
+                !selectedCookbookFilter && styles.filterChipTextActive
+              ]}>
+                All Recipes
+              </Text>
+            </TouchableOpacity>
+            
+            {userCookbooks.map((cookbook) => (
+              <TouchableOpacity
+                key={cookbook.id}
+                style={[
+                  styles.filterChip,
+                  selectedCookbookFilter === cookbook.id && styles.filterChipActive
+                ]}
+                onPress={() => setSelectedCookbookFilter(cookbook.id)}
+              >
+                <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                <Text style={[
+                  styles.filterChipText,
+                  selectedCookbookFilter === cookbook.id && styles.filterChipTextActive
+                ]}>
+                  {cookbook.name}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -1862,9 +1752,6 @@ export default function Library() {
         filters={filters}
         onFiltersChange={setFilters}
         recipeCount={filteredRecipes.length}
-        userCookbooks={userCookbooks}
-        selectedCookbook={selectedCookbook}
-        onCookbookChange={setSelectedCookbook}
       />
       
       <URLImportModal
@@ -2023,21 +1910,14 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: colors.primary[50],
   },
-  filterBadge: {
+  filterDot: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
   },
   addActions: {
     flexDirection: 'row',
@@ -2177,12 +2057,6 @@ const styles = StyleSheet.create({
   cookbookCount: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
-  },
-  
-  // Filter Option with Emoji
-  filterOptionWithEmoji: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   
   // Selection mode styles
@@ -2897,4 +2771,140 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.lg,
   },
+  // Cookbook Filter Styles
+  filterSection: {
+    marginBottom: 12,
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  filterChipTextActive: {
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  activeFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+  },
+  activeFilterText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  // Edit Mode Styles
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+  },
+  editButtonText: {
+    color: '#4CAF50',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8f8f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  selectionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a1a',
+  },
+  selectAllText: {
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  bulkActionsBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    justifyContent: 'space-around',
+    paddingBottom: 32, // Safe area için
+  },
+  bulkAction: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  bulkActionText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+  bulkActionDelete: {
+    // Delete için özel stil
+  },
+  bulkActionTextDelete: {
+    color: '#FF5252',
+  },
+  selectedCard: {
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  checkboxContainer: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    zIndex: 1,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
 });
+```
