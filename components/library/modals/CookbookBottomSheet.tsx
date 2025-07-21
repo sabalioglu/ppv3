@@ -9,7 +9,7 @@ import BottomSheet, {
 import { X, Plus, Check } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../../lib/theme';
 import { useCookbookManager } from '../../../hooks/useCookbookManager';
-
+import { router } from 'expo-router';
 interface CookbookBottomSheetProps {
   visible: boolean;
   onClose: () => void;
