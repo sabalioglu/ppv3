@@ -11,7 +11,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat } from 'lucide-react-native';
+import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat, Info } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -168,6 +168,61 @@ export default function CookbookDetail() {
     setShowRecipeSelection(true);
   };
 
+  const handleRemoveRecipe = async (recipeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('recipe_cookbooks')
+        .delete()
+        .eq('cookbook_id', id)
+        .eq('recipe_id', recipeId);
+
+      if (error) throw error;
+
+      // Update local state
+      setRecipes(prev => prev.filter(r => r.id !== recipeId));
+      
+      // Update cookbook recipe count
+      setCookbook(prev => prev ? { ...prev, recipe_count: prev.recipe_count - 1 } : null);
+      
+      Alert.alert('Success', 'Recipe removed from cookbook');
+    } catch (error) {
+      console.error('Error removing recipe:', error);
+      Alert.alert('Error', 'Failed to remove recipe');
+    }
+  };
+
+  const handleRecipeLongPress = (recipe: CookbookRecipe) => {
+    Alert.alert(
+      recipe.title,
+      'What would you like to do?',
+      [
+        { 
+          text: 'View Recipe', 
+          onPress: () => router.push(`/recipe/${recipe.id}`) 
+        },
+        { 
+          text: 'Remove from Cookbook', 
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Remove Recipe',
+              'Are you sure you want to remove this recipe from the cookbook?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => handleRemoveRecipe(recipe.id)
+                }
+              ]
+            );
+          }
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return colors.success[500];
@@ -248,7 +303,15 @@ export default function CookbookDetail() {
 
         {/* Recipes List */}
         <View style={styles.recipesSection}>
-          <Text style={styles.sectionTitle}>Recipes</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recipes</Text>
+            {recipes.length > 0 && (
+              <View style={styles.infoContainer}>
+                <Info size={14} color={colors.neutral[400]} />
+                <Text style={styles.infoText}>Hold recipe to manage</Text>
+              </View>
+            )}
+          </View>
           
           {recipes.length === 0 ? (
             <View style={styles.emptyState}>
@@ -263,6 +326,8 @@ export default function CookbookDetail() {
                 key={recipe.id}
                 style={styles.recipeCard}
                 onPress={() => router.push(`/recipe/${recipe.id}`)}
+                onLongPress={() => handleRecipeLongPress(recipe)}
+                delayLongPress={500}
               >
                 {/* Recipe Image */}
                 <View style={styles.recipeImageContainer}>
@@ -474,11 +539,29 @@ const styles = StyleSheet.create({
   recipesSection: {
     padding: spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: '600',
     color: colors.neutral[800],
-    marginBottom: spacing.lg,
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.neutral[100],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+  },
+  infoText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[500],
   },
   emptyState: {
     alignItems: 'center',
