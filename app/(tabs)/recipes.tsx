@@ -1,4 +1,5 @@
 //app>(tabs)>recipes.tsximport React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import {
   View,
   Text,
@@ -33,9 +34,7 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
-
 const { width } = Dimensions.get('window');
-
 
 // Recipe interface (aligned with Supabase schema)
 interface Recipe {
@@ -133,8 +132,8 @@ const FilterModal: React.FC<{
   selectedCookbook: string;
   onCookbookChange: (cookbookId: string) => void;
 }> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
-  const [localFilters, setLocalFilters] = useState(filters);
-  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+  const [localFilters, setLocalFilters] = React.useState(filters);
+  const [expandedCategories, setExpandedCategories] = React.useState<{ [key: string]: boolean }>({
     cookbook: true,
     meal_type: true,
   });
@@ -518,16 +517,16 @@ const EmptyState: React.FC<{
 
 
 export default function Recipes() {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [recipes, setRecipes] = React.useState<Recipe[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [showFilters, setShowFilters] = React.useState(false);
   
   // Cookbook filter states
-  const [selectedCookbook, setSelectedCookbook] = useState('all');
-  const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
+  const [selectedCookbook, setSelectedCookbook] = React.useState('all');
+  const [userCookbooks, setUserCookbooks] = React.useState<any[]>([]);
 
-  const [filters, setFilters] = useState<{ [key: string]: string }>({
+  const [filters, setFilters] = React.useState<{ [key: string]: string }>({
     meal_type: 'all',
     diet: 'all',
     cook_time: 'all',
@@ -615,7 +614,7 @@ export default function Recipes() {
   };
 
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadRecipes();
     loadUserCookbooks();
   }, []);
@@ -683,9 +682,9 @@ export default function Recipes() {
     return filtered;
   };
 
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
+  const [filteredRecipes, setFilteredRecipes] = React.useState<Recipe[]>([]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const filterRecipes = async () => {
       const filtered = await applyFilters(recipes);
       setFilteredRecipes(filtered);
