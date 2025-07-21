@@ -100,15 +100,21 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
           showsVerticalScrollIndicator={false}
         >
           {/* Create New Cookbook */}
-          <TouchableOpacity style={styles.createOption}>
-            <View style={styles.createIconContainer}>
-              <Plus size={24} color={colors.primary[500]} />
-            </View>
-            <View style={styles.optionContent}>
-              <Text style={styles.optionTitle}>Create New Cookbook</Text>
-              <Text style={styles.optionDescription}>Start a new collection</Text>
-            </View>
-          </TouchableOpacity>
+          <TouchableOpacity 
+  style={styles.createOption}
+  onPress={() => {
+    onClose();
+    router.push('/library/create-cookbook');
+  }}
+>
+  <View style={styles.createIconContainer}>
+    <Plus size={24} color={colors.primary[500]} />
+  </View>
+  <View style={styles.optionContent}>
+    <Text style={styles.optionTitle}>Create New Cookbook</Text>
+    <Text style={styles.optionDescription}>Start a new collection</Text>
+  </View>
+</TouchableOpacity>
 
           {/* Existing Cookbooks */}
           {cookbooks.map((cookbook) => (
