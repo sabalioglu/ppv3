@@ -1,6 +1,6 @@
 //app>(tabs)>recipes.tsx
 import React, { useState, useEffect } from 'react';
-import * as React from 'react';
+import as React from 'react';
 import {
   View,
   Text,
