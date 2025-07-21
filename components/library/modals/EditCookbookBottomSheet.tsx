@@ -1,37 +1,82 @@
-// components/library/modals/CookbookBottomSheet.tsx
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+// components/library/modals/EditCookbookBottomSheet.tsx
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  ScrollView as RNScrollView,
+} from 'react-native';
 import BottomSheet, { 
   BottomSheetView, 
   BottomSheetScrollView,
-  BottomSheetBackdrop 
+  BottomSheetBackdrop,
+  BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
-import { X, Plus, Check } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { colors, spacing, typography } from '../../../lib/theme';
-import { useCookbookManager } from '../../../hooks/useCookbookManager';
-import { EditCookbookBottomSheet } from './EditCookbookBottomSheet';
+import { supabase } from '../../../lib/supabase';
 
-interface CookbookBottomSheetProps {
+interface EditCookbookBottomSheetProps {
   visible: boolean;
   onClose: () => void;
-  recipeId: string;
-  recipeTitle: string;
+  cookbook: {
+    id: string;
+    name: string;
+    description?: string;
+    emoji: string;
+    color: string;
+  };
+  onUpdate: () => void;
 }
 
-export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
+const EMOJI_OPTIONS = ['📚', '🍳', '🥘', '🍰', '🥗', '🍕', '🍜', '🥐', '🍱', '🌮'];
+const COLOR_OPTIONS = [
+  colors.primary[500],
+  colors.secondary[500],
+  colors.accent[500],
+  colors.success[500],
+  colors.warning[500],
+  colors.error[500],
+  '#8B5CF6',
+  '#EC4899',
+  '#F59E0B',
+  '#10B981',
+];
+
+export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = ({
   visible,
   onClose,
-  recipeId,
-  recipeTitle,
+  cookbook,
+  onUpdate,
 }) => {
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '85%'], []);
+  const snapPoints = useMemo(() => ['75%', '90%'], []);
   
-  const { cookbooks, loadCookbooks, manageRecipeCookbooks } = useCookbookManager();
-  const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
-  const [showCreateCookbook, setShowCreateCookbook] = useState(false);
+  const [name, setName] = useState(cookbook.name);
+  const [description, setDescription] = useState(cookbook.description || '');
+  const [selectedEmoji, setSelectedEmoji] = useState(cookbook.emoji);
+  const [selectedColor, setSelectedColor] = useState(cookbook.color);
+  const [loading, setLoading] = useState(false);
 
-  // Backdrop component - tap to close
+  // Check if this is a new cookbook
+  const isNewCookbook = cookbook.id === 'new';
+
+  useEffect(() => {
+    if (visible) {
+      setName(cookbook.name);
+      setDescription(cookbook.description || '');
+      setSelectedEmoji(cookbook.emoji);
+      setSelectedColor(cookbook.color);
+      bottomSheetRef.current?.expand();
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [visible, cookbook]);
+
   const renderBackdrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop
@@ -44,138 +89,165 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
     []
   );
 
-  const handleCookbookToggle = (cookbookId: string) => {
-    setSelectedCookbooks(prev => {
-      if (prev.includes(cookbookId)) {
-        return prev.filter(id => id !== cookbookId);
-      }
-      return [...prev, cookbookId];
-    });
-  };
+  const handleUpdate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Error', 'Cookbook name is required');
+      return;
+    }
 
-  const handleSave = async () => {
+    setLoading(true);
     try {
-      await manageRecipeCookbooks(recipeId, selectedCookbooks, 'replace');
+      if (isNewCookbook) {
+        // Create new cookbook
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          Alert.alert('Error', 'Please log in to create cookbooks');
+          return;
+        }
+
+        const { error } = await supabase
+          .from('cookbooks')
+          .insert({
+            user_id: user.id,
+            name: name.trim(),
+            description: description.trim() || null,
+            emoji: selectedEmoji,
+            color: selectedColor,
+          });
+
+        if (error) throw error;
+        Alert.alert('Success!', 'Cookbook created successfully');
+      } else {
+        // Update existing cookbook
+        const { error } = await supabase
+          .from('cookbooks')
+          .update({
+            name: name.trim(),
+            description: description.trim() || null,
+            emoji: selectedEmoji,
+            color: selectedColor,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', cookbook.id);
+
+        if (error) throw error;
+        Alert.alert('Success!', 'Cookbook updated successfully');
+      }
+
+      onUpdate();
       onClose();
     } catch (error) {
-      console.error('Error saving:', error);
+      console.error(`Error ${isNewCookbook ? 'creating' : 'updating'} cookbook:`, error);
+      Alert.alert('Error', `Failed to ${isNewCookbook ? 'create' : 'update'} cookbook`);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Show/hide bottom sheet based on visible prop
-  React.useEffect(() => {
-    if (visible) {
-      bottomSheetRef.current?.expand();
-    } else {
-      bottomSheetRef.current?.close();
-    }
-  }, [visible]);
 
   if (!visible) return null;
 
   return (
-    <>
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        enablePanDownToClose={true}
-        backdropComponent={renderBackdrop}
-        onClose={onClose}
-        handleIndicatorStyle={styles.handleIndicator}
-        backgroundStyle={styles.bottomSheetBackground}
-      >
-        <BottomSheetView style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Add to Cookbook</Text>
-              <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Scrollable Content */}
-          <BottomSheetScrollView 
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Create New Cookbook */}
-            <TouchableOpacity 
-              style={styles.createOption}
-              onPress={() => {
-                onClose();
-                setTimeout(() => setShowCreateCookbook(true), 300);
-              }}
-            >
-              <View style={styles.createIconContainer}>
-                <Plus size={24} color={colors.primary[500]} />
-              </View>
-              <View style={styles.optionContent}>
-                <Text style={styles.optionTitle}>Create New Cookbook</Text>
-                <Text style={styles.optionDescription}>Start a new collection</Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Existing Cookbooks */}
-            {cookbooks.map((cookbook) => (
-              <TouchableOpacity
-                key={cookbook.id}
-                style={[
-                  styles.cookbookOption,
-                  selectedCookbooks.includes(cookbook.id) && styles.selectedOption
-                ]}
-                onPress={() => handleCookbookToggle(cookbook.id)}
-              >
-                <View style={[styles.emojiContainer, { backgroundColor: `${cookbook.color}15` }]}>
-                  <Text style={styles.emoji}>{cookbook.emoji}</Text>
-                </View>
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionTitle}>{cookbook.name}</Text>
-                  <Text style={styles.optionDescription}>
-                    {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                {selectedCookbooks.includes(cookbook.id) && (
-                  <Check size={20} color={colors.primary[500]} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </BottomSheetScrollView>
-
-          {/* Save Button */}
-          <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSave}
-            >
-              <Text style={styles.saveButtonText}>
-                Save ({selectedCookbooks.length})
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={0}
+      snapPoints={snapPoints}
+      enablePanDownToClose={true}
+      backdropComponent={renderBackdrop}
+      onClose={onClose}
+      handleIndicatorStyle={styles.handleIndicator}
+      backgroundStyle={styles.bottomSheetBackground}
+    >
+      <BottomSheetView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <X size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+          <Text style={styles.title}>
+            {isNewCookbook ? 'Create Cookbook' : 'Edit Cookbook'}
+          </Text>
+          <TouchableOpacity onPress={handleUpdate} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primary[500]} />
+            ) : (
+              <Text style={styles.saveText}>
+                {isNewCookbook ? 'Create' : 'Save'}
               </Text>
-            </TouchableOpacity>
-          </View>
-        </BottomSheetView>
-      </BottomSheet>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      {/* Create Cookbook BottomSheet - Yeni cookbook oluşturma için */}
-      <EditCookbookBottomSheet
-        visible={showCreateCookbook}
-        onClose={() => setShowCreateCookbook(false)}
-        cookbook={{
-          id: 'new',
-          name: '',
-          description: '',
-          emoji: '📚',
-          color: colors.primary[500]
-        }}
-        onUpdate={() => {
-          setShowCreateCookbook(false);
-          loadCookbooks();
-        }}
-      />
-    </>
+        {/* Content */}
+        <BottomSheetScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Name</Text>
+            <BottomSheetTextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="My Cookbook"
+              placeholderTextColor={colors.neutral[400]}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description (Optional)</Text>
+            <BottomSheetTextInput
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="A collection of my favorite recipes..."
+              placeholderTextColor={colors.neutral[400]}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Emoji</Text>
+            <RNScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.emojiContainer}>
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={[
+                      styles.emojiOption,
+                      selectedEmoji === emoji && styles.emojiOptionSelected,
+                    ]}
+                    onPress={() => setSelectedEmoji(emoji)}
+                  >
+                    <Text style={styles.emojiText}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </RNScrollView>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Color</Text>
+            <View style={styles.colorContainer}>
+              {COLOR_OPTIONS.map((color) => (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorOption,
+                    { backgroundColor: color },
+                    selectedColor === color && styles.colorOptionSelected,
+                  ]}
+                  onPress={() => setSelectedColor(color)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Spacer for bottom */}
+          <View style={{ height: 50 }} />
+        </BottomSheetScrollView>
+      </BottomSheetView>
+    </BottomSheet>
   );
 };
 
@@ -192,102 +264,87 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
-  titleContainer: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
   title: {
     fontSize: typography.fontSize.xl,
     fontWeight: '600',
     color: colors.neutral[800],
-    marginBottom: spacing.xs,
   },
-  subtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  closeButton: {
-    padding: spacing.xs,
+  saveText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[500],
   },
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
-  createOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+  formGroup: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
-  createIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
+  label: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.sm,
   },
-  cookbookOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  selectedOption: {
-    backgroundColor: colors.primary[50],
-    marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
+  input: {
+    backgroundColor: colors.neutral[50],
     borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
   },
   emojiContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  emojiOption: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  emojiOptionSelected: {
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[50],
+  },
+  emojiText: {
+    fontSize: 24,
+  },
+  colorContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  colorOption: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
-  emoji: {
-    fontSize: 24,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  optionDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  saveButton: {
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
+  colorOptionSelected: {
+    borderColor: colors.neutral[800],
   },
 });
