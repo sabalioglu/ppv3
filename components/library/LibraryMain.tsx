@@ -1674,9 +1674,9 @@ export default function Library() {
         <View style={styles.cookbooksSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Cookbooks</Text>
-            <TouchableOpacity onPress={() => router.push('/cookbooks/create')}>
-              <Plus size={20} color={colors.primary[500]} />
-            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/library/create-cookbook')}>
+  <Plus size={20} color={colors.primary[500]} />
+</TouchableOpacity>
           </View>
           
           <ScrollView 
@@ -1686,8 +1686,8 @@ export default function Library() {
           >
             {/* New Cookbook Card */}
             <TouchableOpacity
-              style={styles.newCookbookCard}
-              onPress={() => router.push('/cookbooks/create')}
+  style={styles.newCookbookCard}
+  onPress={() => router.push('/library/create-cookbook')}
             >
               <View style={styles.newCookbookIcon}>
                 <Plus size={24} color={colors.primary[500]} />
