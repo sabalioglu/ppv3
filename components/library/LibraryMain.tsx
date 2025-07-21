@@ -2907,4 +2907,3 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
   },
 });
-```
