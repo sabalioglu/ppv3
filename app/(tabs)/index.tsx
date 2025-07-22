@@ -10,18 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  TrendingUp,
-  AlertTriangle,
-  Target,
-  Award,
-  ChevronRight,
-  User,
-  Activity,
-  Heart,
-  Coffee,
-  Plus,
-} from 'lucide-react-native';
+import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight, User, Activity, Heart, Coffee, Plus } from 'lucide-react-native';
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
