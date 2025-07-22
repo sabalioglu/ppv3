@@ -16,8 +16,6 @@ import { ArrowLeft, Clock, Users, Flame, Heart, ExternalLink, Play, ShoppingCart
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 // Recipe interface (same as library.tsx)
 interface Recipe {
@@ -180,7 +178,7 @@ export default function RecipeDetail() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <BodyRegular color={colors.neutral[600]} style={styles.loadingText}>Loading recipe details...</BodyRegular>
+        <Text style={styles.loadingText}>Loading recipe details...</Text>
       </View>
     );
   }
@@ -188,9 +186,9 @@ export default function RecipeDetail() {
   if (!recipe) {
     return (
       <View style={styles.errorContainer}>
-        <H5 color={colors.neutral[600]}>Recipe not found</H5>
+        <Text style={styles.errorText}>Recipe not found</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <BodyRegular weight="semibold" color={colors.neutral[0]}>Go Back</BodyRegular>
+          <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -199,31 +197,26 @@ export default function RecipeDetail() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <AppHeader
-        title={recipe.title}
-        leftComponent={
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-            <ArrowLeft size={24} color={colors.neutral[800]} />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
+          <ArrowLeft size={24} color={colors.neutral[800]} />
+        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleFavorite} style={styles.headerActionButton}>
+            <Heart
+              size={24}
+              color={recipe.is_favorite ? colors.error[500] : colors.neutral[600]}
+              fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+            />
           </TouchableOpacity>
-        }
-        rightComponent={
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={handleFavorite} style={styles.headerActionButton}>
-              <Heart
-                size={24}
-                color={recipe.is_favorite ? colors.error[500] : colors.neutral[600]}
-                fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
-              <Share size={24} color={colors.neutral[600]} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleEdit} style={styles.headerActionButton}>
-              <Edit3 size={24} color={colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-        }
-      />
+          <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
+            <Share size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleEdit} style={styles.headerActionButton}>
+            <Edit3 size={24} color={colors.neutral[600]} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
@@ -239,7 +232,7 @@ export default function RecipeDetail() {
             />
           ) : (
             <View style={styles.heroPlaceholder}>
-              <BodyRegular color={colors.neutral[500]}>No Image</BodyRegular>
+              <Text style={styles.heroPlaceholderText}>No Image</Text>
             </View>
           )}
           
@@ -247,34 +240,34 @@ export default function RecipeDetail() {
           <View style={styles.badges}>
             {recipe.is_ai_generated && (
               <View style={styles.aiBadge}>
-                <Caption weight="bold" color={colors.neutral[0]}>AI</Caption>
+                <Text style={styles.aiText}>AI</Text>
               </View>
             )}
             <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-              <Caption weight="bold" color={colors.neutral[0]}>{recipe.difficulty}</Caption>
+              <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
             </View>
           </View>
         </View>
 
         {/* Title and Description */}
         <View style={styles.titleSection}>
-          <H2 weight="bold" color={colors.neutral[800]} style={styles.title}>{recipe.title}</H2>
-          <BodyRegular color={colors.neutral[600]} style={styles.description}>{recipe.description}</BodyRegular>
+          <Text style={styles.title}>{recipe.title}</Text>
+          <Text style={styles.description}>{recipe.description}</Text>
           
           {/* Meta Info */}
           <View style={styles.metaInfo}>
             <View style={styles.metaItem}>
               <Clock size={16} color={colors.neutral[500]} />
-              <BodySmall weight="medium" color={colors.neutral[600]}>{recipe.prep_time + recipe.cook_time}m</BodySmall>
+              <Text style={styles.metaText}>{recipe.prep_time + recipe.cook_time}m</Text>
             </View>
             <View style={styles.metaItem}>
               <Users size={16} color={colors.neutral[500]} />
-              <BodySmall weight="medium" color={colors.neutral[600]}>{recipe.servings} servings</BodySmall>
+              <Text style={styles.metaText}>{recipe.servings} servings</Text>
             </View>
             {recipe.nutrition?.calories && (
               <View style={styles.metaItem}>
                 <Flame size={16} color={colors.neutral[500]} />
-                <BodySmall weight="medium" color={colors.neutral[600]}>{recipe.nutrition.calories} cal</BodySmall>
+                <Text style={styles.metaText}>{recipe.nutrition.calories} cal</Text>
               </View>
             )}
           </View>
@@ -283,7 +276,7 @@ export default function RecipeDetail() {
           {recipe.source_url && (
             <TouchableOpacity style={styles.sourceButton} onPress={handleOpenSource}>
               <ExternalLink size={16} color={colors.primary[500]} />
-              <BodySmall weight="semibold" color={colors.primary[500]}>View Original Source</BodySmall>
+              <Text style={styles.sourceText}>View Original Source</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -292,47 +285,47 @@ export default function RecipeDetail() {
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.primaryButton} onPress={handleCookNow}>
             <Play size={20} color={colors.neutral[0]} />
-            <BodyRegular weight="semibold" color={colors.neutral[0]}>Cook Now</BodyRegular>
+            <Text style={styles.primaryButtonText}>Cook Now</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={handleAddMissingToCart}>
             <ShoppingCart size={20} color={colors.primary[500]} />
-            <BodyRegular weight="semibold" color={colors.primary[500]}>Add Missing to Cart</BodyRegular>
+            <Text style={styles.secondaryButtonText}>Add Missing to Cart</Text>
           </TouchableOpacity>
         </View>
 
         {/* Ingredients */}
         <View style={styles.section}>
-          <H5 weight="semibold" color={colors.neutral[800]}>Ingredients</H5>
+          <Text style={styles.sectionTitle}>Ingredients</Text>
           {recipe.ingredients.map((ingredient, index) => (
             <View key={index} style={styles.ingredientItem}>
               <View style={styles.ingredientBullet} />
-              <BodyRegular color={colors.neutral[700]} style={styles.ingredientText}>
+              <Text style={styles.ingredientText}>
                 {ingredient.quantity && ingredient.unit 
                   ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`
                   : ingredient.name
                 }
                 {ingredient.notes && (
-                  <BodyRegular color={colors.neutral[500]} style={styles.ingredientNotes}> ({ingredient.notes})</BodyRegular>
+                  <Text style={styles.ingredientNotes}> ({ingredient.notes})</Text>
                 )}
-              </BodyRegular>
+              </Text>
             </View>
           ))}
         </View>
 
         {/* Instructions */}
         <View style={styles.section}>
-          <H5 weight="semibold" color={colors.neutral[800]}>Instructions</H5>
+          <Text style={styles.sectionTitle}>Instructions</Text>
           {recipe.instructions.map((instruction, index) => (
             <View key={index} style={styles.instructionItem}>
               <View style={styles.stepNumber}>
-                <BodySmall weight="bold" color={colors.neutral[0]}>{instruction.step}</BodySmall>
+                <Text style={styles.stepNumberText}>{instruction.step}</Text>
               </View>
               <View style={styles.instructionContent}>
-                <BodyRegular color={colors.neutral[700]} style={styles.instructionText}>{instruction.instruction}</BodyRegular>
+                <Text style={styles.instructionText}>{instruction.instruction}</Text>
                 {instruction.duration_mins && (
-                  <BodySmall color={colors.neutral[500]}>
+                  <Text style={styles.instructionDuration}>
                     ⏱️ {instruction.duration_mins} minutes
-                  </BodySmall>
+                  </Text>
                 )}
               </View>
             </View>
@@ -342,30 +335,30 @@ export default function RecipeDetail() {
         {/* Nutrition Info */}
         {recipe.nutrition && (
           <View style={styles.section}>
-            <H5 weight="semibold" color={colors.neutral[800]}>Nutrition Information</H5>
+            <Text style={styles.sectionTitle}>Nutrition Information</Text>
             <View style={styles.nutritionGrid}>
               {recipe.nutrition.calories && (
                 <View style={styles.nutritionItem}>
-                  <H5 weight="bold" color={colors.neutral[800]}>{recipe.nutrition.calories}</H5>
-                  <Caption color={colors.neutral[500]}>Calories</Caption>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.calories}</Text>
+                  <Text style={styles.nutritionLabel}>Calories</Text>
                 </View>
               )}
               {recipe.nutrition.protein && (
                 <View style={styles.nutritionItem}>
-                  <H5 weight="bold" color={colors.neutral[800]}>{recipe.nutrition.protein}g</H5>
-                  <Caption color={colors.neutral[500]}>Protein</Caption>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.protein}g</Text>
+                  <Text style={styles.nutritionLabel}>Protein</Text>
                 </View>
               )}
               {recipe.nutrition.carbs && (
                 <View style={styles.nutritionItem}>
-                  <H5 weight="bold" color={colors.neutral[800]}>{recipe.nutrition.carbs}g</H5>
-                  <Caption color={colors.neutral[500]}>Carbs</Caption>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.carbs}g</Text>
+                  <Text style={styles.nutritionLabel}>Carbs</Text>
                 </View>
               )}
               {recipe.nutrition.fat && (
                 <View style={styles.nutritionItem}>
-                  <H5 weight="bold" color={colors.neutral[800]}>{recipe.nutrition.fat}g</H5>
-                  <Caption color={colors.neutral[500]}>Fat</Caption>
+                  <Text style={styles.nutritionValue}>{recipe.nutrition.fat}g</Text>
+                  <Text style={styles.nutritionLabel}>Fat</Text>
                 </View>
               )}
             </View>
@@ -375,11 +368,11 @@ export default function RecipeDetail() {
         {/* Tags */}
         {recipe.tags.length > 0 && (
           <View style={styles.section}>
-            <H5 weight="semibold" color={colors.neutral[800]}>Tags</H5>
+            <Text style={styles.sectionTitle}>Tags</Text>
             <View style={styles.tagsContainer}>
               {recipe.tags.map((tag, index) => (
                 <View key={index} style={styles.tag}>
-                  <BodySmall weight="medium" color={colors.primary[600]}>{tag}</BodySmall>
+                  <Text style={styles.tagText}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -415,6 +408,33 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   errorText: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    color: colors.neutral[600],
+    marginBottom: spacing.lg,
+  },
+  backButton: {
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+  },
+  backButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
   },
   headerBackButton: {
     width: 40,
@@ -454,6 +474,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  heroPlaceholderText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
+  },
   badges: {
     position: 'absolute',
     top: spacing.md,
@@ -467,15 +492,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
+  aiText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontWeight: 'bold',
+    color: colors.neutral[0],
+  },
   difficultyBadge: {
     borderRadius: 8,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
+  difficultyText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontWeight: 'bold',
+    color: colors.neutral[0],
+  },
   titleSection: {
     padding: spacing.lg,
   },
   title: {
+    fontSize: typography.fontSize['2xl'],
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
+    fontWeight: 'bold',
+    color: colors.neutral[800],
+    marginBottom: spacing.sm,
+  },
+  description: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[600],
+    lineHeight: 22,
+    marginBottom: spacing.lg,
   },
   metaInfo: {
     flexDirection: 'row',
@@ -487,11 +536,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  metaText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    fontWeight: '500',
+    color: colors.neutral[600],
+  },
   sourceButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.sm,
+  },
+  sourceText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[500],
   },
   actionButtons: {
     flexDirection: 'row',
@@ -509,6 +570,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     gap: spacing.sm,
   },
+  primaryButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
   secondaryButton: {
     flex: 1,
     flexDirection: 'row',
@@ -521,10 +588,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary[200],
   },
+  secondaryButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[500],
+  },
   section: {
     padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[100],
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: spacing.lg,
   },
   ingredientItem: {
     flexDirection: 'row',
@@ -540,6 +620,15 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   ingredientText: {
+    flex: 1,
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[700],
+    lineHeight: 22,
+  },
+  ingredientNotes: {
+    color: colors.neutral[500],
+    fontStyle: 'italic',
   },
   instructionItem: {
     flexDirection: 'row',
@@ -555,10 +644,26 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
     marginTop: 2,
   },
+  stepNumberText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontWeight: 'bold',
+    color: colors.neutral[0],
+  },
   instructionContent: {
     flex: 1,
   },
   instructionText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[700],
+    lineHeight: 22,
+    marginBottom: spacing.xs,
+  },
+  instructionDuration: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[500],
   },
   nutritionGrid: {
     flexDirection: 'row',
@@ -572,6 +677,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 80,
   },
+  nutritionValue: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontWeight: 'bold',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  nutritionLabel: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    color: colors.neutral[500],
+    textAlign: 'center',
+  },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -582,5 +700,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  tagText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    fontWeight: '500',
+    color: colors.primary[600],
   },
 });

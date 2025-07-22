@@ -10,12 +10,21 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight, User, Activity, Heart, Coffee, Plus } from 'lucide-react-native';
+import {
+  TrendingUp,
+  AlertTriangle,
+  Target,
+  Award,
+  ChevronRight,
+  User,
+  Activity,
+  Heart,
+  Coffee,
+  Plus,
+} from 'lucide-react-native';
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -84,11 +93,11 @@ const EmptyState = ({
       <View style={styles.emptyIcon}>
         <Icon size={48} color={colors.textSecondary} />
       </View>
-      <H3 color={colors.textPrimary}>{title}</H3>
-      <BodyRegular color={colors.textSecondary} style={styles.emptyMessage}>{message}</BodyRegular>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyMessage}>{message}</Text>
       {actionText && onAction && (
         <TouchableOpacity style={styles.emptyAction} onPress={onAction}>
-          <StyledText variant="button" color={colors.neutral[0]}>{actionText}</StyledText>
+          <Text style={styles.emptyActionText}>{actionText}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -102,13 +111,13 @@ const StatCard = ({ title, current, target, color, unit }: any) => {
   return (
     <View style={styles.statCard}>
       <View style={styles.statHeader}>
-        <Caption color={color}>{title}</Caption>
+        <Text style={styles.statTitle}>{title}</Text>
         <TrendingUp size={16} color={color} />
       </View>
       
       <View style={styles.statContent}>
-        <H3 color={theme.colors.textPrimary}>{current}</H3>
-        <BodySmall color={theme.colors.textSecondary}>/ {target} {unit}</BodySmall>
+        <Text style={styles.statValue}>{current}</Text>
+        <Text style={styles.statTarget}>/ {target} {unit}</Text>
       </View>
       
       <View style={styles.progressContainer}>
@@ -141,9 +150,9 @@ const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
         <Icon size={24} color={getColor()} />
       </View>
       <View style={styles.insightContent}>
-        <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{title}</StyledText>
-        <BodySmall color={theme.colors.textSecondary}>{description}</BodySmall>
-        {value && <BodySmall weight="semibold" color={getColor()}>{value}</BodySmall>}
+        <Text style={styles.insightTitle}>{title}</Text>
+        <Text style={styles.insightDescription}>{description}</Text>
+        {value && <Text style={[styles.insightValue, { color: getColor() }]}>{value}</Text>}
       </View>
       <ChevronRight size={16} color={colors.textSecondary} />
     </TouchableOpacity>
@@ -158,31 +167,31 @@ const ProfileSummaryCard = ({ profile }: any) => {
     <View style={styles.profileCard}>
       <View style={styles.profileHeader}>
         <User size={20} color={colors.primary} />
-        <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>Your Profile Summary</StyledText>
+        <Text style={styles.profileTitle}>Your Profile Summary</Text>
       </View>
       
       <View style={styles.profileGrid}>
         <View style={styles.profileItem}>
-          <Caption color={theme.colors.textSecondary}>Age</Caption>
-          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.age} years</StyledText>
+          <Text style={styles.profileLabel}>Age</Text>
+          <Text style={styles.profileValue}>{profile.age} years</Text>
         </View>
         <View style={styles.profileItem}>
-          <Caption color={theme.colors.textSecondary}>Height</Caption>
-          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.height_cm} cm</StyledText>
+          <Text style={styles.profileLabel}>Height</Text>
+          <Text style={styles.profileValue}>{profile.height_cm} cm</Text>
         </View>
         <View style={styles.profileItem}>
-          <Caption color={theme.colors.textSecondary}>Weight</Caption>
-          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.weight_kg} kg</StyledText>
+          <Text style={styles.profileLabel}>Weight</Text>
+          <Text style={styles.profileValue}>{profile.weight_kg} kg</Text>
         </View>
         <View style={styles.profileItem}>
-          <Caption color={theme.colors.textSecondary}>BMR</Caption>
-          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{Math.round(bmr)} cal</StyledText>
+          <Text style={styles.profileLabel}>BMR</Text>
+          <Text style={styles.profileValue}>{Math.round(bmr)} cal</Text>
         </View>
       </View>
       
       <View style={styles.tdeeContainer}>
-        <BodySmall color={theme.colors.textSecondary}>Daily Calorie Target (TDEE)</BodySmall>
-        <H3 weight="bold" color="#10b981">{tdee} calories</H3>
+        <Text style={styles.tdeeLabel}>Daily Calorie Target (TDEE)</Text>
+        <Text style={styles.tdeeValue}>{tdee} calories</Text>
       </View>
     </View>
   );
@@ -354,14 +363,14 @@ export default function Dashboard() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <BodyRegular color={colors.textSecondary} style={styles.loadingText}>Loading your dashboard...</BodyRegular>
+        <Text style={styles.loadingText}>Loading your dashboard...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
+      {/* Header - LOGOUT BUTTON KALDIRILDI */}
       <LinearGradient
         colors={gradients.primary}
         style={styles.header}
@@ -370,16 +379,16 @@ export default function Dashboard() {
       >
         <View style={styles.headerContent}>
           <View style={styles.greetingContainer}>
-            <H2 color="white">
+            <Text style={styles.greeting}>
               {greeting}, {userName}!
-            </H2>
-            <BodyRegular color="rgba(255, 255, 255, 0.8)">
+            </Text>
+            <Text style={styles.subtitle}>
               {userProfile?.health_goals?.includes('weight_loss') 
                 ? "Let's achieve your weight loss goals"
                 : userProfile?.health_goals?.includes('muscle_gain')
                 ? "Time to build those muscles"
                 : "Let's track your nutrition goals"}
-            </BodyRegular>
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -395,7 +404,7 @@ export default function Dashboard() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Target size={20} color={colors.primary} />
-          <StyledText variant="h5" weight="semibold" color={colors.textPrimary} style={styles.sectionTitle}>Today's Progress</StyledText>
+          <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
         
         {hasNutritionData ? (
@@ -445,7 +454,7 @@ export default function Dashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <TrendingUp size={20} color={colors.primary} />
-            <StyledText variant="h5" weight="semibold" color={colors.textPrimary} style={styles.sectionTitle}>Your Insights</StyledText>
+            <Text style={styles.sectionTitle}>Your Insights</Text>
           </View>
           
           <View style={styles.insightsList}>
@@ -458,7 +467,7 @@ export default function Dashboard() {
 
       {/* Quick Actions - GERÇEK NAVİGATİON EKLENDİ */}
       <View style={[styles.section, { marginBottom: 100 }]}>
-        <H5 weight="semibold" color={colors.textPrimary}>Quick Actions</H5>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
         
         <View style={styles.quickActions}>
           <TouchableOpacity 
@@ -468,7 +477,7 @@ export default function Dashboard() {
             <View style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}>
               <Target size={24} color="#10b981" />
             </View>
-            <BodySmall weight="medium" color={colors.textPrimary}>Log Food</BodySmall>
+            <Text style={styles.quickActionText}>Log Food</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -478,7 +487,7 @@ export default function Dashboard() {
             <View style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}>
               <Plus size={24} color="#f59319" />
             </View>
-            <BodySmall weight="medium" color={colors.textPrimary}>Add Item</BodySmall>
+            <Text style={styles.quickActionText}>Add Item</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -488,7 +497,7 @@ export default function Dashboard() {
             <View style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}>
               <Award size={24} color="#6366f1" />
             </View>
-            <BodySmall weight="medium" color={colors.textPrimary}>Recipes</BodySmall>
+            <Text style={styles.quickActionText}>Recipes</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -496,6 +505,7 @@ export default function Dashboard() {
   );
 }
 
+// Styles - Empty State Stilleri Eklendi
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -508,6 +518,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
     marginTop: 12,
   },
   header: {
@@ -525,6 +537,16 @@ const styles = StyleSheet.create({
   greetingContainer: {
     flex: 1,
   },
+  greeting: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
   section: {
     padding: spacing.lg,
   },
@@ -534,6 +556,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
     marginLeft: spacing.sm,
     flex: 1,
   },
@@ -548,6 +573,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  profileTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginLeft: spacing.sm,
+  },
   profileGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -557,11 +588,31 @@ const styles = StyleSheet.create({
     width: '50%',
     paddingVertical: spacing.sm,
   },
+  profileLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  profileValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
   tdeeContainer: {
     backgroundColor: '#10b98110',
     borderRadius: 12,
     padding: spacing.md,
     alignItems: 'center',
+  },
+  tdeeLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  tdeeValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#10b981',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -581,10 +632,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  statTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
   statContent: {
     flexDirection: 'row',
     alignItems: 'baseline',
     marginBottom: spacing.sm,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.textPrimary,
+  },
+  statTarget: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginLeft: 4,
   },
   progressContainer: {
     marginTop: spacing.xs,
@@ -598,6 +664,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
+  // YENİ: Empty State Stilleri
   emptyState: {
     alignItems: 'center',
     padding: spacing.xl,
@@ -614,15 +681,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   emptyMessage: {
+    fontSize: 14,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
+    lineHeight: 20,
   },
   emptyAction: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: 12,
+  },
+  emptyActionText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   insightsList: {
     gap: spacing.sm,
@@ -646,6 +728,21 @@ const styles = StyleSheet.create({
   insightContent: {
     flex: 1,
   },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  insightDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  insightValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   quickActions: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -665,5 +762,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    textAlign: 'center',
   },
 });

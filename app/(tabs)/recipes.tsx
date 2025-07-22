@@ -14,7 +14,27 @@ import {
   Modal,
   Animated,
 } from 'react-native';
-import { Search, Filter, Clock, Users, Star, ChefHat, Flame, Heart, Plus, Share2, Calendar, X, ChevronDown, ChevronUp, ChevronRight, Check, Grid3x3 as Grid3X3, List, BookOpen } from 'lucide-react-native';
+import {
+  Search,
+  Filter,
+  Clock,
+  Users,
+  Star,
+  ChefHat,
+  Flame,
+  Heart,
+  Plus,
+  Share2,
+  Calendar,
+  X,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  Check,
+  Grid3X3,
+  List,
+  BookOpen,
+} from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';

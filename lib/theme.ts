@@ -1,7 +1,5 @@
 // lib/theme.ts
 // Design system and theme configuration
-import { textVariants, fontWeights, getFontFamily, type TextVariantKey, type FontWeightKey } from '@/constants/Typography';
-
 export const colors = {
   // Primary Colors
   primary: {
@@ -104,16 +102,7 @@ export const borderRadius = {
 };
 
 export const typography = {
-  // Text variants (headers, body, special)
-  variants: textVariants,
-  
-  // Font weights
-  fontWeights,
-  
-  // Helper function to get platform-specific font family
-  getFontFamily,
-  
-  // Legacy support - keeping existing fontSize for backward compatibility
+  // Font sizes
   fontSize: {
     xs: 12,
     sm: 14,
@@ -126,7 +115,7 @@ export const typography = {
     '5xl': 48,
   },
   
-  // Legacy support - keeping existing fontWeight for backward compatibility
+  // Font weights
   fontWeight: {
     normal: '400',
     medium: '500',
@@ -134,7 +123,7 @@ export const typography = {
     bold: '700',
   },
   
-  // Legacy support - keeping existing lineHeight for backward compatibility
+  // Line heights
   lineHeight: {
     tight: 1.2,
     normal: 1.5,
@@ -279,10 +268,6 @@ export interface Theme {
   components: typeof components;
   animations: typeof animations;
   gradients: typeof gradients;
-  // Add typography types
-  textVariants: typeof textVariants;
-  fontWeights: typeof fontWeights;
-  getFontFamily: typeof getFontFamily;
 }
 
 // Light Theme
@@ -342,9 +327,6 @@ export const lightTheme: Theme = {
   components,
   animations,
   gradients,
-  textVariants,
-  fontWeights,
-  getFontFamily,
 };
 
 // Dark Theme
@@ -404,9 +386,6 @@ export const darkTheme: Theme = {
   components,
   animations,
   gradients,
-  textVariants,
-  fontWeights,
-  getFontFamily,
 };
 
 // Legacy theme export (for backward compatibility)

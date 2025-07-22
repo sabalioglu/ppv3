@@ -20,7 +20,6 @@ import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
 import { ReceiptLearningService } from '../../lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
 import { showPrompt } from '../../lib/crossPlatformUtils';
-import { StyledText, H1, H2, H3, H4, H5, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
 
 type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
 
@@ -518,7 +517,7 @@ export default function CameraScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <H4 weight="bold" color={theme.colors.text}>🤖 Smart Receipt Review</H4>
+              <Text style={styles.modalTitle}>🤖 Smart Receipt Review</Text>
               <TouchableOpacity 
                 style={styles.modalCloseButton}
                 onPress={() => setShowAddToInventoryModal(false)}
@@ -527,9 +526,9 @@ export default function CameraScreen() {
               </TouchableOpacity>
             </View>
             
-            <BodyRegular color={theme.colors.textSecondary} style={styles.modalMessage}>
+            <Text style={styles.modalMessage}>
               Found {parsedItems.length} food items. Please review and confirm:
-            </BodyRegular>
+            </Text>
             
             <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
               {parsedItems.map((item) => (
@@ -539,9 +538,9 @@ export default function CameraScreen() {
                   item.user_action === 'rejected' && styles.modalItemRejected
                 ]}>
                   <View style={styles.modalItemInfo}>
-                    <BodyRegular weight="semibold" color={theme.colors.text}>{item.name}</BodyRegular>
+                    <Text style={styles.modalItemName}>{item.name}</Text>
                     {item.price && item.price > 0 && (
-                      <BodySmall weight="semibold" color={theme.colors.primary}>${item.price.toFixed(2)}</BodySmall>
+                      <Text style={styles.modalItemPrice}>${item.price.toFixed(2)}</Text>
                     )}
                   </View>
                   
@@ -593,11 +592,11 @@ export default function CameraScreen() {
             </ScrollView>
             
             <View style={styles.modalStats}>
-              <BodySmall color={theme.colors.textSecondary} style={styles.modalStatsText}>
+              <Text style={styles.modalStatsText}>
                 ✅ {parsedItems.filter(item => item.user_action === 'confirmed').length} confirmed  
                 ❌ {parsedItems.filter(item => item.user_action === 'rejected').length} rejected  
                 ✏️ {parsedItems.filter(item => item.user_action === 'edited').length} edited
-              </BodySmall>
+              </Text>
             </View>
             
             <View style={styles.modalButtons}>
@@ -605,7 +604,7 @@ export default function CameraScreen() {
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={() => setShowAddToInventoryModal(false)}
               >
-                <BodyRegular weight="medium" color={theme.colors.text}>Not Now</BodyRegular>
+                <Text style={styles.modalCancelText}>Not Now</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -625,16 +624,16 @@ export default function CameraScreen() {
                 disabled={confirmedCount === 0}
               >
                 <Plus size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <BodyRegular weight="semibold" color="#FFFFFF">
+                <Text style={styles.modalConfirmText}>
                   Add {confirmedCount} Items
-                </BodyRegular>
+                </Text>
               </TouchableOpacity>
             </View>
             
             <View style={styles.modalFooter}>
-              <Caption color={theme.colors.textSecondary} style={styles.modalFooterText}>
+              <Text style={styles.modalFooterText}>
                 🧠 Your feedback helps improve our AI
-              </Caption>
+              </Text>
             </View>
           </View>
         </View>
@@ -649,9 +648,9 @@ export default function CameraScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
-        <H5 color={theme.colors.text} style={styles.permissionText}>We need camera permission to continue</H5>
+        <Text style={styles.permissionText}>We need camera permission to continue</Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <BodyRegular weight="semibold" color="#FFFFFF">Grant Permission</BodyRegular>
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
       </View>
     );
@@ -673,14 +672,14 @@ export default function CameraScreen() {
                 <TouchableOpacity style={styles.tutorialClose} onPress={hideTutorial}>
                   <X size={16} color="#FFFFFF" />
                 </TouchableOpacity>
-                <H4 color="#1a1a1a" style={styles.tutorialTitle}>AI Camera Modes 🤖</H4>
-                <BodyRegular color="#333333" style={styles.tutorialText}>
-                  <StyledText variant="bodyRegular" weight="bold" color={theme.colors.primary}>AI FOOD:</StyledText> Smart ingredient recognition{'\n'}
-                  <StyledText variant="bodyRegular" weight="bold" color={theme.colors.primary}>CALORIES:</StyledText> Accurate nutrition analysis{'\n'}
-                  <StyledText variant="bodyRegular" weight="bold" color={theme.colors.primary}>BARCODE:</StyledText> Product code scanning{'\n'}
-                  <StyledText variant="bodyRegular" weight="bold" color={theme.colors.primary}>MULTIPLE:</StyledText> Batch processing{'\n'}
-                  <StyledText variant="bodyRegular" weight="bold" color={theme.colors.primary}>RECEIPT:</StyledText> Smart AI parsing
-                </BodyRegular>
+                <Text style={styles.tutorialTitle}>AI Camera Modes 🤖</Text>
+                <Text style={styles.tutorialText}>
+                  <Text style={styles.tutorialHighlight}>AI FOOD:</Text> Smart ingredient recognition{'\n'}
+                  <Text style={styles.tutorialHighlight}>CALORIES:</Text> Accurate nutrition analysis{'\n'}
+                  <Text style={styles.tutorialHighlight}>BARCODE:</Text> Product code scanning{'\n'}
+                  <Text style={styles.tutorialHighlight}>MULTIPLE:</Text> Batch processing{'\n'}
+                  <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart AI parsing
+                </Text>
               </View>
             </Animated.View>
           )}
@@ -690,14 +689,14 @@ export default function CameraScreen() {
             <View style={styles.loadingOverlay}>
               <View style={styles.loadingContent}>
                 <ActivityIndicator size="large" color="#FFFFFF" />
-                <StyledText variant="bodyRegular" weight="medium" color="#FFFFFF" style={styles.loadingText}>
+                <Text style={styles.loadingText}>
                   {scanMode === 'receipt-scanner' ? loadingMessage : 
                    scanMode === 'food-recognition' ? 'Analyzing food...' :
                    scanMode === 'calorie-counter' ? 'Calculating nutrition...' :
                    scanMode === 'multiple-images' ? 'Processing images...' :
                    scanMode === 'barcode-scanner' ? 'Scanning barcode...' : 
                    'AI processing...'}
-                </StyledText>
+                </Text>
                 
                 {/* ✅ PROGRESS INDICATOR FOR RECEIPT SCANNING */}
                 {scanMode === 'receipt-scanner' && renderProgressIndicator()}
@@ -725,14 +724,12 @@ export default function CameraScreen() {
                       setShowTutorial(false);
                     }}
                   >
-                    <StyledText 
-                      variant="bodyRegular" 
-                      weight={isActive ? 'bold' : 'medium'}
-                      color={isActive ? mode.color : 'rgba(255, 255, 255, 0.8)'}
-                      style={styles.appleModeText}
-                    >
+                    <Text style={[
+                      styles.appleModeText,
+                      isActive && { color: mode.color, fontWeight: '700' }
+                    ]}>
                       {mode.title}
-                    </StyledText>
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -742,14 +739,14 @@ export default function CameraScreen() {
           {/* Multiple Images Counter */}
           {scanMode === 'multiple-images' && multipleImages.length > 0 && (
             <View style={styles.multipleCounter}>
-              <StyledText variant="bodySmall" weight="semibold" color="#FFFFFF">
+              <Text style={styles.multipleCounterText}>
                 📸 {multipleImages.length} photos
-              </StyledText>
+              </Text>
               <TouchableOpacity 
                 style={styles.processButton}
                 onPress={processMultipleImages}
               >
-                <Caption weight="semibold" color="#FFFFFF">Process with AI</Caption>
+                <Text style={styles.processButtonText}>Process with AI</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -806,31 +803,31 @@ export default function CameraScreen() {
               <View style={styles.resultsDragHandle} />
               <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
                 <View style={styles.resultHeader}>
-                  <H2 color={theme.colors.text} style={styles.resultTitle}>{scanResult.data.name}</H2>
+                  <Text style={styles.resultTitle}>{scanResult.data.name}</Text>
                 </View>
 
                                {/* Calorie & Nutrition Info */}
                 {scanResult.data.calories && (
                   <View style={styles.calorieContainer}>
-                    <H5 weight="bold" color="#FF4500" style={styles.calorieTitle}>🔥 Nutrition Analysis</H5>
+                    <Text style={styles.calorieTitle}>🔥 Nutrition Analysis</Text>
                     <View style={styles.calorieGrid}>
                       <View style={styles.calorieItem}>
-                        <H4 weight="bold" color="#FF4500">{scanResult.data.calories}</H4>
-                        <Caption color={theme.colors.textSecondary}>Calories</Caption>
+                        <Text style={styles.calorieNumber}>{scanResult.data.calories}</Text>
+                        <Text style={styles.calorieLabel}>Calories</Text>
                       </View>
                       {scanResult.data.nutrition && (
                         <>
                           <View style={styles.calorieItem}>
-                            <H4 weight="bold" color="#FF4500">{scanResult.data.nutrition.protein}g</H4>
-                            <Caption color={theme.colors.textSecondary}>Protein</Caption>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.protein}g</Text>
+                            <Text style={styles.calorieLabel}>Protein</Text>
                           </View>
                           <View style={styles.calorieItem}>
-                            <H4 weight="bold" color="#FF4500">{scanResult.data.nutrition.carbs}g</H4>
-                            <Caption color={theme.colors.textSecondary}>Carbs</Caption>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.carbs}g</Text>
+                            <Text style={styles.calorieLabel}>Carbs</Text>
                           </View>
                           <View style={styles.calorieItem}>
-                            <H4 weight="bold" color="#FF4500">{scanResult.data.nutrition.fat}g</H4>
-                            <Caption color={theme.colors.textSecondary}>Fat</Caption>
+                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.fat}g</Text>
+                            <Text style={styles.calorieLabel}>Fat</Text>
                           </View>
                         </>
                       )}
@@ -841,9 +838,9 @@ export default function CameraScreen() {
                 {scanResult.data.error ? (
                   <View style={styles.errorContainer}>
                     <AlertTriangle size={24} color={theme.colors.error} />
-                    <BodyRegular color={theme.colors.error} style={styles.errorText}>{scanResult.data.error}</BodyRegular>
+                    <Text style={styles.errorText}>{scanResult.data.error}</Text>
                     <TouchableOpacity style={styles.retryButton} onPress={clearResults}>
-                      <BodySmall weight="semibold" color="#FFFFFF">Try Again</BodySmall>
+                      <Text style={styles.retryButtonText}>Try Again</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -851,10 +848,10 @@ export default function CameraScreen() {
                     {/* ✅ DETECTED ITEMS - NO CONFIDENCE SCORES */}
                     {scanResult.data.items && scanResult.data.items.length > 0 && (
                       <View style={styles.itemsContainer}>
-                        <H5 weight="bold" color={theme.colors.text}>🔍 Detected Items</H5>
+                        <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
                         {scanResult.data.items.map((item: any, index: number) => (
                           <View key={index} style={styles.detectedItem}>
-                            <BodyRegular weight="medium" color={theme.colors.text}>{item.name || item.item}</BodyRegular>
+                            <Text style={styles.itemName}>{item.name || item.item}</Text>
                           </View>
                         ))}
                       </View>
@@ -863,9 +860,9 @@ export default function CameraScreen() {
                     {/* Suggestions */}
                     {scanResult.data.suggestions && scanResult.data.suggestions.length > 0 && (
                       <View style={styles.suggestionsContainer}>
-                        <H5 weight="bold" color={theme.colors.text}>💡 Suggestions</H5>
+                        <Text style={styles.suggestionsTitle}>💡 Suggestions</Text>
                         {scanResult.data.suggestions.map((suggestion: string, index: number) => (
-                          <BodyRegular key={index} color={theme.colors.textSecondary} style={styles.suggestionText}>• {suggestion}</BodyRegular>
+                          <Text key={index} style={styles.suggestionText}>• {suggestion}</Text>
                         ))}
                       </View>
                     )}
@@ -873,9 +870,9 @@ export default function CameraScreen() {
                     {/* Raw Text (for receipt scanner) */}
                     {scanResult.data.text && scanMode === 'receipt-scanner' && (
                       <View style={styles.textContainer}>
-                        <H5 weight="bold" color={theme.colors.text}>📄 Extracted Text</H5>
+                        <Text style={styles.textTitle}>📄 Extracted Text</Text>
                         <ScrollView style={styles.textScroll} nestedScrollEnabled={true}>
-                          <BodySmall color={theme.colors.text} style={styles.extractedText}>{scanResult.data.text}</BodySmall>
+                          <Text style={styles.extractedText}>{scanResult.data.text}</Text>
                         </ScrollView>
                       </View>
                     )}
@@ -886,7 +883,7 @@ export default function CameraScreen() {
                 <View style={styles.actionButtonsContainer}>
                   <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
                     <X size={18} color={theme.colors.text} />
-                    <BodySmall weight="medium" color={theme.colors.text}>Clear</BodySmall>
+                    <Text style={styles.clearButtonText}>Clear</Text>
                   </TouchableOpacity>
                   
                   {scanResult.data.items && scanResult.data.items.length > 0 && (
@@ -923,7 +920,7 @@ export default function CameraScreen() {
                       }}
                     >
                       <Plus size={18} color="#FFFFFF" />
-                      <BodySmall weight="semibold" color="#FFFFFF">Add All</BodySmall>
+                      <Text style={styles.addAllButtonText}>Add All</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -958,6 +955,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   permissionText: {
+    fontSize: 18,
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -966,6 +965,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
+  },
+  permissionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   
   // Tutorial Styles
@@ -992,8 +996,20 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   tutorialTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a1a1a',
     textAlign: 'center',
     marginBottom: 15,
+  },
+  tutorialText: {
+    fontSize: 14,
+    color: '#333333',
+    lineHeight: 22,
+  },
+  tutorialHighlight: {
+    fontWeight: '700',
+    color: theme.colors.primary,
   },
 
   // Loading Styles
@@ -1012,6 +1028,9 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   loadingText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
     marginTop: 15,
     textAlign: 'center',
   },
@@ -1064,6 +1083,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   appleModeText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 15,
+    fontWeight: '500',
     textAlign: 'center',
   },
 
@@ -1080,11 +1102,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  multipleCounterText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   processButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
+  },
+  processButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Apple-style Controls
@@ -1180,6 +1212,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   resultTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
     textAlign: 'center',
   },
 
@@ -1189,6 +1224,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
+    fontSize: 16,
+    color: theme.colors.error,
     textAlign: 'center',
     marginVertical: 15,
     lineHeight: 22,
@@ -1199,6 +1236,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
   },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
   // Calorie Styles
   calorieContainer: {
@@ -1208,6 +1250,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   calorieTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FF4500',
     textAlign: 'center',
     marginBottom: 15,
   },
@@ -1220,10 +1265,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 60,
   },
+  calorieNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FF4500',
+  },
+  calorieLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
 
   // Items Styles
   itemsContainer: {
     marginBottom: 20,
+  },
+  itemsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 12,
   },
   detectedItem: {
     flexDirection: 'row',
@@ -1235,12 +1296,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
   },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.text,
+    flex: 1,
+  },
 
   // Suggestions Styles
   suggestionsContainer: {
     marginBottom: 20,
   },
+  suggestionsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
   suggestionText: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
     marginBottom: 6,
     lineHeight: 20,
   },
@@ -1249,6 +1324,12 @@ const styles = StyleSheet.create({
   textContainer: {
     marginBottom: 20,
   },
+  textTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 12,
+  },
   textScroll: {
     maxHeight: 150,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -1256,6 +1337,8 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   extractedText: {
+    fontSize: 13,
+    color: theme.colors.text,
     lineHeight: 18,
     fontFamily: 'monospace',
   },
@@ -1275,6 +1358,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 20,
   },
+  clearButtonText: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
   addAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1282,6 +1371,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
+  },
+  addAllButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 
   // Modal Styles
@@ -1314,12 +1409,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
   modalCloseButton: {
     padding: 5,
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 15,
   },
   modalMessage: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 25,
     paddingVertical: 15,
@@ -1354,6 +1456,17 @@ const styles = StyleSheet.create({
   modalItemInfo: {
     flex: 1,
     marginRight: 15,
+  },
+  modalItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  modalItemPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   modalItemActions: {
     flexDirection: 'row',
@@ -1393,6 +1506,8 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   modalStatsText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 
@@ -1421,6 +1536,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
     opacity: 0.5,
   },
+  modalCancelText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
   // Modal Footer
   modalFooter: {
@@ -1428,6 +1553,8 @@ const styles = StyleSheet.create({
     paddingBottom: 25,
   },
   modalFooterText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
   },

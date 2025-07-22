@@ -22,8 +22,6 @@ import {
   Filter,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -327,13 +325,11 @@ export default function ShoppingList() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <AppHeader title="Smart Shopping" />
-      
-      {/* Subtitle */}
-      <View style={styles.subtitleContainer}>
-        <BodyRegular color={colors.neutral[600]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Smart Shopping</Text>
+        <Text style={styles.headerSubtitle}>
           {pendingItems.length} items • Est. ${totalEstimatedCost.toFixed(2)}
-        </BodyRegular>
+        </Text>
       </View>
 
       {/* Search and Controls */}
@@ -421,26 +417,26 @@ export default function ShoppingList() {
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
           <ShoppingCart size={16} color={colors.primary[500]} />
-          <H4 weight="bold" color={colors.neutral[800]}>{pendingItems.length}</H4>
-          <Caption color={colors.neutral[500]}>To Buy</Caption>
+          <Text style={styles.statNumber}>{pendingItems.length}</Text>
+          <Text style={styles.statLabel}>To Buy</Text>
         </View>
         
         <View style={styles.statCard}>
           <Check size={16} color={colors.success[500]} />
-          <H4 weight="bold" color={colors.neutral[800]}>{completedItems.length}</H4>
-          <Caption color={colors.neutral[500]}>Completed</Caption>
+          <Text style={styles.statNumber}>{completedItems.length}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
         </View>
         
         <View style={styles.statCard}>
           <DollarSign size={16} color={colors.warning[500]} />
-          <H4 weight="bold" color={colors.neutral[800]}>${totalEstimatedCost.toFixed(0)}</H4>
-          <Caption color={colors.neutral[500]}>Budget</Caption>
+          <Text style={styles.statNumber}>${totalEstimatedCost.toFixed(0)}</Text>
+          <Text style={styles.statLabel}>Budget</Text>
         </View>
         
         <View style={styles.statCard}>
           <TrendingUp size={16} color={colors.accent[500]} />
-          <H4 weight="bold" color={colors.neutral[800]}>${totalActualCost.toFixed(0)}</H4>
-          <Caption color={colors.neutral[500]}>Spent</Caption>
+          <Text style={styles.statNumber}>${totalActualCost.toFixed(0)}</Text>
+          <Text style={styles.statLabel}>Spent</Text>
         </View>
       </View>
 
@@ -468,9 +464,9 @@ export default function ShoppingList() {
         {/* Pending Items */}
         {pendingItems.length > 0 && (
           <View style={styles.section}>
-            <H5 weight="semibold" color={colors.neutral[800]}>
+            <Text style={styles.sectionTitle}>
               To Buy ({pendingItems.length})
-            </H5>
+            </Text>
             {pendingItems.map(item => (
               <ShoppingItem
                 key={item.id}
@@ -490,9 +486,9 @@ export default function ShoppingList() {
               style={styles.sectionHeader}
               onPress={() => setShowCompleted(!showCompleted)}
             >
-              <H5 weight="semibold" color={colors.neutral[800]}>
+              <Text style={styles.sectionTitle}>
                 Completed ({completedItems.length})
-              </H5>
+              </Text>
             </TouchableOpacity>
             {completedItems.map(item => (
               <ShoppingItem
@@ -515,10 +511,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[50],
   },
-  subtitleContainer: {
+  header: {
+    paddingTop: 60,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
     backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  headerTitle: {
+    fontSize: typography.fontSize['3xl'],
+    fontFamily: 'Poppins-Bold',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[600],
   },
   controls: {
     flexDirection: 'row',
@@ -565,6 +575,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.xl,
   },
   filterLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
     marginBottom: spacing.xs,
   },
   filterChips: {
@@ -581,6 +594,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[500],
   },
   filterChipText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
+  },
+  filterChipTextActive: {
+    color: colors.neutral[0],
   },
   statsContainer: {
     flexDirection: 'row',
@@ -596,6 +615,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     ...shadows.sm,
+  },
+  statNumber: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Poppins-Bold',
+    color: colors.neutral[800],
+  },
+  statLabel: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[500],
   },
   quickAddContainer: {
     flexDirection: 'row',
@@ -632,6 +661,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   sectionHeader: {
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.neutral[800],
     marginBottom: spacing.md,
   },
   shoppingItem: {
@@ -673,8 +708,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   itemName: {
+    fontSize: typography.fontSize.base,
+    fontFamily: 'Inter-SemiBold',
+    color: colors.neutral[800],
     flex: 1,
     marginRight: spacing.sm,
+  },
+  itemNameCompleted: {
+    textDecorationLine: 'line-through',
+    color: colors.neutral[500],
   },
   itemBadges: {
     flexDirection: 'row',
@@ -691,6 +733,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   priorityText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Bold',
+    color: colors.neutral[0],
+    textTransform: 'uppercase',
   },
   itemDetails: {
     flexDirection: 'row',
@@ -698,6 +744,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   itemBrand: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
+  },
+  itemQuantity: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
   },
   itemMeta: {
     flexDirection: 'row',
@@ -711,6 +765,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metaText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
+    textTransform: 'capitalize',
   },
   sustainabilityDot: {
     width: 8,
@@ -728,6 +786,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   estimatedCost: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[600],
+  },
+  actualCost: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Medium',
+    color: colors.success[600],
   },
   nutritionGoal: {
     backgroundColor: colors.accent[50],
@@ -736,14 +802,30 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   nutritionGoalText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Medium',
+    color: colors.accent[600],
   },
   itemNotes: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[600],
+    fontStyle: 'italic',
+    marginBottom: spacing.xs,
   },
   alternatives: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   alternativesLabel: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Medium',
+    color: colors.neutral[500],
+  },
+  alternativesText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Regular',
+    color: colors.neutral[500],
   },
   itemActions: {
     marginLeft: spacing.sm,
@@ -756,6 +838,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   actionButtonText: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: 'Inter-Medium',
+    color: colors.primary[600],
   },
   deleteButton: {
     backgroundColor: colors.error[50],

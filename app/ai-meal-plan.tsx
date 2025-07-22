@@ -11,11 +11,25 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Settings, ChevronRight, Clock, Users, Flame, ShieldCheck, Plus, Heart, ShoppingCart, Target, TrendingUp, Calendar, ChefHat, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { 
+  ArrowLeft, 
+  Settings, 
+  ChevronRight,
+  Clock,
+  Users,
+  Flame,
+  ShieldCheck,
+  Plus,
+  Heart,
+  ShoppingCart,
+  Target,
+  TrendingUp,
+  Calendar,
+  ChefHat,
+  AlertCircle,
+} from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 export default function AIMealPlan() {
   const router = useRouter();
@@ -416,27 +430,23 @@ export default function AIMealPlan() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <BodyRegular color={colors.neutral[600]} style={styles.loadingText}>Creating your personalized meal plan...</BodyRegular>
+        <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <AppHeader
-        title="AI Meal Plan"
-        leftComponent={
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={colors.neutral[800]} />
-          </TouchableOpacity>
-        }
-        rightComponent={
-          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsButton}>
-            <Settings size={24} color={colors.neutral[800]} />
-          </TouchableOpacity>
-        }
-      />
+      {/* DÜZELTILMIŞ: Tutarlı Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ArrowLeft size={24} color={colors.neutral[800]} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>AI Meal Plan</Text>
+        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsButton}>
+          <Settings size={24} color={colors.neutral[800]} />
+        </TouchableOpacity>
+      </View>
 
       {/* View Mode Tabs */}
       <View style={styles.viewModeTabs}>
@@ -444,34 +454,25 @@ export default function AIMealPlan() {
           style={[styles.tab, viewMode === 'daily' && styles.activeTab]}
           onPress={() => setViewMode('daily')}
         >
-          <BodyRegular 
-            weight={viewMode === 'daily' ? 'bold' : 'medium'}
-            color={viewMode === 'daily' ? colors.primary[600] : colors.neutral[500]}
-          >
+          <Text style={[styles.tabText, viewMode === 'daily' && styles.activeTabText]}>
             Daily
-          </BodyRegular>
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'weekly' && styles.activeTab]}
           onPress={() => setViewMode('weekly')}
         >
-          <BodyRegular 
-            weight={viewMode === 'weekly' ? 'bold' : 'medium'}
-            color={viewMode === 'weekly' ? colors.primary[600] : colors.neutral[500]}
-          >
+          <Text style={[styles.tabText, viewMode === 'weekly' && styles.activeTabText]}>
             Weekly
-          </BodyRegular>
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'monthly' && styles.activeTab]}
           onPress={() => setViewMode('monthly')}
         >
-          <BodyRegular 
-            weight={viewMode === 'monthly' ? 'bold' : 'medium'}
-            color={viewMode === 'monthly' ? colors.primary[600] : colors.neutral[500]}
-          >
+          <Text style={[styles.tabText, viewMode === 'monthly' && styles.activeTabText]}>
             Monthly
-          </BodyRegular>
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -493,16 +494,16 @@ export default function AIMealPlan() {
         >
           <View style={styles.pantryStatusLeft}>
             <View style={styles.pantryStatusHeader}>
-              <H6 weight="semibold" color={colors.neutral[800]}>Pantry Status</H6>
+              <Text style={styles.pantryStatusTitle}>Pantry Status</Text>
               {pantryMetrics.expiredItems > 0 && (
                 <View style={styles.expiredBadge}>
-                  <Caption weight="semibold" color={colors.error[600]}>{pantryMetrics.expiredItems} expired</Caption>
+                  <Text style={styles.expiredBadgeText}>{pantryMetrics.expiredItems} expired</Text>
                 </View>
               )}
             </View>
-            <BodySmall color={colors.neutral[600]}>
+            <Text style={styles.pantryStatusSubtitle}>
               {pantryMetrics.totalItems} items • {pantryMetrics.expiringItems} expiring soon
-            </BodySmall>
+            </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[400]} />
         </TouchableOpacity>
@@ -511,19 +512,19 @@ export default function AIMealPlan() {
         {userProfile?.dietary_restrictions?.length > 0 && (
           <View style={styles.allergenInfo}>
             <ShieldCheck size={20} color={colors.success[600]} />
-            <BodySmall color={colors.success[700]} style={styles.allergenText}>
+            <Text style={styles.allergenText}>
               All recipes are free from: {userProfile.dietary_restrictions.join(', ')}
-            </BodySmall>
+            </Text>
           </View>
         )}
 
         {/* Preferences Card */}
         <View style={styles.preferencesCard}>
-          <BodyRegular weight="semibold" color={colors.neutral[700]}>Your Preferences</BodyRegular>
+          <Text style={styles.preferencesTitle}>Your Preferences</Text>
           <View style={styles.preferencesTags}>
             {userProfile?.dietary_preferences?.map((pref: string) => (
               <View key={pref} style={styles.preferenceTag}>
-                <BodySmall weight="medium" color={colors.primary[700]} style={styles.preferenceTagText}>{pref.replace('_', ' ')}</BodySmall>
+                <Text style={styles.preferenceTagText}>{pref.replace('_', ' ')}</Text>
               </View>
             ))}
           </View>
@@ -534,15 +535,15 @@ export default function AIMealPlan() {
         {viewMode === 'weekly' && (
           <View style={styles.comingSoonContainer}>
             <Calendar size={48} color={colors.neutral[400]} />
-            <H4 weight="semibold" color={colors.neutral[600]} style={styles.comingSoonTitle}>Weekly View Coming Soon</H4>
-            <BodyRegular color={colors.neutral[500]} style={styles.comingSoonSubtitle}>Plan your entire week with AI-generated meal plans</BodyRegular>
+            <Text style={styles.comingSoonTitle}>Weekly View Coming Soon</Text>
+            <Text style={styles.comingSoonSubtitle}>Plan your entire week with AI-generated meal plans</Text>
           </View>
         )}
         {viewMode === 'monthly' && (
           <View style={styles.comingSoonContainer}>
             <Calendar size={48} color={colors.neutral[400]} />
-            <H4 weight="semibold" color={colors.neutral[600]} style={styles.comingSoonTitle}>Monthly View Coming Soon</H4>
-            <BodyRegular color={colors.neutral[500]} style={styles.comingSoonSubtitle}>Long-term meal planning and shopping optimization</BodyRegular>
+            <Text style={styles.comingSoonTitle}>Monthly View Coming Soon</Text>
+            <Text style={styles.comingSoonSubtitle}>Long-term meal planning and shopping optimization</Text>
           </View>
         )}
 
@@ -555,7 +556,7 @@ export default function AIMealPlan() {
             <View style={styles.actionButtonIcon}>
               <Heart size={20} color={colors.error[500]} />
             </View>
-            <BodyRegular weight="semibold" color={colors.neutral[800]}>Track Nutrition</BodyRegular>
+            <Text style={styles.actionButtonText}>Track Nutrition</Text>
             <ChevronRight size={16} color={colors.neutral[400]} />
           </TouchableOpacity>
           
@@ -566,7 +567,7 @@ export default function AIMealPlan() {
             <View style={styles.actionButtonIcon}>
               <ShoppingCart size={20} color={colors.primary[500]} />
             </View>
-            <BodyRegular weight="semibold" color={colors.neutral[800]}>Shopping List</BodyRegular>
+            <Text style={styles.actionButtonText}>Shopping List</Text>
             <ChevronRight size={16} color={colors.neutral[400]} />
           </TouchableOpacity>
         </View>
@@ -590,6 +591,22 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   loadingText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+    marginTop: spacing.lg,
+    textAlign: 'center',
+  },
+  // DÜZELTILMIŞ: Tutarlı Header Styles
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
   },
   backButton: {
     width: 40,
@@ -598,6 +615,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '700',
+    color: colors.neutral[800],
   },
   settingsButton: {
     width: 40,
@@ -623,6 +645,15 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomColor: colors.primary[500],
   },
+  tabText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[500],
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: colors.primary[600],
+    fontWeight: '700',
+  },
   content: {
     flex: 1,
   },
@@ -645,11 +676,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  pantryStatusTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginRight: spacing.md,
+  },
   expiredBadge: {
     backgroundColor: colors.error[50],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: 12,
+  },
+  expiredBadgeText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.error[600],
+    fontWeight: '600',
+  },
+  pantryStatusSubtitle: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
   },
   allergenInfo: {
     flexDirection: 'row',
@@ -661,6 +707,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   allergenText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.success[700],
+    marginLeft: spacing.sm,
+    flex: 1,
   },
   preferencesCard: {
     backgroundColor: colors.neutral[0],
@@ -669,6 +719,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     borderRadius: 16,
     ...shadows.sm,
+  },
+  preferencesTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.md,
   },
   preferencesTags: {
     flexDirection: 'row',
@@ -682,6 +738,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   preferenceTagText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary[700],
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   dailyContent: {
     paddingHorizontal: spacing.lg,
@@ -699,11 +759,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
+  summaryTitle: {
+    fontSize: typography.fontSize['2xl'],
+    fontWeight: '700',
+    color: colors.neutral[800],
+  },
   summaryBadge: {
     backgroundColor: colors.success[50],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 16,
+  },
+  summaryBadgeText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.success[700],
+    fontWeight: '600',
   },
   summaryStats: {
     flexDirection: 'row',
@@ -722,6 +792,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  statValue: {
+    fontSize: typography.fontSize['2xl'],
+    fontWeight: '700',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  statLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+  },
   statDivider: {
     width: 1,
     height: 60,
@@ -730,6 +810,12 @@ const styles = StyleSheet.create({
   },
   mealsSection: {
     marginTop: spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '700',
+    color: colors.neutral[800],
+    marginBottom: spacing.lg,
   },
   mealCard: {
     backgroundColor: colors.neutral[0],
@@ -752,6 +838,16 @@ const styles = StyleSheet.create({
     fontSize: 32,
     marginRight: spacing.md,
   },
+  mealTime: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+    marginBottom: spacing.xs,
+  },
+  mealName: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
   mealMatchBadge: {
     backgroundColor: colors.warning[50],
     paddingHorizontal: spacing.md,
@@ -760,6 +856,14 @@ const styles = StyleSheet.create({
   },
   perfectMatch: {
     backgroundColor: colors.success[50],
+  },
+  mealMatchText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.warning[700],
+    fontWeight: '600',
+  },
+  perfectMatchText: {
+    color: colors.success[700],
   },
   mealStats: {
     flexDirection: 'row',
@@ -772,6 +876,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  mealStatText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+  },
   missingAlert: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -779,6 +887,11 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: 12,
     gap: spacing.sm,
+  },
+  missingText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.warning[700],
+    flex: 1,
   },
   snacksSection: {
     marginTop: spacing.xl,
@@ -798,6 +911,18 @@ const styles = StyleSheet.create({
   snackEmoji: {
     fontSize: 24,
     marginBottom: spacing.sm,
+  },
+  snackName: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  snackStats: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    textAlign: 'center',
   },
   quickActions: {
     marginTop: spacing.xl,
@@ -820,12 +945,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.md,
   },
+  actionButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    flex: 1,
+  },
   comingSoonContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
     paddingHorizontal: spacing.lg,
   },
   comingSoonTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '600',
+    color: colors.neutral[600],
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  comingSoonSubtitle: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    lineHeight: 24,
   },
   bottomSpacer: {
     height: spacing.xl,
