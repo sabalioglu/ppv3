@@ -210,7 +210,7 @@ const QuickActionsDropdown: React.FC<{
         {/* GÜNCELLENMIŞ: My Recipe Library */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
-            <Calendar size={20} color="#2196F3" />
+            <library size={20} color="#2196F3" />
           </View>
           <View style={styles.dropdownItemText}>
             <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
