@@ -2,6 +2,8 @@
 // Design system and theme configuration
 
 import { textVariants, fontWeights, getFontFamily } from '@/constants/Typography';
+
+export const colors = {
   // Primary Colors
   primary: {
     50: '#E8F5E8',
@@ -93,10 +95,22 @@ export const spacing = {
   xxxl: 64,
 };
 
+export const borderRadius = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 9999,
+};
+
+export const fontWeight = {
+  normal: '400',
   medium: '500',
   variants: textVariants,
   fontWeights,
   getFontFamily,
+};
 
 export const getFontFamily = (weight = '400') => {
   return undefined; // React Native system font
