@@ -16,6 +16,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';
 import { RecipeSelectionBottomSheet } from '@/components/library/modals/RecipeSelectionBottomSheet';
+import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
+import { AppHeader } from '@/components/common/AppHeader';
 
 interface CookbookRecipe {
   id: string;
@@ -241,7 +243,7 @@ export default function CookbookDetail() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading cookbook...</Text>
+        <BodyRegular color={colors.neutral[600]} style={styles.loadingText}>Loading cookbook...</BodyRegular>
       </View>
     );
   }
@@ -249,9 +251,9 @@ export default function CookbookDetail() {
   if (!cookbook) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Cookbook not found</Text>
+        <H5 color={colors.neutral[600]}>Cookbook not found</H5>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <BodyRegular weight="semibold" color={colors.neutral[0]}>Go Back</BodyRegular>
         </TouchableOpacity>
       </View>
     );
@@ -260,39 +262,44 @@ export default function CookbookDetail() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-          <ArrowLeft size={24} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerActionButton}
-            onPress={() => setShowEditModal(true)}
-          >
-            <Edit3 size={20} color={colors.neutral[600]} />
+      <AppHeader
+        title={cookbook.name}
+        leftComponent={
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
+            <ArrowLeft size={24} color={colors.neutral[800]} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerActionButton}
-            onPress={handleDeleteCookbook}
-          >
-            <Trash2 size={20} color={colors.error[500]} />
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+        rightComponent={
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              onPress={() => setShowEditModal(true)}
+            >
+              <Edit3 size={20} color={colors.neutral[600]} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerActionButton}
+              onPress={handleDeleteCookbook}
+            >
+              <Trash2 size={20} color={colors.error[500]} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Cookbook Header */}
         <View style={styles.cookbookHeader}>
           <View style={[styles.cookbookIcon, { backgroundColor: `${cookbook.color}15` }]}>
-            <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+            <StyledText variant="h1">{cookbook.emoji}</StyledText>
           </View>
-          <Text style={styles.cookbookName}>{cookbook.name}</Text>
+          <H2 weight="bold" color={colors.neutral[800]} style={styles.cookbookName}>{cookbook.name}</H2>
           {cookbook.description && (
-            <Text style={styles.cookbookDescription}>{cookbook.description}</Text>
+            <BodyRegular color={colors.neutral[600]} style={styles.cookbookDescription}>{cookbook.description}</BodyRegular>
           )}
-          <Text style={styles.recipeCount}>
+          <BodySmall weight="medium" color={colors.neutral[500]}>
             {cookbook.recipe_count} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
-          </Text>
+          </BodySmall>
         </View>
 
         {/* Add Recipe Button */}
@@ -302,28 +309,28 @@ export default function CookbookDetail() {
             onPress={handleAddRecipes}
           >
             <Plus size={20} color={colors.primary[500]} />
-            <Text style={styles.addRecipeButtonText}>Add Recipes</Text>
+            <BodyRegular weight="semibold" color={colors.primary[600]}>Add Recipes</BodyRegular>
           </TouchableOpacity>
         </View>
 
         {/* Recipes List */}
         <View style={styles.recipesSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recipes</Text>
+            <H5 weight="semibold" color={colors.neutral[800]}>Recipes</H5>
             {recipes.length > 0 && (
               <View style={styles.infoContainer}>
                 <Info size={14} color={colors.neutral[400]} />
-                <Text style={styles.infoText}>Hold recipe to manage</Text>
+                <Caption color={colors.neutral[500]}>Hold recipe to manage</Caption>
               </View>
             )}
           </View>
           
           {recipes.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No recipes yet</Text>
-              <Text style={styles.emptySubtitle}>
+              <H5 weight="semibold" color={colors.neutral[600]}>No recipes yet</H5>
+              <BodyRegular color={colors.neutral[500]} style={styles.emptySubtitle}>
                 Add some recipes to this cookbook to get started
-              </Text>
+              </BodyRegular>
             </View>
           ) : (
             recipes.map((recipe) => (
@@ -351,30 +358,30 @@ export default function CookbookDetail() {
 
                 {/* Recipe Info */}
                 <View style={styles.recipeInfoContainer}>
-                  <Text style={styles.recipeTitle}>{recipe.title}</Text>
-                  <Text style={styles.recipeDescription} numberOfLines={2}>
+                  <H6 weight="semibold" color={colors.neutral[800]}>{recipe.title}</H6>
+                  <BodySmall color={colors.neutral[600]} numberOfLines={2} style={styles.recipeDescription}>
                     {recipe.description}
-                  </Text>
+                  </BodySmall>
                   
                   <View style={styles.recipeMeta}>
                     <View style={styles.metaItem}>
                       <Clock size={12} color={colors.neutral[500]} />
-                      <Text style={styles.metaText}>
+                      <Caption color={colors.neutral[500]}>
                         {recipe.prep_time + recipe.cook_time}m
-                      </Text>
+                      </Caption>
                     </View>
                     <View style={styles.metaItem}>
                       <Users size={12} color={colors.neutral[500]} />
-                      <Text style={styles.metaText}>{recipe.servings}</Text>
+                      <Caption color={colors.neutral[500]}>{recipe.servings}</Caption>
                     </View>
                     {recipe.nutrition?.calories && (
                       <View style={styles.metaItem}>
                         <Flame size={12} color={colors.neutral[500]} />
-                        <Text style={styles.metaText}>{recipe.nutrition.calories} cal</Text>
+                        <Caption color={colors.neutral[500]}>{recipe.nutrition.calories} cal</Caption>
                       </View>
                     )}
                     <View style={[styles.difficultyChip, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-                      <Text style={styles.difficultyChipText}>{recipe.difficulty}</Text>
+                      <Caption weight="bold" color={colors.neutral[0]}>{recipe.difficulty}</Caption>
                     </View>
                   </View>
                 </View>
@@ -436,30 +443,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: typography.fontSize.lg,
-    color: colors.neutral[600],
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    backgroundColor: colors.primary[500],
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-  },
-  backButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[0],
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
   },
   headerBackButton: {
     width: 40,
@@ -498,26 +481,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  cookbookEmoji: {
-    fontSize: 40,
-  },
   cookbookName: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  cookbookDescription: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  recipeCount: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    fontWeight: '500',
   },
   addRecipeSection: {
     padding: spacing.lg,
@@ -536,11 +500,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary[200],
     borderStyle: 'dashed',
   },
-  addRecipeButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
   recipesSection: {
     padding: spacing.lg,
   },
@@ -549,11 +508,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
   },
   infoContainer: {
     flexDirection: 'row',
@@ -564,24 +518,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: 8,
   },
-  infoText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
   },
-  emptyTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[600],
-    marginBottom: spacing.sm,
-  },
   emptySubtitle: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
   },
   recipeCard: {
     flexDirection: 'row',
@@ -612,17 +553,7 @@ const styles = StyleSheet.create({
   recipeInfoContainer: {
     flex: 1,
   },
-  recipeTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
   recipeDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    marginBottom: spacing.md,
-    lineHeight: 20,
   },
   recipeMeta: {
     flexDirection: 'row',
@@ -634,19 +565,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
-  metaText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-    fontWeight: '500',
-  },
   difficultyChip: {
     borderRadius: 8,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
-  },
-  difficultyChipText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
   },
 });

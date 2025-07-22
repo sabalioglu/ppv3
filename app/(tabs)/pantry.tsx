@@ -22,6 +22,8 @@ import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
 import type { Theme } from '@/lib/theme';
+import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
+import { AppHeader } from '@/components/common/AppHeader';
 
 interface PantryItem {
   id: string;
@@ -730,7 +732,7 @@ export default function PantryScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading your pantry...</Text>
+        <BodyRegular color="#6b7280" style={styles.loadingText}>Loading your pantry...</BodyRegular>
       </View>
     );
   }
@@ -738,16 +740,18 @@ export default function PantryScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Pantry</Text>
-        <TouchableOpacity
-          style={styles.headerAddButton}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <AppHeader
+        title="My Pantry"
+        rightComponent={
+          <TouchableOpacity
+            style={styles.headerAddButton}
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.8}
+          >
+            <Plus size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -786,16 +790,16 @@ export default function PantryScreen() {
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyText}>
+            <H3 color={theme.colors.textPrimary}>
               {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
                 ? 'No items found'
                 : 'Your pantry is empty'}
-            </Text>
-            <Text style={styles.emptySubtext}>
+            </H3>
+            <BodyRegular color={theme.colors.textSecondary}>
               {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Tap the + button to add items'}
-            </Text>
+            </BodyRegular>
           </View>
         )}
         columnWrapperStyle={numColumns > 1 ? styles.columnWrapperStyle : undefined}
@@ -823,26 +827,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1f2937',
-    letterSpacing: -0.5,
   },
   headerAddButton: {
     backgroundColor: '#10b981',
@@ -892,15 +876,6 @@ const styles = StyleSheet.create({
     height: 44,
   },
   categoriesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    letterSpacing: -0.3,
-  },
-  clearFilter: {
-    fontSize: 14,
-    color: '#10b981',
-    fontWeight: '500',
   },
   categoryTab: {
     paddingHorizontal: 20,
@@ -931,13 +906,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   categoryTabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    letterSpacing: -0.2,
-  },
-  categoryTabTextActive: {
-    color: '#FFFFFF',
   },
   categoryBadge: {
     backgroundColor: '#e5e7eb',
@@ -954,12 +922,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6b7280',
-  },
-  categoryBadgeTextActive: {
-    color: '#FFFFFF',
   },
   statsBar: {
     flexDirection: 'row',
@@ -990,18 +952,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginTop: 1,
-  },
-  statLabel: {
-    fontSize: 9,
-    color: '#6b7280',
-    marginTop: 1,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontWeight: '600',
   },
   // ✅ RESPONSIVE FIX: Updated FlatList container styles
   flatListContainer: {
@@ -1049,16 +999,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   itemName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1f2937',
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  itemBrand: {
-    fontSize: 14,
-    color: '#6b7280',
-    letterSpacing: -0.2,
   },
   itemQuantity: {
     backgroundColor: '#f3f4f6',
@@ -1069,15 +1009,6 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   quantityText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  quantityUnit: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 4,
-    fontWeight: '500',
   },
   itemDetails: {
     flexDirection: 'row',
@@ -1093,10 +1024,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metaText: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 6,
-    fontWeight: '500',
   },
   expiryIndicator: {
     position: 'absolute',
@@ -1110,19 +1037,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginTop: 16,
-    letterSpacing: -0.3,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 6,
-    letterSpacing: -0.2,
   },
   columnWrapperStyle: {
     justifyContent: 'space-between',
@@ -1148,10 +1062,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
-    letterSpacing: -0.5,
   },
   modalCloseButton: {
     width: 40,
@@ -1168,11 +1078,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 10,
-    letterSpacing: -0.2,
   },
   input: {
     backgroundColor: '#f3f4f6',
@@ -1217,14 +1122,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecfdf5',
   },
   categoryLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginLeft: 8,
-    letterSpacing: -0.2,
-  },
-  categoryLabelActive: {
-    color: '#10b981',
   },
   locationPicker: {
     flexDirection: 'row',
@@ -1244,14 +1141,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecfdf5',
   },
   locationText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-    letterSpacing: -0.2,
-  },
-  locationTextActive: {
-    color: '#10b981',
-    fontWeight: '600',
   },
   modalActions: {
     flexDirection: 'row',
@@ -1268,10 +1157,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-    letterSpacing: -0.3,
   },
   addButton: {
     flex: 1,
@@ -1286,10 +1171,6 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
   },
   unitDropdownButton: {
     backgroundColor: '#f3f4f6',
@@ -1331,9 +1212,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   dropdownTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
   },
   dropdownCloseButton: {
     width: 32,
@@ -1356,18 +1234,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b98115',
   },
   dropdownItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  dropdownItemTextSelected: {
-    color: '#10b981',
-    fontWeight: '600',
   },
   dropdownItemCategory: {
-    fontSize: 12,
-    color: '#6b7280',
-    textTransform: 'capitalize',
   },
 });
