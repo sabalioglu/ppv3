@@ -1,5 +1,31 @@
 // lib/theme.ts
 // Design system and theme configuration
+
+// Typography fallback definitions (import olmadan)
+const textVariants = {
+  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
+  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
+  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32 },
+  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
+  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24 },
+  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22 },
+  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
+  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20 },
+  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
+  button: { fontSize: 16, fontWeight: '600', lineHeight: 20 },
+};
+
+const fontWeights = {
+  normal: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+};
+
+const getFontFamily = (weight = '400') => {
+  return undefined;
+};
+
 export const colors = {
   // Primary Colors
   primary: {
@@ -102,6 +128,10 @@ export const borderRadius = {
 };
 
 export const typography = {
+  variants: textVariants,
+  fontWeights,
+  getFontFamily,
+  
   // Font sizes
   fontSize: {
     xs: 12,
@@ -268,6 +298,9 @@ export interface Theme {
   components: typeof components;
   animations: typeof animations;
   gradients: typeof gradients;
+  textVariants: typeof textVariants;
+  fontWeights: typeof fontWeights;
+  getFontFamily: typeof getFontFamily;
 }
 
 // Light Theme
@@ -327,6 +360,9 @@ export const lightTheme: Theme = {
   components,
   animations,
   gradients,
+  textVariants,
+  fontWeights,
+  getFontFamily,
 };
 
 // Dark Theme
@@ -386,6 +422,9 @@ export const darkTheme: Theme = {
   components,
   animations,
   gradients,
+  textVariants,
+  fontWeights,
+  getFontFamily,
 };
 
 // Legacy theme export (for backward compatibility)
