@@ -152,7 +152,7 @@ const QuickActionsDropdown: React.FC<{
   const animatedStyle = {
     maxHeight: animatedHeight.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, 300],
+      outputRange: [0, 300], // Max height for dropdown content
     }),
     opacity: animatedHeight.interpolate({
       inputRange: [0, 1],
@@ -176,18 +176,18 @@ const QuickActionsDropdown: React.FC<{
           <Text style={styles.dropdownTitle}>Quick Actions</Text>
         </View>
         <Text style={styles.dropdownSubtitle}>
-          Discover • Import • Save
+          Ai Recipes • Import • Save • Social
         </Text>
       </TouchableOpacity>
 
       <Animated.View style={[styles.dropdownContent, animatedStyle]}>
-        {/* Social Media Import */}
+        {/* GÜNCELLENMIŞ: Social Media Import */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onSocialPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E8F5E9' }]}>
             <Share2 size={20} color="#4CAF50" />
           </View>
           <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>Social Media Import</Text>
+            <Text style={styles.dropdownItemTitle}>Social Network</Text>
             <Text style={styles.dropdownItemSubtitle}>
               Connect with people who has similar taste
             </Text>
@@ -195,7 +195,6 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
-        {/* AI Recipe Ideas */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onAIRecipesPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#FFF3E0' }]}>
             <ChefHat size={20} color="#FF9800" />
@@ -209,7 +208,6 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
-        {/* My Recipe Library */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
             <BookOpen size={20} color="#2196F3" />
@@ -223,7 +221,6 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
-        {/* Favorite Recipes */}
         <TouchableOpacity 
           style={[styles.dropdownItem, styles.dropdownItemLast]} 
           onPress={onFavoritesPress}
