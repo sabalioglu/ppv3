@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -28,14 +29,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="ai-meal-plan" options={{ headerShown: false }} />
-          <Stack.Screen name="recipe/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="cookbook/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="library" options={{ headerShown: false }} />
-        </Stack>
+        <ThemeProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

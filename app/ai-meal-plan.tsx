@@ -1,4 +1,3 @@
-//# 🔧 app/ai-meal-plan.tsx - %100 Hazır Düzeltilmiş Kod
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,75 +12,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Settings, ChevronRight, Clock, Users, Flame, ShieldCheck, Plus, Heart, ShoppingCart, Target, TrendingUp, Calendar, ChefHat, CircleAlert as AlertCircle } from 'lucide-react-native';
-import { lightTheme as theme } from '@/lib/theme';
+import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
-
-// Typography system
-const Typography = {
-  h1: { fontSize: 32, fontWeight: '700' as const },
-  h2: { fontSize: 28, fontWeight: '700' as const },
-  h3: { fontSize: 24, fontWeight: '600' as const },
-  h4: { fontSize: 20, fontWeight: '600' as const },
-  h5: { fontSize: 18, fontWeight: '600' as const },
-  h6: { fontSize: 16, fontWeight: '500' as const },
-  body: { fontSize: 16, fontWeight: '400' as const },
-  bodySmall: { fontSize: 14, fontWeight: '400' as const },
-  caption: { fontSize: 12, fontWeight: '400' as const },
-};
-
-// StyledText Components
-const StyledText = ({ 
-  variant = 'body', 
-  weight, 
-  color = theme.colors.text, 
-  style, 
-  children, 
-  ...props 
-}: any) => {
-  const variantStyle = Typography[variant as keyof typeof Typography] || Typography.body;
-  const fontWeight = weight || variantStyle.fontWeight;
-
-  return (
-    <Text
-      {...props}
-      style={[
-        {
-          ...variantStyle,
-          fontWeight,
-          color,
-        },
-        style,
-      ]}
-    >
-      {children}
-    </Text>
-  );
-};
-
-const H1 = (props: any) => <StyledText variant="h1" {...props} />;
-const H2 = (props: any) => <StyledText variant="h2" {...props} />;
-const H3 = (props: any) => <StyledText variant="h3" {...props} />;
-const H4 = (props: any) => <StyledText variant="h4" {...props} />;
-const H5 = (props: any) => <StyledText variant="h5" {...props} />;
-const H6 = (props: any) => <StyledText variant="h6" {...props} />;
-const BodyRegular = (props: any) => <StyledText variant="body" {...props} />;
-const BodySmall = (props: any) => <StyledText variant="bodySmall" {...props} />;
-const Caption = (props: any) => <StyledText variant="caption" {...props} />;
-
-// AppHeader Component
-const AppHeader = ({ title, leftComponent, rightComponent }: any) => {
-  return (
-    <View style={styles.header}>
-      <View style={styles.headerContent}>
-        {leftComponent && <View style={styles.headerLeft}>{leftComponent}</View>}
-        <StyledText variant="h5" color={theme.colors.textPrimary} style={styles.headerTitle}>
-          {title}
-        </StyledText>
-        {rightComponent && <View style={styles.headerRight}>{rightComponent}</View>}
-      </View>
-    </View>
-  );
-};
+import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
+import { AppHeader } from '@/components/common/AppHeader';
 
 export default function AIMealPlan() {
   const router = useRouter();
@@ -290,36 +224,36 @@ export default function AIMealPlan() {
         {/* Today's Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <StyledText variant="h6" weight="semibold" color={theme.colors.textPrimary}>Today's Plan</StyledText>
+            <Text style={styles.summaryTitle}>Today's Plan</Text>
             <View style={styles.summaryBadge}>
-              <StyledText variant="caption" weight="semibold" color={theme.colors.success}>Optimized</StyledText>
+              <Text style={styles.summaryBadgeText}>Optimized</Text>
             </View>
           </View>
           
           <View style={styles.summaryStats}>
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <Target size={20} color={theme.colors.primary} />
+                <Target size={20} color={colors.primary[500]} />
               </View>
-              <StyledText variant="h6" weight="bold" color={theme.colors.textPrimary}>{plan.totalCalories}</StyledText>
-              <StyledText variant="caption" color={theme.colors.textSecondary}>Calories</StyledText>
+              <Text style={styles.statValue}>{plan.totalCalories}</Text>
+              <Text style={styles.statLabel}>Calories</Text>
             </View>
             
             <View style={styles.statDivider} />
             
             <View style={styles.statItem}>
               <View style={styles.statIconContainer}>
-                <TrendingUp size={20} color={theme.colors.success} />
+                <TrendingUp size={20} color={colors.success[500]} />
               </View>
-              <StyledText variant="h6" weight="bold" color={theme.colors.textPrimary}>{plan.totalProtein}g</StyledText>
-              <StyledText variant="caption" color={theme.colors.textSecondary}>Protein</StyledText>
+              <Text style={styles.statValue}>{plan.totalProtein}g</Text>
+              <Text style={styles.statLabel}>Protein</Text>
             </View>
           </View>
         </View>
 
         {/* Meals Section */}
         <View style={styles.mealsSection}>
-          <StyledText variant="h5" weight="semibold" color={theme.colors.textPrimary}>Today's Meals</StyledText>
+          <Text style={styles.sectionTitle}>Today's Meals</Text>
           
           {/* Breakfast */}
           <TouchableOpacity 
@@ -330,30 +264,30 @@ export default function AIMealPlan() {
               <View style={styles.mealTimeContainer}>
                 <Text style={styles.mealEmoji}>{plan.breakfast.emoji}</Text>
                 <View>
-                  <StyledText variant="caption" color={theme.colors.textSecondary}>Breakfast</StyledText>
-                  <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{plan.breakfast.name}</StyledText>
+                  <Text style={styles.mealTime}>Breakfast</Text>
+                  <Text style={styles.mealName}>{plan.breakfast.name}</Text>
                 </View>
               </View>
               
               <View style={styles.mealMatchBadge}>
-                <StyledText variant="caption" weight="semibold" color={theme.colors.warning}>
+                <Text style={styles.mealMatchText}>
                   {plan.breakfast.pantryMatch}/{plan.breakfast.totalIngredients}
-                </StyledText>
+                </Text>
               </View>
             </View>
             
             <View style={styles.mealStats}>
               <View style={styles.mealStatItem}>
-                <Flame size={14} color={theme.colors.warning} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.breakfast.calories} cal</StyledText>
+                <Flame size={14} color={colors.warning[500]} />
+                <Text style={styles.mealStatText}>{plan.breakfast.calories} cal</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={theme.colors.success} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.breakfast.protein}g protein</StyledText>
+                <TrendingUp size={14} color={colors.success[500]} />
+                <Text style={styles.mealStatText}>{plan.breakfast.protein}g protein</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <Clock size={14} color={theme.colors.textSecondary} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.breakfast.prepTime} min</StyledText>
+                <Clock size={14} color={colors.neutral[500]} />
+                <Text style={styles.mealStatText}>{plan.breakfast.prepTime} min</Text>
               </View>
             </View>
             
@@ -362,11 +296,11 @@ export default function AIMealPlan() {
                 style={styles.missingAlert}
                 onPress={() => handleAddToShoppingList(plan.breakfast.missingIngredients)}
               >
-                <AlertCircle size={16} color={theme.colors.warning} />
-                <StyledText variant="caption" color={theme.colors.warning} style={styles.missingText}>
+                <AlertCircle size={16} color={colors.warning[600]} />
+                <Text style={styles.missingText}>
                   Missing: {plan.breakfast.missingIngredients.join(', ')}
-                </StyledText>
-                <Plus size={16} color={theme.colors.warning} />
+                </Text>
+                <Plus size={16} color={colors.warning[600]} />
               </TouchableOpacity>
             )}
           </TouchableOpacity>
@@ -380,30 +314,30 @@ export default function AIMealPlan() {
               <View style={styles.mealTimeContainer}>
                 <Text style={styles.mealEmoji}>{plan.lunch.emoji}</Text>
                 <View>
-                  <StyledText variant="caption" color={theme.colors.textSecondary}>Lunch</StyledText>
-                  <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{plan.lunch.name}</StyledText>
+                  <Text style={styles.mealTime}>Lunch</Text>
+                  <Text style={styles.mealName}>{plan.lunch.name}</Text>
                 </View>
               </View>
               
               <View style={styles.mealMatchBadge}>
-                <StyledText variant="caption" weight="semibold" color={theme.colors.warning}>
+                <Text style={styles.mealMatchText}>
                   {plan.lunch.pantryMatch}/{plan.lunch.totalIngredients}
-                </StyledText>
+                </Text>
               </View>
             </View>
             
             <View style={styles.mealStats}>
               <View style={styles.mealStatItem}>
-                <Flame size={14} color={theme.colors.warning} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.lunch.calories} cal</StyledText>
+                <Flame size={14} color={colors.warning[500]} />
+                <Text style={styles.mealStatText}>{plan.lunch.calories} cal</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={theme.colors.success} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.lunch.protein}g protein</StyledText>
+                <TrendingUp size={14} color={colors.success[500]} />
+                <Text style={styles.mealStatText}>{plan.lunch.protein}g protein</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <Clock size={14} color={theme.colors.textSecondary} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.lunch.prepTime} min</StyledText>
+                <Clock size={14} color={colors.neutral[500]} />
+                <Text style={styles.mealStatText}>{plan.lunch.prepTime} min</Text>
               </View>
             </View>
             
@@ -412,11 +346,11 @@ export default function AIMealPlan() {
                 style={styles.missingAlert}
                 onPress={() => handleAddToShoppingList(plan.lunch.missingIngredients)}
               >
-                <AlertCircle size={16} color={theme.colors.warning} />
-                <StyledText variant="caption" color={theme.colors.warning} style={styles.missingText}>
+                <AlertCircle size={16} color={colors.warning[600]} />
+                <Text style={styles.missingText}>
                   Missing: {plan.lunch.missingIngredients.join(', ')}
-                </StyledText>
-                <Plus size={16} color={theme.colors.warning} />
+                </Text>
+                <Plus size={16} color={colors.warning[600]} />
               </TouchableOpacity>
             )}
           </TouchableOpacity>
@@ -430,30 +364,30 @@ export default function AIMealPlan() {
               <View style={styles.mealTimeContainer}>
                 <Text style={styles.mealEmoji}>{plan.dinner.emoji}</Text>
                 <View>
-                  <StyledText variant="caption" color={theme.colors.textSecondary}>Dinner</StyledText>
-                  <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{plan.dinner.name}</StyledText>
+                  <Text style={styles.mealTime}>Dinner</Text>
+                  <Text style={styles.mealName}>{plan.dinner.name}</Text>
                 </View>
               </View>
               
               <View style={[styles.mealMatchBadge, styles.perfectMatch]}>
-                <StyledText variant="caption" weight="semibold" color={theme.colors.success}>
+                <Text style={[styles.mealMatchText, styles.perfectMatchText]}>
                   {plan.dinner.pantryMatch}/{plan.dinner.totalIngredients}
-                </StyledText>
+                </Text>
               </View>
             </View>
             
             <View style={styles.mealStats}>
               <View style={styles.mealStatItem}>
-                <Flame size={14} color={theme.colors.warning} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.dinner.calories} cal</StyledText>
+                <Flame size={14} color={colors.warning[500]} />
+                <Text style={styles.mealStatText}>{plan.dinner.calories} cal</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={theme.colors.success} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.dinner.protein}g protein</StyledText>
+                <TrendingUp size={14} color={colors.success[500]} />
+                <Text style={styles.mealStatText}>{plan.dinner.protein}g protein</Text>
               </View>
               <View style={styles.mealStatItem}>
-                <Clock size={14} color={theme.colors.textSecondary} />
-                <StyledText variant="caption" color={theme.colors.textSecondary}>{plan.dinner.prepTime} min</StyledText>
+                <Clock size={14} color={colors.neutral[500]} />
+                <Text style={styles.mealStatText}>{plan.dinner.prepTime} min</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -461,15 +395,15 @@ export default function AIMealPlan() {
 
         {/* Snacks Section */}
         <View style={styles.snacksSection}>
-          <StyledText variant="h5" weight="semibold" color={theme.colors.textPrimary}>Snacks</StyledText>
+          <Text style={styles.sectionTitle}>Snacks</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.snacksContainer}>
-            {plan.snacks.map((snack: any, index: number) => (
+            {plan.snacks.map((snack, index) => (
               <View key={index} style={styles.snackCard}>
                 <Text style={styles.snackEmoji}>{snack.emoji}</Text>
-                <StyledText variant="bodySmall" weight="semibold" color={theme.colors.textPrimary}>{snack.name}</StyledText>
-                <StyledText variant="caption" color={theme.colors.textSecondary}>
+                <Text style={styles.snackName}>{snack.name}</Text>
+                <Text style={styles.snackStats}>
                   {snack.calories} cal • {snack.protein}g protein
-                </StyledText>
+                </Text>
               </View>
             ))}
           </ScrollView>
@@ -481,8 +415,8 @@ export default function AIMealPlan() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <BodyRegular color={theme.colors.textSecondary} style={styles.loadingText}>Creating your personalized meal plan...</BodyRegular>
+        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <BodyRegular color={colors.neutral[600]} style={styles.loadingText}>Creating your personalized meal plan...</BodyRegular>
       </View>
     );
   }
@@ -494,12 +428,12 @@ export default function AIMealPlan() {
         title="AI Meal Plan"
         leftComponent={
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <ArrowLeft size={24} color={theme.colors.textPrimary} />
+            <ArrowLeft size={24} color={colors.neutral[800]} />
           </TouchableOpacity>
         }
         rightComponent={
           <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsButton}>
-            <Settings size={24} color={theme.colors.textPrimary} />
+            <Settings size={24} color={colors.neutral[800]} />
           </TouchableOpacity>
         }
       />
@@ -512,7 +446,7 @@ export default function AIMealPlan() {
         >
           <BodyRegular 
             weight={viewMode === 'daily' ? 'bold' : 'medium'}
-            color={viewMode === 'daily' ? theme.colors.primary : theme.colors.textSecondary}
+            color={viewMode === 'daily' ? colors.primary[600] : colors.neutral[500]}
           >
             Daily
           </BodyRegular>
@@ -523,7 +457,7 @@ export default function AIMealPlan() {
         >
           <BodyRegular 
             weight={viewMode === 'weekly' ? 'bold' : 'medium'}
-            color={viewMode === 'weekly' ? theme.colors.primary : theme.colors.textSecondary}
+            color={viewMode === 'weekly' ? colors.primary[600] : colors.neutral[500]}
           >
             Weekly
           </BodyRegular>
@@ -534,7 +468,7 @@ export default function AIMealPlan() {
         >
           <BodyRegular 
             weight={viewMode === 'monthly' ? 'bold' : 'medium'}
-            color={viewMode === 'monthly' ? theme.colors.primary : theme.colors.textSecondary}
+            color={viewMode === 'monthly' ? colors.primary[600] : colors.neutral[500]}
           >
             Monthly
           </BodyRegular>
@@ -548,7 +482,7 @@ export default function AIMealPlan() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={loadAllData}
-            tintColor={theme.colors.primary}
+            tintColor={colors.primary[500]}
           />
         }
       >
@@ -559,25 +493,25 @@ export default function AIMealPlan() {
         >
           <View style={styles.pantryStatusLeft}>
             <View style={styles.pantryStatusHeader}>
-              <H6 weight="semibold" color={theme.colors.textPrimary}>Pantry Status</H6>
+              <H6 weight="semibold" color={colors.neutral[800]}>Pantry Status</H6>
               {pantryMetrics.expiredItems > 0 && (
                 <View style={styles.expiredBadge}>
-                  <Caption weight="semibold" color={theme.colors.error}>{pantryMetrics.expiredItems} expired</Caption>
+                  <Caption weight="semibold" color={colors.error[600]}>{pantryMetrics.expiredItems} expired</Caption>
                 </View>
               )}
             </View>
-            <BodySmall color={theme.colors.textSecondary}>
+            <BodySmall color={colors.neutral[600]}>
               {pantryMetrics.totalItems} items • {pantryMetrics.expiringItems} expiring soon
             </BodySmall>
           </View>
-          <ChevronRight size={20} color={theme.colors.textSecondary} />
+          <ChevronRight size={20} color={colors.neutral[400]} />
         </TouchableOpacity>
 
         {/* Allergen Safety Info */}
         {userProfile?.dietary_restrictions?.length > 0 && (
           <View style={styles.allergenInfo}>
-            <ShieldCheck size={20} color={theme.colors.success} />
-            <BodySmall color={theme.colors.success} style={styles.allergenText}>
+            <ShieldCheck size={20} color={colors.success[600]} />
+            <BodySmall color={colors.success[700]} style={styles.allergenText}>
               All recipes are free from: {userProfile.dietary_restrictions.join(', ')}
             </BodySmall>
           </View>
@@ -585,11 +519,11 @@ export default function AIMealPlan() {
 
         {/* Preferences Card */}
         <View style={styles.preferencesCard}>
-          <BodyRegular weight="semibold" color={theme.colors.textPrimary}>Your Preferences</BodyRegular>
+          <BodyRegular weight="semibold" color={colors.neutral[700]}>Your Preferences</BodyRegular>
           <View style={styles.preferencesTags}>
             {userProfile?.dietary_preferences?.map((pref: string) => (
               <View key={pref} style={styles.preferenceTag}>
-                <BodySmall weight="medium" color={theme.colors.primary}>{pref.replace('_', ' ')}</BodySmall>
+                <BodySmall weight="medium" color={colors.primary[700]} style={styles.preferenceTagText}>{pref.replace('_', ' ')}</BodySmall>
               </View>
             ))}
           </View>
@@ -599,16 +533,16 @@ export default function AIMealPlan() {
         {viewMode === 'daily' && renderDailyView()}
         {viewMode === 'weekly' && (
           <View style={styles.comingSoonContainer}>
-            <Calendar size={48} color={theme.colors.textSecondary} />
-            <H4 weight="semibold" color={theme.colors.textSecondary} style={styles.comingSoonTitle}>Weekly View Coming Soon</H4>
-            <BodyRegular color={theme.colors.textSecondary} style={styles.comingSoonSubtitle}>Plan your entire week with AI-generated meal plans</BodyRegular>
+            <Calendar size={48} color={colors.neutral[400]} />
+            <H4 weight="semibold" color={colors.neutral[600]} style={styles.comingSoonTitle}>Weekly View Coming Soon</H4>
+            <BodyRegular color={colors.neutral[500]} style={styles.comingSoonSubtitle}>Plan your entire week with AI-generated meal plans</BodyRegular>
           </View>
         )}
         {viewMode === 'monthly' && (
           <View style={styles.comingSoonContainer}>
-            <Calendar size={48} color={theme.colors.textSecondary} />
-            <H4 weight="semibold" color={theme.colors.textSecondary} style={styles.comingSoonTitle}>Monthly View Coming Soon</H4>
-            <BodyRegular color={theme.colors.textSecondary} style={styles.comingSoonSubtitle}>Long-term meal planning and shopping optimization</BodyRegular>
+            <Calendar size={48} color={colors.neutral[400]} />
+            <H4 weight="semibold" color={colors.neutral[600]} style={styles.comingSoonTitle}>Monthly View Coming Soon</H4>
+            <BodyRegular color={colors.neutral[500]} style={styles.comingSoonSubtitle}>Long-term meal planning and shopping optimization</BodyRegular>
           </View>
         )}
 
@@ -619,10 +553,10 @@ export default function AIMealPlan() {
             onPress={() => router.push('/(tabs)/nutrition')}
           >
             <View style={styles.actionButtonIcon}>
-              <Heart size={20} color={theme.colors.error} />
+              <Heart size={20} color={colors.error[500]} />
             </View>
-            <BodyRegular weight="semibold" color={theme.colors.textPrimary}>Track Nutrition</BodyRegular>
-            <ChevronRight size={16} color={theme.colors.textSecondary} />
+            <BodyRegular weight="semibold" color={colors.neutral[800]}>Track Nutrition</BodyRegular>
+            <ChevronRight size={16} color={colors.neutral[400]} />
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -630,10 +564,10 @@ export default function AIMealPlan() {
             onPress={() => router.push('/(tabs)/shopping')}
           >
             <View style={styles.actionButtonIcon}>
-              <ShoppingCart size={20} color={theme.colors.primary} />
+              <ShoppingCart size={20} color={colors.primary[500]} />
             </View>
-            <BodyRegular weight="semibold" color={theme.colors.textPrimary}>Shopping List</BodyRegular>
-            <ChevronRight size={16} color={theme.colors.textSecondary} />
+            <BodyRegular weight="semibold" color={colors.neutral[800]}>Shopping List</BodyRegular>
+            <ChevronRight size={16} color={colors.neutral[400]} />
           </TouchableOpacity>
         </View>
 
@@ -646,47 +580,22 @@ export default function AIMealPlan() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    backgroundColor: theme.colors.surface,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-  },
-  headerLeft: {
-    width: 40,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
+    backgroundColor: colors.neutral[50],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.xl,
+    backgroundColor: colors.neutral[50],
+    padding: spacing.xl,
   },
   loadingText: {
-    marginTop: theme.spacing.md,
-    textAlign: 'center',
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -694,25 +603,25 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
   viewModeTabs: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
+    backgroundColor: colors.neutral[0],
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
   tab: {
     flex: 1,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: theme.colors.primary,
+    borderBottomColor: colors.primary[500],
   },
   content: {
     flex: 1,
@@ -721,12 +630,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     borderRadius: 16,
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   pantryStatusLeft: {
     flex: 1,
@@ -734,68 +643,66 @@ const styles = StyleSheet.create({
   pantryStatusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
-    gap: theme.spacing.sm,
+    marginBottom: spacing.xs,
   },
   expiredBadge: {
-    backgroundColor: theme.colors.error + '20',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
+    backgroundColor: colors.error[50],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: 12,
   },
   allergenInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.success + '20',
-    padding: theme.spacing.md,
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
+    backgroundColor: colors.success[50],
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
     borderRadius: 12,
-    gap: theme.spacing.sm,
   },
   allergenText: {
-    flex: 1,
   },
   preferencesCard: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
     borderRadius: 16,
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   preferencesTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
+    gap: spacing.sm,
   },
   preferenceTag: {
-    backgroundColor: theme.colors.primary + '20',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    backgroundColor: colors.primary[50],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
+  },
+  preferenceTagText: {
   },
   dailyContent: {
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   summaryCard: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.xl,
-    marginTop: theme.spacing.lg,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.xl,
+    marginTop: spacing.lg,
     borderRadius: 20,
-    ...theme.shadows.md,
+    ...shadows.md,
   },
   summaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: spacing.lg,
   },
   summaryBadge: {
-    backgroundColor: theme.colors.success + '20',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    backgroundColor: colors.success[50],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 16,
   },
   summaryStats: {
@@ -810,32 +717,32 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: colors.neutral[50],
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: spacing.sm,
   },
   statDivider: {
     width: 1,
     height: 60,
-    backgroundColor: theme.colors.border,
-    marginHorizontal: theme.spacing.lg,
+    backgroundColor: colors.neutral[200],
+    marginHorizontal: spacing.lg,
   },
   mealsSection: {
-    marginTop: theme.spacing.xl,
-    gap: theme.spacing.md,
+    marginTop: spacing.xl,
   },
   mealCard: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
     borderRadius: 16,
-    ...theme.shadows.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   mealCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: spacing.md,
   },
   mealTimeContainer: {
     flexDirection: 'row',
@@ -843,95 +750,84 @@ const styles = StyleSheet.create({
   },
   mealEmoji: {
     fontSize: 32,
-    marginRight: theme.spacing.md,
+    marginRight: spacing.md,
   },
   mealMatchBadge: {
-    backgroundColor: theme.colors.warning + '20',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    backgroundColor: colors.warning[50],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: 12,
   },
   perfectMatch: {
-    backgroundColor: theme.colors.success + '20',
+    backgroundColor: colors.success[50],
   },
   mealStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
+    gap: spacing.lg,
+    marginBottom: spacing.md,
   },
   mealStatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
+    gap: spacing.xs,
   },
   missingAlert: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.warning + '20',
-    padding: theme.spacing.md,
+    backgroundColor: colors.warning[50],
+    padding: spacing.md,
     borderRadius: 12,
-    gap: theme.spacing.sm,
-  },
-  missingText: {
-    flex: 1,
+    gap: spacing.sm,
   },
   snacksSection: {
-    marginTop: theme.spacing.xl,
-    gap: theme.spacing.md,
+    marginTop: spacing.xl,
   },
   snacksContainer: {
     paddingLeft: 0,
   },
   snackCard: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
     borderRadius: 12,
-    marginRight: theme.spacing.md,
+    marginRight: spacing.md,
     minWidth: 160,
     alignItems: 'center',
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   snackEmoji: {
     fontSize: 24,
-    marginBottom: theme.spacing.sm,
+    marginBottom: spacing.sm,
   },
   quickActions: {
-    marginTop: theme.spacing.xl,
-    marginHorizontal: theme.spacing.lg,
-    gap: theme.spacing.md,
+    marginTop: spacing.xl,
+    gap: spacing.md,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
     borderRadius: 16,
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   actionButtonIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.surfaceVariant,
+    backgroundColor: colors.neutral[50],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: spacing.md,
   },
   comingSoonContainer: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl * 2,
-    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: spacing.xl * 2,
+    paddingHorizontal: spacing.lg,
   },
   comingSoonTitle: {
-    marginTop: theme.spacing.lg,
-    textAlign: 'center',
-  },
-  comingSoonSubtitle: {
-    marginTop: theme.spacing.sm,
-    textAlign: 'center',
   },
   bottomSpacer: {
-    height: theme.spacing.xl,
+    height: spacing.xl,
   },
 });

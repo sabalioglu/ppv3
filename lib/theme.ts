@@ -1,7 +1,6 @@
 // lib/theme.ts
 // Design system and theme configuration
-
-import { textVariants, fontWeights, getFontFamily } from '@/constants/Typography';
+import { textVariants, fontWeights, getFontFamily, type TextVariantKey, type FontWeightKey } from '@/constants/Typography';
 
 export const colors = {
   // Primary Colors
@@ -104,24 +103,17 @@ export const borderRadius = {
   full: 9999,
 };
 
-export const fontWeight = {
-  normal: '400',
-  medium: '500',
-  variants: textVariants,
-  fontWeights,
-  getFontFamily,
-};
-
-export const getFontFamily = (weight = '400') => {
-  return undefined; // React Native system font
-};
-
 export const typography = {
+  // Text variants (headers, body, special)
   variants: textVariants,
+  
+  // Font weights
   fontWeights,
+  
+  // Helper function to get platform-specific font family
   getFontFamily,
   
-  // Legacy support
+  // Legacy support - keeping existing fontSize for backward compatibility
   fontSize: {
     xs: 12,
     sm: 14,
@@ -134,6 +126,7 @@ export const typography = {
     '5xl': 48,
   },
   
+  // Legacy support - keeping existing fontWeight for backward compatibility
   fontWeight: {
     normal: '400',
     medium: '500',
@@ -141,6 +134,7 @@ export const typography = {
     bold: '700',
   },
   
+  // Legacy support - keeping existing lineHeight for backward compatibility
   lineHeight: {
     tight: 1.2,
     normal: 1.5,
@@ -179,6 +173,7 @@ export const shadows = {
   },
 };
 
+// Component-specific styles
 export const components = {
   button: {
     height: 48,
@@ -211,12 +206,14 @@ export const components = {
   },
 };
 
+// Animation timings
 export const animations = {
   fast: 150,
   normal: 250,
   slow: 350,
 };
 
+// Common gradients
 export const gradients = {
   primary: [colors.primary[400], colors.primary[600]],
   secondary: [colors.secondary[400], colors.secondary[600]],
@@ -228,6 +225,7 @@ export const gradients = {
 // Theme interface
 export interface Theme {
   colors: {
+    // Base colors
     primary: string;
     secondary: string;
     accent: string;
@@ -237,24 +235,38 @@ export interface Theme {
     warning: string;
     success: string;
     info: string;
+    
+    // Text colors
     text: string;
     textPrimary: string;
     textSecondary: string;
     textOnPrimary: string;
+    
+    // UI elements
     border: string;
     borderLight: string;
     divider: string;
+    
+    // Special UI states
     overlay: string;
     shadow: string;
+    
+    // Component specific
     inputBackground: string;
     inputBorder: string;
     inputPlaceholder: string;
     surfaceVariant: string;
+    
+    // Button colors
     buttonPrimary: string;
     buttonSecondary: string;
+    
+    // Category colors
     categoryActive: string;
     categoryInactive: string;
     categoryBadge: string;
+    
+    // Expiry colors
     expiryUrgent: string;
     expirySoon: string;
     expiryOk: string;
@@ -267,6 +279,7 @@ export interface Theme {
   components: typeof components;
   animations: typeof animations;
   gradients: typeof gradients;
+  // Add typography types
   textVariants: typeof textVariants;
   fontWeights: typeof fontWeights;
   getFontFamily: typeof getFontFamily;
@@ -275,6 +288,7 @@ export interface Theme {
 // Light Theme
 export const lightTheme: Theme = {
   colors: {
+    // Base colors
     primary: colors.primary[500],
     secondary: colors.secondary[500],
     accent: colors.accent[500],
@@ -284,24 +298,38 @@ export const lightTheme: Theme = {
     warning: colors.warning[500],
     success: colors.success[500],
     info: colors.accent[500],
+    
+    // Text colors
     text: colors.neutral[900],
     textPrimary: colors.neutral[900],
     textSecondary: colors.neutral[600],
     textOnPrimary: colors.neutral[0],
+    
+    // UI elements
     border: colors.neutral[300],
     borderLight: colors.neutral[200],
     divider: colors.neutral[200],
+    
+    // Special UI states
     overlay: 'rgba(0, 0, 0, 0.5)',
     shadow: colors.neutral[900],
+    
+    // Component specific
     inputBackground: colors.neutral[50],
     inputBorder: colors.neutral[300],
     inputPlaceholder: colors.neutral[500],
     surfaceVariant: colors.neutral[100],
+    
+    // Button colors
     buttonPrimary: colors.primary[500],
     buttonSecondary: colors.secondary[500],
+    
+    // Category colors
     categoryActive: colors.primary[500],
     categoryInactive: colors.neutral[600],
     categoryBadge: colors.neutral[200],
+    
+    // Expiry colors
     expiryUrgent: colors.error[500],
     expirySoon: colors.warning[500],
     expiryOk: colors.success[500],
@@ -322,6 +350,7 @@ export const lightTheme: Theme = {
 // Dark Theme
 export const darkTheme: Theme = {
   colors: {
+    // Base colors
     primary: colors.primary[400],
     secondary: colors.secondary[400],
     accent: colors.accent[400],
@@ -331,24 +360,38 @@ export const darkTheme: Theme = {
     warning: colors.warning[400],
     success: colors.success[400],
     info: colors.accent[400],
+    
+    // Text colors
     text: colors.neutral[100],
     textPrimary: colors.neutral[100],
     textSecondary: colors.neutral[400],
     textOnPrimary: colors.neutral[900],
+    
+    // UI elements
     border: colors.neutral[700],
     borderLight: colors.neutral[800],
     divider: colors.neutral[800],
+    
+    // Special UI states
     overlay: 'rgba(0, 0, 0, 0.7)',
     shadow: colors.neutral[0],
+    
+    // Component specific
     inputBackground: colors.neutral[800],
     inputBorder: colors.neutral[700],
     inputPlaceholder: colors.neutral[500],
     surfaceVariant: colors.neutral[800],
+    
+    // Button colors
     buttonPrimary: colors.primary[400],
     buttonSecondary: colors.secondary[400],
+    
+    // Category colors
     categoryActive: colors.primary[400],
     categoryInactive: colors.neutral[400],
     categoryBadge: colors.neutral[800],
+    
+    // Expiry colors
     expiryUrgent: colors.error[400],
     expirySoon: colors.warning[400],
     expiryOk: colors.success[400],
@@ -365,3 +408,6 @@ export const darkTheme: Theme = {
   fontWeights,
   getFontFamily,
 };
+
+// Legacy theme export (for backward compatibility)
+export const theme = lightTheme;

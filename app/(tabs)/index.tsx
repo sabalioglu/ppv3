@@ -1,4 +1,3 @@
-//app>(tabs)>index.tsx 
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -12,15 +11,15 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight, User, Activity, Heart, Coffee, Plus } from 'lucide-react-native';
-import { lightTheme as theme, colors, spacing, typography, shadows, gradients } from '@/lib/theme';
+import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { StyledText, H1, H2, H3, H5, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
+import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
 import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
-// Nutrition calculation helpers
+// Nutrition calculation helpers (AYNI KALIYOR)
 const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
   if (gender === 'male') {
     return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
@@ -66,7 +65,7 @@ const calculateMacros = (calories: number, goals: string[]) => {
   };
 };
 
-// Empty State Component
+// YENİ: Empty State Component - Manifestoya Uygun
 const EmptyState = ({ 
   icon: Icon, 
   title, 
@@ -83,20 +82,20 @@ const EmptyState = ({
   return (
     <View style={styles.emptyState}>
       <View style={styles.emptyIcon}>
-        <Icon size={48} color={theme.colors.textSecondary} />
+        <Icon size={48} color={colors.textSecondary} />
       </View>
-      <H3 color={theme.colors.textPrimary}>{title}</H3>
-      <BodyRegular color={theme.colors.textSecondary} style={styles.emptyMessage}>{message}</BodyRegular>
+      <H3 color={colors.textPrimary}>{title}</H3>
+      <BodyRegular color={colors.textSecondary} style={styles.emptyMessage}>{message}</BodyRegular>
       {actionText && onAction && (
         <TouchableOpacity style={styles.emptyAction} onPress={onAction}>
-          <StyledText variant="body" weight="semibold" color={theme.colors.textOnPrimary}>{actionText}</StyledText>
+          <StyledText variant="button" color={colors.neutral[0]}>{actionText}</StyledText>
         </TouchableOpacity>
       )}
     </View>
   );
 };
 
-// StatCard Component
+// StatCard Component - Empty State Desteği Eklendi
 const StatCard = ({ title, current, target, color, unit }: any) => {
   const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
   
@@ -129,10 +128,10 @@ const StatCard = ({ title, current, target, color, unit }: any) => {
 const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
   const getColor = () => {
     switch (type) {
-      case 'success': return theme.colors.success;
-      case 'warning': return theme.colors.warning;
-      case 'info': return theme.colors.info;
-      default: return theme.colors.primary;
+      case 'success': return colors.success;
+      case 'warning': return colors.warning;
+      case 'info': return colors.info;
+      default: return colors.primary;
     }
   };
 
@@ -142,11 +141,11 @@ const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
         <Icon size={24} color={getColor()} />
       </View>
       <View style={styles.insightContent}>
-        <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{title}</StyledText>
+        <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{title}</StyledText>
         <BodySmall color={theme.colors.textSecondary}>{description}</BodySmall>
         {value && <BodySmall weight="semibold" color={getColor()}>{value}</BodySmall>}
       </View>
-      <ChevronRight size={16} color={theme.colors.textSecondary} />
+      <ChevronRight size={16} color={colors.textSecondary} />
     </TouchableOpacity>
   );
 };
@@ -158,32 +157,32 @@ const ProfileSummaryCard = ({ profile }: any) => {
   return (
     <View style={styles.profileCard}>
       <View style={styles.profileHeader}>
-        <User size={20} color={theme.colors.primary} />
-        <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>Your Profile Summary</StyledText>
+        <User size={20} color={colors.primary} />
+        <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>Your Profile Summary</StyledText>
       </View>
       
       <View style={styles.profileGrid}>
         <View style={styles.profileItem}>
           <Caption color={theme.colors.textSecondary}>Age</Caption>
-          <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{profile.age} years</StyledText>
+          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.age} years</StyledText>
         </View>
         <View style={styles.profileItem}>
           <Caption color={theme.colors.textSecondary}>Height</Caption>
-          <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{profile.height_cm} cm</StyledText>
+          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.height_cm} cm</StyledText>
         </View>
         <View style={styles.profileItem}>
           <Caption color={theme.colors.textSecondary}>Weight</Caption>
-          <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{profile.weight_kg} kg</StyledText>
+          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{profile.weight_kg} kg</StyledText>
         </View>
         <View style={styles.profileItem}>
           <Caption color={theme.colors.textSecondary}>BMR</Caption>
-          <StyledText variant="body" weight="semibold" color={theme.colors.textPrimary}>{Math.round(bmr)} cal</StyledText>
+          <StyledText variant="bodyRegular" weight="semibold" color={theme.colors.textPrimary}>{Math.round(bmr)} cal</StyledText>
         </View>
       </View>
       
       <View style={styles.tdeeContainer}>
         <BodySmall color={theme.colors.textSecondary}>Daily Calorie Target (TDEE)</BodySmall>
-        <H3 weight="bold" color={theme.colors.success}>{tdee} calories</H3>
+        <H3 weight="bold" color="#10b981">{tdee} calories</H3>
       </View>
     </View>
   );
@@ -201,6 +200,7 @@ export default function Dashboard() {
     fat: 67,
   });
   
+  // TEMİZLENDİ: Mock data yerine gerçek veri tracking
   const [todaysIntake, setTodaysIntake] = useState({
     calories: 0,
     protein: 0,
@@ -265,6 +265,7 @@ export default function Dashboard() {
     }
   };
 
+  // TEMİZLENDİ: Mock Data Kaldırıldı - Gerçek Supabase Entegrasyonu
   const loadTodaysIntake = async (userId: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -301,6 +302,7 @@ export default function Dashboard() {
     }
   };
 
+  // TEMİZLENDİ: Sadece gerçek veri varsa insights göster
   const getHealthInsights = () => {
     if (!hasNutritionData) return [];
     
@@ -351,8 +353,8 @@ export default function Dashboard() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <BodyRegular color={theme.colors.textSecondary} style={styles.loadingText}>Loading your dashboard...</BodyRegular>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <BodyRegular color={colors.textSecondary} style={styles.loadingText}>Loading your dashboard...</BodyRegular>
       </View>
     );
   }
@@ -361,7 +363,7 @@ export default function Dashboard() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <LinearGradient
-        colors={theme.gradients.primary}
+        colors={gradients.primary}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -389,11 +391,11 @@ export default function Dashboard() {
         </View>
       )}
 
-      {/* Today's Progress */}
+      {/* Today's Progress - MOCK DATA TEMİZLENDİ */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Target size={20} color={theme.colors.primary} />
-          <StyledText variant="h5" weight="semibold" color={theme.colors.textPrimary} style={styles.sectionTitle}>Today's Progress</StyledText>
+          <Target size={20} color={colors.primary} />
+          <StyledText variant="h5" weight="semibold" color={colors.textPrimary} style={styles.sectionTitle}>Today's Progress</StyledText>
         </View>
         
         {hasNutritionData ? (
@@ -402,28 +404,28 @@ export default function Dashboard() {
               title="Calories"
               current={todaysIntake.calories}
               target={nutritionTargets.calories}
-              color={theme.colors.success}
+              color={colors.success}
               unit="kcal"
             />
             <StatCard
               title="Protein"
               current={todaysIntake.protein}
               target={nutritionTargets.protein}
-              color={theme.colors.warning}
+              color={colors.warning}
               unit="g"
             />
             <StatCard
               title="Carbs"
               current={todaysIntake.carbs}
               target={nutritionTargets.carbs}
-              color={theme.colors.info}
+              color={colors.info}
               unit="g"
             />
             <StatCard
               title="Fat"
               current={todaysIntake.fat}
               target={nutritionTargets.fat}
-              color={theme.colors.error}
+              color={colors.error}
               unit="g"
             />
           </View>
@@ -438,12 +440,12 @@ export default function Dashboard() {
         )}
       </View>
 
-      {/* Insights */}
+      {/* Insights - SADECE VERİ VARSA GÖSTER */}
       {hasNutritionData && getHealthInsights().length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <TrendingUp size={20} color={theme.colors.primary} />
-            <StyledText variant="h5" weight="semibold" color={theme.colors.textPrimary} style={styles.sectionTitle}>Your Insights</StyledText>
+            <TrendingUp size={20} color={colors.primary} />
+            <StyledText variant="h5" weight="semibold" color={colors.textPrimary} style={styles.sectionTitle}>Your Insights</StyledText>
           </View>
           
           <View style={styles.insightsList}>
@@ -454,39 +456,39 @@ export default function Dashboard() {
         </View>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions - GERÇEK NAVİGATİON EKLENDİ */}
       <View style={[styles.section, { marginBottom: 100 }]}>
-        <H5 weight="semibold" color={theme.colors.textPrimary}>Quick Actions</H5>
+        <H5 weight="semibold" color={colors.textPrimary}>Quick Actions</H5>
         
         <View style={styles.quickActions}>
           <TouchableOpacity 
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/nutrition')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.success + '20' }]}>
-              <Target size={24} color={theme.colors.success} />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}>
+              <Target size={24} color="#10b981" />
             </View>
-            <BodySmall weight="medium" color={theme.colors.textPrimary}>Log Food</BodySmall>
+            <BodySmall weight="medium" color={colors.textPrimary}>Log Food</BodySmall>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/pantry')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.warning + '20' }]}>
-              <Plus size={24} color={theme.colors.warning} />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}>
+              <Plus size={24} color="#f59319" />
             </View>
-            <BodySmall weight="medium" color={theme.colors.textPrimary}>Add Item</BodySmall>
+            <BodySmall weight="medium" color={colors.textPrimary}>Add Item</BodySmall>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/recipes')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: theme.colors.accent + '20' }]}>
-              <Award size={24} color={theme.colors.accent} />
+            <View style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}>
+              <Award size={24} color="#6366f1" />
             </View>
-            <BodySmall weight="medium" color={theme.colors.textPrimary}>Recipes</BodySmall>
+            <BodySmall weight="medium" color={colors.textPrimary}>Recipes</BodySmall>
           </TouchableOpacity>
         </View>
       </View>
@@ -497,21 +499,21 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: colors.background,
   },
   loadingText: {
-    marginTop: theme.spacing.md,
+    marginTop: 12,
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
@@ -524,68 +526,68 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    padding: theme.spacing.lg,
+    padding: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    marginLeft: theme.spacing.sm,
+    marginLeft: spacing.sm,
     flex: 1,
   },
   profileCard: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
     borderRadius: 16,
-    padding: theme.spacing.lg,
-    ...theme.shadows.md,
+    padding: spacing.lg,
+    ...shadows.sm,
   },
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: spacing.md,
   },
   profileGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: theme.spacing.md,
+    marginBottom: spacing.md,
   },
   profileItem: {
     width: '50%',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: spacing.sm,
   },
   tdeeContainer: {
-    backgroundColor: theme.colors.success + '10',
+    backgroundColor: '#10b98110',
     borderRadius: 12,
-    padding: theme.spacing.md,
+    padding: spacing.md,
     alignItems: 'center',
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
+    gap: spacing.md,
   },
   statCard: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
     borderRadius: 16,
-    padding: theme.spacing.md,
-    width: (width - theme.spacing.lg * 2 - theme.spacing.md) / 2,
-    ...theme.shadows.md,
+    padding: spacing.md,
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    ...shadows.sm,
   },
   statHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: spacing.sm,
   },
   statContent: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: theme.spacing.sm,
+    marginBottom: spacing.sm,
   },
   progressContainer: {
-    marginTop: theme.spacing.xs,
+    marginTop: spacing.xs,
   },
   progressBar: {
     height: 4,
@@ -598,40 +600,40 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    padding: theme.spacing.xl,
-    backgroundColor: theme.colors.surface,
+    padding: spacing.xl,
+    backgroundColor: 'white',
     borderRadius: 16,
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   emptyIcon: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.textSecondary + '10',
+    backgroundColor: `${colors.textSecondary}10`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: spacing.md,
   },
   emptyMessage: {
     textAlign: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: spacing.lg,
   },
   emptyAction: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     borderRadius: 12,
   },
   insightsList: {
-    gap: theme.spacing.sm,
+    gap: spacing.sm,
   },
   insightCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
     borderRadius: 12,
-    padding: theme.spacing.md,
-    ...theme.shadows.md,
+    padding: spacing.md,
+    ...shadows.sm,
   },
   insightIcon: {
     width: 48,
@@ -639,23 +641,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: spacing.md,
   },
   insightContent: {
     flex: 1,
   },
   quickActions: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.md,
+    gap: spacing.md,
   },
   quickActionCard: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
     borderRadius: 16,
-    padding: theme.spacing.md,
+    padding: spacing.md,
     alignItems: 'center',
-    ...theme.shadows.md,
+    ...shadows.sm,
   },
   quickActionIcon: {
     width: 48,
@@ -663,6 +664,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: spacing.sm,
   },
 });
