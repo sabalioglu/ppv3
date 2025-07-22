@@ -471,4 +471,4 @@ lightTheme.getFontFamily = getFontFamily;
 
 darkTheme.textVariants = textVariants;
 darkTheme.fontWeights = fontWeights;
-darkTheme.getFontFamily = getFontFamily;
+darkTheme.getFontFamily = getFontFamil
