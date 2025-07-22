@@ -155,7 +155,6 @@ const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
 
 const ProfileSummaryCard = ({ profile }: any) => {
   const { theme } = useTheme();
-  const { theme } = useTheme();
   const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
   const tdee = calculateDailyCalories(bmr, profile.activity_level);
   
