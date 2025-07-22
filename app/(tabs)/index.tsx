@@ -11,13 +11,63 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight, User, Activity, Heart, Coffee, Plus } from 'lucide-react-native';
-import { lightTheme as theme, colors, spacing, typography, shadows, gradients } from '@/lib/theme';
+import { lightTheme as theme } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { StyledText, H1, H2, H3, H5, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
+
+// Typography system
+const Typography = {
+  h1: { fontSize: 32, fontWeight: '700' as const },
+  h2: { fontSize: 28, fontWeight: '700' as const },
+  h3: { fontSize: 24, fontWeight: '600' as const },
+  h4: { fontSize: 20, fontWeight: '600' as const },
+  h5: { fontSize: 18, fontWeight: '600' as const },
+  h6: { fontSize: 16, fontWeight: '500' as const },
+  body: { fontSize: 16, fontWeight: '400' as const },
+  bodySmall: { fontSize: 14, fontWeight: '400' as const },
+  caption: { fontSize: 12, fontWeight: '400' as const },
+};
+
+// StyledText Components
+const StyledText = ({ 
+  variant = 'body', 
+  weight, 
+  color = theme.colors.text, 
+  style, 
+  children, 
+  ...props 
+}: any) => {
+  const variantStyle = Typography[variant as keyof typeof Typography] || Typography.body;
+  const fontWeight = weight || variantStyle.fontWeight;
+
+  return (
+    <Text
+      {...props}
+      style={[
+        {
+          ...variantStyle,
+          fontWeight,
+          color,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </Text>
+  );
+};
+
+const H1 = (props: any) => <StyledText variant="h1" {...props} />;
+const H2 = (props: any) => <StyledText variant="h2" {...props} />;
+const H3 = (props: any) => <StyledText variant="h3" {...props} />;
+const H4 = (props: any) => <StyledText variant="h4" {...props} />;
+const H5 = (props: any) => <StyledText variant="h5" {...props} />;
+const H6 = (props: any) => <StyledText variant="h6" {...props} />;
+const BodyRegular = (props: any) => <StyledText variant="body" {...props} />;
+const BodySmall = (props: any) => <StyledText variant="bodySmall" {...props} />;
+const Caption = (props: any) => <StyledText variant="caption" {...props} />;
 
 // Nutrition calculation helpers
 const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
