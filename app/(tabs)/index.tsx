@@ -14,7 +14,7 @@ import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
+import { StyledText, H1, H2, H3, H5, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
 import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
