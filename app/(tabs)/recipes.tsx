@@ -1,4 +1,3 @@
-//app>(tabs)>recipes.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -127,7 +126,7 @@ const filterCategories: FilterCategory[] = [
   }
 ];
 
-// YENİ: Quick Actions Dropdown Component
+// YENİ: Quick Actions Dropdown Component - GÜNCELLENMIŞ
 const QuickActionsDropdown: React.FC<{
   onSocialPress: () => void;
   onAIRecipesPress: () => void;
@@ -181,6 +180,7 @@ const QuickActionsDropdown: React.FC<{
       </TouchableOpacity>
 
       <Animated.View style={[styles.dropdownContent, animatedStyle]}>
+        {/* GÜNCELLENMIŞ: Social Media Import */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onSocialPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E8F5E9' }]}>
             <Share2 size={20} color="#4CAF50" />
@@ -188,7 +188,7 @@ const QuickActionsDropdown: React.FC<{
           <View style={styles.dropdownItemText}>
             <Text style={styles.dropdownItemTitle}>Social Media Import</Text>
             <Text style={styles.dropdownItemSubtitle}>
-              Import from TikTok, Instagram
+              Connect with people who has similar taste
             </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
@@ -207,6 +207,7 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
+        {/* GÜNCELLENMIŞ: My Recipe Library */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
             <Calendar size={20} color="#2196F3" />
@@ -214,7 +215,7 @@ const QuickActionsDropdown: React.FC<{
           <View style={styles.dropdownItemText}>
             <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
             <Text style={styles.dropdownItemSubtitle}>
-              View your saved recipes
+              Import recipes from web and socials
             </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
@@ -230,7 +231,7 @@ const QuickActionsDropdown: React.FC<{
           <View style={styles.dropdownItemText}>
             <Text style={styles.dropdownItemTitle}>Favorite Recipes</Text>
             <Text style={styles.dropdownItemSubtitle}>
-              Quick access to favorites
+              Quick access to your favorites
             </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
@@ -986,12 +987,13 @@ const styles = StyleSheet.create({
     color: colors.neutral[0],
   },
 
-  // YENİ: Quick Actions Dropdown Styles
+  // GÜNCELLENMIŞ: Quick Actions Dropdown Styles
   quickActionsDropdown: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
     marginHorizontal: 16,
     marginTop: 16,
+    marginBottom: 24, // 20'den 24'e çıkarıldı
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1045,6 +1047,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     flex: 1,
+    paddingRight: 8, // Sağdaki ok ile arasına boşluk
   },
   dropdownItemTitle: {
     fontSize: 15,
@@ -1055,6 +1058,8 @@ const styles = StyleSheet.create({
   dropdownItemSubtitle: {
     fontSize: 13,
     color: colors.neutral[500],
+    lineHeight: 18, // Satır yüksekliği eklendi
+    flexWrap: 'wrap', // Text wrapping için
   },
   
   // Filter Modal Styles
