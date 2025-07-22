@@ -62,29 +62,37 @@ export default function AIMealPlan() {
         return;
       }
 
-      // Mock data for now
-      setUserProfile({
-        dietary_restrictions: ['gluten'],
-        dietary_preferences: ['carnivore', 'low_carb', 'low_fat'],
+      // Load user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error loading profile:', profileError);
+      }
+
+      // Set profile with fallback
+      setUserProfile(profile || {
+        dietary_restrictions: [],
+        dietary_preferences: ['balanced'],
       });
 
-      setPantryItems([
-        { id: 1, name: 'Chicken', category: 'protein', expiry_date: '2024-01-15' },
-        { id: 2, name: 'Eggs', category: 'protein', expiry_date: '2024-01-10' },
-        { id: 3, name: 'Spinach', category: 'vegetables', expiry_date: '2024-01-08' },
-        { id: 4, name: 'Olive Oil', category: 'fats', expiry_date: '2024-06-01' },
-        { id: 5, name: 'Tomatoes', category: 'vegetables', expiry_date: '2024-01-05' },
-        { id: 6, name: 'Cheese', category: 'dairy', expiry_date: '2024-01-12' },
-      ]);
+      // Load REAL pantry items
+      const { data: pantry, error: pantryError } = await supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('expiry_date', { ascending: true });
 
-      calculatePantryMetrics([
-        { id: 1, name: 'Chicken', category: 'protein', expiry_date: '2024-01-15' },
-        { id: 2, name: 'Eggs', category: 'protein', expiry_date: '2024-01-10' },
-        { id: 3, name: 'Spinach', category: 'vegetables', expiry_date: '2024-01-08' },
-        { id: 4, name: 'Olive Oil', category: 'fats', expiry_date: '2024-06-01' },
-        { id: 5, name: 'Tomatoes', category: 'vegetables', expiry_date: '2024-01-05' },
-        { id: 6, name: 'Cheese', category: 'dairy', expiry_date: '2024-01-12' },
-      ]);
+      if (pantryError) {
+        console.error('Error loading pantry:', pantryError);
+      }
+
+      const pantryItemsData = pantry || [];
+      setPantryItems(pantryItemsData);
+      calculatePantryMetrics(pantryItemsData);
 
       // Generate meal plan
       await generateMealPlan();
@@ -97,8 +105,11 @@ export default function AIMealPlan() {
     }
   };
 
+  // DÜZELTILMIŞ: Expired items hesaplama
   const calculatePantryMetrics = (items: any[]) => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Bugünü saat 00:00'a ayarla
+    
     let expiringCount = 0;
     let expiredCount = 0;
     const categoryCount: Record<string, number> = {};
@@ -110,11 +121,14 @@ export default function AIMealPlan() {
       // Expiry checking
       if (item.expiry_date) {
         const expiryDate = new Date(item.expiry_date);
-        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        expiryDate.setHours(0, 0, 0, 0); // Expiry date'i de 00:00'a ayarla
+        
+        const timeDiff = expiryDate.getTime() - today.getTime();
+        const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         
         if (daysUntilExpiry < 0) {
           expiredCount++;
-        } else if (daysUntilExpiry <= 3) {
+        } else if (daysUntilExpiry >= 0 && daysUntilExpiry <= 3) {
           expiringCount++;
         }
       }
@@ -423,7 +437,7 @@ export default function AIMealPlan() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* DÜZELTILMIŞ: Tutarlı Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.neutral[800]} />
@@ -582,6 +596,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     textAlign: 'center',
   },
+  // DÜZELTILMIŞ: Tutarlı Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
