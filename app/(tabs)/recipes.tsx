@@ -127,7 +127,7 @@ const filterCategories: FilterCategory[] = [
   }
 ];
 
-// YENİ: Quick Actions Dropdown Component - GÜNCELLENMIŞ
+// Quick Actions Dropdown Component
 const QuickActionsDropdown: React.FC<{
   onSocialPress: () => void;
   onAIRecipesPress: () => void;
@@ -152,7 +152,7 @@ const QuickActionsDropdown: React.FC<{
   const animatedStyle = {
     maxHeight: animatedHeight.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, 300], // Max height for dropdown content
+      outputRange: [0, 300],
     }),
     opacity: animatedHeight.interpolate({
       inputRange: [0, 1],
@@ -176,18 +176,18 @@ const QuickActionsDropdown: React.FC<{
           <Text style={styles.dropdownTitle}>Quick Actions</Text>
         </View>
         <Text style={styles.dropdownSubtitle}>
-          Ai Recipes • Import • Save • Social
+          Discover • Import • Save
         </Text>
       </TouchableOpacity>
 
       <Animated.View style={[styles.dropdownContent, animatedStyle]}>
-        {/* GÜNCELLENMIŞ: Social Media Import */}
+        {/* Social Media Import */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onSocialPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E8F5E9' }]}>
             <Share2 size={20} color="#4CAF50" />
           </View>
           <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>Social Network</Text>
+            <Text style={styles.dropdownItemTitle}>Social Media Import</Text>
             <Text style={styles.dropdownItemSubtitle}>
               Connect with people who has similar taste
             </Text>
@@ -195,6 +195,7 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
+        {/* AI Recipe Ideas */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onAIRecipesPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#FFF3E0' }]}>
             <ChefHat size={20} color="#FF9800" />
@@ -208,7 +209,7 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
-        {/* GÜNCELLENMIŞ: My Recipe Library */}
+        {/* My Recipe Library */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
             <BookOpen size={20} color="#2196F3" />
@@ -222,6 +223,7 @@ const QuickActionsDropdown: React.FC<{
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
 
+        {/* Favorite Recipes */}
         <TouchableOpacity 
           style={[styles.dropdownItem, styles.dropdownItemLast]} 
           onPress={onFavoritesPress}
@@ -720,15 +722,14 @@ export default function Recipes() {
     );
   };
 
-  // YENİ: Quick Action handlers
+  // Quick Action handlers
   const handleSocialPress = () => {
     Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
   };
 
   const handleAIRecipesPress = () => {
-    // Show only AI generated recipes
-    const aiRecipes = recipes.filter(r => r.is_ai_generated);
-    setRecipes(aiRecipes);
+    // AI Meal Plan sayfasına yönlendir
+    router.push('/ai-meal-plan');
   };
 
   const handleLibraryPress = () => {
@@ -820,7 +821,7 @@ export default function Recipes() {
         </TouchableOpacity>
       </View>
 
-      {/* YENİ: Quick Actions Dropdown */}
+      {/* Quick Actions Dropdown */}
       <QuickActionsDropdown
         onSocialPress={handleSocialPress}
         onAIRecipesPress={handleAIRecipesPress}
@@ -988,13 +989,13 @@ const styles = StyleSheet.create({
     color: colors.neutral[0],
   },
 
-  // GÜNCELLENMIŞ: Quick Actions Dropdown Styles
+  // Quick Actions Dropdown Styles
   quickActionsDropdown: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 24, // 20'den 24'e çıkarıldı
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -1048,7 +1049,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     flex: 1,
-    paddingRight: 8, // Sağdaki ok ile arasına boşluk
+    paddingRight: 8,
   },
   dropdownItemTitle: {
     fontSize: 15,
@@ -1059,8 +1060,8 @@ const styles = StyleSheet.create({
   dropdownItemSubtitle: {
     fontSize: 13,
     color: colors.neutral[500],
-    lineHeight: 18, // Satır yüksekliği eklendi
-    flexWrap: 'wrap', // Text wrapping için
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
   
   // Filter Modal Styles
@@ -1172,7 +1173,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   recipesContent: {
-    paddingBottom: spacing.xl * 2, // Extra space for floating button
+    paddingBottom: spacing.xl * 2,
   },
   emptyStateContainer: {
     alignItems: 'center',
