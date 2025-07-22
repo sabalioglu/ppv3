@@ -33,6 +33,7 @@ import {
   Check,
   Grid3X3,
   List,
+  BookOpen,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
@@ -210,7 +211,7 @@ const QuickActionsDropdown: React.FC<{
         {/* GÜNCELLENMIŞ: My Recipe Library */}
         <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
           <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
-            <library size={20} color="#2196F3" />
+            <BookOpen size={20} color="#2196F3" />
           </View>
           <View style={styles.dropdownItemText}>
             <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
