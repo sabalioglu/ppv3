@@ -14,33 +14,11 @@ import {
   Modal,
   Animated,
 } from 'react-native';
-import {
-  Search,
-  Filter,
-  Clock,
-  Users,
-  Star,
-  ChefHat,
-  Flame,
-  Heart,
-  Plus,
-  Share2,
-  Calendar,
-  X,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  Check,
-  Grid3X3,
-  List,
-  BookOpen,
-} from 'lucide-react-native';
+import { Search, Filter, Clock, Users, Star, ChefHat, Flame, Heart, Plus, Share2, Calendar, X, ChevronDown, ChevronUp, ChevronRight, Check, Grid3x3 as Grid3X3, List, BookOpen } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { RecipeGrid } from '@/components/recipe/RecipeGrid';
-import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
-import { AppHeader } from '@/components/common/AppHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -175,11 +153,11 @@ const QuickActionsDropdown: React.FC<{
           ) : (
             <ChevronDown size={20} color={colors.neutral[600]} />
           )}
-          <StyledText variant="bodyRegular" weight="bold" color={colors.neutral[800]}>Quick Actions</StyledText>
+          <Text style={styles.dropdownTitle}>Quick Actions</Text>
         </View>
-        <Caption color={colors.neutral[500]}>
+        <Text style={styles.dropdownSubtitle}>
           Ai Recipes • Import • Save • Social
-        </Caption>
+        </Text>
       </TouchableOpacity>
 
       <Animated.View style={[styles.dropdownContent, animatedStyle]}>
@@ -189,10 +167,10 @@ const QuickActionsDropdown: React.FC<{
             <Share2 size={20} color="#4CAF50" />
           </View>
           <View style={styles.dropdownItemText}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.neutral[800]}>Social Network</StyledText>
-            <Caption color={colors.neutral[500]}>
+            <Text style={styles.dropdownItemTitle}>Social Network</Text>
+            <Text style={styles.dropdownItemSubtitle}>
               Connect with people who has similar taste
-            </Caption>
+            </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
@@ -202,10 +180,10 @@ const QuickActionsDropdown: React.FC<{
             <ChefHat size={20} color="#FF9800" />
           </View>
           <View style={styles.dropdownItemText}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.neutral[800]}>AI Recipe Ideas</StyledText>
-            <Caption color={colors.neutral[500]}>
+            <Text style={styles.dropdownItemTitle}>AI Recipe Ideas</Text>
+            <Text style={styles.dropdownItemSubtitle}>
               Get personalized suggestions
-            </Caption>
+            </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
@@ -215,10 +193,10 @@ const QuickActionsDropdown: React.FC<{
             <BookOpen size={20} color="#2196F3" />
           </View>
           <View style={styles.dropdownItemText}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.neutral[800]}>My Recipe Library</StyledText>
-            <Caption color={colors.neutral[500]}>
+            <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
+            <Text style={styles.dropdownItemSubtitle}>
               Import recipes from web and socials
-            </Caption>
+            </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
@@ -231,10 +209,10 @@ const QuickActionsDropdown: React.FC<{
             <Heart size={20} color="#F44336" />
           </View>
           <View style={styles.dropdownItemText}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.neutral[800]}>Favorite Recipes</StyledText>
-            <Caption color={colors.neutral[500]}>
+            <Text style={styles.dropdownItemTitle}>Favorite Recipes</Text>
+            <Text style={styles.dropdownItemSubtitle}>
               Quick access to your favorites
-            </Caption>
+            </Text>
           </View>
           <ChevronRight size={20} color={colors.neutral[300]} />
         </TouchableOpacity>
@@ -297,9 +275,9 @@ const FilterModal: React.FC<{
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <H3 color={colors.neutral[800]}>Filter Recipes</H3>
+          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
           <TouchableOpacity onPress={clearAllFilters}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.primary[500]}>Clear All</StyledText>
+            <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
@@ -309,7 +287,7 @@ const FilterModal: React.FC<{
               style={styles.filterCategoryHeader}
               onPress={() => toggleCategory('cookbook')}
             >
-              <StyledText variant="h6" weight="semibold" color={colors.neutral[800]}>Cookbook</StyledText>
+              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
               <ChevronDown
                 size={20}
                 color={colors.neutral[600]}
@@ -328,13 +306,14 @@ const FilterModal: React.FC<{
                   ]}
                   onPress={() => onCookbookChange('all')}
                 >
-                  <StyledText 
-                    variant="bodyRegular" 
-                    weight={selectedCookbook === 'all' ? 'semibold' : 'regular'}
-                    color={selectedCookbook === 'all' ? colors.primary[600] : colors.neutral[700]}
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      selectedCookbook === 'all' && styles.filterOptionTextSelected
+                    ]}
                   >
                     All Recipes
-                  </StyledText>
+                  </Text>
                   {selectedCookbook === 'all' && (
                     <Check size={16} color={colors.primary[500]} />
                   )}
@@ -349,14 +328,15 @@ const FilterModal: React.FC<{
                     onPress={() => onCookbookChange(cookbook.id)}
                   >
                     <View style={styles.filterOptionWithEmoji}>
-                      <StyledText variant="bodyRegular">{cookbook.emoji}</StyledText>
-                      <StyledText 
-                        variant="bodyRegular" 
-                        weight={selectedCookbook === cookbook.id ? 'semibold' : 'regular'}
-                        color={selectedCookbook === cookbook.id ? colors.primary[600] : colors.neutral[700]}
+                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
+                      <Text
+                        style={[
+                          styles.filterOptionText,
+                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
+                        ]}
                       >
                         {cookbook.name}
-                      </StyledText>
+                      </Text>
                     </View>
                     {selectedCookbook === cookbook.id && (
                       <Check size={16} color={colors.primary[500]} />
@@ -374,7 +354,7 @@ const FilterModal: React.FC<{
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
               >
-                <StyledText variant="h6" weight="semibold" color={colors.neutral[800]}>{category.title}</StyledText>
+                <Text style={styles.filterCategoryTitle}>{category.title}</Text>
                 <ChevronDown
                   size={20}
                   color={colors.neutral[600]}
@@ -397,13 +377,14 @@ const FilterModal: React.FC<{
                         ]}
                         onPress={() => updateFilter(category.id, option.id)}
                       >
-                        <StyledText 
-                          variant="bodyRegular" 
-                          weight={isSelected ? 'semibold' : 'regular'}
-                          color={isSelected ? colors.primary[600] : colors.neutral[700]}
+                        <Text
+                          style={[
+                            styles.filterOptionText,
+                            isSelected && styles.filterOptionTextSelected
+                          ]}
                         >
                           {option.label}
-                        </StyledText>
+                        </Text>
                         {isSelected && (
                           <Check size={16} color={colors.primary[500]} />
                         )}
@@ -417,9 +398,9 @@ const FilterModal: React.FC<{
         </ScrollView>
         <View style={styles.filterModalFooter}>
           <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
-            <StyledText variant="button" color={colors.neutral[0]}>
+            <Text style={styles.applyFiltersText}>
               Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
-            </StyledText>
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -437,17 +418,17 @@ const EmptyState: React.FC<{
     return (
       <View style={styles.emptyStateContainer}>
         <Filter size={64} color={colors.neutral[400]} />
-        <H3 color={colors.neutral[700]}>No Recipes Found</H3>
-        <BodyRegular color={colors.neutral[500]} style={styles.emptyStateSubtitle}>
+        <Text style={styles.emptyStateTitle}>No Recipes Found</Text>
+        <Text style={styles.emptyStateSubtitle}>
           Try adjusting your filters or add new recipes to your collection
-        </BodyRegular>
+        </Text>
         <View style={styles.emptyStateActions}>
           <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.primary[600]}>Clear Filters</StyledText>
+            <Text style={styles.emptyActionText}>Clear Filters</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
             <Plus size={20} color={colors.neutral[600]} />
-            <StyledText variant="bodyRegular" weight="semibold" color={colors.neutral[600]}>Add Recipe</StyledText>
+            <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -457,14 +438,14 @@ const EmptyState: React.FC<{
   return (
     <View style={styles.emptyStateContainer}>
       <ChefHat size={64} color={colors.primary[500]} />
-      <H3 color={colors.neutral[700]}>Start Your Recipe Collection</H3>
-      <BodyRegular color={colors.neutral[500]} style={styles.emptyStateSubtitle}>
+      <Text style={styles.emptyStateTitle}>Start Your Recipe Collection</Text>
+      <Text style={styles.emptyStateSubtitle}>
         Discover and save recipes that match your taste and pantry
-      </BodyRegular>
+      </Text>
       <View style={styles.emptyStateActions}>
         <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
           <Plus size={20} color={colors.primary[500]} />
-          <StyledText variant="bodyRegular" weight="semibold" color={colors.primary[600]}>Browse Library</StyledText>
+          <Text style={styles.emptyActionText}>Browse Library</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -746,52 +727,50 @@ export default function Recipes() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <BodyRegular color={colors.neutral[600]} style={styles.loadingText}>Loading your recipes...</BodyRegular>
+        <Text style={styles.loadingText}>Loading your recipes...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <AppHeader
-        title="AI Recipe Discovery"
-        rightComponent={
-          <View style={styles.viewToggle}>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                viewMode === 'grid' && styles.activeToggle
-              ]}
-              onPress={() => setViewMode('grid')}
-            >
-              <Grid3X3 
-                size={20} 
-                color={viewMode === 'grid' ? colors.primary[500] : colors.neutral[400]} 
-              />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                viewMode === 'list' && styles.activeToggle
-              ]}
-              onPress={() => setViewMode('list')}
-            >
-              <List 
-                size={20} 
-                color={viewMode === 'list' ? colors.primary[500] : colors.neutral[400]} 
-              />
-            </TouchableOpacity>
-          </View>
-        }
-      />
-      
-      {/* Subtitle */}
-      <View style={styles.subtitleContainer}>
-        <BodyRegular color={colors.neutral[600]}>
-          {filteredRecipes.length} AI-generated recipes
-        </BodyRegular>
+      {/* Header with View Toggle */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>AI Recipe Discovery</Text>
+          <Text style={styles.headerSubtitle}>
+            {filteredRecipes.length} AI-generated recipes
+          </Text>
+        </View>
+        
+        {/* VIEW MODE TOGGLE */}
+        <View style={styles.viewToggle}>
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              viewMode === 'grid' && styles.activeToggle
+            ]}
+            onPress={() => setViewMode('grid')}
+          >
+            <Grid3X3 
+              size={20} 
+              color={viewMode === 'grid' ? colors.primary[500] : colors.neutral[400]} 
+            />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              viewMode === 'list' && styles.activeToggle
+            ]}
+            onPress={() => setViewMode('list')}
+          >
+            <List 
+              size={20} 
+              color={viewMode === 'list' ? colors.primary[500] : colors.neutral[400]} 
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search and Controls */}
@@ -882,18 +861,44 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[50],
   },
   loadingText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[600],
     marginTop: spacing.md,
   },
-  subtitleContainer: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingTop: 60,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
     backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
   },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: typography.fontSize['3xl'],
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[600],
+  },
+  
+  // VIEW TOGGLE STYLES
   viewToggle: {
     flexDirection: 'row',
     backgroundColor: colors.neutral[100],
     borderRadius: 8,
     padding: 2,
+    marginLeft: spacing.md,
   },
   toggleButton: {
     padding: 8,
@@ -907,6 +912,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -987,6 +993,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  dropdownTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.neutral[800],
+  },
+  dropdownSubtitle: {
+    fontSize: 13,
+    color: colors.neutral[500],
+  },
   dropdownContent: {
     backgroundColor: colors.neutral[50],
     overflow: 'hidden',
@@ -1013,6 +1028,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 8,
   },
+  dropdownItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.neutral[800],
+    marginBottom: 2,
+  },
+  dropdownItemSubtitle: {
+    fontSize: 13,
+    color: colors.neutral[500],
+    lineHeight: 18,
+    flexWrap: 'wrap',
+  },
   
   // Filter Modal Styles
   filterModalContainer: {
@@ -1029,6 +1056,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[200],
   },
+  filterModalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
+  },
+  clearAllText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[500],
+  },
   filterModalContent: {
     flex: 1,
     paddingHorizontal: spacing.lg,
@@ -1043,6 +1082,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.sm,
+  },
+  filterCategoryTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[800],
   },
   chevronIcon: {
     transform: [{ rotate: '0deg' }],
@@ -1065,9 +1110,23 @@ const styles = StyleSheet.create({
   filterOptionSelected: {
     backgroundColor: colors.primary[50],
   },
+  filterOptionText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[700],
+  },
+  filterOptionTextSelected: {
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
   filterOptionWithEmoji: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  cookbookEmoji: {
+    fontSize: 16,
+    marginRight: spacing.sm,
   },
   filterModalFooter: {
     padding: spacing.lg,
@@ -1079,6 +1138,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: spacing.lg,
     alignItems: 'center',
+  },
+  applyFiltersText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontWeight: '600',
+    color: colors.neutral[0],
   },
 
   recipesContainer: {
@@ -1092,7 +1157,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xl * 2,
     paddingHorizontal: spacing.lg,
   },
+  emptyStateTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    color: colors.neutral[700],
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   emptyStateSubtitle: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -1117,6 +1193,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
+  },
+  emptyActionText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    color: colors.primary[600],
+  },
+  emptyActionTextSecondary: {
+    fontSize: typography.fontSize.base,
+    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    color: colors.neutral[600],
   },
   addButton: {
     position: 'absolute',

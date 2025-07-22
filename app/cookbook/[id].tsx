@@ -10,7 +10,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat, Info } from 'lucide-react-native';
+import { ArrowLeft, Plus, CreditCard as Edit3, Trash2, Clock, Users, Flame, ChefHat, Info } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';

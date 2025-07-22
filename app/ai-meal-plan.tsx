@@ -11,23 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Settings, 
-  ChevronRight,
-  Clock,
-  Users,
-  Flame,
-  ShieldCheck,
-  Plus,
-  Heart,
-  ShoppingCart,
-  Target,
-  TrendingUp,
-  Calendar,
-  ChefHat,
-  AlertCircle,
-} from 'lucide-react-native';
+import { ArrowLeft, Settings, ChevronRight, Clock, Users, Flame, ShieldCheck, Plus, Heart, ShoppingCart, Target, TrendingUp, Calendar, ChefHat, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { StyledText, H1, H2, H3, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
