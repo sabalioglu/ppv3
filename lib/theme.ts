@@ -1,8 +1,8 @@
 // lib/theme.ts
-// Simple and clean theme system
+// Design system and theme configuration
+import { textVariants, fontWeights, getFontFamily, type TextVariantKey, type FontWeightKey } from '@/constants/Typography';
 
-// Base color palette
-const colors = {
+export const colors = {
   // Primary Colors
   primary: {
     50: '#E8F5E8',
@@ -10,35 +10,35 @@ const colors = {
     200: '#A5D6A7',
     300: '#81C784',
     400: '#66BB6A',
-    500: '#2E7D32',
+    500: '#2E7D32', // Main primary
     600: '#388E3C',
     700: '#2E7D32',
     800: '#2E672E',
     900: '#1B5E20',
   },
   
-  // Secondary Colors
+  // Secondary Colors (Energy Orange)
   secondary: {
     50: '#FFF3E0',
     100: '#FFE0B2',
     200: '#FFCC80',
     300: '#FFB74D',
     400: '#FFA726',
-    500: '#FF8F00',
+    500: '#FF8F00', // Main secondary
     600: '#FB8C00',
     700: '#F57C00',
     800: '#EF6C00',
     900: '#E65100',
   },
   
-  // Accent Colors
+  // Accent Colors (Info Blue)
   accent: {
     50: '#E3F2FD',
     100: '#BBDEFB',
     200: '#90CAF9',
     300: '#64B5F6',
     400: '#42A5F5',
-    500: '#1976D2',
+    500: '#1976D2', // Main accent
     600: '#1565C0',
     700: '#0D47A1',
     800: '#0A388A',
@@ -84,8 +84,7 @@ const colors = {
   },
 };
 
-// Spacing system
-const spacing = {
+export const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
@@ -95,8 +94,7 @@ const spacing = {
   xxxl: 64,
 };
 
-// Border radius system
-const borderRadius = {
+export const borderRadius = {
   xs: 4,
   sm: 8,
   md: 12,
@@ -105,33 +103,17 @@ const borderRadius = {
   full: 9999,
 };
 
-// Typography variants
-const textVariants = {
-  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
-  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
-  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32 },
-  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
-  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24 },
-  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22 },
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
-  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20 },
-  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
-  button: { fontSize: 16, fontWeight: '600', lineHeight: 20 },
-};
-
-// Font weights
-const fontWeights = {
-  normal: '400',
-  medium: '500',
-  semibold: '600',
-  bold: '700',
-};
-
-// Typography system
-const typography = {
+export const typography = {
+  // Text variants (headers, body, special)
   variants: textVariants,
+  
+  // Font weights
   fontWeights,
-  getFontFamily: () => undefined,
+  
+  // Helper function to get platform-specific font family
+  getFontFamily,
+  
+  // Legacy support - keeping existing fontSize for backward compatibility
   fontSize: {
     xs: 12,
     sm: 14,
@@ -143,12 +125,16 @@ const typography = {
     '4xl': 36,
     '5xl': 48,
   },
+  
+  // Legacy support - keeping existing fontWeight for backward compatibility
   fontWeight: {
     normal: '400',
     medium: '500',
     semibold: '600',
     bold: '700',
   },
+  
+  // Legacy support - keeping existing lineHeight for backward compatibility
   lineHeight: {
     tight: 1.2,
     normal: 1.5,
@@ -156,31 +142,30 @@ const typography = {
   },
 };
 
-// Shadow system
-const shadows = {
+export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: colors.neutral[900],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: colors.neutral[900],
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: colors.neutral[900],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
   },
   xl: {
-    shadowColor: '#000',
+    shadowColor: colors.neutral[900],
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
@@ -188,19 +173,21 @@ const shadows = {
   },
 };
 
-// Component styles
-const components = {
+// Component-specific styles
+export const components = {
   button: {
     height: 48,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.lg,
   },
+  
   card: {
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     backgroundColor: colors.neutral[0],
     ...shadows.md,
   },
+  
   input: {
     height: 48,
     borderRadius: borderRadius.md,
@@ -209,6 +196,7 @@ const components = {
     borderColor: colors.neutral[300],
     backgroundColor: colors.neutral[0],
   },
+  
   tabBar: {
     height: 80,
     paddingBottom: spacing.sm,
@@ -218,15 +206,15 @@ const components = {
   },
 };
 
-// Animations
-const animations = {
+// Animation timings
+export const animations = {
   fast: 150,
   normal: 250,
   slow: 350,
 };
 
-// Gradients
-const gradients = {
+// Common gradients
+export const gradients = {
   primary: [colors.primary[400], colors.primary[600]],
   secondary: [colors.secondary[400], colors.secondary[600]],
   accent: [colors.accent[400], colors.accent[600]],
@@ -234,8 +222,71 @@ const gradients = {
   sunset: [colors.secondary[300], colors.error[400]],
 };
 
-// Light Theme - MAIN THEME
-const lightTheme = {
+// Theme interface
+export interface Theme {
+  colors: {
+    // Base colors
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    surface: string;
+    error: string;
+    warning: string;
+    success: string;
+    info: string;
+    
+    // Text colors
+    text: string;
+    textPrimary: string;
+    textSecondary: string;
+    textOnPrimary: string;
+    
+    // UI elements
+    border: string;
+    borderLight: string;
+    divider: string;
+    
+    // Special UI states
+    overlay: string;
+    shadow: string;
+    
+    // Component specific
+    inputBackground: string;
+    inputBorder: string;
+    inputPlaceholder: string;
+    surfaceVariant: string;
+    
+    // Button colors
+    buttonPrimary: string;
+    buttonSecondary: string;
+    
+    // Category colors
+    categoryActive: string;
+    categoryInactive: string;
+    categoryBadge: string;
+    
+    // Expiry colors
+    expiryUrgent: string;
+    expirySoon: string;
+    expiryOk: string;
+    expiryNeutral: string;
+  };
+  spacing: typeof spacing;
+  borderRadius: typeof borderRadius;
+  typography: typeof typography;
+  shadows: typeof shadows;
+  components: typeof components;
+  animations: typeof animations;
+  gradients: typeof gradients;
+  // Add typography types
+  textVariants: typeof textVariants;
+  fontWeights: typeof fontWeights;
+  getFontFamily: typeof getFontFamily;
+}
+
+// Light Theme
+export const lightTheme: Theme = {
   colors: {
     // Base colors
     primary: colors.primary[500],
@@ -293,11 +344,11 @@ const lightTheme = {
   gradients,
   textVariants,
   fontWeights,
-  getFontFamily: () => undefined,
+  getFontFamily,
 };
 
 // Dark Theme
-const darkTheme = {
+export const darkTheme: Theme = {
   colors: {
     // Base colors
     primary: colors.primary[400],
@@ -355,5 +406,8 @@ const darkTheme = {
   gradients,
   textVariants,
   fontWeights,
-  getFontFamily: () => undefined,
+  getFontFamily,
 };
+
+// Legacy theme export (for backward compatibility)
+export const theme = lightTheme;
