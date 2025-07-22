@@ -186,7 +186,7 @@ const QuickActionsDropdown: React.FC<{
             <Share2 size={20} color="#4CAF50" />
           </View>
           <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>Social Media Import</Text>
+            <Text style={styles.dropdownItemTitle}>Social Network</Text>
             <Text style={styles.dropdownItemSubtitle}>
               Connect with people who has similar taste
             </Text>
