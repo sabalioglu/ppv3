@@ -377,4 +377,4 @@ export const darkTheme: Theme = {
   textVariants,
   fontWeights,
   getFontFamily,
-};
+}
