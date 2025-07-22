@@ -14,11 +14,8 @@ import { TrendingUp, TriangleAlert as AlertTriangle, Target, Award, ChevronRight
 import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
 import { StyledText, H1, H2, H3, H5, BodyRegular, BodySmall, Caption } from '@/components/common/StyledText';
 import { AppHeader } from '@/components/common/AppHeader';
-
-const { theme } = useTheme();
 
 const { width } = Dimensions.get('window');
 
@@ -154,7 +151,6 @@ const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
 };
 
 const ProfileSummaryCard = ({ profile }: any) => {
-  const { theme } = useTheme();
   const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
   const tdee = calculateDailyCalories(bmr, profile.activity_level);
   
@@ -193,7 +189,6 @@ const ProfileSummaryCard = ({ profile }: any) => {
 };
 
 export default function Dashboard() {
-  const { theme } = useTheme();
   const [greeting, setGreeting] = useState('');
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
