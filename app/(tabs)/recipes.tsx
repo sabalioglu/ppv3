@@ -176,7 +176,7 @@ const QuickActionsDropdown: React.FC<{
           <Text style={styles.dropdownTitle}>Quick Actions</Text>
         </View>
         <Text style={styles.dropdownSubtitle}>
-          Ai Recipes • Import • Save & Share 
+          Ai Recipes • Import • Save • Social
         </Text>
       </TouchableOpacity>
 
