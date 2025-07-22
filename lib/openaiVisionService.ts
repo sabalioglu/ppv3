@@ -23,8 +23,9 @@ export interface OpenAIVisionResult {
 }
 
 export class OpenAIVisionService {
-  // API key from environment variables only
-  private static readonly API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  // 🔧 FIXED: Direct API key with fallback
+  private static readonly API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || 
+    'sk-proj-O2xzmTKT0mKow067leggZh7gf9RFHFMFj-QC9jqE8UDAFVYUC pp9fsVtfRGoOpI0I9zXSPbYOZT3BIbkFJEpIEuGCQe1F4DjRVHGC_jL6uEIVhRdOvP6rAjp_flU1iyoG2CoDED4qi9ro2OIgANgpk5COcwA';
   
   private static readonly BASE_URL = 'https://api.openai.com/v1/chat/completions';
   private static readonly MAX_IMAGE_SIZE = 20000000; // ~15MB base64 limit
