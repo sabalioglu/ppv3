@@ -1,7 +1,5 @@
 // lib/theme.ts
 // Design system and theme configuration
-import { textVariants, fontWeights, getFontFamily, type TextVariantKey, type FontWeightKey } from '@/constants/Typography';
-
 export const colors = {
   // Primary Colors
   primary: {
@@ -102,6 +100,38 @@ export const borderRadius = {
   xl: 24,
   full: 9999,
 };
+
+// Fallback textVariants
+const fallbackTextVariants = {
+  h1: { fontSize: 32, fontWeight: '700' as const, lineHeight: 40 },
+  h2: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
+  h3: { fontSize: 24, fontWeight: '600' as const, lineHeight: 32 },
+  h4: { fontSize: 20, fontWeight: '600' as const, lineHeight: 28 },
+  h5: { fontSize: 18, fontWeight: '600' as const, lineHeight: 24 },
+  h6: { fontSize: 16, fontWeight: '500' as const, lineHeight: 22 },
+  body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
+  bodySmall: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  caption: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
+  button: { fontSize: 16, fontWeight: '600' as const, lineHeight: 20 },
+};
+
+// Fallback fontWeights
+const fallbackFontWeights = {
+  normal: '400' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+};
+
+// Fallback getFontFamily
+const fallbackGetFontFamily = (weight: string = '400') => {
+  return undefined; // Let React Native use system font
+};
+
+// Use fallbacks since constants don't exist
+const textVariants = fallbackTextVariants;
+const fontWeights = fallbackFontWeights;
+const getFontFamily = fallbackGetFontFamily;
 
 export const typography = {
   // Text variants (headers, body, special)
@@ -279,7 +309,6 @@ export interface Theme {
   components: typeof components;
   animations: typeof animations;
   gradients: typeof gradients;
-  // Add typography types
   textVariants: typeof textVariants;
   fontWeights: typeof fontWeights;
   getFontFamily: typeof getFontFamily;
@@ -408,67 +437,3 @@ export const darkTheme: Theme = {
   fontWeights,
   getFontFamily,
 };
-
-// Legacy theme export (for backward compatibility)
-export const theme = lightTheme;
-
-// DÜZELTME: Typography constants - Eğer constants/Typography.ts yoksa
-// Bu fallback tanımlamaları kullanılacak
-
-// Fallback textVariants if constants/Typography doesn't exist
-const fallbackTextVariants = {
-  h1: { fontSize: 32, fontWeight: '700' as const, lineHeight: 40 },
-  h2: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
-  h3: { fontSize: 24, fontWeight: '600' as const, lineHeight: 32 },
-  h4: { fontSize: 20, fontWeight: '600' as const, lineHeight: 28 },
-  h5: { fontSize: 18, fontWeight: '600' as const, lineHeight: 24 },
-  h6: { fontSize: 16, fontWeight: '500' as const, lineHeight: 22 },
-  body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
-  bodySmall: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
-  caption: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
-  button: { fontSize: 16, fontWeight: '600' as const, lineHeight: 20 },
-};
-
-// Fallback fontWeights if constants/Typography doesn't exist
-const fallbackFontWeights = {
-  normal: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-};
-
-// Fallback getFontFamily if constants/Typography doesn't exist
-const fallbackGetFontFamily = (weight: string = '400') => {
-  // For React Native, we typically use system fonts
-  return undefined; // Let React Native use system font
-};
-
-// Export fallbacks if the constants don't exist
-let textVariants: any, fontWeights: any, getFontFamily: any;
-
-try {
-  // Try to import from constants
-  const typographyConstants = require('@/constants/Typography');
-  textVariants = typographyConstants.textVariants || fallbackTextVariants;
-  fontWeights = typographyConstants.fontWeights || fallbackFontWeights;
-  getFontFamily = typographyConstants.getFontFamily || fallbackGetFontFamily;
-} catch (error) {
-  // Use fallbacks if constants don't exist
-  textVariants = fallbackTextVariants;
-  fontWeights = fallbackFontWeights;
-  getFontFamily = fallbackGetFontFamily;
-}
-
-// Update typography object with actual or fallback values
-typography.variants = textVariants;
-typography.fontWeights = fontWeights;
-typography.getFontFamily = getFontFamily;
-
-// Update theme objects with actual values
-lightTheme.textVariants = textVariants;
-lightTheme.fontWeights = fontWeights;
-lightTheme.getFontFamily = getFontFamily;
-
-darkTheme.textVariants = textVariants;
-darkTheme.fontWeights = fontWeights;
-darkTheme.getFontFamily = getFontFamil
