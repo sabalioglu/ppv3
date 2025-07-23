@@ -1,3 +1,4 @@
+// app> (tabs) > pantry.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -17,7 +18,7 @@ import {
   ListRenderItem,
   Image,
 } from 'react-native';
-import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown } from 'lucide-react-native';
+import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown, Trash2, Edit3, MoreVertical } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
@@ -98,6 +99,11 @@ export default function PantryScreen() {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
+  
+  // 🆕 Edit mode states
+  const [editMode, setEditMode] = useState(false);
+  const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
 
   // ✅ RESPONSIVE FIX: Dynamic screen dimensions with listener
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
@@ -261,6 +267,48 @@ export default function PantryScreen() {
     }
   };
 
+  // 🆕 Update item function
+  const handleUpdateItem = async () => {
+    if (!editingItem || !newItem.name.trim()) {
+      Alert.alert('Error', 'Please enter item name');
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const itemData = {
+        name: newItem.name.trim(),
+        brand: newItem.brand.trim() || null,
+        category: newItem.category,
+        quantity: parseFloat(newItem.quantity) || 1,
+        unit: newItem.unit,
+        expiry_date: newItem.expiry_date || null,
+        location: newItem.location,
+      };
+
+      const { data, error } = await supabase
+        .from('pantry_items')
+        .update(itemData)
+        .eq('id', editingItem.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setItems(items.map(item => item.id === editingItem.id ? data : item));
+      setShowAddModal(false);
+      setEditMode(false);
+      setEditingItem(null);
+      resetNewItem();
+      Alert.alert('Success', 'Item updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating item:', error);
+      Alert.alert('Error', error.message || 'Could not update item');
+    }
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     Alert.alert(
       'Delete Item',
@@ -280,6 +328,7 @@ export default function PantryScreen() {
               if (error) throw error;
 
               setItems(items.filter(item => item.id !== itemId));
+              setShowActionsMenu(null);
             } catch (error) {
               console.error('Error deleting item:', error);
               Alert.alert('Error', 'Could not delete item');
@@ -288,6 +337,23 @@ export default function PantryScreen() {
         },
       ]
     );
+  };
+
+  // 🆕 Edit item function
+  const handleEditItem = (item: PantryItem) => {
+    setEditingItem(item);
+    setNewItem({
+      name: item.name,
+      brand: item.brand || '',
+      category: item.category,
+      quantity: item.quantity.toString(),
+      unit: item.unit,
+      expiry_date: item.expiry_date || '',
+      location: item.location || 'Fridge',
+    });
+    setEditMode(true);
+    setShowAddModal(true);
+    setShowActionsMenu(null);
   };
 
   const resetNewItem = () => {
@@ -300,7 +366,9 @@ export default function PantryScreen() {
       expiry_date: '',
       location: 'Fridge',
     });
-    setShowUnitDropdown(false);  // ✅ ADD this line
+    setShowUnitDropdown(false);
+    setEditMode(false);
+    setEditingItem(null);
   };
 
   const getDaysUntilExpiry = (expiryDate: string) => {
@@ -459,9 +527,38 @@ export default function PantryScreen() {
     return (
       <TouchableOpacity
         style={itemStyle}
-        onLongPress={() => handleDeleteItem(item.id)}
         activeOpacity={0.7}
       >
+        {/* 🆕 Actions Menu Button */}
+        <TouchableOpacity
+          style={styles.itemActionsButton}
+          onPress={() => setShowActionsMenu(showActionsMenu === item.id ? null : item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MoreVertical size={20} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
+
+        {/* 🆕 Actions Dropdown Menu */}
+        {showActionsMenu === item.id && (
+          <View style={styles.actionsDropdown}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => handleEditItem(item)}
+            >
+              <Edit3 size={16} color={theme.colors.primary} />
+              <Text style={styles.actionText}>Edit</Text>
+            </TouchableOpacity>
+            <View style={styles.actionDivider} />
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => handleDeleteItem(item.id)}
+            >
+              <Trash2 size={16} color={theme.colors.error} />
+              <Text style={[styles.actionText, { color: theme.colors.error }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.itemHeader}>
           {/* ✅ ADD: Category Image */}
           <Image
@@ -520,7 +617,10 @@ export default function PantryScreen() {
       visible={showAddModal}
       animationType="slide"
       transparent={true}
-      onRequestClose={() => setShowAddModal(false)}
+      onRequestClose={() => {
+        setShowAddModal(false);
+        resetNewItem();
+      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -528,9 +628,14 @@ export default function PantryScreen() {
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add New Item</Text>
+            <Text style={styles.modalTitle}>
+              {editMode ? 'Edit Item' : 'Add New Item'}
+            </Text>
             <TouchableOpacity 
-              onPress={() => setShowAddModal(false)}
+              onPress={() => {
+                setShowAddModal(false);
+                resetNewItem();
+              }}
               style={styles.modalCloseButton}
             >
               <X size={24} color={theme.colors.textSecondary} />
@@ -664,8 +769,13 @@ export default function PantryScreen() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-                <Text style={styles.addButtonText}>Add Item</Text>
+              <TouchableOpacity 
+                style={styles.addButton} 
+                onPress={editMode ? handleUpdateItem : handleAddItem}
+              >
+                <Text style={styles.addButtonText}>
+                  {editMode ? 'Update Item' : 'Add Item'}
+                </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -1024,6 +1134,53 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     minHeight: 120, // Ensure consistent height across grid
+  },
+  // 🆕 Action button styles
+  itemActionsButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionsDropdown: {
+    position: 'absolute',
+    top: 48,
+    right: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 4,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 20,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1f2937',
+    marginLeft: 12,
   },
   itemHeader: {
     flexDirection: 'row',
