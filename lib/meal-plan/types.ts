@@ -1,4 +1,5 @@
 //lib/meal-plan/types.ts
+// All TypeScript interfaces will go here
 export interface Ingredient {
   name: string;
   amount: number;
