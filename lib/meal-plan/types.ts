@@ -33,15 +33,32 @@ export interface Meal {
 }
 
 export interface PantryItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  expiry_date: string;
+  id: string;              // UUID (string)
   user_id: string;
-  created_at?: string;
-  updated_at?: string;
+  name: string;
+  brand?: string;          
+  category?: string;
+  subcategory?: string;    
+  quantity: number;        // NUMERIC -> number
+  unit?: string;
+  barcode?: string;        
+  expiry_date?: string;    // Changed from expiration_date
+  purchase_date?: string;  
+  location?: string;       
+  cost?: number;           
+  calories_per_100g?: number;  
+  protein_per_100g?: number;   
+  carbs_per_100g?: number;     
+  fat_per_100g?: number;       
+  fiber_per_100g?: number;     
+  sugar_per_100g?: number;     
+  sodium_per_100g?: number;    
+  image_url?: string;          
+  nutrition_data?: any;        // JSONB
+  ai_confidence?: number;      
+  is_opened?: boolean;         
+  created_at: string;          
+  updated_at: string;          
 }
 
 export interface PantryMetrics {
@@ -61,12 +78,14 @@ export interface PantryComposition {
 }
 
 export interface PantryInsight {
-  type: 'warning' | 'error' | 'suggestion';
-  icon: any;
+  type: 'warning' | 'error' | 'suggestion' | 'expiring' | 'expired' | 'low_stock';
+  icon?: any;
   title: string;
   message: string;
   items?: string[];
-  action: string;
+  action?: string;
+  priority?: 'urgent' | 'high' | 'medium' | 'low';
+  actionable?: boolean;
 }
 
 export interface MealPlan {
