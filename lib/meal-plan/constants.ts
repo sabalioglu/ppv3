@@ -1,3 +1,4 @@
+//lib/meal-plan/constants.ts
 import { Meal } from './types';
 
 export const MEAL_DATABASE: Record<string, Meal[]> = {
