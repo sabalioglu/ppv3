@@ -1,5 +1,6 @@
 //components/meal-plan/PantryInsights.tsx
 // Pantry insights section component will go here
+// components/meal-plan/PantryInsights.tsx
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
@@ -24,7 +25,7 @@ export default function PantryInsights({ insights }: PantryInsightsProps) {
           <insight.icon size={20} color={
             insight.type === 'error' ? colors.error[600] :
             insight.type === 'warning' ? colors.warning[600] :
-            colors.info
+            colors.primary[500] // ✅ colors.info yerine colors.primary[500]
           } />
           <View style={styles.insightContent}>
             <Text style={styles.insightTitle}>{insight.title}</Text>
