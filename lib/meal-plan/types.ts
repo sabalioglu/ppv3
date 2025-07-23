@@ -1,3 +1,4 @@
+//lib/meal-plan/types.ts
 export interface Ingredient {
   name: string;
   amount: number;
