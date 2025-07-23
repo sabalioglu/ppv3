@@ -1,6 +1,4 @@
-// lib/meal-plan/error-handler.ts
-import { Alert } from 'react-native';
-
+//lib/meal-plan/error-handler.ts (Updated with Platform import)
 export interface AppError {
   code: string;
   message: string;
@@ -149,7 +147,7 @@ export const validateMealData = (meal: any): boolean => {
 
 export const validatePantryItem = (item: any): boolean => {
   if (!item || typeof item !== 'object') return false;
-  if (!item.name || !item.category) return false;
+  if (!item.name || typeof item.name !== 'string') return false;
   if (typeof item.quantity !== 'number' || item.quantity < 0) return false;
   return true;
 };
