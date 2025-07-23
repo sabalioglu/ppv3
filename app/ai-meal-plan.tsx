@@ -1,3 +1,4 @@
+//## 📄 **app/ai-meal-plan.tsx - Error Handler Entegrasyonu ile %100 Hazır Kod**
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
@@ -51,6 +53,17 @@ import {
   categorizeIngredient 
 } from '@/lib/meal-plan/utils';
 import { MEAL_DATABASE } from '@/lib/meal-plan/constants';
+
+// Error handling imports
+import { 
+  handleError, 
+  showErrorAlert, 
+  ERROR_CODES,
+  MealPlanError,
+  validateUserProfile,
+  validatePantryItem,
+  logError
+} from '@/lib/meal-plan/error-handler';
 
 // Component imports
 import MealDetailModal from '@/components/meal-plan/MealDetailModal';
@@ -135,73 +148,137 @@ export default function AIMealPlan() {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.replace('/(auth)/login');
-        return;
+        throw new MealPlanError(ERROR_CODES.UNAUTHORIZED, 'User not authenticated');
       }
 
-      // Load user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error loading profile:', profileError);
-      }
-
-      // Set profile with fallback
-      const userProfileData: UserProfile = profile || {
+      let userProfileData: UserProfile = {
         id: user.id,
         dietary_restrictions: [],
         dietary_preferences: ['balanced'],
       };
-      setUserProfile(userProfileData);
 
-      // Load REAL pantry items
-      const { data: pantry, error: pantryError } = await supabase
-        .from('pantry_items')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('expiry_date', { ascending: true });
+      // Load user profile with error handling
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-      if (pantryError) {
-        console.error('Error loading pantry:', pantryError);
+        if (profileError && profileError.code !== 'PGRST116') {
+          throw profileError;
+        }
+
+        // Validate profile data
+        if (profile) {
+          if (validateUserProfile(profile)) {
+            userProfileData = profile;
+          } else {
+            console.warn('Invalid profile data, using defaults');
+            await logError(
+              handleError(new Error('Invalid profile data'), 'validateProfile'),
+              user.id
+            );
+          }
+        }
+        
+        setUserProfile(userProfileData);
+      } catch (profileError) {
+        const error = handleError(profileError, 'loadUserProfile');
+        console.error('Profile error:', error);
+        await logError(error, user.id);
+        // Continue with default profile
+        setUserProfile(userProfileData);
       }
 
-      const pantryItemsData = pantry || [];
-      setPantryItems(pantryItemsData);
-      
-      // Calculate metrics
-      const metrics = calculatePantryMetrics(pantryItemsData);
-      setPantryMetrics(metrics);
-      
-      // Update cache
-      setPantryCache({
-        data: pantryItemsData,
-        lastUpdated: new Date(),
-        metrics: metrics
-      });
+      // Load pantry items with error handling
+      try {
+        const { data: pantry, error: pantryError } = await supabase
+          .from('pantry_items')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('expiry_date', { ascending: true });
 
-      // Generate pantry insights
-      const insights = generatePantryInsights(pantryItemsData, metrics);
-      setPantryInsights(insights);
+        if (pantryError) {
+          throw pantryError;
+        }
 
-      // Generate meal plan based on pantry
-      await generateMealPlan(pantryItemsData, userProfileData);
+        // Validate pantry items
+        const validPantryItems = (pantry || []).filter(item => {
+          if (!validatePantryItem(item)) {
+            console.warn('Invalid pantry item:', item);
+            return false;
+          }
+          return true;
+        });
+
+        setPantryItems(validPantryItems);
+        
+        // Calculate metrics
+        const metrics = calculatePantryMetrics(validPantryItems);
+        setPantryMetrics(metrics);
+        
+        // Update cache
+        setPantryCache({
+          data: validPantryItems,
+          lastUpdated: new Date(),
+          metrics: metrics
+        });
+
+        // Generate pantry insights
+        const insights = generatePantryInsights(validPantryItems, metrics);
+        setPantryInsights(insights);
+
+        // Generate meal plan
+        await generateMealPlan(validPantryItems, userProfileData);
+
+      } catch (pantryError) {
+        const error = handleError(pantryError, 'loadPantryItems');
+        await logError(error, user.id);
+        
+        // Show error with retry option
+        showErrorAlert(error, loadAllData);
+        
+        // Use empty pantry as fallback
+        setPantryItems([]);
+        setPantryMetrics({
+          totalItems: 0,
+          expiringItems: 0,
+          expiredItems: 0,
+          categories: {},
+        });
+        setMealPlan(generateFallbackPlan());
+      }
 
       setLoading(false);
       setRefreshing(false);
     } catch (error) {
-      console.error('Error loading data:', error);
+      const appError = handleError(error, 'loadAllData');
+      await logError(appError);
+      showErrorAlert(appError, () => {
+        // Retry with navigation to login if unauthorized
+        if (appError.code === ERROR_CODES.UNAUTHORIZED) {
+          router.replace('/(auth)/login');
+        } else {
+          loadAllData();
+        }
+      });
       setLoading(false);
-      Alert.alert('Error', 'Failed to load meal plan data');
+      setRefreshing(false);
     }
   };
 
   // Generate meal plan based on pantry
   const generateMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
+      // Check if we have enough pantry items
+      if (pantryItems.length < 3) {
+        throw new MealPlanError(
+          ERROR_CODES.INSUFFICIENT_PANTRY_ITEMS,
+          'Add more items to your pantry for better meal suggestions'
+        );
+      }
+
       // Analyze pantry composition for smart suggestions
       const pantryAnalysis = analyzePantryComposition(pantryItems);
       
@@ -210,6 +287,14 @@ export default function AIMealPlan() {
       const lunch = findBestMealMatch('lunch', pantryItems, userProfile, pantryAnalysis);
       const dinner = findBestMealMatch('dinner', pantryItems, userProfile, pantryAnalysis);
       
+      // Check if we found any matching meals
+      if (!breakfast && !lunch && !dinner) {
+        throw new MealPlanError(
+          ERROR_CODES.NO_MATCHING_MEALS,
+          'No meals match your current pantry items. Try adding more ingredients.'
+        );
+      }
+
       // Select snacks based on availability
       const snacks = MEAL_DATABASE.snacks
         .map(snack => {
@@ -250,9 +335,32 @@ export default function AIMealPlan() {
 
       setMealPlan(plan);
     } catch (error) {
-      console.error('Error generating meal plan:', error);
-      // Set fallback meal plan
+      const appError = handleError(error, 'generateMealPlan');
+      console.error('Meal plan generation error:', appError);
+      
+      // Log error for analytics
+      if (userProfile?.id) {
+        await logError(appError, userProfile.id);
+      }
+      
+      // Always provide a fallback plan
       setMealPlan(generateFallbackPlan());
+      
+      // Show error only if it's not an expected error
+      if (appError.code === ERROR_CODES.INSUFFICIENT_PANTRY_ITEMS ||
+          appError.code === ERROR_CODES.NO_MATCHING_MEALS) {
+        // Show a gentle notification instead of error alert
+        Alert.alert(
+          'Tip',
+          appError.message,
+          [
+            { text: 'Add Items', onPress: () => router.push('/(tabs)/pantry') },
+            { text: 'OK' }
+          ]
+        );
+      } else {
+        showErrorAlert(appError);
+      }
     }
   };
 
@@ -260,7 +368,19 @@ export default function AIMealPlan() {
   const handleAddToShoppingList = async (missingIngredients: string[]) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        throw new MealPlanError(
+          ERROR_CODES.UNAUTHORIZED, 
+          'Please log in to add items to shopping list'
+        );
+      }
+
+      if (!missingIngredients || missingIngredients.length === 0) {
+        throw new MealPlanError(
+          ERROR_CODES.INVALID_MEAL_DATA,
+          'No ingredients to add'
+        );
+      }
 
       const shoppingItems = missingIngredients.map(ingredient => ({
         user_id: user.id,
@@ -289,8 +409,9 @@ export default function AIMealPlan() {
         ]
       );
     } catch (error) {
-      console.error('Error adding to shopping list:', error);
-      Alert.alert('Error', 'Failed to add items to shopping list');
+      const appError = handleError(error, 'addToShoppingList');
+      await logError(appError, userProfile?.id);
+      showErrorAlert(appError);
     }
   };
 
@@ -302,15 +423,25 @@ export default function AIMealPlan() {
 
   // Navigate to recipe detail
   const navigateToRecipe = (meal: Meal) => {
-    setModalVisible(false);
-    router.push(`/recipe/${meal.id}?source=meal_plan`);
+    try {
+      setModalVisible(false);
+      router.push(`/recipe/${meal.id}?source=meal_plan`);
+    } catch (error) {
+      const appError = handleError(error, 'navigateToRecipe');
+      showErrorAlert(appError);
+    }
   };
 
   // Add meal to nutrition log
   const addToNutritionLog = async (meal: Meal) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        throw new MealPlanError(
+          ERROR_CODES.UNAUTHORIZED,
+          'Please log in to track nutrition'
+        );
+      }
 
       const nutritionEntry = {
         user_id: user.id,
@@ -336,8 +467,9 @@ export default function AIMealPlan() {
       setModalVisible(false);
       Alert.alert('Success', 'Meal added to today\'s nutrition log');
     } catch (error) {
-      console.error('Error adding to nutrition:', error);
-      Alert.alert('Error', 'Failed to add meal to nutrition log');
+      const appError = handleError(error, 'addToNutritionLog');
+      await logError(appError, userProfile?.id);
+      showErrorAlert(appError);
     }
   };
 
@@ -393,13 +525,17 @@ export default function AIMealPlan() {
           <Text style={styles.sectionTitle}>Snacks</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.snacksContainer}>
             {plan.snacks.map((snack, index) => (
-              <View key={index} style={styles.snackCard}>
+              <TouchableOpacity 
+                key={index} 
+                style={styles.snackCard}
+                onPress={() => handleMealPress(snack)}
+              >
                 <Text style={styles.snackEmoji}>{snack.emoji}</Text>
                 <Text style={styles.snackName}>{snack.name}</Text>
                 <Text style={styles.snackStats}>
                   {snack.calories} cal • {snack.protein}g protein
                 </Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
