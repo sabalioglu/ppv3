@@ -529,32 +529,32 @@ export default function PantryScreen() {
         style={itemStyle}
         activeOpacity={0.7}
       >
-        {/* 🆕 Actions Menu Button */}
+        {/* 🆕 Actions Menu Button - Fixed position */}
         <TouchableOpacity
           style={styles.itemActionsButton}
           onPress={() => setShowActionsMenu(showActionsMenu === item.id ? null : item.id)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <MoreVertical size={20} color={theme.colors.textSecondary} />
+          <MoreVertical size={18} color={theme.colors.textSecondary} />
         </TouchableOpacity>
 
-        {/* 🆕 Actions Dropdown Menu */}
+        {/* 🆕 Actions Dropdown Menu - Fixed position and styling */}
         {showActionsMenu === item.id && (
           <View style={styles.actionsDropdown}>
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handleEditItem(item)}
             >
-              <Edit3 size={16} color={theme.colors.primary} />
-              <Text style={styles.actionText}>Edit</Text>
+              <Edit3 size={16} color="#10b981" />
+              <Text style={[styles.actionText, { color: '#10b981' }]}>Edit</Text>
             </TouchableOpacity>
             <View style={styles.actionDivider} />
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handleDeleteItem(item.id)}
             >
-              <Trash2 size={16} color={theme.colors.error} />
-              <Text style={[styles.actionText, { color: theme.colors.error }]}>Delete</Text>
+              <Trash2 size={16} color="#ef4444" />
+              <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -575,9 +575,12 @@ export default function PantryScreen() {
               </Text>
             )}
           </View>
-          <View style={styles.itemQuantity}>
-            <Text style={styles.quantityText}>{item.quantity}</Text>
-            <Text style={styles.quantityUnit}>{item.unit}</Text>
+          {/* Quantity moved to avoid overlap with actions button */}
+          <View style={styles.itemQuantityContainer}>
+            <View style={styles.itemQuantity}>
+              <Text style={styles.quantityText}>{item.quantity}</Text>
+              <Text style={styles.quantityUnit}>{item.unit}</Text>
+            </View>
           </View>
         </View>
 
@@ -1132,35 +1135,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     position: 'relative',
-    overflow: 'hidden',
+    overflow: 'visible', // Changed from 'hidden' to show dropdown
     minHeight: 120, // Ensure consistent height across grid
   },
-  // 🆕 Action button styles
+  // 🆕 Fixed Action button styles
   itemActionsButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 8,
+    right: 8,
     zIndex: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // 🆕 Fixed dropdown position and styling
   actionsDropdown: {
     position: 'absolute',
-    top: 48,
-    right: 12,
+    top: 36,
+    right: 8,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingVertical: 4,
-    minWidth: 120,
+    minWidth: 140,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
     zIndex: 20,
     borderWidth: 1,
     borderColor: '#e5e7eb',
@@ -1177,7 +1181,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   actionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
     color: '#1f2937',
     marginLeft: 12,
@@ -1203,7 +1207,7 @@ const styles = StyleSheet.create({
   },
   itemInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 8,
   },
   itemName: {
     fontSize: 17,
@@ -1216,6 +1220,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     letterSpacing: -0.2,
+  },
+  // 🆕 Fixed quantity container to avoid overlap
+  itemQuantityContainer: {
+    marginRight: 24, // Space for action button
   },
   itemQuantity: {
     backgroundColor: '#f3f4f6',
