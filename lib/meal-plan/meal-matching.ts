@@ -1,3 +1,4 @@
+//lib/meal-plan/meal-matching.ts
 import { Meal, PantryItem, Ingredient, MatchResult, UserProfile } from './types';
 import { MEAL_DATABASE } from './constants';
 import { getExpiringItems } from './pantry-analysis';
