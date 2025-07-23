@@ -1,4 +1,3 @@
-// app/ai-meal-plan.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,181 +8,93 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Platform,
-  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
   ArrowLeft, 
   Settings, 
   ChevronRight,
-  Clock,
-  Users,
-  Flame,
-  ShieldCheck,
-  Plus,
   Heart,
   ShoppingCart,
-  Target,
-  TrendingUp,
+  ShieldCheck,
   Calendar,
-  ChefHat,
-  AlertCircle,
-  Info,
-  X,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
-// Meal database - Real recipes with ingredients
-const MEAL_DATABASE = {
-  breakfast: [
-    {
-      name: "Scrambled Eggs with Toast",
-      ingredients: ["eggs", "butter", "bread", "salt", "pepper"],
-      calories: 350,
-      protein: 20,
-      prepTime: 10,
-      emoji: "🍳",
-      category: "breakfast"
-    },
-    {
-      name: "Oatmeal with Berries",
-      ingredients: ["oats", "milk", "berries", "honey"],
-      calories: 280,
-      protein: 8,
-      prepTime: 5,
-      emoji: "🥣",
-      category: "breakfast"
-    },
-    {
-      name: "Yogurt Parfait",
-      ingredients: ["yogurt", "granola", "honey", "berries"],
-      calories: 320,
-      protein: 15,
-      prepTime: 5,
-      emoji: "🥛",
-      category: "breakfast"
-    }
-  ],
-  lunch: [
-    {
-      name: "Chicken Salad",
-      ingredients: ["chicken", "lettuce", "tomatoes", "cucumber", "olive oil", "lemon"],
-      calories: 450,
-      protein: 35,
-      prepTime: 15,
-      emoji: "🥗",
-      category: "lunch"
-    },
-    {
-      name: "Tuna Sandwich",
-      ingredients: ["tuna", "bread", "mayonnaise", "lettuce", "tomatoes"],
-      calories: 420,
-      protein: 30,
-      prepTime: 10,
-      emoji: "🥪",
-      category: "lunch"
-    },
-    {
-      name: "Vegetable Stir Fry",
-      ingredients: ["rice", "mixed vegetables", "soy sauce", "garlic", "ginger", "oil"],
-      calories: 380,
-      protein: 12,
-      prepTime: 20,
-      emoji: "🍜",
-      category: "lunch"
-    }
-  ],
-  dinner: [
-    {
-      name: "Grilled Chicken with Vegetables",
-      ingredients: ["chicken", "broccoli", "carrots", "olive oil", "garlic", "herbs"],
-      calories: 550,
-      protein: 45,
-      prepTime: 30,
-      emoji: "🍗",
-      category: "dinner"
-    },
-    {
-      name: "Pasta Bolognese",
-      ingredients: ["pasta", "ground beef", "tomato sauce", "onion", "garlic", "cheese"],
-      calories: 650,
-      protein: 35,
-      prepTime: 25,
-      emoji: "🍝",
-      category: "dinner"
-    },
-    {
-      name: "Salmon with Quinoa",
-      ingredients: ["salmon", "quinoa", "asparagus", "lemon", "olive oil"],
-      calories: 520,
-      protein: 40,
-      prepTime: 25,
-      emoji: "🐟",
-      category: "dinner"
-    }
-  ],
-  snacks: [
-    {
-      name: "Apple with Peanut Butter",
-      ingredients: ["apple", "peanut butter"],
-      calories: 200,
-      protein: 6,
-      emoji: "🍎",
-      category: "snack"
-    },
-    {
-      name: "Greek Yogurt",
-      ingredients: ["greek yogurt", "honey"],
-      calories: 150,
-      protein: 15,
-      emoji: "🥛",
-      category: "snack"
-    },
-    {
-      name: "Mixed Nuts",
-      ingredients: ["almonds", "walnuts", "cashews"],
-      calories: 180,
-      protein: 5,
-      emoji: "🥜",
-      category: "snack"
-    }
-  ]
-};
+// Type imports
+import type { 
+  Meal, 
+  PantryItem, 
+  MealPlan, 
+  PantryMetrics, 
+  UserProfile,
+  PantryInsight 
+} from '@/lib/meal-plan/types';
+
+// Utility imports
+import { 
+  calculatePantryMetrics, 
+  getExpiringItems, 
+  analyzePantryComposition,
+  generatePantryInsights 
+} from '@/lib/meal-plan/pantry-analysis';
+import { 
+  findBestMealMatch, 
+  calculateOptimizationScore,
+  calculatePantryMatch 
+} from '@/lib/meal-plan/meal-matching';
+import { 
+  generateFallbackMeal, 
+  generateFallbackSnacks, 
+  generateFallbackPlan,
+  categorizeIngredient 
+} from '@/lib/meal-plan/utils';
+import { MEAL_DATABASE } from '@/lib/meal-plan/constants';
+
+// Component imports
+import MealDetailModal from '@/components/meal-plan/MealDetailModal';
+import MealCard from '@/components/meal-plan/MealCard';
+import PantryInsights from '@/components/meal-plan/PantryInsights';
+import MealPlanSummary from '@/components/meal-plan/MealPlanSummary';
+import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
 
 export default function AIMealPlan() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [pantryItems, setPantryItems] = useState<any[]>([]);
-  const [nutritionLogs, setNutritionLogs] = useState<any[]>([]);
-  const [mealPlan, setMealPlan] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [pantryInsights, setPantryInsights] = useState<any[]>([]);
+  const [pantryInsights, setPantryInsights] = useState<PantryInsight[]>([]);
   
   // Modal states
-  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
   // Pantry health metrics
-  const [pantryMetrics, setPantryMetrics] = useState({
+  const [pantryMetrics, setPantryMetrics] = useState<PantryMetrics>({
     totalItems: 0,
     expiringItems: 0,
     expiredItems: 0,
-    categories: {} as Record<string, number>,
+    categories: {},
   });
 
   // Pantry cache for performance
   const [pantryCache, setPantryCache] = useState<{
-    data: any[],
+    data: PantryItem[],
     lastUpdated: Date,
-    metrics: any
+    metrics: PantryMetrics
   }>({
     data: [],
     lastUpdated: new Date(),
-    metrics: {}
+    metrics: {
+      totalItems: 0,
+      expiringItems: 0,
+      expiredItems: 0,
+      categories: {},
+    }
   });
 
   useEffect(() => {
@@ -240,10 +151,12 @@ export default function AIMealPlan() {
       }
 
       // Set profile with fallback
-      setUserProfile(profile || {
+      const userProfileData: UserProfile = profile || {
+        id: user.id,
         dietary_restrictions: [],
         dietary_preferences: ['balanced'],
-      });
+      };
+      setUserProfile(userProfileData);
 
       // Load REAL pantry items
       const { data: pantry, error: pantryError } = await supabase
@@ -258,21 +171,24 @@ export default function AIMealPlan() {
 
       const pantryItemsData = pantry || [];
       setPantryItems(pantryItemsData);
-      calculatePantryMetrics(pantryItemsData);
+      
+      // Calculate metrics
+      const metrics = calculatePantryMetrics(pantryItemsData);
+      setPantryMetrics(metrics);
       
       // Update cache
       setPantryCache({
         data: pantryItemsData,
         lastUpdated: new Date(),
-        metrics: pantryMetrics
+        metrics: metrics
       });
 
       // Generate pantry insights
-      const insights = generatePantryInsights(pantryItemsData);
+      const insights = generatePantryInsights(pantryItemsData, metrics);
       setPantryInsights(insights);
 
       // Generate meal plan based on pantry
-      await generateMealPlan(pantryItemsData, profile);
+      await generateMealPlan(pantryItemsData, userProfileData);
 
       setLoading(false);
       setRefreshing(false);
@@ -283,147 +199,16 @@ export default function AIMealPlan() {
     }
   };
 
-  const calculatePantryMetrics = (items: any[]) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    let expiringCount = 0;
-    let expiredCount = 0;
-    const categoryCount: Record<string, number> = {};
-
-    items.forEach(item => {
-      // Category counting
-      categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
-
-      // Expiry checking
-      if (item.expiry_date) {
-        const expiryDate = new Date(item.expiry_date);
-        expiryDate.setHours(0, 0, 0, 0);
-        
-        const timeDiff = expiryDate.getTime() - today.getTime();
-        const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-        
-        if (daysUntilExpiry < 0) {
-          expiredCount++;
-        } else if (daysUntilExpiry >= 0 && daysUntilExpiry <= 3) {
-          expiringCount++;
-        }
-      }
-    });
-
-    setPantryMetrics({
-      totalItems: items.length,
-      expiringItems: expiringCount,
-      expiredItems: expiredCount,
-      categories: categoryCount,
-    });
-  };
-
-  // Get items expiring soon
-  const getExpiringItems = (items: any[]) => {
-    const today = new Date();
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(today.getDate() + 3);
-    
-    return items.filter(item => {
-      if (!item.expiry_date) return false;
-      const expiryDate = new Date(item.expiry_date);
-      return expiryDate >= today && expiryDate <= threeDaysFromNow;
-    });
-  };
-
-  // Calculate pantry match for a meal
-  const calculatePantryMatch = (mealIngredients: string[], pantryItems: any[]) => {
-    const pantryIngredientNames = pantryItems.map(item => 
-      item.name.toLowerCase().trim()
-    );
-    
-    let matchCount = 0;
-    const missingIngredients: string[] = [];
-    
-    mealIngredients.forEach(ingredient => {
-      const ingredientLower = ingredient.toLowerCase().trim();
-      const found = pantryIngredientNames.some(pantryItem => 
-        pantryItem.includes(ingredientLower) || 
-        ingredientLower.includes(pantryItem) ||
-        // Fuzzy matching for common variations
-        (pantryItem.includes('chicken') && ingredientLower.includes('chicken')) ||
-        (pantryItem.includes('beef') && ingredientLower.includes('beef')) ||
-        (pantryItem.includes('milk') && ingredientLower.includes('milk'))
-      );
-      
-      if (found) {
-        matchCount++;
-      } else {
-        missingIngredients.push(ingredient);
-      }
-    });
-
-    return {
-      matchCount,
-      totalIngredients: mealIngredients.length,
-      matchPercentage: (matchCount / mealIngredients.length) * 100,
-      missingIngredients
-    };
-  };
-
-  // Find best meal match based on pantry
-  const findBestMealMatch = (mealType: string, pantryItems: any[], userProfile: any) => {
-    const meals = MEAL_DATABASE[mealType] || [];
-    let bestMeal = null;
-    let bestMatchScore = -1;
-
-    meals.forEach(meal => {
-      // Check dietary restrictions
-      if (userProfile?.dietary_restrictions?.length > 0) {
-        const hasRestriction = userProfile.dietary_restrictions.some((restriction: string) =>
-          meal.ingredients.some((ingredient: string) => 
-            ingredient.toLowerCase().includes(restriction.toLowerCase())
-          )
-        );
-        if (hasRestriction) return;
-      }
-
-      const match = calculatePantryMatch(meal.ingredients, pantryItems);
-      
-      // Prioritize meals that use expiring items
-      const expiringItems = getExpiringItems(pantryItems);
-      let expiringBonus = 0;
-      
-      expiringItems.forEach(item => {
-        if (meal.ingredients.some(ing => 
-          item.name.toLowerCase().includes(ing.toLowerCase()) ||
-          ing.toLowerCase().includes(item.name.toLowerCase())
-        )) {
-          expiringBonus += 20; // Bonus points for using expiring items
-        }
-      });
-
-      const totalScore = match.matchPercentage + expiringBonus;
-
-      if (totalScore > bestMatchScore) {
-        bestMatchScore = totalScore;
-        bestMeal = {
-          ...meal,
-          pantryMatch: match.matchCount,
-          totalIngredients: match.totalIngredients,
-          missingIngredients: match.missingIngredients,
-          matchPercentage: match.matchPercentage,
-          allergenSafe: true
-        };
-      }
-    });
-
-    return bestMeal;
-  };
-
   // Generate meal plan based on pantry
-  const generateMealPlan = async (pantryItems: any[], userProfile: any) => {
+  const generateMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
-      // Find best matches for each meal
-      const breakfast = findBestMealMatch('breakfast', pantryItems, userProfile);
-      const lunch = findBestMealMatch('lunch', pantryItems, userProfile);
-      const dinner = findBestMealMatch('dinner', pantryItems, userProfile);
+      // Analyze pantry composition for smart suggestions
+      const pantryAnalysis = analyzePantryComposition(pantryItems);
+      
+      // Find best matches with enhanced logic
+      const breakfast = findBestMealMatch('breakfast', pantryItems, userProfile, pantryAnalysis);
+      const lunch = findBestMealMatch('lunch', pantryItems, userProfile, pantryAnalysis);
+      const dinner = findBestMealMatch('dinner', pantryItems, userProfile, pantryAnalysis);
       
       // Select snacks based on availability
       const snacks = MEAL_DATABASE.snacks
@@ -451,7 +236,7 @@ export default function AIMealPlan() {
         (dinner?.protein || 0) +
         snacks.reduce((sum, snack) => sum + snack.protein, 0);
 
-      const plan = {
+      const plan: MealPlan = {
         daily: {
           breakfast: breakfast || generateFallbackMeal('breakfast'),
           lunch: lunch || generateFallbackMeal('lunch'),
@@ -471,180 +256,11 @@ export default function AIMealPlan() {
     }
   };
 
-  // Calculate optimization score
-  const calculateOptimizationScore = (breakfast: any, lunch: any, dinner: any, pantryItems: any[]) => {
-    const meals = [breakfast, lunch, dinner].filter(Boolean);
-    if (meals.length === 0) return 0;
-
-    const avgMatchPercentage = meals.reduce((sum, meal) => 
-      sum + (meal.matchPercentage || 0), 0
-    ) / meals.length;
-
-    const expiringItems = getExpiringItems(pantryItems);
-    const expiringItemsUsed = expiringItems.filter(item =>
-      meals.some(meal => 
-        meal.ingredients.some((ing: string) =>
-          item.name.toLowerCase().includes(ing.toLowerCase())
-        )
-      )
-    ).length;
-
-    const expiringUsageScore = expiringItems.length > 0 
-      ? (expiringItemsUsed / expiringItems.length) * 100 
-      : 100;
-
-    return Math.round((avgMatchPercentage + expiringUsageScore) / 2);
-  };
-
-  // Generate pantry insights
-  const generatePantryInsights = (pantryItems: any[]) => {
-    const insights = [];
-    
-    // Expiring items warning
-    if (pantryMetrics.expiringItems > 0) {
-      const expiringItems = getExpiringItems(pantryItems);
-      insights.push({
-        type: 'warning',
-        icon: AlertCircle,
-        title: 'Items Expiring Soon',
-        message: `${pantryMetrics.expiringItems} items expiring in the next 3 days`,
-        items: expiringItems.map(item => item.name).slice(0, 3),
-        action: 'Use these items first in your meals'
-      });
-    }
-    
-    // Category balance check
-    const categories = Object.keys(pantryMetrics.categories);
-    if (!categories.includes('Protein') || pantryMetrics.categories['Protein'] < 3) {
-      insights.push({
-        type: 'suggestion',
-        icon: Info,
-        title: 'Low on Protein',
-        message: 'Consider adding more protein sources to your pantry',
-        action: 'Add to shopping list'
-      });
-    }
-    
-    if (!categories.includes('Vegetables') || pantryMetrics.categories['Vegetables'] < 5) {
-      insights.push({
-        type: 'suggestion',
-        icon: Info,
-        title: 'Need More Vegetables',
-        message: 'A variety of vegetables ensures balanced nutrition',
-        action: 'Shop for vegetables'
-      });
-    }
-
-    // Expired items alert
-    if (pantryMetrics.expiredItems > 0) {
-      insights.push({
-        type: 'error',
-        icon: AlertCircle,
-        title: 'Expired Items Found',
-        message: `${pantryMetrics.expiredItems} items have expired and should be removed`,
-        action: 'Clean pantry'
-      });
-    }
-    
-    return insights;
-  };
-
-  // Fallback meal generators
-  const generateFallbackMeal = (mealType: string) => {
-    const fallbacks = {
-      breakfast: {
-        name: "Simple Toast and Eggs",
-        calories: 300,
-        protein: 15,
-        pantryMatch: 0,
-        totalIngredients: 3,
-        missingIngredients: ["bread", "eggs", "butter"],
-        allergenSafe: true,
-        prepTime: 10,
-        emoji: "🍞"
-      },
-      lunch: {
-        name: "Basic Salad",
-        calories: 350,
-        protein: 10,
-        pantryMatch: 0,
-        totalIngredients: 5,
-        missingIngredients: ["lettuce", "tomatoes", "cucumber", "dressing"],
-        allergenSafe: true,
-        prepTime: 10,
-        emoji: "🥗"
-      },
-      dinner: {
-        name: "Simple Pasta",
-        calories: 500,
-        protein: 15,
-        pantryMatch: 0,
-        totalIngredients: 4,
-        missingIngredients: ["pasta", "tomato sauce", "cheese"],
-        allergenSafe: true,
-        prepTime: 20,
-        emoji: "🍝"
-      }
-    };
-    
-    return fallbacks[mealType] || fallbacks.lunch;
-  };
-
-  const generateFallbackSnacks = () => {
-    return [
-      {
-        name: "Fresh Fruit",
-        calories: 80,
-        protein: 1,
-        emoji: "🍎"
-      },
-      {
-        name: "Nuts",
-        calories: 170,
-        protein: 6,
-        emoji: "🥜"
-      }
-    ];
-  };
-
-  const generateFallbackPlan = () => {
-    return {
-      daily: {
-        breakfast: generateFallbackMeal('breakfast'),
-        lunch: generateFallbackMeal('lunch'),
-        dinner: generateFallbackMeal('dinner'),
-        snacks: generateFallbackSnacks(),
-        totalCalories: 1400,
-        totalProtein: 60,
-        optimizationScore: 0
-      }
-    };
-  };
-
-  // Add missing ingredients to shopping list
+  // Enhanced shopping list integration
   const handleAddToShoppingList = async (missingIngredients: string[]) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      // Categorize ingredients
-      const categorizeIngredient = (ingredient: string) => {
-        const categories = {
-          'Protein': ['chicken', 'beef', 'fish', 'eggs', 'tofu', 'beans'],
-          'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream'],
-          'Grains': ['rice', 'pasta', 'bread', 'oats', 'quinoa'],
-          'Vegetables': ['lettuce', 'tomato', 'cucumber', 'carrot', 'broccoli'],
-          'Fruits': ['apple', 'banana', 'berries', 'orange', 'grapes'],
-          'Condiments': ['oil', 'sauce', 'dressing', 'spices', 'herbs']
-        };
-
-        for (const [category, keywords] of Object.entries(categories)) {
-          if (keywords.some(keyword => ingredient.toLowerCase().includes(keyword))) {
-            return category;
-          }
-        }
-        return 'Other';
-      };
 
       const shoppingItems = missingIngredients.map(ingredient => ({
         user_id: user.id,
@@ -678,21 +294,20 @@ export default function AIMealPlan() {
     }
   };
 
-  // Updated handleMealPress with modal
-  const handleMealPress = (meal: any) => {
+  // Handle meal press
+  const handleMealPress = (meal: Meal) => {
     setSelectedMeal(meal);
     setModalVisible(true);
   };
 
   // Navigate to recipe detail
-  const navigateToRecipe = (meal: any) => {
+  const navigateToRecipe = (meal: Meal) => {
     setModalVisible(false);
-    // TODO: Navigate to recipe detail with meal_plan source
     router.push(`/recipe/${meal.id}?source=meal_plan`);
   };
 
   // Add meal to nutrition log
-  const addToNutritionLog = async (meal: any) => {
+  const addToNutritionLog = async (meal: Meal) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -726,153 +341,6 @@ export default function AIMealPlan() {
     }
   };
 
-  // Meal Detail Modal Component
-  const MealDetailModal = () => {
-    if (!selectedMeal) return null;
-
-    return (
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalEmoji}>{selectedMeal.emoji}</Text>
-                <View>
-                  <Text style={styles.modalMealType}>{selectedMeal.category}</Text>
-                  <Text style={styles.modalTitle}>{selectedMeal.name}</Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                onPress={() => setModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <X size={24} color={colors.neutral[600]} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Nutrition Summary */}
-            <View style={styles.nutritionCard}>
-              <View style={styles.nutritionRow}>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{selectedMeal.calories}</Text>
-                  <Text style={styles.nutritionLabel}>Calories</Text>
-                </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{selectedMeal.protein}g</Text>
-                  <Text style={styles.nutritionLabel}>Protein</Text>
-                </View>
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{selectedMeal.prepTime} min</Text>
-                  <Text style={styles.nutritionLabel}>Prep Time</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Pantry Match Section */}
-            <View style={styles.pantryMatchSection}>
-              <View style={styles.pantryMatchHeader}>
-                <Text style={styles.sectionTitle}>Pantry Analysis</Text>
-                <View style={styles.matchPercentageContainer}>
-                  <Text style={styles.matchPercentage}>
-                    {Math.round(selectedMeal.matchPercentage || 0)}%
-                  </Text>
-                  <Text style={styles.matchLabel}>Match</Text>
-                </View>
-              </View>
-              
-              {/* Progress Bar */}
-              <View style={styles.progressBarContainer}>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { width: `${selectedMeal.matchPercentage || 0}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.progressText}>
-                  {selectedMeal.pantryMatch || 0} of {selectedMeal.totalIngredients || 0} ingredients
-                </Text>
-              </View>
-
-              {/* Available Ingredients */}
-              {selectedMeal.ingredients && (
-                <View style={styles.ingredientSection}>
-                  <Text style={styles.ingredientSectionTitle}>📦 All Ingredients:</Text>
-                  <View style={styles.ingredientsList}>
-                    {selectedMeal.ingredients.map((ingredient: string, index: number) => (
-                      <View key={index} style={styles.ingredientItem}>
-                        <View style={[
-                          styles.ingredientDot,
-                          !selectedMeal.missingIngredients?.includes(ingredient) && styles.availableDot
-                        ]} />
-                        <Text style={[
-                          styles.ingredientText,
-                          !selectedMeal.missingIngredients?.includes(ingredient) && styles.availableText
-                        ]}>
-                          {ingredient}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Missing Ingredients */}
-              {selectedMeal.missingIngredients?.length > 0 && (
-                <View style={styles.missingSection}>
-                  <Text style={styles.missingSectionTitle}>🛒 Need to Buy:</Text>
-                  <View style={styles.missingList}>
-                    {selectedMeal.missingIngredients.map((ingredient: string, index: number) => (
-                      <View key={index} style={styles.missingItem}>
-                        <Text style={styles.missingItemText}>{ingredient}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </View>
-
-            {/* Action Buttons */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.primaryButton}
-                onPress={() => navigateToRecipe(selectedMeal)}
-              >
-                <Text style={styles.primaryButtonText}>View Full Recipe</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.secondaryButton}
-                onPress={() => addToNutritionLog(selectedMeal)}
-              >
-                <Text style={styles.secondaryButtonText}>Add to Today's Nutrition</Text>
-              </TouchableOpacity>
-              
-              {selectedMeal.missingIngredients?.length > 0 && (
-                <TouchableOpacity 
-                  style={styles.outlineButton}
-                  onPress={() => {
-                    setModalVisible(false);
-                    handleAddToShoppingList(selectedMeal.missingIngredients);
-                  }}
-                >
-                  <Text style={styles.outlineButtonText}>Add Missing to Shopping</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-    );
-  };
-
   const renderDailyView = () => {
     if (!mealPlan?.daily) return null;
     const plan = mealPlan.daily;
@@ -880,263 +348,51 @@ export default function AIMealPlan() {
     return (
       <View style={styles.dailyContent}>
         {/* Pantry Insights */}
-        {pantryInsights.length > 0 && (
-          <View style={styles.insightsSection}>
-            <Text style={styles.sectionTitle}>Pantry Insights</Text>
-            {pantryInsights.map((insight, index) => (
-              <View key={index} style={[
-                styles.insightCard,
-                insight.type === 'warning' && styles.warningCard,
-                insight.type === 'error' && styles.errorCard
-              ]}>
-                <insight.icon size={20} color={
-                  insight.type === 'error' ? colors.error[600] :
-                  insight.type === 'warning' ? colors.warning[600] :
-                  colors.info
-                } />
-                <View style={styles.insightContent}>
-                  <Text style={styles.insightTitle}>{insight.title}</Text>
-                  <Text style={styles.insightMessage}>{insight.message}</Text>
-                  {insight.items && (
-                    <Text style={styles.insightItems}>
-                      {insight.items.join(', ')}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
+        <PantryInsights insights={pantryInsights} />
 
         {/* Today's Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>Today's Plan</Text>
-            <View style={[
-              styles.summaryBadge,
-              plan.optimizationScore > 70 && styles.optimizedBadge,
-              plan.optimizationScore < 40 && styles.lowMatchBadge
-            ]}>
-              <Text style={styles.summaryBadgeText}>
-                {plan.optimizationScore > 70 ? 'Optimized' : 
-                 plan.optimizationScore > 40 ? 'Good Match' : 
-                 'Low Match'}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.summaryStats}>
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <Target size={20} color={colors.primary[500]} />
-              </View>
-              <Text style={styles.statValue}>{plan.totalCalories}</Text>
-              <Text style={styles.statLabel}>Calories</Text>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <TrendingUp size={20} color={colors.success[500]} />
-              </View>
-              <Text style={styles.statValue}>{plan.totalProtein}g</Text>
-              <Text style={styles.statLabel}>Protein</Text>
-            </View>
-
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <View style={styles.statIconContainer}>
-                <ChefHat size={20} color={colors.accent[500]} />
-              </View>
-              <Text style={styles.statValue}>{plan.optimizationScore}%</Text>
-              <Text style={styles.statLabel}>Match Score</Text>
-            </View>
-          </View>
-        </View>
+        <MealPlanSummary plan={plan} />
 
         {/* Meals Section */}
         <View style={styles.mealsSection}>
           <Text style={styles.sectionTitle}>Today's Meals</Text>
           
           {/* Breakfast */}
-          <TouchableOpacity 
-            style={styles.mealCard}
-            onPress={() => handleMealPress(plan.breakfast)}
-          >
-            <View style={styles.mealCardHeader}>
-              <View style={styles.mealTimeContainer}>
-                <Text style={styles.mealEmoji}>{plan.breakfast.emoji}</Text>
-                <View>
-                  <Text style={styles.mealTime}>Breakfast</Text>
-                  <Text style={styles.mealName}>{plan.breakfast.name}</Text>
-                </View>
-              </View>
-              
-              <View style={[
-                styles.mealMatchBadge,
-                plan.breakfast.matchPercentage > 80 && styles.perfectMatch,
-                plan.breakfast.matchPercentage < 50 && styles.lowMatch
-              ]}>
-                <Text style={[
-                  styles.mealMatchText,
-                  plan.breakfast.matchPercentage > 80 && styles.perfectMatchText
-                ]}>
-                  {plan.breakfast.pantryMatch}/{plan.breakfast.totalIngredients}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.mealStats}>
-              <View style={styles.mealStatItem}>
-                <Flame size={14} color={colors.warning[500]} />
-                <Text style={styles.mealStatText}>{plan.breakfast.calories} cal</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={colors.success[500]} />
-                <Text style={styles.mealStatText}>{plan.breakfast.protein}g protein</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <Clock size={14} color={colors.neutral[500]} />
-                <Text style={styles.mealStatText}>{plan.breakfast.prepTime} min</Text>
-              </View>
-            </View>
-            
-            {plan.breakfast.missingIngredients.length > 0 && (
-              <TouchableOpacity 
-                style={styles.missingAlert}
-                onPress={() => handleAddToShoppingList(plan.breakfast.missingIngredients)}
-              >
-                <AlertCircle size={16} color={colors.warning[600]} />
-                <Text style={styles.missingText}>
-                  Missing: {plan.breakfast.missingIngredients.join(', ')}
-                </Text>
-                <Plus size={16} color={colors.warning[600]} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          {plan.breakfast && (
+            <MealCard
+              meal={plan.breakfast}
+              mealType="Breakfast"
+              onPress={handleMealPress}
+              onAddToShopping={handleAddToShoppingList}
+            />
+          )}
 
           {/* Lunch */}
-          <TouchableOpacity 
-            style={styles.mealCard}
-            onPress={() => handleMealPress(plan.lunch)}
-          >
-            <View style={styles.mealCardHeader}>
-              <View style={styles.mealTimeContainer}>
-                <Text style={styles.mealEmoji}>{plan.lunch.emoji}</Text>
-                <View>
-                  <Text style={styles.mealTime}>Lunch</Text>
-                  <Text style={styles.mealName}>{plan.lunch.name}</Text>
-                </View>
-              </View>
-              
-              <View style={[
-                styles.mealMatchBadge,
-                plan.lunch.matchPercentage > 80 && styles.perfectMatch,
-                plan.lunch.matchPercentage < 50 && styles.lowMatch
-              ]}>
-                <Text style={[
-                  styles.mealMatchText,
-                  plan.lunch.matchPercentage > 80 && styles.perfectMatchText
-                ]}>
-                  {plan.lunch.pantryMatch}/{plan.lunch.totalIngredients}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.mealStats}>
-              <View style={styles.mealStatItem}>
-                <Flame size={14} color={colors.warning[500]} />
-                <Text style={styles.mealStatText}>{plan.lunch.calories} cal</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={colors.success[500]} />
-                <Text style={styles.mealStatText}>{plan.lunch.protein}g protein</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <Clock size={14} color={colors.neutral[500]} />
-                <Text style={styles.mealStatText}>{plan.lunch.prepTime} min</Text>
-              </View>
-            </View>
-            
-            {plan.lunch.missingIngredients.length > 0 && (
-              <TouchableOpacity 
-                style={styles.missingAlert}
-                onPress={() => handleAddToShoppingList(plan.lunch.missingIngredients)}
-              >
-                <AlertCircle size={16} color={colors.warning[600]} />
-                <Text style={styles.missingText}>
-                  Missing: {plan.lunch.missingIngredients.join(', ')}
-                </Text>
-                <Plus size={16} color={colors.warning[600]} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          {plan.lunch && (
+            <MealCard
+              meal={plan.lunch}
+              mealType="Lunch"
+              onPress={handleMealPress}
+              onAddToShopping={handleAddToShoppingList}
+            />
+          )}
 
           {/* Dinner */}
-          <TouchableOpacity 
-            style={styles.mealCard}
-            onPress={() => handleMealPress(plan.dinner)}
-          >
-            <View style={styles.mealCardHeader}>
-              <View style={styles.mealTimeContainer}>
-                <Text style={styles.mealEmoji}>{plan.dinner.emoji}</Text>
-                <View>
-                  <Text style={styles.mealTime}>Dinner</Text>
-                  <Text style={styles.mealName}>{plan.dinner.name}</Text>
-                </View>
-              </View>
-              
-              <View style={[
-                styles.mealMatchBadge,
-                plan.dinner.matchPercentage > 80 && styles.perfectMatch,
-                plan.dinner.matchPercentage < 50 && styles.lowMatch
-              ]}>
-                <Text style={[
-                  styles.mealMatchText,
-                  plan.dinner.matchPercentage > 80 && styles.perfectMatchText
-                ]}>
-                  {plan.dinner.pantryMatch}/{plan.dinner.totalIngredients}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.mealStats}>
-              <View style={styles.mealStatItem}>
-                <Flame size={14} color={colors.warning[500]} />
-                <Text style={styles.mealStatText}>{plan.dinner.calories} cal</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <TrendingUp size={14} color={colors.success[500]} />
-                <Text style={styles.mealStatText}>{plan.dinner.protein}g protein</Text>
-              </View>
-              <View style={styles.mealStatItem}>
-                <Clock size={14} color={colors.neutral[500]} />
-                <Text style={styles.mealStatText}>{plan.dinner.prepTime} min</Text>
-              </View>
-            </View>
-
-            {plan.dinner.missingIngredients.length > 0 && (
-              <TouchableOpacity 
-                style={styles.missingAlert}
-                onPress={() => handleAddToShoppingList(plan.dinner.missingIngredients)}
-              >
-                <AlertCircle size={16} color={colors.warning[600]} />
-                <Text style={styles.missingText}>
-                  Missing: {plan.dinner.missingIngredients.join(', ')}
-                </Text>
-                <Plus size={16} color={colors.warning[600]} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
+          {plan.dinner && (
+            <MealCard
+              meal={plan.dinner}
+              mealType="Dinner"
+              onPress={handleMealPress}
+              onAddToShopping={handleAddToShoppingList}
+            />
+          )}
         </View>
 
         {/* Snacks Section */}
         <View style={styles.snacksSection}>
           <Text style={styles.sectionTitle}>Snacks</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.snacksContainer}>
-            {plan.snacks.map((snack: any, index: number) => (
+            {plan.snacks.map((snack, index) => (
               <View key={index} style={styles.snackCard}>
                 <Text style={styles.snackEmoji}>{snack.emoji}</Text>
                 <Text style={styles.snackName}>{snack.name}</Text>
@@ -1163,7 +419,17 @@ export default function AIMealPlan() {
   return (
     <View style={styles.container}>
       {/* Modal */}
-      <MealDetailModal />
+      <MealDetailModal
+        visible={modalVisible}
+        meal={selectedMeal}
+        onClose={() => setModalVisible(false)}
+        onViewRecipe={navigateToRecipe}
+        onAddToNutrition={addToNutritionLog}
+        onAddToShopping={(ingredients) => {
+          setModalVisible(false);
+          handleAddToShoppingList(ingredients);
+        }}
+      />
       
       {/* Header */}
       <View style={styles.header}>
@@ -1177,32 +443,7 @@ export default function AIMealPlan() {
       </View>
 
       {/* View Mode Tabs */}
-      <View style={styles.viewModeTabs}>
-        <TouchableOpacity
-          style={[styles.tab, viewMode === 'daily' && styles.activeTab]}
-          onPress={() => setViewMode('daily')}
-        >
-          <Text style={[styles.tabText, viewMode === 'daily' && styles.activeTabText]}>
-            Daily
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, viewMode === 'weekly' && styles.activeTab]}
-          onPress={() => setViewMode('weekly')}
-        >
-          <Text style={[styles.tabText, viewMode === 'weekly' && styles.activeTabText]}>
-            Weekly
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, viewMode === 'monthly' && styles.activeTab]}
-          onPress={() => setViewMode('monthly')}
-        >
-          <Text style={[styles.tabText, viewMode === 'monthly' && styles.activeTabText]}>
-            Monthly
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <ViewModeTabs viewMode={viewMode} onViewModeChange={setViewMode} />
 
       <ScrollView 
         style={styles.content}
@@ -1237,7 +478,7 @@ export default function AIMealPlan() {
         </TouchableOpacity>
 
         {/* Allergen Safety Info */}
-        {userProfile?.dietary_restrictions?.length > 0 && (
+        {userProfile?.dietary_restrictions && userProfile.dietary_restrictions.length > 0 && (
           <View style={styles.allergenInfo}>
             <ShieldCheck size={20} color={colors.success[600]} />
             <Text style={styles.allergenText}>
@@ -1247,16 +488,18 @@ export default function AIMealPlan() {
         )}
 
         {/* Preferences Card */}
-        <View style={styles.preferencesCard}>
-          <Text style={styles.preferencesTitle}>Your Preferences</Text>
-          <View style={styles.preferencesTags}>
-            {userProfile?.dietary_preferences?.map((pref: string) => (
-              <View key={pref} style={styles.preferenceTag}>
-                <Text style={styles.preferenceTagText}>{pref.replace('_', ' ')}</Text>
-              </View>
-            ))}
+        {userProfile && (
+          <View style={styles.preferencesCard}>
+            <Text style={styles.preferencesTitle}>Your Preferences</Text>
+            <View style={styles.preferencesTags}>
+              {userProfile.dietary_preferences?.map((pref) => (
+                <View key={pref} style={styles.preferenceTag}>
+                  <Text style={styles.preferenceTagText}>{pref.replace('_', ' ')}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Meal Plan Content */}
         {viewMode === 'daily' && renderDailyView()}
@@ -1356,31 +599,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  viewModeTabs: {
-    flexDirection: 'row',
-    backgroundColor: colors.neutral[0],
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: colors.primary[500],
-  },
-  tabText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: colors.primary[600],
-    fontWeight: '700',
-  },
   content: {
     flex: 1,
   },
@@ -1473,112 +691,6 @@ const styles = StyleSheet.create({
   dailyContent: {
     paddingHorizontal: spacing.lg,
   },
-  insightsSection: {
-    marginTop: spacing.lg,
-  },
-  insightCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.neutral[0],
-    padding: spacing.md,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    gap: spacing.md,
-    ...shadows.sm,
-  },
-  warningCard: {
-    backgroundColor: colors.warning[50],
-  },
-  errorCard: {
-    backgroundColor: colors.error[50],
-  },
-  insightContent: {
-    flex: 1,
-  },
-  insightTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  insightMessage: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  insightItems: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
-  },
-  summaryCard: {
-    backgroundColor: colors.neutral[0],
-    padding: spacing.xl,
-    marginTop: spacing.lg,
-    borderRadius: 20,
-    ...shadows.md,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  summaryTitle: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: '700',
-    color: colors.neutral[800],
-  },
-  summaryBadge: {
-    backgroundColor: colors.warning[50],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 16,
-  },
-  optimizedBadge: {
-    backgroundColor: colors.success[50],
-  },
-  lowMatchBadge: {
-    backgroundColor: colors.error[50],
-  },
-  summaryBadgeText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.warning[700],
-    fontWeight: '600',
-  },
-  summaryStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  statValue: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: '700',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  statLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  statDivider: {
-    width: 1,
-    height: 60,
-    backgroundColor: colors.neutral[200],
-    marginHorizontal: spacing.lg,
-  },
   mealsSection: {
     marginTop: spacing.xl,
   },
@@ -1587,85 +699,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.neutral[800],
     marginBottom: spacing.lg,
-  },
-  mealCard: {
-    backgroundColor: colors.neutral[0],
-    padding: spacing.lg,
-    borderRadius: 16,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  mealCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  mealTimeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  mealEmoji: {
-    fontSize: 32,
-    marginRight: spacing.md,
-  },
-  mealTime: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    marginBottom: spacing.xs,
-  },
-  mealName: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  mealMatchBadge: {
-    backgroundColor: colors.warning[50],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-  },
-  perfectMatch: {
-    backgroundColor: colors.success[50],
-  },
-  lowMatch: {
-    backgroundColor: colors.error[50],
-  },
-  mealMatchText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.warning[700],
-    fontWeight: '600',
-  },
-  perfectMatchText: {
-    color: colors.success[700],
-  },
-  mealStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  mealStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  mealStatText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  missingAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.warning[50],
-    padding: spacing.md,
-    borderRadius: 12,
-    gap: spacing.sm,
-  },
-  missingText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.warning[700],
-    flex: 1,
   },
   snacksSection: {
     marginTop: spacing.xl,
@@ -1709,6 +742,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     padding: spacing.lg,
     borderRadius: 16,
+    marginBottom: spacing.md,
     ...shadows.sm,
   },
   actionButtonIcon: {
@@ -1747,212 +781,5 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: spacing.xl,
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: spacing.lg,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  modalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  modalEmoji: {
-    fontSize: 32,
-    marginRight: spacing.md,
-  },
-  modalMealType: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    textTransform: 'capitalize',
-    marginBottom: spacing.xs,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '700',
-    color: colors.neutral[800],
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nutritionCard: {
-    backgroundColor: colors.neutral[50],
-    margin: spacing.lg,
-    padding: spacing.lg,
-    borderRadius: 16,
-  },
-  nutritionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  nutritionItem: {
-    alignItems: 'center',
-  },
-  nutritionValue: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '700',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  nutritionLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  pantryMatchSection: {
-    margin: spacing.lg,
-    marginTop: 0,
-  },
-  pantryMatchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  matchPercentageContainer: {
-    alignItems: 'center',
-  },
-  matchPercentage: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: '700',
-    color: colors.primary[600],
-  },
-  matchLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-    textTransform: 'uppercase',
-  },
-  progressBarContainer: {
-    marginBottom: spacing.xl,
-  },
-  progressBarBackground: {
-    height: 8,
-    backgroundColor: colors.neutral[200],
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary[500],
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    textAlign: 'center',
-  },
-  ingredientSection: {
-    marginBottom: spacing.xl,
-  },
-  ingredientSectionTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[700],
-    marginBottom: spacing.md,
-  },
-  ingredientsList: {
-    gap: spacing.sm,
-  },
-  ingredientItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  ingredientDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.error[400],
-    marginRight: spacing.md,
-  },
-  availableDot: {
-    backgroundColor: colors.success[500],
-  },
-  ingredientText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-    textDecorationLine: 'line-through',
-  },
-  availableText: {
-    color: colors.neutral[800],
-    textDecorationLine: 'none',
-  },
-  missingSection: {
-    backgroundColor: colors.warning[50],
-    padding: spacing.lg,
-    borderRadius: 12,
-    marginTop: spacing.lg,
-  },
-  missingSectionTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.warning[800],
-    marginBottom: spacing.md,
-  },
-  missingList: {
-    gap: spacing.sm,
-  },
-  missingItem: {
-    backgroundColor: colors.neutral[0],
-    padding: spacing.md,
-    borderRadius: 8,
-  },
-  missingItemText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[700],
-  },
-  modalActions: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary[500],
-    padding: spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-  secondaryButton: {
-    backgroundColor: colors.success[500],
-    padding: spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: colors.primary[500],
-    padding: spacing.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  outlineButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[600],
   },
 });
