@@ -1,4 +1,5 @@
 //components/meal-plan/ViewModeTabs.tsx
+// Daily/Weekly/Monthly tabs component will go here
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '@/lib/theme';
