@@ -1,4 +1,5 @@
 //components/meal-plan/MealDetailModal.tsx
+// Modal component will go here
 import React from 'react';
 import {
   Modal,
