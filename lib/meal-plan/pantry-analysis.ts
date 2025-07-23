@@ -1,3 +1,4 @@
+//lib/meal-plan/pantry-analysis.ts
 import { PantryItem, PantryMetrics, PantryComposition, PantryInsight } from './types';
 import { AlertCircle, Info } from 'lucide-react-native';
 
