@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   Platform,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
@@ -29,6 +30,7 @@ import {
   ChefHat,
   AlertCircle,
   Info,
+  X,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
@@ -160,6 +162,10 @@ export default function AIMealPlan() {
   const [mealPlan, setMealPlan] = useState<any>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [pantryInsights, setPantryInsights] = useState<any[]>([]);
+  
+  // Modal states
+  const [selectedMeal, setSelectedMeal] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   // Pantry health metrics
   const [pantryMetrics, setPantryMetrics] = useState({
@@ -672,15 +678,198 @@ export default function AIMealPlan() {
     }
   };
 
+  // Updated handleMealPress with modal
   const handleMealPress = (meal: any) => {
-    Alert.alert(
-      meal.name,
-      `${meal.calories} calories • ${meal.protein}g protein\n\nIngredients: ${meal.ingredients?.join(', ') || 'N/A'}\n\nPantry Match: ${meal.matchPercentage?.toFixed(0) || 0}%`,
-      [
-        { text: 'View Recipe', onPress: () => console.log('View recipe') },
-        { text: 'Add to Today', onPress: () => console.log('Add to nutrition') },
-        { text: 'Cancel', style: 'cancel' }
-      ]
+    setSelectedMeal(meal);
+    setModalVisible(true);
+  };
+
+  // Navigate to recipe detail
+  const navigateToRecipe = (meal: any) => {
+    setModalVisible(false);
+    // TODO: Navigate to recipe detail with meal_plan source
+    router.push(`/recipe/${meal.id}?source=meal_plan`);
+  };
+
+  // Add meal to nutrition log
+  const addToNutritionLog = async (meal: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const nutritionEntry = {
+        user_id: user.id,
+        date: new Date().toISOString().split('T')[0],
+        meal_type: meal.category,
+        food_name: meal.name,
+        quantity: 1,
+        unit: 'serving',
+        calories: meal.calories,
+        protein: meal.protein,
+        carbs: meal.carbs || 0,
+        fat: meal.fat || 0,
+        fiber: meal.fiber || 0,
+        source: 'meal_plan'
+      };
+
+      const { error } = await supabase
+        .from('nutrition_logs')
+        .insert([nutritionEntry]);
+
+      if (error) throw error;
+
+      setModalVisible(false);
+      Alert.alert('Success', 'Meal added to today\'s nutrition log');
+    } catch (error) {
+      console.error('Error adding to nutrition:', error);
+      Alert.alert('Error', 'Failed to add meal to nutrition log');
+    }
+  };
+
+  // Meal Detail Modal Component
+  const MealDetailModal = () => {
+    if (!selectedMeal) return null;
+
+    return (
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalEmoji}>{selectedMeal.emoji}</Text>
+                <View>
+                  <Text style={styles.modalMealType}>{selectedMeal.category}</Text>
+                  <Text style={styles.modalTitle}>{selectedMeal.name}</Text>
+                </View>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color={colors.neutral[600]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Nutrition Summary */}
+            <View style={styles.nutritionCard}>
+              <View style={styles.nutritionRow}>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>{selectedMeal.calories}</Text>
+                  <Text style={styles.nutritionLabel}>Calories</Text>
+                </View>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>{selectedMeal.protein}g</Text>
+                  <Text style={styles.nutritionLabel}>Protein</Text>
+                </View>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>{selectedMeal.prepTime} min</Text>
+                  <Text style={styles.nutritionLabel}>Prep Time</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Pantry Match Section */}
+            <View style={styles.pantryMatchSection}>
+              <View style={styles.pantryMatchHeader}>
+                <Text style={styles.sectionTitle}>Pantry Analysis</Text>
+                <View style={styles.matchPercentageContainer}>
+                  <Text style={styles.matchPercentage}>
+                    {Math.round(selectedMeal.matchPercentage || 0)}%
+                  </Text>
+                  <Text style={styles.matchLabel}>Match</Text>
+                </View>
+              </View>
+              
+              {/* Progress Bar */}
+              <View style={styles.progressBarContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View 
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${selectedMeal.matchPercentage || 0}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {selectedMeal.pantryMatch || 0} of {selectedMeal.totalIngredients || 0} ingredients
+                </Text>
+              </View>
+
+              {/* Available Ingredients */}
+              {selectedMeal.ingredients && (
+                <View style={styles.ingredientSection}>
+                  <Text style={styles.ingredientSectionTitle}>📦 All Ingredients:</Text>
+                  <View style={styles.ingredientsList}>
+                    {selectedMeal.ingredients.map((ingredient: string, index: number) => (
+                      <View key={index} style={styles.ingredientItem}>
+                        <View style={[
+                          styles.ingredientDot,
+                          !selectedMeal.missingIngredients?.includes(ingredient) && styles.availableDot
+                        ]} />
+                        <Text style={[
+                          styles.ingredientText,
+                          !selectedMeal.missingIngredients?.includes(ingredient) && styles.availableText
+                        ]}>
+                          {ingredient}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Missing Ingredients */}
+              {selectedMeal.missingIngredients?.length > 0 && (
+                <View style={styles.missingSection}>
+                  <Text style={styles.missingSectionTitle}>🛒 Need to Buy:</Text>
+                  <View style={styles.missingList}>
+                    {selectedMeal.missingIngredients.map((ingredient: string, index: number) => (
+                      <View key={index} style={styles.missingItem}>
+                        <Text style={styles.missingItemText}>{ingredient}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={() => navigateToRecipe(selectedMeal)}
+              >
+                <Text style={styles.primaryButtonText}>View Full Recipe</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.secondaryButton}
+                onPress={() => addToNutritionLog(selectedMeal)}
+              >
+                <Text style={styles.secondaryButtonText}>Add to Today's Nutrition</Text>
+              </TouchableOpacity>
+              
+              {selectedMeal.missingIngredients?.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.outlineButton}
+                  onPress={() => {
+                    setModalVisible(false);
+                    handleAddToShoppingList(selectedMeal.missingIngredients);
+                  }}
+                >
+                  <Text style={styles.outlineButtonText}>Add Missing to Shopping</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     );
   };
 
@@ -973,6 +1162,9 @@ export default function AIMealPlan() {
 
   return (
     <View style={styles.container}>
+      {/* Modal */}
+      <MealDetailModal />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
@@ -1555,5 +1747,212 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: spacing.xl,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral[0],
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: spacing.lg,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalEmoji: {
+    fontSize: 32,
+    marginRight: spacing.md,
+  },
+  modalMealType: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+    textTransform: 'capitalize',
+    marginBottom: spacing.xs,
+  },
+  modalTitle: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '700',
+    color: colors.neutral[800],
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nutritionCard: {
+    backgroundColor: colors.neutral[50],
+    margin: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: 16,
+  },
+  nutritionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  nutritionItem: {
+    alignItems: 'center',
+  },
+  nutritionValue: {
+    fontSize: typography.fontSize.xl,
+    fontWeight: '700',
+    color: colors.neutral[800],
+    marginBottom: spacing.xs,
+  },
+  nutritionLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+  },
+  pantryMatchSection: {
+    margin: spacing.lg,
+    marginTop: 0,
+  },
+  pantryMatchHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  matchPercentageContainer: {
+    alignItems: 'center',
+  },
+  matchPercentage: {
+    fontSize: typography.fontSize['2xl'],
+    fontWeight: '700',
+    color: colors.primary[600],
+  },
+  matchLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[500],
+    textTransform: 'uppercase',
+  },
+  progressBarContainer: {
+    marginBottom: spacing.xl,
+  },
+  progressBarBackground: {
+    height: 8,
+    backgroundColor: colors.neutral[200],
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary[500],
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    textAlign: 'center',
+  },
+  ingredientSection: {
+    marginBottom: spacing.xl,
+  },
+  ingredientSectionTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.md,
+  },
+  ingredientsList: {
+    gap: spacing.sm,
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  ingredientDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error[400],
+    marginRight: spacing.md,
+  },
+  availableDot: {
+    backgroundColor: colors.success[500],
+  },
+  ingredientText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[600],
+    textDecorationLine: 'line-through',
+  },
+  availableText: {
+    color: colors.neutral[800],
+    textDecorationLine: 'none',
+  },
+  missingSection: {
+    backgroundColor: colors.warning[50],
+    padding: spacing.lg,
+    borderRadius: 12,
+    marginTop: spacing.lg,
+  },
+  missingSectionTitle: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.warning[800],
+    marginBottom: spacing.md,
+  },
+  missingList: {
+    gap: spacing.sm,
+  },
+  missingItem: {
+    backgroundColor: colors.neutral[0],
+    padding: spacing.md,
+    borderRadius: 8,
+  },
+  missingItemText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[700],
+  },
+  modalActions: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary[500],
+    padding: spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  secondaryButton: {
+    backgroundColor: colors.success[500],
+    padding: spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  outlineButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.primary[500],
+    padding: spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  outlineButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.primary[600],
   },
 });
