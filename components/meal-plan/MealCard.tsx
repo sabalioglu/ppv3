@@ -1,4 +1,5 @@
 //components/meal-plan/MealCard.tsx
+// Individual meal card component will go here
 import React from 'react';
 import {
   TouchableOpacity,
