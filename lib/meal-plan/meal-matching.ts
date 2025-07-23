@@ -35,7 +35,7 @@ export const calculatePantryMatch = (mealIngredients: Ingredient[], pantryItems:
     );
     
     // Category-based fuzzy matching
-    if (!found) {
+    if (!found && ingredient.category) {
       found = pantryIngredientNames.find(pantryItem => {
         // Same category matching
         if (pantryItem.category === ingredient.category) {
@@ -76,7 +76,7 @@ export const calculatePantryMatch = (mealIngredients: Ingredient[], pantryItems:
   return {
     matchCount,
     totalIngredients: mealIngredients.length,
-    matchPercentage: (matchCount / mealIngredients.length) * 100,
+    matchPercentage: mealIngredients.length > 0 ? (matchCount / mealIngredients.length) * 100 : 0,
     missingIngredients: missingIngredients.map(ing => ing.name),
     availableIngredients: availableIngredients.map(ing => ing.name),
     detailedMatch: {
@@ -117,7 +117,7 @@ export const findBestMealMatch = (
 
     expiringItems.forEach(item => {
       const daysUntilExpiry = Math.ceil(
-        (new Date(item.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        (new Date(item.expiry_date!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
       
       // Check if meal uses this expiring item
