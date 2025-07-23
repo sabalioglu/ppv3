@@ -1,4 +1,5 @@
 //components/meal-plan/MealPlanSummary.tsx
+// Today's plan summary card component will go here
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Target, TrendingUp, ChefHat } from 'lucide-react-native';
