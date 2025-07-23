@@ -1,4 +1,5 @@
 //components/meal-plan/PantryInsights.tsx
+// Pantry insights section component will go here
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
