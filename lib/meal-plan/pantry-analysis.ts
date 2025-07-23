@@ -13,7 +13,9 @@ export const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
 
   items.forEach(item => {
     // Category counting
-    categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
+    if (item.category) {
+      categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
+    }
 
     // Expiry checking
     if (item.expiry_date) {
@@ -39,15 +41,14 @@ export const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
   };
 };
 
-export const getExpiringItems = (items: PantryItem[]): PantryItem[] => {
+export const getExpiringItems = (items: PantryItem[], daysAhead: number = 3): PantryItem[] => {
   const today = new Date();
-  const threeDaysFromNow = new Date();
-  threeDaysFromNow.setDate(today.getDate() + 3);
+  const futureDate = new Date(today.getTime() + (daysAhead * 24 * 60 * 60 * 1000));
   
   return items.filter(item => {
     if (!item.expiry_date) return false;
     const expiryDate = new Date(item.expiry_date);
-    return expiryDate >= today && expiryDate <= threeDaysFromNow;
+    return expiryDate >= today && expiryDate <= futureDate;
   });
 };
 
@@ -63,20 +64,24 @@ export const analyzePantryComposition = (pantryItems: PantryItem[]): PantryCompo
 
   // Count items by category
   pantryItems.forEach(item => {
-    composition.categories[item.category] = (composition.categories[item.category] || 0) + 1;
+    if (item.category) {
+      composition.categories[item.category] = (composition.categories[item.category] || 0) + 1;
+    }
   });
 
   // Identify dominant and deficient categories
   const categoryEntries = Object.entries(composition.categories);
-  const avgItemsPerCategory = composition.totalItems / categoryEntries.length;
+  if (categoryEntries.length > 0) {
+    const avgItemsPerCategory = composition.totalItems / categoryEntries.length;
 
-  categoryEntries.forEach(([category, count]) => {
-    if (count > avgItemsPerCategory * 1.5) {
-      composition.dominantCategories.push(category);
-    } else if (count < avgItemsPerCategory * 0.5) {
-      composition.deficientCategories.push(category);
-    }
-  });
+    categoryEntries.forEach(([category, count]) => {
+      if (count > avgItemsPerCategory * 1.5) {
+        composition.dominantCategories.push(category);
+      } else if (count < avgItemsPerCategory * 0.5) {
+        composition.deficientCategories.push(category);
+      }
+    });
+  }
 
   // Generate suggestions based on composition
   if (composition.dominantCategories.includes('Vegetables')) {
@@ -104,40 +109,71 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
       title: 'Items Expiring Soon',
       message: `${metrics.expiringItems} items expiring in the next 3 days`,
       items: expiringItems.map(item => item.name).slice(0, 3),
-      action: 'Use these items first in your meals'
+      action: 'Use these items first in your meals',
+      priority: 'high',
+      actionable: true
     });
   }
   
   // Category balance check
   const categories = Object.keys(metrics.categories);
-  if (!categories.includes('Protein') || metrics.categories['Protein'] < 3) {
+  if (!categories.includes('Protein') || (metrics.categories['Protein'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
       icon: Info,
       title: 'Low on Protein',
       message: 'Consider adding more protein sources to your pantry',
-      action: 'Add to shopping list'
+      action: 'Add to shopping list',
+      priority: 'medium',
+      actionable: true
     });
   }
   
-  if (!categories.includes('Vegetables') || metrics.categories['Vegetables'] < 5) {
+  if (!categories.includes('Vegetables') || (metrics.categories['Vegetables'] || 0) < 5) {
     insights.push({
       type: 'suggestion',
       icon: Info,
       title: 'Need More Vegetables',
       message: 'A variety of vegetables ensures balanced nutrition',
-      action: 'Shop for vegetables'
+      action: 'Shop for vegetables',
+      priority: 'medium',
+      actionable: true
     });
   }
 
   // Expired items alert
   if (metrics.expiredItems > 0) {
+    const expiredItems = pantryItems.filter(item => {
+      if (!item.expiry_date) return false;
+      const expiryDate = new Date(item.expiry_date);
+      const today = new Date();
+      return expiryDate < today;
+    });
+
     insights.push({
       type: 'error',
       icon: AlertCircle,
       title: 'Expired Items Found',
       message: `${metrics.expiredItems} items have expired and should be removed`,
-      action: 'Clean pantry'
+      items: expiredItems.map(item => item.name).slice(0, 3),
+      action: 'Clean pantry',
+      priority: 'urgent',
+      actionable: true
+    });
+  }
+
+  // Low stock items
+  const lowStockItems = pantryItems.filter(item => item.quantity < 2);
+  if (lowStockItems.length > 0) {
+    insights.push({
+      type: 'low_stock',
+      icon: Info,
+      title: 'Low Stock Alert',
+      message: `${lowStockItems.length} items are running low`,
+      items: lowStockItems.map(item => item.name).slice(0, 3),
+      action: 'Add to shopping list',
+      priority: 'medium',
+      actionable: true
     });
   }
   
