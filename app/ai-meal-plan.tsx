@@ -395,7 +395,7 @@ export default function AIMealPlan() {
       }));
 
       const { error } = await supabase
-        .from('shopping_items')
+        .from('shopping_list_items')
         .insert(shoppingItems);
 
       if (error) throw error;
