@@ -32,6 +32,20 @@ export default function MealDetailModal({
 }: MealDetailModalProps) {
   if (!meal) return null;
 
+  const handleAddToNutrition = () => {
+    onAddToNutrition(meal);
+  };
+
+  const handleViewRecipe = () => {
+    onViewRecipe(meal);
+  };
+
+  const handleAddToShopping = () => {
+    if (meal.missingIngredients && meal.missingIngredients.length > 0) {
+      onAddToShopping(meal.missingIngredients);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -145,14 +159,14 @@ export default function MealDetailModal({
           <View style={styles.modalActions}>
             <TouchableOpacity 
               style={styles.primaryButton}
-              onPress={() => onViewRecipe(meal)}
+              onPress={handleViewRecipe}
             >
               <Text style={styles.primaryButtonText}>View Full Recipe</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.secondaryButton}
-              onPress={() => onAddToNutrition(meal)}
+              onPress={handleAddToNutrition}
             >
               <Text style={styles.secondaryButtonText}>Add to Today's Nutrition</Text>
             </TouchableOpacity>
@@ -160,7 +174,7 @@ export default function MealDetailModal({
             {meal.missingIngredients && meal.missingIngredients.length > 0 && (
               <TouchableOpacity 
                 style={styles.outlineButton}
-                onPress={() => onAddToShopping(meal.missingIngredients)}
+                onPress={handleAddToShopping}
               >
                 <Text style={styles.outlineButtonText}>Add Missing to Shopping</Text>
               </TouchableOpacity>
