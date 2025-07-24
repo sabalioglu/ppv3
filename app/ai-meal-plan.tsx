@@ -384,7 +384,7 @@ export default function AIMealPlan() {
 
       const shoppingItems = missingIngredients.map(ingredient => ({
         user_id: user.id,
-        name: ingredient,
+        item_name: ingredient,
         category: categorizeIngredient(ingredient),
         quantity: 1,
         unit: 'unit',
