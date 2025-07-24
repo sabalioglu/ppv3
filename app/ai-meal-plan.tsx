@@ -388,7 +388,7 @@ export default function AIMealPlan() {
         category: categorizeIngredient(ingredient),
         quantity: 1,
         unit: 'unit',
-        is_checked: false,
+        is_completed: false,
         // source field removed - not in schema
         priority: 'high',
         created_at: new Date().toISOString()
