@@ -1,4 +1,4 @@
-//## 📄 **app/ai-meal-plan.tsx - Error Handler Entegrasyonu ile %100 Hazır Kod**
+//## 📄 **app/ai-meal-plan.tsx - Düzeltilmiş (source field kaldırıldı)**
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -389,7 +389,7 @@ export default function AIMealPlan() {
         quantity: 1,
         unit: 'unit',
         is_checked: false,
-        source: 'meal_plan',
+        // source field removed - not in schema
         priority: 'high',
         created_at: new Date().toISOString()
       }));
@@ -455,7 +455,9 @@ export default function AIMealPlan() {
         carbs: meal.carbs || 0,
         fat: meal.fat || 0,
         fiber: meal.fiber || 0,
-        source: 'meal_plan'
+        sugar: meal.sugar || 0,
+        sodium: meal.sodium || 0,
+        // source field removed - not in schema
       };
 
       const { error } = await supabase
