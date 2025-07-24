@@ -1,7 +1,7 @@
 //lib/meal-plan/pantry-analysis.ts
 // Enhanced pantry analysis with better insights generation
 import { PantryItem, PantryMetrics, PantryComposition, PantryInsight } from './types';
-import { AlertCircle, Info, TrendingDown, Package } from 'lucide-react-native';
+// ✅ Icon import'ları kaldırıldı - artık string olarak kullanılacak
 
 export const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
   const today = new Date();
@@ -153,7 +153,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
     const expiredItems = getExpiredItems(pantryItems);
     insights.push({
       type: 'error',
-      icon: AlertCircle,
+      icon: 'AlertCircle', // ✅ String instead of component
       title: 'Expired Items Found',
       message: `${metrics.expiredItems} items have expired and should be removed`,
       items: expiredItems.map(item => item.name).slice(0, 3),
@@ -175,7 +175,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
     
     insights.push({
       type: 'warning',
-      icon: AlertCircle,
+      icon: 'AlertCircle', // ✅ String instead of component
       title: urgentItems.length > 0 ? 'Items Expiring Today!' : 'Items Expiring Soon',
       message: `${metrics.expiringItems} items expiring in the next 3 days`,
       items: expiringItems.map(item => {
@@ -195,7 +195,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (lowStockItems.length > 0) {
     insights.push({
       type: 'low_stock',
-      icon: TrendingDown,
+      icon: 'TrendingDown', // ✅ String instead of component
       title: 'Low Stock Alert',
       message: `${lowStockItems.length} items are running low`,
       items: lowStockItems.map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`).slice(0, 3),
@@ -211,7 +211,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Protein') || (metrics.categories['Protein'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
-      icon: Package,
+      icon: 'Package', // ✅ String instead of component
       title: 'Low on Protein Sources',
       message: 'Consider adding more protein variety to your pantry',
       action: 'Shop for proteins',
@@ -223,7 +223,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Vegetables') || (metrics.categories['Vegetables'] || 0) < 5) {
     insights.push({
       type: 'suggestion',
-      icon: Package,
+      icon: 'Package', // ✅ String instead of component
       title: 'Need More Vegetables',
       message: 'A variety of vegetables ensures balanced nutrition',
       action: 'Shop for vegetables',
@@ -235,7 +235,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Fruits') || (metrics.categories['Fruits'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
-      icon: Info,
+      icon: 'Info', // ✅ String instead of component
       title: 'Add Fresh Fruits',
       message: 'Fruits provide essential vitamins and natural sweetness',
       action: 'Shop for fruits',
@@ -248,7 +248,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (metrics.totalItems > 20 && metrics.expiringItems === 0 && metrics.expiredItems === 0) {
     insights.push({
       type: 'suggestion',
-      icon: Package,
+      icon: 'Package', // ✅ String instead of component
       title: 'Well-Stocked Pantry!',
       message: 'Your pantry is well-organized with no expiring items',
       priority: 'low',
