@@ -1,5 +1,5 @@
 //lib/meal-plan/constants.ts
-// MEAL_DATABASE will go here
+// Enhanced meal database with better ingredient matching
 import { Meal } from './types';
 
 export const MEAL_DATABASE: Record<string, Meal[]> = {
@@ -25,7 +25,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🍳",
       category: "breakfast",
-      tags: ["quick", "protein-rich", "comfort-food"]
+      tags: ["quick", "protein-rich", "comfort-food"],
+      instructions: [
+        "Crack eggs into a bowl and whisk",
+        "Heat butter in pan over medium heat",
+        "Pour eggs into pan and scramble gently",
+        "Toast bread slices until golden",
+        "Season eggs with salt and pepper",
+        "Serve immediately with toast"
+      ]
     },
     {
       id: 'breakfast_2',
@@ -47,7 +55,14 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥣",
       category: "breakfast",
-      tags: ["healthy", "fiber-rich", "quick"]
+      tags: ["healthy", "fiber-rich", "quick"],
+      instructions: [
+        "Combine oats and milk in a bowl",
+        "Microwave for 2-3 minutes or cook on stovetop",
+        "Stir in honey while warm",
+        "Top with fresh berries",
+        "Serve immediately"
+      ]
     },
     {
       id: 'breakfast_3',
@@ -69,7 +84,14 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥛",
       category: "breakfast",
-      tags: ["healthy", "no-cook", "protein-rich"]
+      tags: ["healthy", "no-cook", "protein-rich"],
+      instructions: [
+        "Layer yogurt in a glass or bowl",
+        "Add a layer of berries",
+        "Sprinkle granola on top",
+        "Drizzle with honey",
+        "Repeat layers if desired"
+      ]
     }
   ],
   lunch: [
@@ -95,7 +117,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥗",
       category: "lunch",
-      tags: ["healthy", "low-carb", "fresh"]
+      tags: ["healthy", "low-carb", "fresh"],
+      instructions: [
+        "Cook and dice chicken breast",
+        "Wash and chop lettuce",
+        "Dice tomatoes and cucumber",
+        "Combine all vegetables in a bowl",
+        "Whisk olive oil with lemon juice",
+        "Toss salad with dressing and serve"
+      ]
     },
     {
       id: 'lunch_2',
@@ -118,7 +148,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥪",
       category: "lunch",
-      tags: ["quick", "protein-rich", "portable"]
+      tags: ["quick", "protein-rich", "portable"],
+      instructions: [
+        "Drain tuna and mix with mayonnaise",
+        "Toast bread if desired",
+        "Layer lettuce on one slice",
+        "Add tuna mixture",
+        "Top with tomato slices",
+        "Close sandwich and serve"
+      ]
     },
     {
       id: 'lunch_3',
@@ -142,7 +180,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Medium",
       emoji: "🍜",
       category: "lunch",
-      tags: ["vegetarian", "healthy", "filling"]
+      tags: ["vegetarian", "healthy", "filling"],
+      instructions: [
+        "Cook rice according to package instructions",
+        "Heat oil in a wok or large pan",
+        "Add minced garlic and ginger",
+        "Stir-fry vegetables until tender-crisp",
+        "Add soy sauce and toss",
+        "Serve over rice"
+      ]
     }
   ],
   dinner: [
@@ -168,7 +214,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Medium",
       emoji: "🍗",
       category: "dinner",
-      tags: ["healthy", "high-protein", "low-carb"]
+      tags: ["healthy", "high-protein", "low-carb"],
+      instructions: [
+        "Season chicken with herbs and garlic",
+        "Heat grill or grill pan",
+        "Grill chicken 6-8 minutes per side",
+        "Steam broccoli and carrots until tender",
+        "Drizzle vegetables with olive oil",
+        "Serve chicken with vegetables"
+      ]
     },
     {
       id: 'dinner_2',
@@ -192,7 +246,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Medium",
       emoji: "🍝",
       category: "dinner",
-      tags: ["comfort-food", "filling", "family-favorite"]
+      tags: ["comfort-food", "filling", "family-favorite"],
+      instructions: [
+        "Cook pasta according to package directions",
+        "Brown ground beef in a large pan",
+        "Add diced onion and garlic",
+        "Pour in tomato sauce and simmer",
+        "Season with salt and pepper",
+        "Serve over pasta with cheese"
+      ]
     },
     {
       id: 'dinner_3',
@@ -215,7 +277,15 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Medium",
       emoji: "🐟",
       category: "dinner",
-      tags: ["healthy", "omega-3", "balanced"]
+      tags: ["healthy", "omega-3", "balanced"],
+      instructions: [
+        "Rinse and cook quinoa",
+        "Season salmon with lemon and herbs",
+        "Bake salmon at 400°F for 12-15 minutes",
+        "Steam or roast asparagus",
+        "Drizzle with olive oil and lemon",
+        "Serve salmon over quinoa with asparagus"
+      ]
     }
   ],
   snacks: [
@@ -237,7 +307,11 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🍎",
       category: "snack",
-      tags: ["healthy", "quick", "fiber-rich"]
+      tags: ["healthy", "quick", "fiber-rich"],
+      instructions: [
+        "Wash and slice apple",
+        "Serve with peanut butter for dipping"
+      ]
     },
     {
       id: 'snack_2',
@@ -257,7 +331,11 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥛",
       category: "snack",
-      tags: ["protein-rich", "quick", "healthy"]
+      tags: ["protein-rich", "quick", "healthy"],
+      instructions: [
+        "Serve yogurt in a bowl",
+        "Drizzle with honey"
+      ]
     },
     {
       id: 'snack_3',
@@ -278,17 +356,35 @@ export const MEAL_DATABASE: Record<string, Meal[]> = {
       difficulty: "Easy",
       emoji: "🥜",
       category: "snack",
-      tags: ["healthy-fats", "portable", "energy-boost"]
+      tags: ["healthy-fats", "portable", "energy-boost"],
+      instructions: [
+        "Mix nuts in a small bowl",
+        "Serve immediately"
+      ]
     }
   ]
 };
 
 export const INGREDIENT_CATEGORIES = {
-  'Protein': ['chicken', 'beef', 'fish', 'eggs', 'tofu', 'beans', 'tuna', 'salmon', 'pork', 'turkey'],
+  'Protein': ['chicken', 'beef', 'fish', 'eggs', 'tofu', 'beans', 'tuna', 'salmon', 'pork', 'turkey', 'ground beef', 'peanut butter', 'almonds', 'walnuts', 'cashews', 'greek yogurt'],
   'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'mozzarella', 'cheddar', 'parmesan'],
-  'Grains': ['rice', 'pasta', 'bread', 'oats', 'quinoa', 'flour', 'cereal', 'noodles'],
-  'Vegetables': ['lettuce', 'tomato', 'cucumber', 'carrot', 'broccoli', 'onion', 'garlic', 'pepper', 'spinach'],
+  'Grains': ['rice', 'pasta', 'bread', 'oats', 'quinoa', 'flour', 'cereal', 'noodles', 'granola'],
+  'Vegetables': ['lettuce', 'tomato', 'cucumber', 'carrot', 'broccoli', 'onion', 'garlic', 'pepper', 'spinach', 'asparagus', 'mixed vegetables', 'carrots', 'tomatoes'],
   'Fruits': ['apple', 'banana', 'berries', 'orange', 'grapes', 'lemon', 'lime', 'strawberry'],
-  'Condiments': ['oil', 'sauce', 'dressing', 'spices', 'herbs', 'salt', 'pepper', 'vinegar', 'honey'],
+  'Condiments': ['oil', 'sauce', 'dressing', 'spices', 'herbs', 'salt', 'pepper', 'vinegar', 'honey', 'olive oil', 'mayonnaise', 'soy sauce', 'ginger', 'tomato sauce'],
   'Pantry Staples': ['sugar', 'flour', 'baking powder', 'vanilla', 'stock', 'broth']
+};
+
+// Enhanced ingredient matching patterns
+export const INGREDIENT_ALIASES = {
+  'chicken': ['chicken breast', 'chicken thigh', 'chicken meat', 'poultry'],
+  'beef': ['ground beef', 'beef mince', 'minced beef', 'hamburger meat'],
+  'tomato': ['tomatoes', 'cherry tomatoes', 'roma tomatoes'],
+  'lettuce': ['salad greens', 'mixed greens', 'leafy greens'],
+  'oil': ['olive oil', 'vegetable oil', 'cooking oil'],
+  'cheese': ['cheddar', 'mozzarella', 'parmesan', 'swiss cheese'],
+  'milk': ['whole milk', 'skim milk', '2% milk', 'dairy milk'],
+  'bread': ['white bread', 'whole wheat bread', 'sourdough', 'toast'],
+  'pasta': ['spaghetti', 'penne', 'macaroni', 'linguine'],
+  'rice': ['white rice', 'brown rice', 'jasmine rice', 'basmati rice']
 };
