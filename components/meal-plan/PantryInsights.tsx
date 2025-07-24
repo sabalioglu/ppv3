@@ -1,8 +1,8 @@
 //components/meal-plan/PantryInsights.tsx
-// Enhanced pantry insights with better UI and interactions
-import React from 'react';
+// Collapsible pantry insights with dropdown functionality
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { AlertCircle, Info, TrendingDown, Package } from 'lucide-react-native';
+import { AlertCircle, Info, TrendingDown, Package, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { PantryInsight } from '@/lib/meal-plan/types';
 
@@ -12,6 +12,8 @@ interface PantryInsightsProps {
 }
 
 export default function PantryInsights({ insights, onInsightAction }: PantryInsightsProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // ✅ Icon resolver function
   const getIconComponent = (iconName?: string) => {
     switch (iconName) {
@@ -36,6 +38,11 @@ export default function PantryInsights({ insights, onInsightAction }: PantryInsi
       </View>
     );
   }
+
+  // Get summary stats
+  const urgentCount = insights.filter(i => i.priority === 'urgent').length;
+  const highCount = insights.filter(i => i.priority === 'high').length;
+  const totalCount = insights.length;
 
   const getInsightStyle = (type: string) => {
     switch (type) {
@@ -82,54 +89,89 @@ export default function PantryInsights({ insights, onInsightAction }: PantryInsi
 
   return (
     <View style={styles.insightsSection}>
-      <Text style={styles.sectionTitle}>Pantry Insights</Text>
-      
-      {insights.map((insight, index) => {
-        const IconComponent = getIconComponent(insight.icon); // ✅ String'den component'e çevir
-        const priorityBadge = getPriorityBadge(insight.priority || 'low');
-        
-        return (
-          <View key={index} style={[styles.insightCard, getInsightStyle(insight.type)]}>
-            <View style={styles.insightHeader}>
-              <View style={styles.insightTitleRow}>
-                {IconComponent && (
-                  <IconComponent size={20} color={getIconColor(insight.type)} />
-                )}
-                <Text style={styles.insightTitle}>{insight.title}</Text>
-                {priorityBadge && (
-                  <View style={priorityBadge.style}>
-                    <Text style={styles.priorityText}>{priorityBadge.text}</Text>
-                  </View>
-                )}
+      {/* Collapsible Header */}
+      <TouchableOpacity 
+        style={styles.headerContainer}
+        onPress={() => setIsExpanded(!isExpanded)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.headerLeft}>
+          <Text style={styles.sectionTitle}>Pantry Insights</Text>
+          <View style={styles.summaryContainer}>
+            {urgentCount > 0 && (
+              <View style={styles.urgentSummary}>
+                <Text style={styles.urgentSummaryText}>{urgentCount} urgent</Text>
               </View>
-            </View>
-            
-            <View style={styles.insightContent}>
-              <Text style={styles.insightMessage}>{insight.message}</Text>
-              
-              {insight.items && insight.items.length > 0 && (
-                <View style={styles.itemsContainer}>
-                  <Text style={styles.itemsLabel}>Items:</Text>
-                  {insight.items.map((item, itemIndex) => (
-                    <Text key={itemIndex} style={styles.insightItem}>
-                      • {item}
-                    </Text>
-                  ))}
-                </View>
-              )}
-              
-              {insight.action && insight.actionable && (
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => onInsightAction?.(insight)}
-                >
-                  <Text style={styles.actionButtonText}>{insight.action}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            )}
+            {highCount > 0 && (
+              <View style={styles.highSummary}>
+                <Text style={styles.highSummaryText}>{highCount} high</Text>
+              </View>
+            )}
+            <Text style={styles.totalSummary}>{totalCount} total</Text>
           </View>
-        );
-      })}
+        </View>
+        
+        <View style={styles.headerRight}>
+          {isExpanded ? (
+            <ChevronUp size={24} color={colors.neutral[600]} />
+          ) : (
+            <ChevronDown size={24} color={colors.neutral[600]} />
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <View style={styles.expandedContent}>
+          {insights.map((insight, index) => {
+            const IconComponent = getIconComponent(insight.icon);
+            const priorityBadge = getPriorityBadge(insight.priority || 'low');
+            
+            return (
+              <View key={index} style={[styles.insightCard, getInsightStyle(insight.type)]}>
+                <View style={styles.insightHeader}>
+                  <View style={styles.insightTitleRow}>
+                    {IconComponent && (
+                      <IconComponent size={20} color={getIconColor(insight.type)} />
+                    )}
+                    <Text style={styles.insightTitle}>{insight.title}</Text>
+                    {priorityBadge && (
+                      <View style={priorityBadge.style}>
+                        <Text style={styles.priorityText}>{priorityBadge.text}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                
+                <View style={styles.insightContent}>
+                  <Text style={styles.insightMessage}>{insight.message}</Text>
+                  
+                  {insight.items && insight.items.length > 0 && (
+                    <View style={styles.itemsContainer}>
+                      <Text style={styles.itemsLabel}>Items:</Text>
+                      {insight.items.map((item, itemIndex) => (
+                        <Text key={itemIndex} style={styles.insightItem}>
+                          • {item}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {insight.action && insight.actionable && (
+                    <TouchableOpacity 
+                      style={styles.actionButton}
+                      onPress={() => onInsightAction?.(insight)}
+                    >
+                      <Text style={styles.actionButtonText}>{insight.action}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -138,11 +180,62 @@ const styles = StyleSheet.create({
   insightsSection: {
     marginTop: spacing.lg,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[0],
+    padding: spacing.lg,
+    borderRadius: 12,
+    marginBottom: spacing.sm,
+    ...shadows.sm,
+  },
+  headerLeft: {
+    flex: 1,
+  },
   sectionTitle: {
     fontSize: typography.fontSize.xl,
     fontWeight: '700',
     color: colors.neutral[800],
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  urgentSummary: {
+    backgroundColor: colors.error[500],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  urgentSummaryText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  highSummary: {
+    backgroundColor: colors.warning[500],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  highSummaryText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[0],
+    fontWeight: '600',
+  },
+  totalSummary: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    fontWeight: '500',
+  },
+  headerRight: {
+    marginLeft: spacing.md,
+  },
+  expandedContent: {
+    gap: spacing.md,
   },
   emptyState: {
     backgroundColor: colors.success[50],
@@ -166,7 +259,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[0],
     padding: spacing.lg,
     borderRadius: 12,
-    marginBottom: spacing.md,
     ...shadows.sm,
   },
   errorCard: {
