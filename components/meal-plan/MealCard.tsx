@@ -1,5 +1,5 @@
 //components/meal-plan/MealCard.tsx
-// Enhanced meal card with better shopping integration
+// Enhanced meal card with regenerate functionality
 import React from 'react';
 import {
   TouchableOpacity,
@@ -7,7 +7,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { Flame, TrendingUp, Clock, AlertCircle, Plus, CheckCircle } from 'lucide-react-native';
+import { Flame, TrendingUp, Clock, AlertCircle, Plus, CheckCircle, RefreshCw } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { Meal } from '@/lib/meal-plan/types';
 
@@ -16,13 +16,29 @@ interface MealCardProps {
   mealType: string;
   onPress: (meal: Meal) => void;
   onAddToShopping: (ingredients: string[]) => void;
+  onRegenerate?: (mealType: string) => void; // ✅ NEW: Regenerate function
+  isRegenerating?: boolean; // ✅ NEW: Loading state
 }
 
-export default function MealCard({ meal, mealType, onPress, onAddToShopping }: MealCardProps) {
+export default function MealCard({ 
+  meal, 
+  mealType, 
+  onPress, 
+  onAddToShopping, 
+  onRegenerate,
+  isRegenerating = false 
+}: MealCardProps) {
   const handleAddToShopping = (e: any) => {
-    e.stopPropagation(); // Prevent card press
+    e.stopPropagation();
     if (meal.missingIngredients && meal.missingIngredients.length > 0) {
       onAddToShopping(meal.missingIngredients);
+    }
+  };
+
+  const handleRegenerate = (e: any) => {
+    e.stopPropagation();
+    if (onRegenerate && !isRegenerating) {
+      onRegenerate(mealType.toLowerCase());
     }
   };
 
@@ -46,10 +62,19 @@ export default function MealCard({ meal, mealType, onPress, onAddToShopping }: M
 
   return (
     <TouchableOpacity 
-      style={styles.mealCard}
+      style={[styles.mealCard, isRegenerating && styles.mealCardRegenerating]}
       onPress={() => onPress(meal)}
       activeOpacity={0.7}
+      disabled={isRegenerating}
     >
+      {/* ✅ NEW: Regenerating overlay */}
+      {isRegenerating && (
+        <View style={styles.regeneratingOverlay}>
+          <RefreshCw size={20} color={colors.primary[500]} style={styles.spinningIcon} />
+          <Text style={styles.regeneratingText}>Creating new recipe...</Text>
+        </View>
+      )}
+
       <View style={styles.mealCardHeader}>
         <View style={styles.mealTimeContainer}>
           <Text style={styles.mealEmoji}>{meal.emoji}</Text>
@@ -59,19 +84,35 @@ export default function MealCard({ meal, mealType, onPress, onAddToShopping }: M
           </View>
         </View>
         
-        <View style={[
-          styles.mealMatchBadge,
-          getMatchBadgeStyle(meal.matchPercentage || 0)
-        ]}>
-          {(meal.matchPercentage || 0) >= 80 && (
-            <CheckCircle size={12} color={colors.success[600]} style={styles.matchIcon} />
-          )}
-          <Text style={[
-            styles.mealMatchText,
-            getMatchTextStyle(meal.matchPercentage || 0)
+        <View style={styles.headerRight}>
+          <View style={[
+            styles.mealMatchBadge,
+            getMatchBadgeStyle(meal.matchPercentage || 0)
           ]}>
-            {meal.pantryMatch}/{meal.totalIngredients}
-          </Text>
+            {(meal.matchPercentage || 0) >= 80 && (
+              <CheckCircle size={12} color={colors.success[600]} style={styles.matchIcon} />
+            )}
+            <Text style={[
+              styles.mealMatchText,
+              getMatchTextStyle(meal.matchPercentage || 0)
+            ]}>
+              {meal.pantryMatch}/{meal.totalIngredients}
+            </Text>
+          </View>
+
+          {/* ✅ NEW: Regenerate button */}
+          {onRegenerate && (
+            <TouchableOpacity
+              style={[styles.regenerateButton, isRegenerating && styles.regenerateButtonDisabled]}
+              onPress={handleRegenerate}
+              disabled={isRegenerating}
+            >
+              <RefreshCw 
+                size={16} 
+                color={isRegenerating ? colors.neutral[400] : colors.primary[600]} 
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
       
@@ -148,6 +189,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.sm,
   },
+  mealCardRegenerating: {
+    opacity: 0.7,
+  },
+  regeneratingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.neutral[0] + 'E6',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  spinningIcon: {
+    // Add rotation animation if needed
+  },
+  regeneratingText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary[600],
+    fontWeight: '500',
+  },
   mealCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -177,6 +243,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[800],
     lineHeight: typography.fontSize.lg * 1.2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   mealMatchBadge: {
     flexDirection: 'row',
@@ -212,6 +283,17 @@ const styles = StyleSheet.create({
   },
   lowMatchText: {
     color: colors.error[700],
+  },
+  regenerateButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  regenerateButtonDisabled: {
+    backgroundColor: colors.neutral[100],
   },
   mealStats: {
     flexDirection: 'row',
