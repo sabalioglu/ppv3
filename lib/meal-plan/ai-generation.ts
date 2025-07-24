@@ -1,5 +1,5 @@
 //lib/meal-plan/ai-generation.ts
-// AI meal generation using Gemini API with comprehensive user profiling and individual regeneration
+// AI meal generation using Gemini API with comprehensive user profiling + alternatives
 import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse } from './types';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -191,13 +191,13 @@ export const generateAIMeal = async (request: AIGenerationRequest): Promise<Meal
   }
 };
 
-// ✅ NEW: Generate alternative meal with different cuisine/style
+// ✅ NEW: Generate alternative meal with different approach
 export const generateAlternativeMeal = async (
   request: AIGenerationRequest, 
   previousMeal?: Meal,
-  alternativeType: 'different_cuisine' | 'simpler' | 'healthier' | 'random' = 'random'
+  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine'
 ): Promise<Meal> => {
-  const prompt = buildAlternativeMealPrompt(request, previousMeal, alternativeType);
+  const prompt = buildAlternativePrompt(request, previousMeal, variationType);
   
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -230,6 +230,123 @@ export const generateAlternativeMeal = async (
     console.error('AI alternative meal generation error:', error);
     throw error;
   }
+};
+
+// ✅ NEW: Build alternative prompt with variation focus
+const buildAlternativePrompt = (
+  request: AIGenerationRequest, 
+  previousMeal?: Meal,
+  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine'
+): string => {
+  const { pantryItems, userProfile, mealType } = request;
+  const profile = analyzeUserProfile(userProfile);
+  
+  const availableIngredients = pantryItems.map(item => 
+    `${item.name} (${item.quantity} ${item.unit || 'units'})`
+  ).join(', ');
+
+  const calorieTarget = getCalorieTarget(userProfile, mealType);
+
+  // Build variation instructions
+  let variationInstructions = '';
+  if (previousMeal) {
+    switch (variationType) {
+      case 'cuisine':
+        const avoidCuisines = profile.cuisineStyle.split(', ').slice(0, 2);
+        variationInstructions = `
+        VARIATION FOCUS: Different cuisine style
+        Previous meal was: "${previousMeal.name}"
+        Try a different cuisine approach. Avoid: ${avoidCuisines.join(', ')}
+        Consider: fusion, comfort food, or international flavors not yet explored.
+        `;
+        break;
+      
+      case 'complexity':
+        const newComplexity = previousMeal.difficulty === 'Easy' ? 'intermediate' : 'beginner';
+        variationInstructions = `
+        VARIATION FOCUS: Different complexity level
+        Previous meal difficulty: ${previousMeal.difficulty}
+        Target complexity: ${newComplexity}
+        ${newComplexity === 'beginner' ? 'Make it simpler and faster' : 'Add more interesting techniques'}
+        `;
+        break;
+      
+      case 'ingredients':
+        const usedIngredients = previousMeal.ingredients.map(ing => ing.name).slice(0, 3);
+        variationInstructions = `
+        VARIATION FOCUS: Different ingredient combination
+        Previous meal used: ${usedIngredients.join(', ')}
+        Try to use different primary ingredients from pantry while maintaining nutrition goals.
+        `;
+        break;
+    }
+  }
+
+  // Build allergen safety instructions
+  const allergenSafety = profile.allergenWarnings.length > 0 
+    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
+       NEVER include these ingredients or their derivatives. Double-check all ingredients for cross-contamination risks.`
+    : '';
+
+  // Build dietary compliance
+  const dietaryCompliance = profile.dietaryGuidelines.length > 0
+    ? `Dietary preferences to follow: ${profile.dietaryGuidelines.join(', ')}`
+    : '';
+
+  return `
+You are creating an ALTERNATIVE ${mealType} recipe for a user who wants variety.
+
+${variationInstructions}
+
+USER PROFILE:
+- Cooking Skill: ${profile.skillLevel}
+- Time Constraints: ${profile.timeConstraints}
+- Nutrition Focus: ${profile.nutritionFocus}
+- Preferred Cuisines: ${profile.cuisineStyle}
+- Age: ${userProfile?.age || 'not specified'}
+- Gender: ${userProfile?.gender || 'not specified'}
+- Activity Level: ${userProfile?.activity_level || 'moderate'}
+- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
+
+${allergenSafety}
+
+${dietaryCompliance}
+
+AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+
+RECIPE REQUIREMENTS:
+- Meal Type: ${mealType}
+- Target Calories: ~${calorieTarget} calories
+- Use maximum pantry ingredients possible
+- Create something DIFFERENT from typical ${mealType} options
+- Be creative while staying within user's dietary restrictions
+
+Please respond with a JSON object in this exact format:
+{
+  "name": "Creative Recipe Name",
+  "ingredients": [
+    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"},
+    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein"}
+  ],
+  "calories": ${calorieTarget},
+  "protein": 25,
+  "carbs": 40,
+  "fat": 15,
+  "fiber": 8,
+  "prepTime": 15,
+  "cookTime": 20,
+  "servings": 1,
+  "difficulty": "${profile.skillLevel}",
+  "instructions": [
+    "Step 1: Detailed preparation step",
+    "Step 2: Cooking process with timing",
+    "Step 3: Final assembly and serving"
+  ],
+  "tags": ["alternative", "creative", "personalized"]
+}
+
+Only return the JSON object, no additional text.
+`;
 };
 
 const buildEnhancedMealPrompt = (request: AIGenerationRequest): string => {
@@ -324,132 +441,6 @@ Please respond with a JSON object in this exact format:
 
 Only return the JSON object, no additional text.
 `;
-};
-
-// ✅ NEW: Build alternative meal prompt with variation instructions
-const buildAlternativeMealPrompt = (
-  request: AIGenerationRequest, 
-  previousMeal?: Meal,
-  alternativeType: string = 'random'
-): string => {
-  const { pantryItems, userProfile, mealType } = request;
-  const profile = analyzeUserProfile(userProfile);
-  
-  const availableIngredients = pantryItems.map(item => 
-    `${item.name} (${item.quantity} ${item.unit || 'units'})`
-  ).join(', ');
-
-  const calorieTarget = getCalorieTarget(userProfile, mealType);
-  const complexityLevel = getComplexityLevel(profile.skillLevel, profile.timeConstraints);
-
-  // Build allergen safety instructions
-  const allergenSafety = profile.allergenWarnings.length > 0 
-    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives. Double-check all ingredients for cross-contamination risks.`
-    : '';
-
-  // Build dietary compliance
-  const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences to follow: ${profile.dietaryGuidelines.join(', ')}`
-    : '';
-
-  // Build variation instructions
-  const variationInstructions = getVariationInstructions(alternativeType, previousMeal, profile);
-
-  return `
-You are a professional nutritionist and chef creating an ALTERNATIVE ${mealType} recipe.
-
-${previousMeal ? `PREVIOUS MEAL TO AVOID SIMILARITY: "${previousMeal.name}"` : ''}
-
-VARIATION REQUEST: ${variationInstructions}
-
-USER PROFILE:
-- Cooking Skill: ${profile.skillLevel}
-- Time Constraints: ${profile.timeConstraints}
-- Nutrition Focus: ${profile.nutritionFocus}
-- Preferred Cuisines: ${profile.cuisineStyle}
-- Age: ${userProfile?.age || 'not specified'}
-- Gender: ${userProfile?.gender || 'not specified'}
-- Activity Level: ${userProfile?.activity_level || 'moderate'}
-- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-${allergenSafety}
-
-${dietaryCompliance}
-
-AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
-
-RECIPE REQUIREMENTS:
-- Meal Type: ${mealType}
-- Target Calories: ~${calorieTarget} calories
-- Complexity: ${complexityLevel}
-- Use maximum pantry ingredients possible
-- Minimize shopping list additions
-- Create something DIFFERENT from previous suggestion
-- Match variation request above
-
-Please respond with a JSON object in this exact format:
-{
-  "name": "Recipe Name (different from previous)",
-  "ingredients": [
-    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"},
-    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein"}
-  ],
-  "calories": ${calorieTarget},
-  "protein": 25,
-  "carbs": 40,
-  "fat": 15,
-  "fiber": 8,
-  "prepTime": 15,
-  "cookTime": 20,
-  "servings": 1,
-  "difficulty": "${profile.skillLevel}",
-  "instructions": [
-    "Step 1: Detailed preparation step",
-    "Step 2: Cooking process with timing",
-    "Step 3: Final assembly and serving"
-  ],
-  "tags": ["alternative", "different-style", "skill-appropriate"]
-}
-
-Only return the JSON object, no additional text.
-`;
-};
-
-const getVariationInstructions = (
-  alternativeType: string, 
-  previousMeal?: Meal, 
-  profile?: any
-): string => {
-  switch (alternativeType) {
-    case 'different_cuisine':
-      return `Create a recipe from a COMPLETELY DIFFERENT cuisine style than the previous meal. 
-              If previous was Italian, try Asian. If previous was Mexican, try Mediterranean. 
-              Focus on authentic flavors and techniques from the new cuisine.`;
-    
-    case 'simpler':
-      return `Create a SIMPLER version with fewer ingredients and easier cooking methods. 
-              Maximum 5 ingredients, one-pot or no-cook preferred. 
-              Reduce prep time and complexity significantly.`;
-    
-    case 'healthier':
-      return `Create a HEALTHIER alternative focusing on:
-              - Lower calories but same satiety
-              - More vegetables and fiber
-              - Less processed ingredients
-              - Better nutrient density`;
-    
-    case 'random':
-    default:
-      const variations = [
-        'Try a completely different cooking method (if previous was baked, try grilled or raw)',
-        'Focus on a different primary ingredient category',
-        'Create a fusion dish combining two cuisines',
-        'Make it more colorful with different vegetables',
-        'Change the texture profile (if previous was soft, make it crunchy)'
-      ];
-      return variations[Math.floor(Math.random() * variations.length)];
-  }
 };
 
 const parseMealFromResponse = (responseText: string, request: AIGenerationRequest): Meal => {
@@ -588,47 +579,6 @@ export const generateAIMealPlan = async (
     };
   } catch (error) {
     console.error('Error generating AI meal plan:', error);
-    throw error;
-  }
-};
-
-// ✅ NEW: Regenerate single meal with pantry matching
-export const regenerateSingleMeal = async (
-  mealType: string,
-  pantryItems: PantryItem[],
-  userProfile: UserProfile | null,
-  previousMeal?: Meal,
-  alternativeType: 'different_cuisine' | 'simpler' | 'healthier' | 'random' = 'random'
-): Promise<Meal> => {
-  try {
-    const baseRequest = {
-      pantryItems,
-      userProfile,
-      mealType,
-      preferences: userProfile?.dietary_preferences || [],
-      restrictions: userProfile?.dietary_restrictions || [],
-      targetCalories: getCalorieTarget(userProfile, mealType),
-      targetProtein: Math.round(getCalorieTarget(userProfile, mealType) * 0.20 / 4)
-    };
-
-    // Generate alternative meal
-    const newMeal = await generateAlternativeMeal(baseRequest, previousMeal, alternativeType);
-    
-    // Calculate pantry match for the new meal
-    const { calculatePantryMatch } = await import('./meal-matching');
-    const match = calculatePantryMatch(newMeal.ingredients, pantryItems);
-    
-    // Add pantry matching data
-    return {
-      ...newMeal,
-      pantryMatch: match.matchCount,
-      totalIngredients: match.totalIngredients,
-      missingIngredients: match.missingIngredients,
-      matchPercentage: match.matchPercentage,
-      allergenSafe: true
-    };
-  } catch (error) {
-    console.error('Error regenerating single meal:', error);
     throw error;
   }
 };
