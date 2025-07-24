@@ -1,4 +1,6 @@
-//lib/meal-plan/error-handler.ts (Updated with Platform import)
+//lib/meal-plan/error-handler.ts
+import { Alert, Platform } from 'react-native';
+
 export interface AppError {
   code: string;
   message: string;
