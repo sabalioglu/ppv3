@@ -1,4 +1,5 @@
-//lib/meal-plan/types.ts - %100 Schema Compatible
+//lib/meal-plan/types.ts
+// Enhanced TypeScript interfaces with comprehensive schema compatibility + regeneration support
 export interface Ingredient {
   name: string;
   amount: number;
@@ -36,6 +37,9 @@ export interface Meal {
   sourceId?: string;
   created_at?: string;
   updated_at?: string;
+  // Additional nutritional info
+  sugar?: number;
+  sodium?: number;
 }
 
 // ✅ %100 Schema-compliant (pantry_items table)
@@ -99,6 +103,32 @@ export interface PantryInsight {
   timestamp?: string;
 }
 
+// ✅ NEW: Meal regeneration types
+export interface MealRegenerationRequest {
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  pantryItems: PantryItem[];
+  userProfile: UserProfile | null;
+  previousMeal?: Meal;
+  variationType?: 'cuisine' | 'complexity' | 'ingredients';
+}
+
+export interface MealLoadingStates {
+  breakfast: boolean;
+  lunch: boolean;
+  dinner: boolean;
+  snacks: boolean;
+  initial: boolean;
+}
+
+export interface MealRegenerationHistory {
+  [mealType: string]: {
+    attempts: number;
+    lastGenerated: string;
+    variations: string[];
+  };
+}
+
+// ✅ UPDATED: Enhanced MealPlan interface with regeneration support
 export interface MealPlan {
   daily: {
     breakfast: Meal | null;
@@ -113,6 +143,7 @@ export interface MealPlan {
     optimizationScore: number;
     generatedAt?: string;
     pantryMatchScore?: number;
+    regenerationHistory?: MealRegenerationHistory; // ✅ NEW
   };
   weekly?: {
     [key: string]: MealPlan['daily'];
@@ -199,6 +230,7 @@ export interface NutritionEntry {
   created_at?: string;            // ✅ Schema: timestamp
 }
 
+// ✅ AI Generation interfaces
 export interface AIGenerationRequest {
   pantryItems: PantryItem[];
   userProfile?: UserProfile;
@@ -215,3 +247,163 @@ export interface AIGenerationResponse {
   reasoning: string;
   alternatives?: Meal[];
 }
+
+// ✅ NEW: Enhanced error handling types
+export interface MealPlanError {
+  code: string;
+  message: string;
+  details?: any;
+  timestamp?: string;
+  userId?: string;
+  context?: string;
+}
+
+export interface ErrorLogEntry {
+  id?: string;
+  user_id?: string;
+  error_code: string;
+  error_message: string;
+  error_details?: any;
+  context?: string;
+  timestamp: string;
+  resolved?: boolean;
+}
+
+// ✅ NEW: UI State management types
+export interface MealPlanUIState {
+  loading: MealLoadingStates;
+  error: string | null;
+  lastUpdated: string | null;
+  refreshing: boolean;
+  modalVisible: boolean;
+  selectedMeal: Meal | null;
+}
+
+// ✅ NEW: Performance optimization types
+export interface PantryCache {
+  data: PantryItem[];
+  lastUpdated: Date;
+  metrics: PantryMetrics;
+  insights: PantryInsight[];
+}
+
+// ✅ NEW: Analytics and tracking types
+export interface MealPlanAnalytics {
+  totalMealsGenerated: number;
+  averageMatchPercentage: number;
+  mostUsedIngredients: string[];
+  preferredCuisines: string[];
+  regenerationRate: number;
+  userSatisfactionScore?: number;
+}
+
+// ✅ NEW: Recipe rating and feedback types
+export interface MealRating {
+  id?: string;
+  user_id: string;
+  meal_id: string;
+  rating: number; // 1-5 stars
+  feedback?: string;
+  difficulty_rating?: number;
+  taste_rating?: number;
+  time_rating?: number;
+  would_make_again?: boolean;
+  created_at?: string;
+}
+
+// ✅ NEW: Meal planning preferences
+export interface MealPlanPreferences {
+  id?: string;
+  user_id: string;
+  default_view_mode: 'daily' | 'weekly' | 'monthly';
+  auto_regenerate_enabled: boolean;
+  max_regeneration_attempts: number;
+  preferred_meal_complexity: 'simple' | 'moderate' | 'complex';
+  shopping_list_auto_add: boolean;
+  nutrition_tracking_enabled: boolean;
+  allergen_warnings_enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ✅ NEW: Weekly and monthly planning types
+export interface WeeklyMealPlan {
+  id: string;
+  user_id: string;
+  week_start_date: string;
+  days: {
+    [day: string]: MealPlan['daily'];
+  };
+  total_weekly_calories: number;
+  total_weekly_protein: number;
+  shopping_list_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonthlyMealPlan {
+  id: string;
+  user_id: string;
+  month: string; // YYYY-MM format
+  weeks: WeeklyMealPlan[];
+  monthly_goals: {
+    target_calories_per_day: number;
+    target_protein_per_day: number;
+    variety_score_target: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+// ✅ NEW: Recipe collection and favorites
+export interface RecipeCollection {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  recipe_ids: string[];
+  is_public: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FavoriteRecipe {
+  id: string;
+  user_id: string;
+  meal_id: string;
+  added_at: string;
+  notes?: string;
+  custom_modifications?: string[];
+}
+
+// ✅ Export all types for easy importing
+export type {
+  Ingredient,
+  Meal,
+  PantryItem,
+  PantryMetrics,
+  PantryComposition,
+  PantryInsight,
+  MealRegenerationRequest,
+  MealLoadingStates,
+  MealRegenerationHistory,
+  MealPlan,
+  UserProfile,
+  MatchResult,
+  ShoppingListItem,
+  NutritionEntry,
+  AIGenerationRequest,
+  AIGenerationResponse,
+  MealPlanError,
+  ErrorLogEntry,
+  MealPlanUIState,
+  PantryCache,
+  MealPlanAnalytics,
+  MealRating,
+  MealPlanPreferences,
+  WeeklyMealPlan,
+  MonthlyMealPlan,
+  RecipeCollection,
+  FavoriteRecipe
+};
