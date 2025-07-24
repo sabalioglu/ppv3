@@ -1,4 +1,5 @@
-//## 📄 **app/ai-meal-plan.tsx - Düzeltilmiş (source field kaldırıldı)**
+//app/ai-meal-plan.tsx
+// Enhanced AI Meal Plan with individual meal regeneration capabilities
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -20,6 +21,8 @@ import {
   ShoppingCart,
   ShieldCheck,
   Calendar,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
@@ -31,7 +34,9 @@ import type {
   MealPlan, 
   PantryMetrics, 
   UserProfile,
-  PantryInsight 
+  PantryInsight,
+  MealLoadingStates,
+  MealRegenerationRequest
 } from '@/lib/meal-plan/types';
 
 // Utility imports
@@ -42,7 +47,6 @@ import {
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 import { 
-  findBestMealMatch, 
   calculateOptimizationScore,
   calculatePantryMatch 
 } from '@/lib/meal-plan/meal-matching';
@@ -52,7 +56,14 @@ import {
   generateFallbackPlan,
   categorizeIngredient 
 } from '@/lib/meal-plan/utils';
-import { MEAL_DATABASE } from '@/lib/meal-plan/constants';
+
+// AI Generation imports
+import { 
+  generateAIMealPlan,
+  generateAIMeal,
+  generateAlternativeMeal 
+} from '@/lib/meal-plan/ai-generation';
+import { mealRegenerationManager } from '@/lib/meal-plan/meal-regeneration';
 
 // Error handling imports
 import { 
@@ -74,7 +85,16 @@ import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
 
 export default function AIMealPlan() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  
+  // ✅ Enhanced loading states for individual meals
+  const [loadingStates, setLoadingStates] = useState<MealLoadingStates>({
+    breakfast: false,
+    lunch: false,
+    dinner: false,
+    snacks: false,
+    initial: true,
+  });
+  
   const [refreshing, setRefreshing] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
@@ -94,20 +114,14 @@ export default function AIMealPlan() {
     categories: {},
   });
 
-  // Pantry cache for performance
-  const [pantryCache, setPantryCache] = useState<{
-    data: PantryItem[],
-    lastUpdated: Date,
-    metrics: PantryMetrics
+  // ✅ Regeneration tracking
+  const [regenerationAttempts, setRegenerationAttempts] = useState<{
+    [key: string]: number;
   }>({
-    data: [],
-    lastUpdated: new Date(),
-    metrics: {
-      totalItems: 0,
-      expiringItems: 0,
-      expiredItems: 0,
-      categories: {},
-    }
+    breakfast: 0,
+    lunch: 0,
+    dinner: 0,
+    snacks: 0,
   });
 
   useEffect(() => {
@@ -132,20 +146,9 @@ export default function AIMealPlan() {
     };
   }, []);
 
-  // Cache refresh timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Date.now() - pantryCache.lastUpdated.getTime() > 5 * 60 * 1000) {
-        loadAllData();
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [pantryCache.lastUpdated]);
-
   const loadAllData = async () => {
     try {
-      setLoading(true);
+      setLoadingStates(prev => ({ ...prev, initial: true }));
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new MealPlanError(ERROR_CODES.UNAUTHORIZED, 'User not authenticated');
@@ -169,17 +172,8 @@ export default function AIMealPlan() {
           throw profileError;
         }
 
-        // Validate profile data
-        if (profile) {
-          if (validateUserProfile(profile)) {
-            userProfileData = profile;
-          } else {
-            console.warn('Invalid profile data, using defaults');
-            await logError(
-              handleError(new Error('Invalid profile data'), 'validateProfile'),
-              user.id
-            );
-          }
+        if (profile && validateUserProfile(profile)) {
+          userProfileData = profile;
         }
         
         setUserProfile(userProfileData);
@@ -187,7 +181,6 @@ export default function AIMealPlan() {
         const error = handleError(profileError, 'loadUserProfile');
         console.error('Profile error:', error);
         await logError(error, user.id);
-        // Continue with default profile
         setUserProfile(userProfileData);
       }
 
@@ -203,7 +196,6 @@ export default function AIMealPlan() {
           throw pantryError;
         }
 
-        // Validate pantry items
         const validPantryItems = (pantry || []).filter(item => {
           if (!validatePantryItem(item)) {
             console.warn('Invalid pantry item:', item);
@@ -217,26 +209,17 @@ export default function AIMealPlan() {
         // Calculate metrics
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
-        
-        // Update cache
-        setPantryCache({
-          data: validPantryItems,
-          lastUpdated: new Date(),
-          metrics: metrics
-        });
 
         // Generate pantry insights
         const insights = generatePantryInsights(validPantryItems, metrics);
         setPantryInsights(insights);
 
-        // Generate meal plan
-        await generateMealPlan(validPantryItems, userProfileData);
+        // ✅ Generate AI meal plan instead of mock data
+        await generateInitialMealPlan(validPantryItems, userProfileData);
 
       } catch (pantryError) {
         const error = handleError(pantryError, 'loadPantryItems');
         await logError(error, user.id);
-        
-        // Show error with retry option
         showErrorAlert(error, loadAllData);
         
         // Use empty pantry as fallback
@@ -250,118 +233,213 @@ export default function AIMealPlan() {
         setMealPlan(generateFallbackPlan());
       }
 
-      setLoading(false);
+      setLoadingStates(prev => ({ ...prev, initial: false }));
       setRefreshing(false);
     } catch (error) {
       const appError = handleError(error, 'loadAllData');
       await logError(appError);
       showErrorAlert(appError, () => {
-        // Retry with navigation to login if unauthorized
         if (appError.code === ERROR_CODES.UNAUTHORIZED) {
           router.replace('/(auth)/login');
         } else {
           loadAllData();
         }
       });
-      setLoading(false);
+      setLoadingStates(prev => ({ ...prev, initial: false }));
       setRefreshing(false);
     }
   };
 
-  // Generate meal plan based on pantry
-  const generateMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
+  // ✅ Generate initial AI meal plan
+  const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
-      // Check if we have enough pantry items
       if (pantryItems.length < 3) {
-        throw new MealPlanError(
-          ERROR_CODES.INSUFFICIENT_PANTRY_ITEMS,
-          'Add more items to your pantry for better meal suggestions'
-        );
+        // Use fallback plan if insufficient pantry items
+        setMealPlan(generateFallbackPlan(pantryItems));
+        return;
       }
 
-      // Analyze pantry composition for smart suggestions
-      const pantryAnalysis = analyzePantryComposition(pantryItems);
+      // Generate AI meal plan
+      const aiMeals = await generateAIMealPlan(pantryItems, userProfile);
       
-      // Find best matches with enhanced logic
-      const breakfast = findBestMealMatch('breakfast', pantryItems, userProfile, pantryAnalysis);
-      const lunch = findBestMealMatch('lunch', pantryItems, userProfile, pantryAnalysis);
-      const dinner = findBestMealMatch('dinner', pantryItems, userProfile, pantryAnalysis);
-      
-      // Check if we found any matching meals
-      if (!breakfast && !lunch && !dinner) {
-        throw new MealPlanError(
-          ERROR_CODES.NO_MATCHING_MEALS,
-          'No meals match your current pantry items. Try adding more ingredients.'
-        );
-      }
-
-      // Select snacks based on availability
-      const snacks = MEAL_DATABASE.snacks
-        .map(snack => {
-          const match = calculatePantryMatch(snack.ingredients, pantryItems);
-          return {
-            ...snack,
-            matchPercentage: match.matchPercentage,
-            available: match.matchPercentage > 50
-          };
-        })
-        .filter(snack => snack.available)
-        .slice(0, 2);
-
       // Calculate totals
-      const totalCalories = 
-        (breakfast?.calories || 0) + 
-        (lunch?.calories || 0) + 
-        (dinner?.calories || 0) +
-        snacks.reduce((sum, snack) => sum + snack.calories, 0);
+      const totalCalories = (aiMeals.breakfast?.calories || 0) + 
+                           (aiMeals.lunch?.calories || 0) + 
+                           (aiMeals.dinner?.calories || 0) + 
+                           aiMeals.snacks.reduce((sum, snack) => sum + snack.calories, 0);
+      
+      const totalProtein = (aiMeals.breakfast?.protein || 0) + 
+                          (aiMeals.lunch?.protein || 0) + 
+                          (aiMeals.dinner?.protein || 0) + 
+                          aiMeals.snacks.reduce((sum, snack) => sum + snack.protein, 0);
 
-      const totalProtein = 
-        (breakfast?.protein || 0) + 
-        (lunch?.protein || 0) + 
-        (dinner?.protein || 0) +
-        snacks.reduce((sum, snack) => sum + snack.protein, 0);
+      // Calculate optimization score
+      const optimizationScore = calculateOptimizationScore(
+        aiMeals.breakfast, 
+        aiMeals.lunch, 
+        aiMeals.dinner, 
+        pantryItems
+      );
 
       const plan: MealPlan = {
         daily: {
-          breakfast: breakfast || generateFallbackMeal('breakfast'),
-          lunch: lunch || generateFallbackMeal('lunch'),
-          dinner: dinner || generateFallbackMeal('dinner'),
-          snacks: snacks.length > 0 ? snacks : generateFallbackSnacks(),
+          ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore: calculateOptimizationScore(breakfast, lunch, dinner, pantryItems)
+          optimizationScore,
+          generatedAt: new Date().toISOString(),
+          regenerationHistory: {}
         }
       };
 
       setMealPlan(plan);
     } catch (error) {
-      const appError = handleError(error, 'generateMealPlan');
-      console.error('Meal plan generation error:', appError);
-      
-      // Log error for analytics
-      if (userProfile?.id) {
-        await logError(appError, userProfile.id);
-      }
-      
-      // Always provide a fallback plan
-      setMealPlan(generateFallbackPlan());
-      
-      // Show error only if it's not an expected error
-      if (appError.code === ERROR_CODES.INSUFFICIENT_PANTRY_ITEMS ||
-          appError.code === ERROR_CODES.NO_MATCHING_MEALS) {
-        // Show a gentle notification instead of error alert
-        Alert.alert(
-          'Tip',
-          appError.message,
-          [
-            { text: 'Add Items', onPress: () => router.push('/(tabs)/pantry') },
-            { text: 'OK' }
-          ]
-        );
-      } else {
-        showErrorAlert(appError);
-      }
+      console.error('Failed to generate AI meal plan:', error);
+      // Fall back to basic plan
+      setMealPlan(generateFallbackPlan(pantryItems));
     }
+  };
+
+  // ✅ Regenerate individual meal
+  const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
+    if (!mealPlan || !userProfile) return;
+
+    try {
+      // Set loading state for this specific meal
+      setLoadingStates(prev => ({ ...prev, [mealType]: true }));
+
+      const currentMeal = mealPlan.daily[mealType as keyof typeof mealPlan.daily];
+      const previousMeal = Array.isArray(currentMeal) ? currentMeal[0] : currentMeal;
+
+      // Create regeneration request
+      const request: MealRegenerationRequest = {
+        mealType: mealType === 'snacks' ? 'snack' : mealType,
+        pantryItems,
+        userProfile,
+        previousMeal: previousMeal || undefined,
+      };
+
+      // Generate new meal using regeneration manager
+      const newMeal = await mealRegenerationManager.regenerateMeal(request);
+
+      // Update meal plan
+      setMealPlan(prevPlan => {
+        if (!prevPlan) return prevPlan;
+
+        const updatedDaily = { ...prevPlan.daily };
+        
+        if (mealType === 'snacks') {
+          updatedDaily.snacks = [newMeal];
+        } else {
+          updatedDaily[mealType] = newMeal;
+        }
+
+        // Recalculate totals
+        const totalCalories = (updatedDaily.breakfast?.calories || 0) + 
+                             (updatedDaily.lunch?.calories || 0) + 
+                             (updatedDaily.dinner?.calories || 0) + 
+                             updatedDaily.snacks.reduce((sum, snack) => sum + snack.calories, 0);
+        
+        const totalProtein = (updatedDaily.breakfast?.protein || 0) + 
+                            (updatedDaily.lunch?.protein || 0) + 
+                            (updatedDaily.dinner?.protein || 0) + 
+                            updatedDaily.snacks.reduce((sum, snack) => sum + snack.protein, 0);
+
+        updatedDaily.totalCalories = totalCalories;
+        updatedDaily.totalProtein = totalProtein;
+        updatedDaily.optimizationScore = calculateOptimizationScore(
+          updatedDaily.breakfast, 
+          updatedDaily.lunch, 
+          updatedDaily.dinner, 
+          pantryItems
+        );
+
+        return {
+          ...prevPlan,
+          daily: updatedDaily
+        };
+      });
+
+      // Update regeneration attempts
+      setRegenerationAttempts(prev => ({
+        ...prev,
+        [mealType]: prev[mealType] + 1
+      }));
+
+      // Show success message
+      Alert.alert(
+        'Meal Updated! ✨',
+        `Your ${mealType} has been regenerated with a new recipe.`,
+        [{ text: 'Great!' }]
+      );
+
+    } catch (error) {
+      console.error(`Failed to regenerate ${mealType}:`, error);
+      Alert.alert(
+        'Generation Failed',
+        'Sorry, we couldn\'t generate a new meal right now. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      // Clear loading state
+      setLoadingStates(prev => ({ ...prev, [mealType]: false }));
+    }
+  };
+
+  // ✅ Enhanced regenerate all meals
+  const regenerateAllMeals = async () => {
+    Alert.alert(
+      'Regenerate All Meals?',
+      'This will create completely new meal suggestions for today.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Regenerate All', 
+          style: 'default',
+          onPress: async () => {
+            setLoadingStates({
+              breakfast: true,
+              lunch: true,
+              dinner: true,
+              snacks: true,
+              initial: false,
+            });
+
+            try {
+              await generateInitialMealPlan(pantryItems, userProfile);
+              
+              // Reset regeneration attempts
+              setRegenerationAttempts({
+                breakfast: 0,
+                lunch: 0,
+                dinner: 0,
+                snacks: 0,
+              });
+
+              Alert.alert(
+                'All Meals Updated! 🎉',
+                'Your entire meal plan has been regenerated with fresh recipes.',
+                [{ text: 'Awesome!' }]
+              );
+            } catch (error) {
+              Alert.alert(
+                'Generation Failed',
+                'Sorry, we couldn\'t regenerate all meals. Please try again.',
+                [{ text: 'OK' }]
+              );
+            } finally {
+              setLoadingStates({
+                breakfast: false,
+                lunch: false,
+                dinner: false,
+                snacks: false,
+                initial: false,
+              });
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Enhanced shopping list integration
@@ -389,7 +467,6 @@ export default function AIMealPlan() {
         quantity: 1,
         unit: 'unit',
         is_completed: false,
-        // source field removed - not in schema
         priority: 'high',
         created_at: new Date().toISOString()
       }));
@@ -457,7 +534,6 @@ export default function AIMealPlan() {
         fiber: meal.fiber || 0,
         sugar: meal.sugar || 0,
         sodium: meal.sodium || 0,
-        // source field removed - not in schema
       };
 
       const { error } = await supabase
@@ -487,6 +563,17 @@ export default function AIMealPlan() {
         {/* Today's Summary Card */}
         <MealPlanSummary plan={plan} />
 
+        {/* ✅ Regenerate All Button */}
+        <TouchableOpacity 
+          style={styles.regenerateAllButton}
+          onPress={regenerateAllMeals}
+          disabled={loadingStates.initial || Object.values(loadingStates).some(Boolean)}
+        >
+          <Sparkles size={20} color={colors.accent[600]} />
+          <Text style={styles.regenerateAllText}>Regenerate All Meals</Text>
+          <RefreshCw size={16} color={colors.accent[600]} />
+        </TouchableOpacity>
+
         {/* Meals Section */}
         <View style={styles.mealsSection}>
           <Text style={styles.sectionTitle}>Today's Meals</Text>
@@ -498,6 +585,9 @@ export default function AIMealPlan() {
               mealType="Breakfast"
               onPress={handleMealPress}
               onAddToShopping={handleAddToShoppingList}
+              onRegenerate={regenerateMeal}
+              isRegenerating={loadingStates.breakfast}
+              regenerationAttempts={regenerationAttempts.breakfast}
             />
           )}
 
@@ -508,6 +598,9 @@ export default function AIMealPlan() {
               mealType="Lunch"
               onPress={handleMealPress}
               onAddToShopping={handleAddToShoppingList}
+              onRegenerate={regenerateMeal}
+              isRegenerating={loadingStates.lunch}
+              regenerationAttempts={regenerationAttempts.lunch}
             />
           )}
 
@@ -518,25 +611,53 @@ export default function AIMealPlan() {
               mealType="Dinner"
               onPress={handleMealPress}
               onAddToShopping={handleAddToShoppingList}
+              onRegenerate={regenerateMeal}
+              isRegenerating={loadingStates.dinner}
+              regenerationAttempts={regenerationAttempts.dinner}
             />
           )}
         </View>
 
         {/* Snacks Section */}
         <View style={styles.snacksSection}>
-          <Text style={styles.sectionTitle}>Snacks</Text>
+          <View style={styles.snacksHeader}>
+            <Text style={styles.sectionTitle}>Snacks</Text>
+            {/* ✅ Regenerate Snacks Button */}
+            <TouchableOpacity
+              style={styles.regenerateSnacksButton}
+              onPress={() => regenerateMeal('snacks')}
+              disabled={loadingStates.snacks}
+            >
+              {loadingStates.snacks ? (
+                <ActivityIndicator size="small" color={colors.primary[500]} />
+              ) : (
+                <RefreshCw size={16} color={colors.primary[600]} />
+              )}
+            </TouchableOpacity>
+          </View>
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.snacksContainer}>
             {plan.snacks.map((snack, index) => (
               <TouchableOpacity 
                 key={index} 
-                style={styles.snackCard}
+                style={[
+                  styles.snackCard,
+                  loadingStates.snacks && styles.snackCardLoading
+                ]}
                 onPress={() => handleMealPress(snack)}
+                disabled={loadingStates.snacks}
               >
                 <Text style={styles.snackEmoji}>{snack.emoji}</Text>
                 <Text style={styles.snackName}>{snack.name}</Text>
                 <Text style={styles.snackStats}>
                   {snack.calories} cal • {snack.protein}g protein
                 </Text>
+                {snack.source === 'ai_generated' && (
+                  <View style={styles.snackAiBadge}>
+                    <Sparkles size={10} color={colors.accent[600]} />
+                    <Text style={styles.snackAiText}>AI</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -545,11 +666,12 @@ export default function AIMealPlan() {
     );
   };
 
-  if (loading) {
+  if (loadingStates.initial) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
+        <Text style={styles.loadingSubtext}>Analyzing your pantry and preferences</Text>
       </View>
     );
   }
@@ -704,6 +826,13 @@ const styles = StyleSheet.create({
     color: colors.neutral[600],
     marginTop: spacing.lg,
     textAlign: 'center',
+    fontWeight: '600',
+  },
+  loadingSubtext: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[500],
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -829,6 +958,22 @@ const styles = StyleSheet.create({
   dailyContent: {
     paddingHorizontal: spacing.lg,
   },
+  regenerateAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent[50],
+    padding: spacing.lg,
+    borderRadius: 16,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+    ...shadows.sm,
+  },
+  regenerateAllText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.accent[700],
+  },
   mealsSection: {
     marginTop: spacing.xl,
   },
@@ -841,6 +986,20 @@ const styles = StyleSheet.create({
   snacksSection: {
     marginTop: spacing.xl,
   },
+  snacksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  regenerateSnacksButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   snacksContainer: {
     paddingLeft: 0,
   },
@@ -852,6 +1011,9 @@ const styles = StyleSheet.create({
     minWidth: 160,
     alignItems: 'center',
     ...shadows.sm,
+  },
+  snackCardLoading: {
+    opacity: 0.6,
   },
   snackEmoji: {
     fontSize: 24,
@@ -868,6 +1030,21 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.neutral[600],
     textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  snackAiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accent[50],
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  snackAiText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.accent[700],
+    fontWeight: '600',
   },
   quickActions: {
     marginTop: spacing.xl,
