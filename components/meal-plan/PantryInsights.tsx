@@ -2,6 +2,7 @@
 // Enhanced pantry insights with better UI and interactions
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { AlertCircle, Info, TrendingDown, Package } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { PantryInsight } from '@/lib/meal-plan/types';
 
@@ -11,6 +12,22 @@ interface PantryInsightsProps {
 }
 
 export default function PantryInsights({ insights, onInsightAction }: PantryInsightsProps) {
+  // ✅ Icon resolver function
+  const getIconComponent = (iconName?: string) => {
+    switch (iconName) {
+      case 'AlertCircle':
+        return AlertCircle;
+      case 'Info':
+        return Info;
+      case 'TrendingDown':
+        return TrendingDown;
+      case 'Package':
+        return Package;
+      default:
+        return Info;
+    }
+  };
+
   if (insights.length === 0) {
     return (
       <View style={styles.emptyState}>
@@ -68,7 +85,7 @@ export default function PantryInsights({ insights, onInsightAction }: PantryInsi
       <Text style={styles.sectionTitle}>Pantry Insights</Text>
       
       {insights.map((insight, index) => {
-        const IconComponent = insight.icon;
+        const IconComponent = getIconComponent(insight.icon); // ✅ String'den component'e çevir
         const priorityBadge = getPriorityBadge(insight.priority || 'low');
         
         return (
