@@ -1,7 +1,7 @@
 //lib/meal-plan/pantry-analysis.ts
-// Pantry related functions will go here
+// Enhanced pantry analysis with better insights generation
 import { PantryItem, PantryMetrics, PantryComposition, PantryInsight } from './types';
-import { AlertCircle, Info } from 'lucide-react-native';
+import { AlertCircle, Info, TrendingDown, Package } from 'lucide-react-native';
 
 export const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
   const today = new Date();
@@ -49,7 +49,28 @@ export const getExpiringItems = (items: PantryItem[], daysAhead: number = 3): Pa
     if (!item.expiry_date) return false;
     const expiryDate = new Date(item.expiry_date);
     return expiryDate >= today && expiryDate <= futureDate;
+  }).sort((a, b) => {
+    // Sort by expiry date (soonest first)
+    const dateA = new Date(a.expiry_date!);
+    const dateB = new Date(b.expiry_date!);
+    return dateA.getTime() - dateB.getTime();
   });
+};
+
+export const getExpiredItems = (items: PantryItem[]): PantryItem[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return items.filter(item => {
+    if (!item.expiry_date) return false;
+    const expiryDate = new Date(item.expiry_date);
+    expiryDate.setHours(0, 0, 0, 0);
+    return expiryDate < today;
+  });
+};
+
+export const getLowStockItems = (items: PantryItem[], threshold: number = 2): PantryItem[] => {
+  return items.filter(item => item.quantity <= threshold);
 };
 
 export const analyzePantryComposition = (pantryItems: PantryItem[]): PantryComposition => {
@@ -83,47 +104,117 @@ export const analyzePantryComposition = (pantryItems: PantryItem[]): PantryCompo
     });
   }
 
-  // Generate suggestions based on composition
-  if (composition.dominantCategories.includes('Vegetables')) {
-    composition.suggestions.push('Focus on vegetable-heavy meals');
-  }
-  if (composition.dominantCategories.includes('Protein')) {
-    composition.suggestions.push('Prioritize protein-rich dishes');
-  }
-  if (composition.deficientCategories.includes('Fruits')) {
-    composition.suggestions.push('Add fresh fruits to shopping list');
-  }
+  // Generate intelligent suggestions
+  const suggestions = generatePantrySuggestions(composition, pantryItems);
+  composition.suggestions = suggestions;
 
   return composition;
+};
+
+export const generatePantrySuggestions = (composition: PantryComposition, pantryItems: PantryItem[]): string[] => {
+  const suggestions: string[] = [];
+  
+  // Category-based suggestions
+  if (composition.dominantCategories.includes('Vegetables') && composition.expiringItems.length > 0) {
+    suggestions.push('Consider making vegetable-heavy meals to use expiring produce');
+  }
+  
+  if (composition.dominantCategories.includes('Protein')) {
+    suggestions.push('Great protein variety! Focus on protein-rich meal plans');
+  }
+  
+  if (composition.deficientCategories.includes('Fruits')) {
+    suggestions.push('Add fresh fruits for balanced nutrition and natural sweetness');
+  }
+  
+  if (composition.deficientCategories.includes('Vegetables')) {
+    suggestions.push('Stock up on vegetables for healthier meal options');
+  }
+  
+  // Expiry-based suggestions
+  if (composition.expiringItems.length > 3) {
+    suggestions.push('Prioritize meals using expiring ingredients to reduce waste');
+  }
+  
+  // Quantity-based suggestions
+  const lowStockItems = getLowStockItems(pantryItems);
+  if (lowStockItems.length > 5) {
+    suggestions.push('Several items are running low - consider restocking essentials');
+  }
+  
+  return suggestions;
 };
 
 export const generatePantryInsights = (pantryItems: PantryItem[], metrics: PantryMetrics): PantryInsight[] => {
   const insights: PantryInsight[] = [];
   
-  // Expiring items warning
-  if (metrics.expiringItems > 0) {
-    const expiringItems = getExpiringItems(pantryItems);
+  // Critical: Expired items
+  if (metrics.expiredItems > 0) {
+    const expiredItems = getExpiredItems(pantryItems);
     insights.push({
-      type: 'warning',
+      type: 'error',
       icon: AlertCircle,
-      title: 'Items Expiring Soon',
-      message: `${metrics.expiringItems} items expiring in the next 3 days`,
-      items: expiringItems.map(item => item.name).slice(0, 3),
-      action: 'Use these items first in your meals',
-      priority: 'high',
+      title: 'Expired Items Found',
+      message: `${metrics.expiredItems} items have expired and should be removed`,
+      items: expiredItems.map(item => item.name).slice(0, 3),
+      action: 'Clean pantry now',
+      priority: 'urgent',
       actionable: true
     });
   }
   
-  // Category balance check
+  // High Priority: Expiring items
+  if (metrics.expiringItems > 0) {
+    const expiringItems = getExpiringItems(pantryItems);
+    const urgentItems = expiringItems.filter(item => {
+      const daysUntilExpiry = Math.ceil(
+        (new Date(item.expiry_date!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return daysUntilExpiry <= 1;
+    });
+    
+    insights.push({
+      type: 'warning',
+      icon: AlertCircle,
+      title: urgentItems.length > 0 ? 'Items Expiring Today!' : 'Items Expiring Soon',
+      message: `${metrics.expiringItems} items expiring in the next 3 days`,
+      items: expiringItems.map(item => {
+        const daysUntilExpiry = Math.ceil(
+          (new Date(item.expiry_date!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return `${item.name} (${daysUntilExpiry}d)`;
+      }).slice(0, 3),
+      action: 'Use in next meals',
+      priority: urgentItems.length > 0 ? 'urgent' : 'high',
+      actionable: true
+    });
+  }
+  
+  // Medium Priority: Low stock items
+  const lowStockItems = getLowStockItems(pantryItems);
+  if (lowStockItems.length > 0) {
+    insights.push({
+      type: 'low_stock',
+      icon: TrendingDown,
+      title: 'Low Stock Alert',
+      message: `${lowStockItems.length} items are running low`,
+      items: lowStockItems.map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`).slice(0, 3),
+      action: 'Add to shopping list',
+      priority: 'medium',
+      actionable: true
+    });
+  }
+  
+  // Category balance insights
   const categories = Object.keys(metrics.categories);
+  
   if (!categories.includes('Protein') || (metrics.categories['Protein'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
-      icon: Info,
-      title: 'Low on Protein',
-      message: 'Consider adding more protein sources to your pantry',
-      action: 'Add to shopping list',
+      icon: Package,
+      title: 'Low on Protein Sources',
+      message: 'Consider adding more protein variety to your pantry',
+      action: 'Shop for proteins',
       priority: 'medium',
       actionable: true
     });
@@ -132,7 +223,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Vegetables') || (metrics.categories['Vegetables'] || 0) < 5) {
     insights.push({
       type: 'suggestion',
-      icon: Info,
+      icon: Package,
       title: 'Need More Vegetables',
       message: 'A variety of vegetables ensures balanced nutrition',
       action: 'Shop for vegetables',
@@ -141,41 +232,59 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
     });
   }
 
-  // Expired items alert
-  if (metrics.expiredItems > 0) {
-    const expiredItems = pantryItems.filter(item => {
-      if (!item.expiry_date) return false;
-      const expiryDate = new Date(item.expiry_date);
-      const today = new Date();
-      return expiryDate < today;
-    });
-
+  if (!categories.includes('Fruits') || (metrics.categories['Fruits'] || 0) < 3) {
     insights.push({
-      type: 'error',
-      icon: AlertCircle,
-      title: 'Expired Items Found',
-      message: `${metrics.expiredItems} items have expired and should be removed`,
-      items: expiredItems.map(item => item.name).slice(0, 3),
-      action: 'Clean pantry',
-      priority: 'urgent',
+      type: 'suggestion',
+      icon: Info,
+      title: 'Add Fresh Fruits',
+      message: 'Fruits provide essential vitamins and natural sweetness',
+      action: 'Shop for fruits',
+      priority: 'low',
       actionable: true
     });
   }
 
-  // Low stock items
-  const lowStockItems = pantryItems.filter(item => item.quantity < 2);
-  if (lowStockItems.length > 0) {
+  // Positive insights
+  if (metrics.totalItems > 20 && metrics.expiringItems === 0 && metrics.expiredItems === 0) {
     insights.push({
-      type: 'low_stock',
-      icon: Info,
-      title: 'Low Stock Alert',
-      message: `${lowStockItems.length} items are running low`,
-      items: lowStockItems.map(item => item.name).slice(0, 3),
-      action: 'Add to shopping list',
-      priority: 'medium',
-      actionable: true
+      type: 'suggestion',
+      icon: Package,
+      title: 'Well-Stocked Pantry!',
+      message: 'Your pantry is well-organized with no expiring items',
+      priority: 'low',
+      actionable: false
     });
   }
   
-  return insights;
+  // Sort insights by priority
+  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+  return insights.sort((a, b) => {
+    const aPriority = priorityOrder[a.priority || 'low'];
+    const bPriority = priorityOrder[b.priority || 'low'];
+    return aPriority - bPriority;
+  });
+};
+
+export const calculatePantryValue = (items: PantryItem[]): number => {
+  return items.reduce((total, item) => {
+    return total + ((item.cost || 0) * item.quantity);
+  }, 0);
+};
+
+export const getPantryHealthScore = (items: PantryItem[]): number => {
+  const metrics = calculatePantryMetrics(items);
+  let score = 100;
+  
+  // Deduct points for expired items
+  score -= metrics.expiredItems * 10;
+  
+  // Deduct points for expiring items
+  score -= metrics.expiringItems * 5;
+  
+  // Bonus for category diversity
+  const categoryCount = Object.keys(metrics.categories).length;
+  if (categoryCount >= 5) score += 10;
+  
+  // Ensure score is between 0 and 100
+  return Math.max(0, Math.min(100, score));
 };
