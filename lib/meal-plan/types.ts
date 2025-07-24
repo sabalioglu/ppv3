@@ -1,5 +1,5 @@
 //lib/meal-plan/types.ts
-// All TypeScript interfaces will go here
+// Enhanced TypeScript interfaces with better database compatibility
 export interface Ingredient {
   name: string;
   amount: number;
@@ -23,6 +23,7 @@ export interface Meal {
   emoji: string;
   category: string;
   tags: string[];
+  instructions?: string[];
   // Additional fields for matching
   pantryMatch?: number;
   totalIngredients?: number;
@@ -30,19 +31,25 @@ export interface Meal {
   matchPercentage?: number;
   allergenSafe?: boolean;
   available?: boolean;
+  score?: number;
+  // Recipe source info
+  source?: 'database' | 'ai_generated' | 'user_created';
+  sourceId?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PantryItem {
-  id: string;              // UUID (string)
+  id: string;              
   user_id: string;
   name: string;
   brand?: string;          
   category?: string;
   subcategory?: string;    
-  quantity: number;        // NUMERIC -> number
+  quantity: number;        
   unit?: string;
   barcode?: string;        
-  expiry_date?: string;    // Changed from expiration_date
+  expiry_date?: string;    
   purchase_date?: string;  
   location?: string;       
   cost?: number;           
@@ -54,7 +61,7 @@ export interface PantryItem {
   sugar_per_100g?: number;     
   sodium_per_100g?: number;    
   image_url?: string;          
-  nutrition_data?: any;        // JSONB
+  nutrition_data?: any;        
   ai_confidence?: number;      
   is_opened?: boolean;         
   created_at: string;          
@@ -66,6 +73,8 @@ export interface PantryMetrics {
   expiringItems: number;
   expiredItems: number;
   categories: Record<string, number>;
+  totalValue?: number;
+  healthScore?: number;
 }
 
 export interface PantryComposition {
@@ -75,6 +84,7 @@ export interface PantryComposition {
   dominantCategories: string[];
   deficientCategories: string[];
   suggestions: string[];
+  healthScore?: number;
 }
 
 export interface PantryInsight {
@@ -86,6 +96,7 @@ export interface PantryInsight {
   action?: string;
   priority?: 'urgent' | 'high' | 'medium' | 'low';
   actionable?: boolean;
+  timestamp?: string;
 }
 
 export interface MealPlan {
@@ -96,17 +107,32 @@ export interface MealPlan {
     snacks: Meal[];
     totalCalories: number;
     totalProtein: number;
+    totalCarbs?: number;
+    totalFat?: number;
+    totalFiber?: number;
     optimizationScore: number;
+    generatedAt?: string;
+    pantryMatchScore?: number;
+  };
+  weekly?: {
+    [key: string]: MealPlan['daily'];
   };
 }
 
 export interface UserProfile {
   id: string;
-  dietary_restrictions: string[];
-  dietary_preferences: string[];
+  dietary_restrictions?: string[];
+  dietary_preferences?: string[];
+  preferences?: string[];
   allergies?: string[];
   calorie_target?: number;
   protein_target?: number;
+  carb_target?: number;
+  fat_target?: number;
+  activity_level?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  weight_goal?: 'lose' | 'maintain' | 'gain';
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface MatchResult {
@@ -120,4 +146,53 @@ export interface MatchResult {
     missing: any[];
     partial: any[];
   };
+  confidence?: number;
+}
+
+export interface ShoppingListItem {
+  id?: string;
+  user_id?: string;
+  name: string;
+  category?: string;
+  quantity?: number;
+  unit?: string;
+  priority?: 'low' | 'medium' | 'high';
+  is_purchased?: boolean;
+  added_from?: 'meal_plan' | 'manual' | 'pantry_insight';
+  source_meal_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface NutritionEntry {
+  id?: string;
+  user_id?: string;
+  meal_id?: string;
+  meal_name: string;
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  date: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AIGenerationRequest {
+  pantryItems: PantryItem[];
+  userProfile?: UserProfile;
+  mealType: string;
+  preferences?: string[];
+  restrictions?: string[];
+  targetCalories?: number;
+  targetProtein?: number;
+}
+
+export interface AIGenerationResponse {
+  meal: Meal;
+  confidence: number;
+  reasoning: string;
+  alternatives?: Meal[];
 }
