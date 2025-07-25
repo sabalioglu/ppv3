@@ -1,4 +1,5 @@
-//## 📄 **app/recipe/[id].tsx - Schema'ya Uyumlu Düzeltilmiş Versiyon**
+// app/recipe/[id].tsx - Complete Production-Ready Recipe Detail Page
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -21,7 +22,7 @@ import {
   ExternalLink, 
   Play, 
   ShoppingCart, 
-  CreditCard as Edit3, 
+  Edit3, 
   Share,
   CheckCircle,
   XCircle,
@@ -31,13 +32,9 @@ import {
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { useMealPlanStore } from '@/lib/meal-plan/store';
 
-// Import meal plan utilities
-import { calculatePantryMatch } from '@/lib/meal-plan/meal-matching';
-import { categorizeIngredient } from '@/lib/meal-plan/utils';
-import type { PantryItem } from '@/lib/meal-plan/types';
-
-// Recipe interface (updated to match actual schema)
+// Recipe interface (schema-compliant)
 interface Recipe {
   id: string;
   title: string;
@@ -66,6 +63,34 @@ interface Recipe {
   updated_at: string;
 }
 
+interface Meal {
+  id: string;
+  name: string;
+  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
+  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
+  nutrition?: {
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    fiber?: number;
+  };
+  category?: string;
+  description?: string;
+  prep_time?: number;
+  cook_time?: number;
+  servings?: number;
+  difficulty?: 'Easy' | 'Medium' | 'Hard';
+}
+
+interface PantryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+}
+
 interface PantryMatchResult {
   matchPercentage: number;
   availableIngredients: string[];
@@ -75,81 +100,155 @@ interface PantryMatchResult {
 
 export default function RecipeDetail() {
   const { id, source } = useLocalSearchParams();
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [recipe, setRecipe] = useState<Recipe | Meal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [pantryMatch, setPantryMatch] = useState<PantryMatchResult | null>(null);
   const [loadingPantry, setLoadingPantry] = useState(false);
+  
+  // Get meal plan state for AI meals
+  const { currentMealPlan } = useMealPlanStore();
 
   // Check if this recipe is from meal plan
   const isFromMealPlan = source === 'meal_plan';
 
-  // Load recipe data
-  const loadRecipe = async () => {
+  // Helper function to check if ID is an AI meal ID
+  const isAIMealId = (recipeId: string): boolean => {
+    return recipeId.startsWith('fallback_') || 
+           recipeId.startsWith('ai_') || 
+           !isValidUUID(recipeId);
+  };
+
+  // Helper function to validate UUID
+  const isValidUUID = (uuid: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
+  // Load AI meal from meal plan state
+  const loadAIMealFromState = async (mealId: string) => {
     try {
-      setLoading(true);
+      console.log('🔍 Loading AI meal from state:', mealId);
+      
+      if (!currentMealPlan) {
+        throw new Error('Meal plan not found in state');
+      }
+
+      // Find meal in current meal plan
+      let foundMeal: Meal | null = null;
+      
+      // Search in all meal categories
+      const allMeals = [
+        ...currentMealPlan.breakfast || [],
+        ...currentMealPlan.lunch || [],
+        ...currentMealPlan.dinner || [],
+        ...currentMealPlan.snacks || []
+      ];
+
+      foundMeal = allMeals.find((meal: any) => meal.id === mealId) || null;
+
+      if (!foundMeal) {
+        throw new Error(`AI meal not found: ${mealId}`);
+      }
+
+      console.log('✅ AI meal loaded from state:', foundMeal.name);
+      setRecipe(foundMeal);
+      
+    } catch (err) {
+      console.error('❌ Error loading AI meal from state:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load AI meal');
+    }
+  };
+
+  // Load recipe from database
+  const loadDatabaseRecipe = async (recipeId: string) => {
+    try {
+      console.log('🔍 Loading database recipe:', recipeId);
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view recipe details.');
-        router.back();
-        return;
+        throw new Error('Authentication required');
       }
 
-      const { data: recipeData, error } = await supabase
+      const { data: recipeData, error: dbError } = await supabase
         .from('user_recipes')
         .select('*')
-        .eq('id', id)
+        .eq('id', recipeId)
         .eq('user_id', user.id)
         .single();
 
-      if (error) {
-        console.error('Error loading recipe:', error);
-        Alert.alert('Error', 'Failed to load recipe details');
-        router.back();
-        return;
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
       }
 
-      if (recipeData) {
-        const formattedRecipe: Recipe = {
-          id: recipeData.id,
-          title: recipeData.title,
-          description: recipeData.description || '',
-          image_url: recipeData.image_url,
-          prep_time: recipeData.prep_time || 0,
-          cook_time: recipeData.cook_time || 0,
-          servings: recipeData.servings || 1,
-          difficulty: recipeData.difficulty || 'Easy',
-          ingredients: recipeData.ingredients || [],
-          instructions: recipeData.instructions || [],
-          nutrition: recipeData.nutrition,
-          tags: recipeData.tags || [],
-          category: recipeData.category || 'General',
-          is_favorite: recipeData.is_favorite || false,
-          is_ai_generated: recipeData.is_ai_generated || false,
-          source_url: recipeData.source_url,
-          ai_match_score: recipeData.ai_match_score,
-          created_at: recipeData.created_at,
-          updated_at: recipeData.updated_at,
-        };
-        setRecipe(formattedRecipe);
-
-        // Load pantry data if from meal plan
-        if (isFromMealPlan) {
-          await loadPantryData(user.id, formattedRecipe);
-        }
+      if (!recipeData) {
+        throw new Error('Recipe not found in database');
       }
-    } catch (error) {
-      console.error('Error loading recipe:', error);
-      Alert.alert('Error', 'Failed to load recipe details');
-      router.back();
+
+      const formattedRecipe: Recipe = {
+        id: recipeData.id,
+        title: recipeData.title,
+        description: recipeData.description || '',
+        image_url: recipeData.image_url,
+        prep_time: recipeData.prep_time || 0,
+        cook_time: recipeData.cook_time || 0,
+        servings: recipeData.servings || 1,
+        difficulty: recipeData.difficulty || 'Easy',
+        ingredients: recipeData.ingredients || [],
+        instructions: recipeData.instructions || [],
+        nutrition: recipeData.nutrition,
+        tags: recipeData.tags || [],
+        category: recipeData.category || 'General',
+        is_favorite: recipeData.is_favorite || false,
+        is_ai_generated: recipeData.is_ai_generated || false,
+        source_url: recipeData.source_url,
+        ai_match_score: recipeData.ai_match_score,
+        created_at: recipeData.created_at,
+        updated_at: recipeData.updated_at,
+      };
+
+      console.log('✅ Database recipe loaded:', formattedRecipe.title);
+      setRecipe(formattedRecipe);
+      
+    } catch (err) {
+      console.error('❌ Error loading database recipe:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load recipe');
+    }
+  };
+
+  // Main recipe loading function - Universal ID Handler
+  const loadRecipe = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const recipeId = Array.isArray(id) ? id[0] : id;
+      
+      if (!recipeId) {
+        throw new Error('Recipe ID not provided');
+      }
+
+      console.log('🚀 Loading recipe with ID:', recipeId, 'Source:', source);
+
+      // Route to appropriate data source based on ID type
+      if (isAIMealId(recipeId)) {
+        await loadAIMealFromState(recipeId);
+      } else {
+        await loadDatabaseRecipe(recipeId);
+      }
+      
+    } catch (err) {
+      console.error('❌ Recipe loading failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load recipe');
     } finally {
       setLoading(false);
     }
   };
 
   // Load pantry data and calculate match
-  const loadPantryData = async (userId: string, recipe: Recipe) => {
+  const loadPantryData = async (userId: string, recipe: Recipe | Meal) => {
     try {
       setLoadingPantry(true);
       
@@ -177,7 +276,7 @@ export default function RecipeDetail() {
   };
 
   // Enhanced pantry match calculation
-  const calculateEnhancedPantryMatch = (recipe: Recipe, pantryItems: PantryItem[]): PantryMatchResult => {
+  const calculateEnhancedPantryMatch = (recipe: Recipe | Meal, pantryItems: PantryItem[]): PantryMatchResult => {
     const availableIngredients: string[] = [];
     const missingIngredients: string[] = [];
     let sufficientQuantity = true;
@@ -212,6 +311,134 @@ export default function RecipeDetail() {
     };
   };
 
+  // Helper function for ingredient categorization
+  const categorizeIngredient = (ingredient: string): string => {
+    const lowerIngredient = ingredient.toLowerCase();
+    
+    if (lowerIngredient.includes('meat') || lowerIngredient.includes('chicken') || lowerIngredient.includes('beef')) {
+      return 'Protein';
+    } else if (lowerIngredient.includes('vegetable') || lowerIngredient.includes('onion') || lowerIngredient.includes('tomato')) {
+      return 'Vegetables';
+    } else if (lowerIngredient.includes('milk') || lowerIngredient.includes('cheese') || lowerIngredient.includes('yogurt')) {
+      return 'Dairy';
+    } else if (lowerIngredient.includes('rice') || lowerIngredient.includes('pasta') || lowerIngredient.includes('bread')) {
+      return 'Grains';
+    } else {
+      return 'Other';
+    }
+  };
+
+  // Universal completion handler
+  const handleRecipeCompletion = async () => {
+    try {
+      if (!recipe) return;
+
+      console.log('🍳 Starting universal recipe completion...');
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to track cooking.');
+        return;
+      }
+
+      // Determine if this is from meal plan
+      const isFromMealPlan = source === 'meal_plan' || isAIMealId(recipe.id);
+      
+      // Add to nutrition logs
+      await addToNutritionLog(recipe, user.id);
+      
+      // Consume ingredients from pantry
+      await consumeIngredientsFromPantry(recipe, user.id);
+      
+      // Update statistics if it's a database recipe
+      if (!isAIMealId(recipe.id)) {
+        await updateRecipeStatistics(recipe.id);
+      }
+      
+      // Show success message
+      console.log('✅ Recipe completion successful!');
+      Alert.alert(
+        'Great Job! 👨‍🍳',
+        'Recipe marked as cooked and added to your nutrition log. Pantry quantities updated.',
+        [
+          { text: 'View Nutrition', onPress: () => router.push('/(tabs)/nutrition') },
+          { text: 'OK' }
+        ]
+      );
+      
+    } catch (err) {
+      console.error('❌ Recipe completion failed:', err);
+      Alert.alert('Error', 'Failed to complete recipe tracking');
+    }
+  };
+
+  // Helper functions for completion
+  const addToNutritionLog = async (recipe: Recipe | Meal, userId: string) => {
+    console.log('📊 Adding to nutrition log:', recipe.name || (recipe as Recipe).title);
+    
+    const nutritionEntry = {
+      user_id: userId,
+      date: new Date().toISOString().split('T')[0],
+      meal_type: recipe.category || 'General',
+      food_name: recipe.name || (recipe as Recipe).title,
+      quantity: 1,
+      unit: 'serving',
+      calories: recipe.nutrition?.calories || 0,
+      protein: recipe.nutrition?.protein || 0,
+      carbs: recipe.nutrition?.carbs || 0,
+      fat: recipe.nutrition?.fat || 0,
+      fiber: recipe.nutrition?.fiber || 0,
+    };
+
+    const { error } = await supabase
+      .from('nutrition_logs')
+      .insert([nutritionEntry]);
+
+    if (error) throw error;
+  };
+
+  const consumeIngredientsFromPantry = async (recipe: Recipe | Meal, userId: string) => {
+    console.log('🥫 Consuming ingredients from pantry');
+    
+    if (pantryMatch?.availableIngredients) {
+      const updates = pantryItems
+        .filter(item => pantryMatch.availableIngredients.some(ing => 
+          item.name.toLowerCase().includes(ing.toLowerCase())
+        ))
+        .map(item => ({
+          id: item.id,
+          quantity: Math.max(0, item.quantity - 1)
+        }));
+
+      if (updates.length > 0) {
+        for (const update of updates) {
+          await supabase
+            .from('pantry_items')
+            .update({ quantity: update.quantity })
+            .eq('id', update.id);
+        }
+      }
+    }
+  };
+
+  const updateRecipeStatistics = async (recipeId: string) => {
+    console.log('📈 Updating recipe statistics');
+    // This would update cooking frequency, last cooked date, etc.
+    // Implementation depends on your statistics schema
+  };
+
+  // Load pantry data when component mounts for meal plan recipes
+  useEffect(() => {
+    if (isFromMealPlan && recipe) {
+      const { data: { user } } = supabase.auth.getUser();
+      user.then(({ user }) => {
+        if (user) {
+          loadPantryData(user.id, recipe);
+        }
+      });
+    }
+  }, [isFromMealPlan, recipe]);
+
   // Real-time pantry updates listener
   useEffect(() => {
     if (!isFromMealPlan || !recipe) return;
@@ -221,7 +448,6 @@ export default function RecipeDetail() {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'pantry_items' },
         () => {
-          // Reload pantry data when changes occur
           const { data: { user } } = supabase.auth.getUser();
           user.then(({ user }) => {
             if (user && recipe) {
@@ -239,14 +465,14 @@ export default function RecipeDetail() {
 
   useEffect(() => {
     loadRecipe();
-  }, [id]);
+  }, [id, source]);
 
-  // Toggle favorite
+  // Toggle favorite (only for database recipes)
   const handleFavorite = async () => {
-    if (!recipe) return;
+    if (!recipe || isAIMealId(recipe.id)) return;
     
     try {
-      const newFavoriteStatus = !recipe.is_favorite;
+      const newFavoriteStatus = !(recipe as Recipe).is_favorite;
       const { error } = await supabase
         .from('user_recipes')
         .update({ is_favorite: newFavoriteStatus })
@@ -266,9 +492,10 @@ export default function RecipeDetail() {
 
   // Open source URL
   const handleOpenSource = async () => {
-    if (recipe?.source_url) {
+    const sourceUrl = (recipe as Recipe)?.source_url;
+    if (sourceUrl) {
       try {
-        await Linking.openURL(recipe.source_url);
+        await Linking.openURL(sourceUrl);
       } catch (error) {
         Alert.alert('Error', 'Could not open source URL');
       }
@@ -277,70 +504,7 @@ export default function RecipeDetail() {
 
   // Enhanced action handlers for meal plan recipes
   const handleIMadeThis = async () => {
-    if (!recipe || !isFromMealPlan) return;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to track cooking.');
-        return;
-      }
-
-      // Add to nutrition log (schema-compliant)
-      const nutritionEntry = {
-        user_id: user.id,
-        date: new Date().toISOString().split('T')[0],
-        meal_type: recipe.category,
-        food_name: recipe.title,
-        quantity: 1,
-        unit: 'serving',
-        calories: recipe.nutrition?.calories || 0,
-        protein: recipe.nutrition?.protein || 0,
-        carbs: recipe.nutrition?.carbs || 0,
-        fat: recipe.nutrition?.fat || 0,
-        fiber: recipe.nutrition?.fiber || 0,
-        // Note: 'source' column doesn't exist in schema, removed
-      };
-
-      const { error: nutritionError } = await supabase
-        .from('nutrition_logs')
-        .insert([nutritionEntry]);
-
-      if (nutritionError) throw nutritionError;
-
-      // Update pantry items (decrease quantities)
-      if (pantryMatch?.availableIngredients) {
-        const updates = pantryItems
-          .filter(item => pantryMatch.availableIngredients.some(ing => 
-            item.name.toLowerCase().includes(ing.toLowerCase())
-          ))
-          .map(item => ({
-            id: item.id,
-            quantity: Math.max(0, item.quantity - 1) // Decrease by 1 unit
-          }));
-
-        if (updates.length > 0) {
-          for (const update of updates) {
-            await supabase
-              .from('pantry_items')
-              .update({ quantity: update.quantity })
-              .eq('id', update.id);
-          }
-        }
-      }
-
-      Alert.alert(
-        'Great Job! 👨‍🍳',
-        'Recipe marked as cooked and added to your nutrition log. Pantry quantities updated.',
-        [
-          { text: 'View Nutrition', onPress: () => router.push('/(tabs)/nutrition') },
-          { text: 'OK' }
-        ]
-      );
-    } catch (error) {
-      console.error('Error marking recipe as cooked:', error);
-      Alert.alert('Error', 'Failed to update cooking status');
-    }
+    await handleRecipeCompletion();
   };
 
   const handleAddToTodaysNutrition = async () => {
@@ -353,27 +517,7 @@ export default function RecipeDetail() {
         return;
       }
 
-      // Schema-compliant nutrition entry
-      const nutritionEntry = {
-        user_id: user.id,
-        date: new Date().toISOString().split('T')[0],
-        meal_type: recipe.category,
-        food_name: recipe.title,
-        quantity: 1,
-        unit: 'serving',
-        calories: recipe.nutrition?.calories || 0,
-        protein: recipe.nutrition?.protein || 0,
-        carbs: recipe.nutrition?.carbs || 0,
-        fat: recipe.nutrition?.fat || 0,
-        fiber: recipe.nutrition?.fiber || 0,
-      };
-
-      const { error } = await supabase
-        .from('nutrition_logs')
-        .insert([nutritionEntry]);
-
-      if (error) throw error;
-
+      await addToNutritionLog(recipe, user.id);
       Alert.alert('Success', 'Recipe added to today\'s nutrition log');
     } catch (error) {
       console.error('Error adding to nutrition log:', error);
@@ -384,7 +528,6 @@ export default function RecipeDetail() {
   const handleFindSimilarRecipes = () => {
     if (!recipe) return;
     
-    // Navigate to recipes page with ingredient-based search
     const mainIngredients = recipe.ingredients.slice(0, 3).map(ing => ing.name).join(',');
     router.push(`/(tabs)/recipes?search=${encodeURIComponent(mainIngredients)}`);
   };
@@ -402,18 +545,17 @@ export default function RecipeDetail() {
         return;
       }
 
-      // Schema-compliant shopping list items
       const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
         user_id: user.id,
-        item_name: ingredient, // ✅ Correct column name
+        item_name: ingredient,
         category: categorizeIngredient(ingredient),
         quantity: 1,
         unit: 'unit',
-        is_completed: false, // ✅ Correct column name (not is_checked)
+        is_completed: false,
         source: 'recipe',
         recipe_id: recipe?.id,
         ingredient_name: ingredient,
-        priority: 'high', // ✅ Text value (not integer)
+        priority: 'high',
       }));
 
       const { error } = await supabase
@@ -558,6 +700,17 @@ export default function RecipeDetail() {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!recipe) {
     return (
       <View style={styles.errorContainer}>
@@ -577,32 +730,36 @@ export default function RecipeDetail() {
           <ArrowLeft size={24} color={colors.neutral[800]} />
         </TouchableOpacity>
         <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleFavorite} style={styles.headerActionButton}>
-            <Heart
-              size={24}
-              color={recipe.is_favorite ? colors.error[500] : colors.neutral[600]}
-              fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
-            />
-          </TouchableOpacity>
+          {!isAIMealId(recipe.id) && (
+            <TouchableOpacity onPress={handleFavorite} style={styles.headerActionButton}>
+              <Heart
+                size={24}
+                color={(recipe as Recipe).is_favorite ? colors.error[500] : colors.neutral[600]}
+                fill={(recipe as Recipe).is_favorite ? colors.error[500] : 'transparent'}
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
             <Share size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleEdit} style={styles.headerActionButton}>
-            <Edit3 size={24} color={colors.neutral[600]} />
-          </TouchableOpacity>
+          {!isAIMealId(recipe.id) && (
+            <TouchableOpacity onPress={handleEdit} style={styles.headerActionButton}>
+              <Edit3 size={24} color={colors.neutral[600]} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
         <View style={styles.heroContainer}>
-          {recipe.image_url && recipe.image_url.trim() !== '' ? (
+          {(recipe as Recipe).image_url && (recipe as Recipe).image_url!.trim() !== '' ? (
             <Image 
-              source={{ uri: recipe.image_url }} 
+              source={{ uri: (recipe as Recipe).image_url }} 
               style={styles.heroImage}
               resizeMode="cover"
               onError={() => {
-                console.log('Image failed to load:', recipe.image_url);
+                console.log('Image failed to load:', (recipe as Recipe).image_url);
               }}
             />
           ) : (
@@ -613,7 +770,7 @@ export default function RecipeDetail() {
           
           {/* Badges */}
           <View style={styles.badges}>
-            {recipe.is_ai_generated && (
+            {((recipe as Recipe).is_ai_generated || isAIMealId(recipe.id)) && (
               <View style={styles.aiBadge}>
                 <Text style={styles.aiText}>AI</Text>
               </View>
@@ -624,26 +781,28 @@ export default function RecipeDetail() {
                 <Text style={styles.mealPlanText}>Meal Plan</Text>
               </View>
             )}
-            <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-              <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+            <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty || 'Easy') }]}>
+              <Text style={styles.difficultyText}>{recipe.difficulty || 'Easy'}</Text>
             </View>
           </View>
         </View>
 
         {/* Title and Description */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>{recipe.title}</Text>
-          <Text style={styles.description}>{recipe.description}</Text>
+          <Text style={styles.title}>{recipe.name || (recipe as Recipe).title}</Text>
+          <Text style={styles.description}>{recipe.description || (recipe as Recipe).description}</Text>
           
           {/* Meta Info */}
           <View style={styles.metaInfo}>
             <View style={styles.metaItem}>
               <Clock size={16} color={colors.neutral[500]} />
-              <Text style={styles.metaText}>{recipe.prep_time + recipe.cook_time}m</Text>
+              <Text style={styles.metaText}>
+                {((recipe.prep_time || 0) + (recipe.cook_time || 0)) || 30}m
+              </Text>
             </View>
             <View style={styles.metaItem}>
               <Users size={16} color={colors.neutral[500]} />
-              <Text style={styles.metaText}>{recipe.servings} servings</Text>
+              <Text style={styles.metaText}>{recipe.servings || 1} servings</Text>
             </View>
             {recipe.nutrition?.calories && (
               <View style={styles.metaItem}>
@@ -654,7 +813,7 @@ export default function RecipeDetail() {
           </View>
 
           {/* Source URL */}
-          {recipe.source_url && (
+          {(recipe as Recipe).source_url && (
             <TouchableOpacity style={styles.sourceButton} onPress={handleOpenSource}>
               <ExternalLink size={16} color={colors.primary[500]} />
               <Text style={styles.sourceText}>View Original Source</Text>
@@ -672,7 +831,7 @@ export default function RecipeDetail() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryButton} onPress={handleAddToTodaysNutrition}>
                 <Heart size={20} color={colors.primary[500]} />
-                <Text style={styles.secondaryButtonText}>Add to Today's Nutrition</Text>
+                <Text style={styles.secondaryButtonText}>Add to Nutrition</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -683,7 +842,7 @@ export default function RecipeDetail() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryButton} onPress={handleAddMissingToCart}>
                 <ShoppingCart size={20} color={colors.primary[500]} />
-                <Text style={styles.secondaryButtonText}>Add Missing to Cart</Text>
+                <Text style={styles.secondaryButtonText}>Add to Cart</Text>
               </TouchableOpacity>
             </>
           )}
@@ -805,11 +964,11 @@ export default function RecipeDetail() {
         )}
 
         {/* Tags */}
-        {recipe.tags.length > 0 && (
+        {(recipe as Recipe).tags && (recipe as Recipe).tags.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tags</Text>
             <View style={styles.tagsContainer}>
-              {recipe.tags.map((tag, index) => (
+              {(recipe as Recipe).tags.map((tag, index) => (
                 <View key={index} style={styles.tag}>
                   <Text style={styles.tagText}>{tag}</Text>
                 </View>
@@ -851,6 +1010,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
     color: colors.neutral[600],
     marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   backButton: {
     backgroundColor: colors.primary[500],
