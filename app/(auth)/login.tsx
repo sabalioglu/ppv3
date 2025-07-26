@@ -1,6 +1,6 @@
-// app/(auth)/login.tsx - Fixed Version with Debug
+// app/(auth)/login.tsx - Complete Updated Version
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -22,13 +22,58 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [envError, setEnvError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Environment validation on component mount
+  useEffect(() => {
+    const validateEnvironment = () => {
+      // 🧪 KESIN TEST KODU
+      console.log('🧪 ENVIRONMENT TEST:');
+      console.log('EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+      console.log('EXPO_PUBLIC_SUPABASE_ANON_KEY:', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+      console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+      if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
+        const errorMsg = 'App configuration error. Please contact support.';
+        setEnvError(errorMsg);
+        console.error('❌ Missing Supabase environment variables');
+        return false;
+      }
+      
+      console.log('✅ Environment variables validated');
+      return true;
+    };
+
+    validateEnvironment();
+  }, []);
+
+  // Show error if environment is not configured
+  if (envError) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Configuration Error</Text>
+          <Text style={styles.errorText}>
+            The app is not properly configured. Please contact support.
+          </Text>
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => setEnvError(null)}
+          >
+            <Text style={styles.buttonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   const handleAuth = async () => {
-    // Debug Environment Check
+    // 🔍 Debug Environment Check (Updated with EXPO_PUBLIC_)
     console.log('🔍 Environment Check:', {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
       windowLocation: typeof window !== 'undefined' ? window.location.origin : 'undefined',
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'undefined',
       platform: Platform.OS,
@@ -45,78 +90,80 @@ export default function LoginPage() {
       return;
     }
 
-    // Environment validation
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('❌ Missing Supabase environment variables');
-      Alert.alert('Configuration Error', 'App configuration is missing. Please contact support.');
-      return;
-    }
-
     setLoading(true);
     
     try {
       if (isSignUpMode) {
         console.log('🚀 Starting sign up process...');
         
-        // Prepare sign up options with safe redirect URL
-        const signUpOptions: any = {
+        // 🔧 Fixed: Proper emailRedirectTo configuration
+        const redirectUrl = typeof window !== 'undefined' 
+          ? `${window.location.origin}/(auth)/email-confirmed`
+          : 'aifoodpantry://auth/email-confirmed'; // Mobile deep link
+        
+        console.log('📧 Sign up with redirect URL:', redirectUrl);
+        
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-        };
-
-        // Add email redirect only if we're in a web environment
-        if (typeof window !== 'undefined' && window.location) {
-          signUpOptions.options = {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          options: {
+            emailRedirectTo: redirectUrl,
             data: {
               email_confirm: true
             }
-          };
-          console.log('📧 Email redirect URL:', signUpOptions.options.emailRedirectTo);
-        } else {
-          console.log('📱 Mobile environment detected, skipping email redirect');
-        }
-
-        const { data, error } = await supabase.auth.signUp(signUpOptions);
+          }
+        });
         
         console.log('📊 Sign up response:', { 
-          user: data?.user?.id, 
-          session: !!data?.session,
+          user: data.user?.id, 
+          session: !!data.session, 
           error: error?.message 
         });
-
+        
         if (error) {
           console.error('❌ Sign up error:', error);
           
           // Handle specific error types
-          if (error.message.includes('confirmation email')) {
-            Alert.alert(
-              'Email Service Issue',
-              'There was a problem sending the confirmation email. Your account may have been created. Please try signing in, or contact support if the problem persists.',
-              [
-                { text: 'Try Sign In', onPress: () => setIsSignUpMode(false) },
-                { text: 'OK' }
-              ]
-            );
-          } else if (error.message.includes('already registered')) {
+          if (error.message.includes('User already registered')) {
             Alert.alert(
               'Account Exists',
               'An account with this email already exists. Please sign in instead.',
-              [{ text: 'Sign In', onPress: () => setIsSignUpMode(false) }]
+              [
+                { text: 'Switch to Sign In', onPress: () => setIsSignUpMode(false) },
+                { text: 'Cancel', style: 'cancel' }
+              ]
             );
-          } else {
-            throw error;
+            return;
           }
-          return;
+          
+          if (error.message.includes('confirmation email')) {
+            Alert.alert(
+              'Email Service Issue',
+              'There was a problem sending the confirmation email. Please try again in a few minutes.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+          
+          throw error;
         }
         
         // Success message
         Alert.alert(
           '📧 Check Your Email!',
-          'We\'ve sent you a verification email. Please verify your account before signing in.',
-          [{ text: 'OK', onPress: () => setIsSignUpMode(false) }]
+          'We\'ve sent you a verification email. Please check your inbox and click the verification link to activate your account.',
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
+                setIsSignUpMode(false);
+                setEmail('');
+                setPassword('');
+              }
+            }
+          ]
         );
-
+        
       } else {
         console.log('🔑 Starting sign in process...');
         
@@ -126,35 +173,42 @@ export default function LoginPage() {
         });
         
         console.log('📊 Sign in response:', { 
-          user: data?.user?.id, 
-          session: !!data?.session,
+          user: data.user?.id, 
+          session: !!data.session, 
           error: error?.message 
         });
-
+        
         if (error) {
           console.error('❌ Sign in error:', error);
           
-          if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+          // Handle specific error types
+          if (error.message.includes('Email not confirmed')) {
             Alert.alert(
               'Email Not Verified',
-              'Please check your email and click the verification link.',
+              'Please check your email and click the verification link to activate your account.',
               [
                 {
-                  text: 'Resend Email',
+                  text: 'Resend Verification',
                   onPress: async () => {
                     try {
-                      console.log('📧 Resending verification email...');
+                      const redirectUrl = typeof window !== 'undefined' 
+                        ? `${window.location.origin}/(auth)/email-confirmed`
+                        : 'aifoodpantry://auth/email-confirmed';
+                        
                       const { error: resendError } = await supabase.auth.resend({
                         type: 'signup',
                         email: email,
+                        options: {
+                          emailRedirectTo: redirectUrl
+                        }
                       });
                       
                       if (resendError) {
                         console.error('❌ Resend error:', resendError);
-                        Alert.alert('Error', 'Failed to resend verification email.');
+                        Alert.alert('Error', 'Failed to resend verification email. Please try again.');
                       } else {
                         console.log('✅ Verification email resent');
-                        Alert.alert('Email Sent', 'Verification email has been resent.');
+                        Alert.alert('Email Sent', 'Verification email has been resent. Please check your inbox.');
                       }
                     } catch (resendErr) {
                       console.error('❌ Resend unexpected error:', resendErr);
@@ -166,29 +220,37 @@ export default function LoginPage() {
               ]
             );
             return;
-          } else if (error.message.includes('Invalid login credentials')) {
-            Alert.alert('Invalid Credentials', 'Please check your email and password.');
+          }
+          
+          if (error.message.includes('Invalid login credentials')) {
+            Alert.alert('Login Failed', 'Invalid email or password. Please check your credentials and try again.');
             return;
           }
           
           throw error;
         }
 
-        console.log('✅ Login successful, navigating to main app...');
+        console.log('✅ Login successful, redirecting to app...');
         router.replace('/(tabs)');
       }
       
     } catch (error: any) {
       console.error('❌ Auth unexpected error:', error);
       
-      // Generic error handling
-      const errorMessage = error?.message || 'Authentication failed';
-      Alert.alert(
-        'Authentication Error', 
-        errorMessage.includes('fetch') 
-          ? 'Network error. Please check your internet connection.' 
-          : errorMessage
-      );
+      // Enhanced error handling
+      let errorMessage = 'Authentication failed';
+      
+      if (error.message?.includes('confirmation email')) {
+        errorMessage = 'There was a problem sending the confirmation email. Please check your internet connection and try again.';
+      } else if (error.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message?.includes('fetch')) {
+        errorMessage = 'Connection error. Please check your internet connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
       
     } finally {
       setLoading(false);
@@ -196,11 +258,6 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('🔍 Google Sign In Environment Check:', {
-      platform: Platform.OS,
-      hasWindow: typeof window !== 'undefined'
-    });
-
     setGoogleLoading(true);
     try {
       console.log('🔐 Starting Google OAuth...');
@@ -208,15 +265,7 @@ export default function LoginPage() {
       // lib/supabase.ts'deki helper fonksiyonunu kullan
       const { data, error } = await signInWithGoogle();
 
-      console.log('📊 Google OAuth response:', { 
-        data: !!data, 
-        error: error?.message 
-      });
-
-      if (error) {
-        console.error('❌ Google OAuth error:', error);
-        throw error;
-      }
+      if (error) throw error;
       
       console.log('✅ Google OAuth initiated successfully');
       
@@ -224,7 +273,7 @@ export default function LoginPage() {
       // TabsLayout auth guard navigation'ı handle edecek
       
     } catch (error: any) {
-      console.error('❌ Google OAuth unexpected error:', error);
+      console.error('❌ Google OAuth error:', error);
       Alert.alert(
         'Google Sign In Failed', 
         error.message || 'Failed to sign in with Google. Please try again.'
@@ -268,14 +317,12 @@ export default function LoginPage() {
             editable={!loading && !googleLoading}
           />
 
-          {/* Email confirmation info note - only in signup mode */}
+          {/* Enhanced info note for signup mode */}
           {isSignUpMode && (
             <View style={styles.infoContainer}>
               <Text style={styles.infoNote}>
-                📧 After creating your account, please check your email for verification.
-              </Text>
-              <Text style={styles.infoSubNote}>
-                Check your spam folder if you don't see the email within a few minutes.
+                📧 After creating your account, please check your email for a verification link. 
+                You'll need to verify your email before you can sign in.
               </Text>
             </View>
           )}
@@ -325,6 +372,7 @@ export default function LoginPage() {
               onPress={() => {
                 setIsSignUpMode(!isSignUpMode);
                 setPassword('');
+                setEmail('');
               }}
               disabled={loading || googleLoading}
             >
@@ -381,23 +429,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   infoContainer: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 16,
-    marginTop: 4,
-    paddingHorizontal: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0ea5e9',
   },
   infoNote: {
     fontSize: 13,
-    color: '#059669',
-    textAlign: 'center',
+    color: '#0369a1',
     lineHeight: 18,
-    fontWeight: '500',
-  },
-  infoSubNote: {
-    fontSize: 11,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 16,
   },
   button: {
     backgroundColor: '#10b981',
@@ -478,5 +520,26 @@ const styles = StyleSheet.create({
   },
   linkTextDisabled: {
     color: '#9ca3af',
+  },
+  // Error container styles
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ef4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
   },
 });
