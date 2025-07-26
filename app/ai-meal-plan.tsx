@@ -1113,39 +1113,3 @@ const styles = StyleSheet.create({
     height: spacing.xl,
   },
 });
-```
-
-**ÖNEMLİ DEĞİŞİKLİKLER:**
-
-**1. navigateToRecipe Fonksiyonu (Satır 324-331):**
-```typescript
-const navigateToRecipe = (meal: Meal) => {
-  try {
-    setModalVisible(false);
-    setSelectedMeal(null); // ✅ Reset selected meal
-    router.push(`/recipe/${meal.id}?source=meal_plan`);
-  } catch (error) {
-    const appError = handleError(error, 'navigateToRecipe');
-    showErrorAlert(appError);
-  }
-};
-```
-
-**2. regenerateAllMeals Fonksiyonu (Satır 232-284):**
-```typescript
-const regenerateAllMeals = async () => {
-  // Eğer modal açıksa kapatıp selectedMeal'ı temizle
-  if (modalVisible) {
-    setModalVisible(false);
-    setSelectedMeal(null);
-  }
-
-  Alert.alert(
-    // ... alert içeriği
-    onPress: async () => {
-      // ✅ Reset any previous selection
-      setSelectedMeal(null);
-      // ... geri kalan kod
-    }
-  );
-};
