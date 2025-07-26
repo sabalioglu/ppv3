@@ -1,3 +1,5 @@
+// app/(auth)/login.tsx - Fixed Version with Debug
+
 import React, { useState } from 'react';
 import { 
   View, 
@@ -23,30 +25,116 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleAuth = async () => {
+    // Debug Environment Check
+    console.log('🔍 Environment Check:', {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      windowLocation: typeof window !== 'undefined' ? window.location.origin : 'undefined',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'undefined',
+      platform: Platform.OS,
+      isSignUpMode
+    });
+
     if (!email || !password) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
+    
     if (isSignUpMode && password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
+    // Environment validation
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('❌ Missing Supabase environment variables');
+      Alert.alert('Configuration Error', 'App configuration is missing. Please contact support.');
+      return;
+    }
+
     setLoading(true);
+    
     try {
       if (isSignUpMode) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
+        console.log('🚀 Starting sign up process...');
         
+        // Prepare sign up options with safe redirect URL
+        const signUpOptions: any = {
+          email,
+          password,
+        };
+
+        // Add email redirect only if we're in a web environment
+        if (typeof window !== 'undefined' && window.location) {
+          signUpOptions.options = {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              email_confirm: true
+            }
+          };
+          console.log('📧 Email redirect URL:', signUpOptions.options.emailRedirectTo);
+        } else {
+          console.log('📱 Mobile environment detected, skipping email redirect');
+        }
+
+        const { data, error } = await supabase.auth.signUp(signUpOptions);
+        
+        console.log('📊 Sign up response:', { 
+          user: data?.user?.id, 
+          session: !!data?.session,
+          error: error?.message 
+        });
+
+        if (error) {
+          console.error('❌ Sign up error:', error);
+          
+          // Handle specific error types
+          if (error.message.includes('confirmation email')) {
+            Alert.alert(
+              'Email Service Issue',
+              'There was a problem sending the confirmation email. Your account may have been created. Please try signing in, or contact support if the problem persists.',
+              [
+                { text: 'Try Sign In', onPress: () => setIsSignUpMode(false) },
+                { text: 'OK' }
+              ]
+            );
+          } else if (error.message.includes('already registered')) {
+            Alert.alert(
+              'Account Exists',
+              'An account with this email already exists. Please sign in instead.',
+              [{ text: 'Sign In', onPress: () => setIsSignUpMode(false) }]
+            );
+          } else {
+            throw error;
+          }
+          return;
+        }
+        
+        // Success message
         Alert.alert(
           '📧 Check Your Email!',
           'We\'ve sent you a verification email. Please verify your account before signing in.',
           [{ text: 'OK', onPress: () => setIsSignUpMode(false) }]
         );
+
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        console.log('🔑 Starting sign in process...');
+        
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
+        
+        console.log('📊 Sign in response:', { 
+          user: data?.user?.id, 
+          session: !!data?.session,
+          error: error?.message 
+        });
+
         if (error) {
-          if (error.message.includes('Email not confirmed')) {
+          console.error('❌ Sign in error:', error);
+          
+          if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
             Alert.alert(
               'Email Not Verified',
               'Please check your email and click the verification link.',
@@ -54,14 +142,23 @@ export default function LoginPage() {
                 {
                   text: 'Resend Email',
                   onPress: async () => {
-                    const { error: resendError } = await supabase.auth.resend({
-                      type: 'signup',
-                      email: email,
-                    });
-                    if (resendError) {
+                    try {
+                      console.log('📧 Resending verification email...');
+                      const { error: resendError } = await supabase.auth.resend({
+                        type: 'signup',
+                        email: email,
+                      });
+                      
+                      if (resendError) {
+                        console.error('❌ Resend error:', resendError);
+                        Alert.alert('Error', 'Failed to resend verification email.');
+                      } else {
+                        console.log('✅ Verification email resent');
+                        Alert.alert('Email Sent', 'Verification email has been resent.');
+                      }
+                    } catch (resendErr) {
+                      console.error('❌ Resend unexpected error:', resendErr);
                       Alert.alert('Error', 'Failed to resend verification email.');
-                    } else {
-                      Alert.alert('Email Sent', 'Verification email has been resent.');
                     }
                   },
                 },
@@ -69,22 +166,41 @@ export default function LoginPage() {
               ]
             );
             return;
+          } else if (error.message.includes('Invalid login credentials')) {
+            Alert.alert('Invalid Credentials', 'Please check your email and password.');
+            return;
           }
+          
           throw error;
         }
 
-        console.log('✅ Login successful');
+        console.log('✅ Login successful, navigating to main app...');
         router.replace('/(tabs)');
       }
+      
     } catch (error: any) {
-      console.error('Auth error:', error);
-      Alert.alert('Error', error.message || 'Authentication failed');
+      console.error('❌ Auth unexpected error:', error);
+      
+      // Generic error handling
+      const errorMessage = error?.message || 'Authentication failed';
+      Alert.alert(
+        'Authentication Error', 
+        errorMessage.includes('fetch') 
+          ? 'Network error. Please check your internet connection.' 
+          : errorMessage
+      );
+      
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    console.log('🔍 Google Sign In Environment Check:', {
+      platform: Platform.OS,
+      hasWindow: typeof window !== 'undefined'
+    });
+
     setGoogleLoading(true);
     try {
       console.log('🔐 Starting Google OAuth...');
@@ -92,7 +208,15 @@ export default function LoginPage() {
       // lib/supabase.ts'deki helper fonksiyonunu kullan
       const { data, error } = await signInWithGoogle();
 
-      if (error) throw error;
+      console.log('📊 Google OAuth response:', { 
+        data: !!data, 
+        error: error?.message 
+      });
+
+      if (error) {
+        console.error('❌ Google OAuth error:', error);
+        throw error;
+      }
       
       console.log('✅ Google OAuth initiated successfully');
       
@@ -100,7 +224,7 @@ export default function LoginPage() {
       // TabsLayout auth guard navigation'ı handle edecek
       
     } catch (error: any) {
-      console.error('❌ Google OAuth error:', error);
+      console.error('❌ Google OAuth unexpected error:', error);
       Alert.alert(
         'Google Sign In Failed', 
         error.message || 'Failed to sign in with Google. Please try again.'
@@ -146,9 +270,14 @@ export default function LoginPage() {
 
           {/* Email confirmation info note - only in signup mode */}
           {isSignUpMode && (
-            <Text style={styles.infoNote}>
-              After creating your account, please check your email for verification.
-            </Text>
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoNote}>
+                📧 After creating your account, please check your email for verification.
+              </Text>
+              <Text style={styles.infoSubNote}>
+                Check your spam folder if you don't see the email within a few minutes.
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
@@ -251,14 +380,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginBottom: 16,
   },
-  infoNote: {
-    fontSize: 13,
-    color: '#6b7280',
-    textAlign: 'center',
+  infoContainer: {
     marginBottom: 16,
     marginTop: 4,
     paddingHorizontal: 12,
+  },
+  infoNote: {
+    fontSize: 13,
+    color: '#059669',
+    textAlign: 'center',
     lineHeight: 18,
+    fontWeight: '500',
+  },
+  infoSubNote: {
+    fontSize: 11,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 16,
   },
   button: {
     backgroundColor: '#10b981',
