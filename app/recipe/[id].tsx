@@ -107,8 +107,8 @@ export default function RecipeDetail() {
   const [pantryMatch, setPantryMatch] = useState<PantryMatchResult | null>(null);
   const [loadingPantry, setLoadingPantry] = useState(false);
   
-  // Get meal plan state for AI meals
-  const { currentMealPlan } = useMealPlanStore();
+  // Get meal plan state for AI meals with auto-load
+  const { currentMealPlan, loadMealPlan, isLoaded } = useMealPlanStore();
 
   // Check if this recipe is from meal plan
   const isFromMealPlan = source === 'meal_plan';
@@ -131,8 +131,17 @@ export default function RecipeDetail() {
     try {
       console.log('🔍 Loading AI meal from state:', mealId);
       
-      if (!currentMealPlan) {
-        throw new Error('Meal plan not found in state');
+      // Ensure meal plan is loaded from storage
+      if (!isLoaded) {
+        console.log('📦 Loading meal plan from storage...');
+        await loadMealPlan();
+      }
+
+      // Get the current meal plan after loading
+      const mealPlan = useMealPlanStore.getState().currentMealPlan;
+      
+      if (!mealPlan) {
+        throw new Error('Meal plan not found in storage');
       }
 
       // Find meal in current meal plan
@@ -140,10 +149,10 @@ export default function RecipeDetail() {
       
       // Search in all meal categories
       const allMeals = [
-        ...currentMealPlan.breakfast || [],
-        ...currentMealPlan.lunch || [],
-        ...currentMealPlan.dinner || [],
-        ...currentMealPlan.snacks || []
+        ...mealPlan.breakfast || [],
+        ...mealPlan.lunch || [],
+        ...mealPlan.dinner || [],
+        ...mealPlan.snacks || []
       ];
 
       foundMeal = allMeals.find((meal: any) => meal.id === mealId) || null;
@@ -427,15 +436,29 @@ export default function RecipeDetail() {
     // Implementation depends on your statistics schema
   };
 
+  // Auto-load meal plan on component mount
+  useEffect(() => {
+    if (!isLoaded) {
+      console.log('🔄 Auto-loading meal plan...');
+      loadMealPlan();
+    }
+  }, [isLoaded, loadMealPlan]);
+
   // Load pantry data when component mounts for meal plan recipes
   useEffect(() => {
     if (isFromMealPlan && recipe) {
-      const { data: { user } } = supabase.auth.getUser();
-      user.then(({ user }) => {
-        if (user) {
-          loadPantryData(user.id, recipe);
+      const getUserAndLoadPantry = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await loadPantryData(user.id, recipe);
+          }
+        } catch (error) {
+          console.error('Error loading pantry data:', error);
         }
-      });
+      };
+      
+      getUserAndLoadPantry();
     }
   }, [isFromMealPlan, recipe]);
 
@@ -447,13 +470,15 @@ export default function RecipeDetail() {
       .channel('recipe_pantry_updates')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'pantry_items' },
-        () => {
-          const { data: { user } } = supabase.auth.getUser();
-          user.then(({ user }) => {
+        async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
             if (user && recipe) {
-              loadPantryData(user.id, recipe);
+              await loadPantryData(user.id, recipe);
             }
-          });
+          } catch (error) {
+            console.error('Error in real-time pantry update:', error);
+          }
         }
       )
       .subscribe();
@@ -463,9 +488,21 @@ export default function RecipeDetail() {
     };
   }, [isFromMealPlan, recipe]);
 
+  // Main load effect - wait for store to be ready for AI meals
   useEffect(() => {
+    const recipeId = Array.isArray(id) ? id[0] : id;
+    
+    if (!recipeId) return;
+    
+    // For AI meals, wait for store to be loaded
+    if (isAIMealId(recipeId) && !isLoaded) {
+      console.log('⏳ Waiting for meal plan store to load...');
+      return;
+    }
+    
+    // Load recipe when ready
     loadRecipe();
-  }, [id, source]);
+  }, [id, source, isLoaded]);
 
   // Toggle favorite (only for database recipes)
   const handleFavorite = async () => {
