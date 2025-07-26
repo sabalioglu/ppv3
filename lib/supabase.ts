@@ -1,3 +1,4 @@
+//lib > supabase.ts
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import { Platform } from 'react-native';
