@@ -1,4 +1,5 @@
-//lib > supabase.ts
+// lib/supabase.ts - Fixed Environment Variables
+
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import { Platform } from 'react-native';
@@ -6,10 +7,25 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+// 🔧 Fixed: Use EXPO_PUBLIC_ instead of NEXT_PUBLIC_
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Sade cross-platform storage
+// Environment validation
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing Supabase environment variables');
+  console.error('Required variables:');
+  console.error('- EXPO_PUBLIC_SUPABASE_URL:', !!supabaseUrl);
+  console.error('- EXPO_PUBLIC_SUPABASE_ANON_KEY:', !!supabaseAnonKey);
+  
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+}
+
+console.log('✅ Supabase environment variables loaded');
+console.log('- URL:', supabaseUrl);
+console.log('- Key prefix:', supabaseAnonKey.substring(0, 20) + '...');
+
+// Cross-platform storage
 const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
 
 export const supabase = createClient<Database>(
