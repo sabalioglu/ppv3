@@ -1,5 +1,5 @@
 //lib/meal-plan/ai-generation.ts
-// AI meal generation using OpenAI GPT-4o-mini with comprehensive user profiling + alternatives
+// AI meal generation using OpenAI GPT-4o-mini with BRUTAL pantry-focused approach + anti-duplicate logic
 import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse } from './types';
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
@@ -182,6 +182,42 @@ const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): nu
   return Math.round(adjustedTotal * (mealDistribution[mealType as keyof typeof mealDistribution] || 0.25));
 };
 
+// Pantry cuisine detection
+const detectPantryCuisine = (pantryItems: PantryItem[]): string => {
+  const ingredients = pantryItems.map(item => item.name.toLowerCase());
+  
+  if (ingredients.some(ing => ['soy sauce', 'ginger', 'rice', 'sesame oil'].includes(ing))) {
+    return 'Asian-inspired';
+  }
+  if (ingredients.some(ing => ['tomato', 'basil', 'pasta', 'olive oil', 'parmesan'].includes(ing))) {
+    return 'Italian-inspired';
+  }
+  if (ingredients.some(ing => ['cumin', 'paprika', 'beans', 'lime', 'cilantro'].includes(ing))) {
+    return 'Mexican-inspired';
+  }
+  if (ingredients.some(ing => ['yogurt', 'cucumber', 'feta', 'olives', 'lemon'].includes(ing))) {
+    return 'Mediterranean-inspired';
+  }
+  if (ingredients.some(ing => ['curry powder', 'turmeric', 'coconut milk', 'garam masala'].includes(ing))) {
+    return 'Indian-inspired';
+  }
+  return 'International fusion';
+};
+
+// Skill-based cooking instructions
+const getSkillBasedInstructions = (skillLevel: string): string => {
+  switch (skillLevel) {
+    case 'beginner':
+      return "Use simple cooking methods (boiling, baking, pan-frying). Avoid complex techniques.";
+    case 'intermediate':
+      return "Can use moderate techniques (sautéing, roasting, basic seasoning combinations).";
+    case 'advanced':
+      return "Advanced techniques welcome (braising, complex seasonings, multiple cooking methods).";
+    default:
+      return "Keep techniques simple to moderate.";
+  }
+};
+
 // Maliyet hesaplayıcı
 const calculateCost = (usage: any) => {
   const inputCost = (usage.prompt_tokens / 1000) * 0.000150;
@@ -224,95 +260,14 @@ const updateMetrics = (responseTime: number, usage: any, success: boolean) => {
   console.log('📊 Current metrics:', testMetrics);
 };
 
-// Test için basit meal generation
-export const generateAIMeal = async (request: AIGenerationRequest): Promise<Meal> => {
-  const prompt = buildEnhancedMealPrompt(request);
-  
-  console.log('🧪 Testing GPT-4o-mini...');
-  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
-  
-  const startTime = Date.now();
-  let success = false;
-  
-  try {
-    const response = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini", // ✅ En ucuz ve hızlı model
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional chef and nutritionist. Always respond with valid JSON only. No explanations or additional text."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 800, // ✅ Maliyeti kontrol et
-        temperature: 0.7,
-        response_format: { type: "json_object" } // ✅ JSON garantisi
-      } as OpenAIRequest)
-    });
-
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    console.log(`⚡ Response time: ${responseTime}ms`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenAI Error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data: OpenAIResponse = await response.json();
-    
-    // ✅ Usage bilgilerini log'la
-    if (data.usage) {
-      const cost = calculateCost(data.usage);
-      console.log('💰 Token usage:', data.usage);
-      console.log('💰 Estimated cost:', `$${cost.toFixed(6)}`);
-    }
-    
-    const generatedText = data.choices[0]?.message?.content;
-    
-    if (!generatedText) {
-      throw new Error('No response from OpenAI');
-    }
-
-    console.log('✅ GPT-4o-mini response received');
-    success = true;
-    
-    // Metrikleri güncelle
-    updateMetrics(responseTime, data.usage, success);
-    
-    return parseMealFromResponse(generatedText, request);
-    
-  } catch (error) {
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    
-    // Hata durumunda da metrikleri güncelle
-    updateMetrics(responseTime, null, success);
-    
-    console.error('❌ AI meal generation error:', error);
-    throw error;
-  }
-};
-
-// ✅ NEW: Generate alternative meal with different approach
-export const generateAlternativeMeal = async (
+// ✅ BRUTAL PANTRY-FOCUSED meal generation with anti-duplicate logic
+export const generateAIMeal = async (
   request: AIGenerationRequest, 
-  previousMeal?: Meal,
-  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine'
+  previousMeals?: Meal[]
 ): Promise<Meal> => {
-  const prompt = buildAlternativePrompt(request, previousMeal, variationType);
+  const prompt = buildPantryFocusedPrompt(request, previousMeals);
   
-  console.log('🧪 Testing GPT-4o-mini for alternative meal...');
+  console.log('🧪 Testing GPT-4o-mini with BRUTAL pantry focus...');
   console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
   
   const startTime = Date.now();
@@ -330,15 +285,248 @@ export const generateAlternativeMeal = async (
         messages: [
           {
             role: "system",
-            content: "You are a professional chef creating alternative meal options. Always respond with valid JSON only. No explanations or additional text."
+            content: "You are a professional chef specialized in maximizing pantry ingredient usage. You MUST prioritize pantry ingredients above all else. Always respond with valid JSON only. No explanations or additional text."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 800,
-        temperature: 0.8, // Slightly higher for more creativity
+        max_tokens: 1000, // Increased for detailed pantry analysis
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      } as OpenAIRequest)
+    });
+
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    console.log(`⚡ Response time: ${responseTime}ms`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ OpenAI Error:', errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data: OpenAIResponse = await response.json();
+    
+    if (data.usage) {
+      const cost = calculateCost(data.usage);
+      console.log('💰 Token usage:', data.usage);
+      console.log('💰 Estimated cost:', `$${cost.toFixed(6)}`);
+    }
+    
+    const generatedText = data.choices[0]?.message?.content;
+    
+    if (!generatedText) {
+      throw new Error('No response from OpenAI');
+    }
+
+    console.log('✅ GPT-4o-mini pantry-focused response received');
+    success = true;
+    
+    updateMetrics(responseTime, data.usage, success);
+    
+    return parseMealFromResponse(generatedText, request);
+    
+  } catch (error) {
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    
+    updateMetrics(responseTime, null, success);
+    
+    console.error('❌ AI meal generation error:', error);
+    throw error;
+  }
+};
+
+// ✅ BRUTAL PANTRY-FOCUSED PROMPT with anti-duplicate logic
+const buildPantryFocusedPrompt = (
+  request: AIGenerationRequest, 
+  previousMeals?: Meal[]
+): string => {
+  const { pantryItems, mealType, userProfile } = request;
+  const profile = analyzeUserProfile(userProfile);
+  
+  // Pantry analizi
+  const proteinItems = pantryItems.filter(item => 
+    ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'eggs', 'tofu', 'beans', 'lentils', 'turkey', 'pork'].some(protein => 
+      item.name.toLowerCase().includes(protein)
+    )
+  );
+  
+  const vegetableItems = pantryItems.filter(item => 
+    item.category?.toLowerCase().includes('vegetable') || 
+    ['tomato', 'onion', 'pepper', 'broccoli', 'spinach', 'carrot', 'cucumber', 'lettuce', 'mushroom', 'zucchini', 'potato', 'sweet potato'].some(veg => 
+      item.name.toLowerCase().includes(veg)
+    )
+  );
+  
+  const grainItems = pantryItems.filter(item => 
+    ['rice', 'pasta', 'bread', 'quinoa', 'oats', 'barley', 'bulgur', 'couscous'].some(grain => 
+      item.name.toLowerCase().includes(grain)
+    )
+  );
+
+  const highQuantityItems = pantryItems
+    .filter(item => item.quantity && item.quantity > 3)
+    .map(item => item.name);
+
+  const availableIngredients = pantryItems
+    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
+    .join(', ');
+
+  // Anti-duplicate logic
+  const usedIngredients = previousMeals?.flatMap(m => m.ingredients.map(i => i.name.toLowerCase())) || [];
+  const usedCuisines = previousMeals?.flatMap(m => m.tags?.filter(tag => tag.includes('inspired') || tag.includes('cuisine'))) || [];
+  const usedMainProteins = previousMeals?.flatMap(m => 
+    m.ingredients.filter(ing => ing.category?.toLowerCase().includes('protein')).map(ing => ing.name.toLowerCase())
+  ) || [];
+
+  const calorieTarget = getCalorieTarget(userProfile, mealType);
+  const detectedCuisine = detectPantryCuisine(pantryItems);
+  const skillInstructions = getSkillBasedInstructions(profile.skillLevel);
+
+  // Build allergen safety instructions
+  const allergenSafety = profile.allergenWarnings.length > 0 
+    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
+       NEVER include these ingredients or their derivatives.`
+    : '';
+
+  // Build dietary compliance
+  const dietaryCompliance = profile.dietaryGuidelines.length > 0
+    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
+    : '';
+
+  return `You are a chef creating a ${mealType} recipe. Your PRIMARY GOAL is to maximize pantry ingredient usage while avoiding repetition.
+
+🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+
+🎯 STRICT PANTRY PRIORITY RULES:
+1. Use AT LEAST 80% of ingredients from available pantry items only
+2. Maximum 2 additional ingredients can be suggested for purchase
+3. PROTEIN PRIORITY: If pantry contains protein (${proteinItems.map(p => p.name).join(', ')}), you MUST use one of these as main protein
+4. VEGETABLE PRIORITY: If pantry contains vegetables (${vegetableItems.map(v => v.name).join(', ')}), you MUST incorporate at least 2-3 of these
+5. GRAIN/CARB PRIORITY: If pantry contains grains (${grainItems.map(g => g.name).join(', ')}), use one as the base/side
+6. QUANTITY AWARENESS: Use ingredients with higher quantities first to help reduce pantry waste
+7. EXPIRY PRIORITY: If ingredient names suggest freshness (fresh herbs, leafy greens), prioritize these
+8. VERSATILE INGREDIENTS: Use pantry staples (onions, garlic, oil, spices) that work in multiple dishes
+9. SEASONAL MATCHING: If pantry has seasonal items, build the meal around those
+10. CUISINE ADAPTATION: Adapt cuisine style to match available pantry ingredients rather than forcing specific cuisines
+
+${highQuantityItems.length > 0 ? `🔥 HIGH QUANTITY PRIORITY: These items have surplus quantities and should be used first: ${highQuantityItems.join(', ')}` : ''}
+
+🚫 ANTI-DUPLICATE RULES:
+${usedIngredients.length > 0 ? `- AVOID these already used ingredients as main components: ${usedIngredients.slice(0, 10).join(', ')}` : ''}
+${usedCuisines.length > 0 ? `- AVOID these cuisines already used: ${usedCuisines.join(', ')}` : ''}
+${usedMainProteins.length > 0 ? `- AVOID these proteins already used: ${usedMainProteins.join(', ')}` : ''}
+- Create a DIFFERENT meal approach than previous suggestions
+- Use different cooking methods and flavor profiles
+
+USER PROFILE:
+- Cooking Skill: ${profile.skillLevel}
+- Time Constraints: ${profile.timeConstraints}
+- Nutrition Focus: ${profile.nutritionFocus}
+- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
+
+${allergenSafety}
+
+${dietaryCompliance}
+
+🍳 COOKING GUIDELINES:
+${skillInstructions}
+
+⏰ TIME CONSTRAINTS:
+${profile.timeConstraints === 'quick' ? 
+  '- Maximum 20 minutes total time' :
+  profile.timeConstraints === 'moderate' ?
+  '- 30-45 minutes total time acceptable' :
+  '- No time restrictions'
+}
+
+🌍 SUGGESTED CUISINE DIRECTION: ${detectedCuisine} (based on pantry ingredients)
+
+🚨 FORBIDDEN ACTIONS:
+- DO NOT suggest expensive proteins if cheaper ones are available in pantry
+- DO NOT ignore high-quantity pantry items in favor of small purchases
+- DO NOT create recipes requiring specialty ingredients when pantry has basics
+- DO NOT suggest the same primary protein/vegetable combination as previous meals
+- DO NOT recommend ingredients that contradict dietary restrictions
+- DO NOT create meals with less than 70% pantry ingredient usage
+
+🎯 PANTRY OPTIMIZATION GOALS:
+- Minimize shopping list additions (max 2 items)
+- Maximize pantry turnover
+- Create satisfying meals with available resources
+- Ensure nutritional balance using pantry items
+- Avoid repetition from previous meals
+
+Create a ${mealType} recipe that follows these rules strictly. Target calories: ~${calorieTarget}
+
+Respond with this exact JSON structure:
+{
+  "name": "Recipe Name (highlight main pantry ingredients used)",
+  "ingredients": [
+    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables", "fromPantry": true},
+    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein", "fromPantry": true},
+    {"name": "ingredient3", "amount": 1, "unit": "tbsp", "category": "Condiment", "fromPantry": false}
+  ],
+  "calories": ${calorieTarget},
+  "protein": 25,
+  "carbs": 40,
+  "fat": 15,
+  "fiber": 8,
+  "prepTime": 15,
+  "cookTime": 20,
+  "servings": 1,
+  "difficulty": "Easy",
+  "instructions": [
+    "Step 1: Preparation using pantry ingredients",
+    "Step 2: Cooking process with specific techniques",
+    "Step 3: Final assembly and serving"
+  ],
+  "tags": ["pantry-focused", "budget-friendly", "waste-reducing", "${detectedCuisine}"],
+  "pantryUsagePercentage": 85,
+  "shoppingListItems": ["item1", "item2"]
+}`;
+};
+
+// ✅ Generate alternative meal with enhanced anti-duplicate logic
+export const generateAlternativeMeal = async (
+  request: AIGenerationRequest, 
+  previousMeal?: Meal,
+  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine',
+  allPreviousMeals?: Meal[]
+): Promise<Meal> => {
+  const prompt = buildAlternativePrompt(request, previousMeal, variationType, allPreviousMeals);
+  
+  console.log('🧪 Testing GPT-4o-mini for alternative meal with enhanced anti-duplicate...');
+  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
+  
+  const startTime = Date.now();
+  let success = false;
+  
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional chef creating alternative meal options with maximum pantry usage. Always respond with valid JSON only. No explanations or additional text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.8, // Higher for more creativity in alternatives
         response_format: { type: "json_object" }
       } as OpenAIRequest)
     });
@@ -370,7 +558,6 @@ export const generateAlternativeMeal = async (
     console.log('✅ GPT-4o-mini alternative meal response received');
     success = true;
     
-    // Metrikleri güncelle
     updateMetrics(responseTime, data.usage, success);
     
     return parseMealFromResponse(generatedText, request);
@@ -379,7 +566,6 @@ export const generateAlternativeMeal = async (
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     
-    // Hata durumunda da metrikleri güncelle
     updateMetrics(responseTime, null, success);
     
     console.error('❌ AI alternative meal generation error:', error);
@@ -387,21 +573,28 @@ export const generateAlternativeMeal = async (
   }
 };
 
-// ✅ NEW: Build alternative prompt with variation focus
+// ✅ Enhanced alternative prompt with brutal anti-duplicate logic
 const buildAlternativePrompt = (
   request: AIGenerationRequest, 
   previousMeal?: Meal,
-  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine'
+  variationType: 'cuisine' | 'complexity' | 'ingredients' = 'cuisine',
+  allPreviousMeals?: Meal[]
 ): string => {
   const { pantryItems, userProfile, mealType } = request;
   const profile = analyzeUserProfile(userProfile);
   
   const availableIngredients = pantryItems
-    .slice(0, 8) // Token tasarrufu için sadece ilk 8 ingredient
     .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
     .join(', ');
 
   const calorieTarget = getCalorieTarget(userProfile, mealType);
+
+  // Enhanced anti-duplicate logic
+  const allUsedIngredients = allPreviousMeals?.flatMap(m => m.ingredients.map(i => i.name.toLowerCase())) || [];
+  const allUsedCuisines = allPreviousMeals?.flatMap(m => m.tags?.filter(tag => tag.includes('inspired') || tag.includes('cuisine'))) || [];
+  const allUsedMainProteins = allPreviousMeals?.flatMap(m => 
+    m.ingredients.filter(ing => ing.category?.toLowerCase().includes('protein')).map(ing => ing.name.toLowerCase())
+  ) || [];
 
   // Build variation instructions
   let variationInstructions = '';
@@ -410,29 +603,31 @@ const buildAlternativePrompt = (
       case 'cuisine':
         const avoidCuisines = profile.cuisineStyle.split(', ').slice(0, 2);
         variationInstructions = `
-        VARIATION FOCUS: Different cuisine style
+        🎯 VARIATION FOCUS: Different cuisine style
         Previous meal was: "${previousMeal.name}"
-        Try a different cuisine approach. Avoid: ${avoidCuisines.join(', ')}
+        Try a completely different cuisine approach. Avoid: ${avoidCuisines.join(', ')}
         Consider: fusion, comfort food, or international flavors not yet explored.
+        Use different spice profiles and cooking methods.
         `;
         break;
       
       case 'complexity':
         const newComplexity = previousMeal.difficulty === 'Easy' ? 'intermediate' : 'beginner';
         variationInstructions = `
-        VARIATION FOCUS: Different complexity level
+        🎯 VARIATION FOCUS: Different complexity level
         Previous meal difficulty: ${previousMeal.difficulty}
         Target complexity: ${newComplexity}
-        ${newComplexity === 'beginner' ? 'Make it simpler and faster' : 'Add more interesting techniques'}
+        ${newComplexity === 'beginner' ? 'Make it simpler and faster with fewer steps' : 'Add more interesting techniques and flavor layers'}
         `;
         break;
       
       case 'ingredients':
         const usedIngredients = previousMeal.ingredients.map(ing => ing.name).slice(0, 3);
         variationInstructions = `
-        VARIATION FOCUS: Different ingredient combination
+        🎯 VARIATION FOCUS: Different ingredient combination
         Previous meal used: ${usedIngredients.join(', ')}
-        Try to use different primary ingredients from pantry while maintaining nutrition goals.
+        Try to use completely different primary ingredients from pantry while maintaining nutrition goals.
+        Focus on unused pantry items.
         `;
         break;
     }
@@ -449,10 +644,27 @@ const buildAlternativePrompt = (
     ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
     : '';
 
-  return `Create an ALTERNATIVE ${mealType} recipe.
+  return `Create an ALTERNATIVE ${mealType} recipe with MAXIMUM pantry usage and ZERO repetition.
 
 ${variationInstructions}
 
+🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+
+🚫 BRUTAL ANTI-DUPLICATE RULES:
+${allUsedIngredients.length > 0 ? `- ABSOLUTELY AVOID these ingredients as main components: ${allUsedIngredients.slice(0, 15).join(', ')}` : ''}
+${allUsedCuisines.length > 0 ? `- COMPLETELY AVOID these cuisines: ${allUsedCuisines.join(', ')}` : ''}
+${allUsedMainProteins.length > 0 ? `- DO NOT USE these proteins: ${allUsedMainProteins.join(', ')}` : ''}
+- Create a RADICALLY DIFFERENT meal approach
+- Use different cooking methods, spice profiles, and presentation styles
+- If previous meals were hot, consider cold preparations (salads, wraps)
+- If previous meals were simple, add complexity (or vice versa)
+
+🎯 PANTRY MAXIMIZATION RULES:
+- Use AT LEAST 80% ingredients from pantry
+- Maximum 2 shopping list items allowed
+- Prioritize unused pantry ingredients
+- Focus on different pantry categories than previous meals
+
 USER PROFILE:
 - Cooking Skill: ${profile.skillLevel}
 - Time Constraints: ${profile.timeConstraints}
@@ -463,20 +675,19 @@ ${allergenSafety}
 
 ${dietaryCompliance}
 
-AVAILABLE INGREDIENTS: ${availableIngredients}
-
-REQUIREMENTS:
+🎯 ALTERNATIVE MEAL REQUIREMENTS:
 - Target Calories: ~${calorieTarget}
 - Use maximum pantry ingredients possible
-- Create something DIFFERENT from typical ${mealType} options
-- Be creative within dietary restrictions
+- Create something COMPLETELY DIFFERENT from previous suggestions
+- Be creative while staying within dietary restrictions
+- Focus on underutilized pantry items
 
 Respond with this exact JSON structure:
 {
-  "name": "Creative Recipe Name",
+  "name": "Unique Creative Recipe Name (highlight pantry ingredients)",
   "ingredients": [
-    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"},
-    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein"}
+    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables", "fromPantry": true},
+    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein", "fromPantry": true}
   ],
   "calories": ${calorieTarget},
   "protein": 25,
@@ -488,88 +699,13 @@ Respond with this exact JSON structure:
   "servings": 1,
   "difficulty": "Easy",
   "instructions": [
-    "Step 1: Detailed preparation step",
-    "Step 2: Cooking process with timing",
-    "Step 3: Final assembly and serving"
+    "Step 1: Different preparation approach using pantry ingredients",
+    "Step 2: Unique cooking process with specific techniques",
+    "Step 3: Creative assembly and serving"
   ],
-  "tags": ["alternative", "creative", "personalized"]
-}`;
-};
-
-const buildEnhancedMealPrompt = (request: AIGenerationRequest): string => {
-  const { pantryItems, userProfile, mealType } = request;
-  const profile = analyzeUserProfile(userProfile);
-  
-  const availableIngredients = pantryItems
-    .slice(0, 8) // Token tasarrufu için sadece ilk 8 ingredient
-    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
-    .join(', ');
-
-  const calorieTarget = getCalorieTarget(userProfile, mealType);
-  const complexityLevel = getComplexityLevel(profile.skillLevel, profile.timeConstraints);
-
-  // Build allergen safety instructions
-  const allergenSafety = profile.allergenWarnings.length > 0 
-    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives.`
-    : '';
-
-  // Build dietary compliance
-  const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
-    : '';
-
-  return `Create a personalized ${mealType} recipe.
-
-USER PROFILE:
-- Cooking Skill: ${profile.skillLevel}
-- Time Constraints: ${profile.timeConstraints}
-- Nutrition Focus: ${profile.nutritionFocus}
-- Preferred Cuisines: ${profile.cuisineStyle}
-- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-${allergenSafety}
-
-${dietaryCompliance}
-
-AVAILABLE INGREDIENTS: ${availableIngredients}
-
-REQUIREMENTS:
-- Target Calories: ~${calorieTarget}
-- Complexity: ${complexityLevel}
-- Use maximum pantry ingredients possible
-- Match user's cuisine preferences when possible
-
-TIME CONSTRAINTS:
-${profile.timeConstraints === 'quick' ? 
-  '- Maximum 20 minutes total time' :
-  profile.timeConstraints === 'moderate' ?
-  '- 30-45 minutes total time acceptable' :
-  '- No time restrictions'
-}
-
-Respond with this exact JSON structure:
-{
-  "name": "Recipe Name",
-  "ingredients": [
-    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"},
-    {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein"}
-  ],
-  "calories": ${calorieTarget},
-  "protein": 25,
-  "carbs": 40,
-  "fat": 15,
-  "fiber": 8,
-  "prepTime": 15,
-  "cookTime": 20,
-  "servings": 1,
-  "difficulty": "Easy",
-  "instructions": [
-    "Step 1: Detailed preparation step",
-    "Step 2: Cooking process with timing",
-    "Step 3: Final assembly and serving"
-  ],
-  "tags": ["health-goal-aligned", "skill-appropriate"]
+  "tags": ["alternative", "creative", "pantry-focused", "unique"],
+  "pantryUsagePercentage": 85,
+  "shoppingListItems": ["item1", "item2"]
 }`;
 };
 
@@ -605,7 +741,9 @@ const parseMealFromResponse = (responseText: string, request: AIGenerationReques
       tags: parsedMeal.tags || [],
       instructions: parsedMeal.instructions || [],
       source: 'ai_generated',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      pantryUsagePercentage: parsedMeal.pantryUsagePercentage || 0,
+      shoppingListItems: parsedMeal.shoppingListItems || []
     };
   } catch (error) {
     console.error('Error parsing AI meal response:', error);
@@ -658,7 +796,7 @@ export const generateAIMealPlan = async (
   dinner: Meal | null;
   snacks: Meal[];
 }> => {
-  console.log('🧪 Testing GPT-4o-mini for full meal plan...');
+  console.log('🧪 Testing GPT-4o-mini for full meal plan with brutal pantry focus...');
   
   try {
     const baseRequest = {
@@ -668,42 +806,36 @@ export const generateAIMealPlan = async (
       restrictions: userProfile?.dietary_restrictions || []
     };
 
-    // Generate meals in parallel with personalized targets
-    const breakfastCalories = getCalorieTarget(userProfile, 'breakfast');
-    const lunchCalories = getCalorieTarget(userProfile, 'lunch');
-    const dinnerCalories = getCalorieTarget(userProfile, 'dinner');
-    const snackCalories = getCalorieTarget(userProfile, 'snack');
+    // Generate meals sequentially to avoid duplicates
+    const breakfast = await generateAIMeal({
+      ...baseRequest,
+      mealType: 'breakfast',
+      targetCalories: getCalorieTarget(userProfile, 'breakfast'),
+      targetProtein: Math.round(getCalorieTarget(userProfile, 'breakfast') * 0.15 / 4)
+    });
 
-    const [breakfast, lunch, dinner] = await Promise.all([
-      generateAIMeal({
-        ...baseRequest,
-        mealType: 'breakfast',
-        targetCalories: breakfastCalories,
-        targetProtein: Math.round(breakfastCalories * 0.15 / 4) // 15% protein
-      }),
-      generateAIMeal({
-        ...baseRequest,
-        mealType: 'lunch',
-        targetCalories: lunchCalories,
-        targetProtein: Math.round(lunchCalories * 0.20 / 4) // 20% protein
-      }),
-      generateAIMeal({
-        ...baseRequest,
-        mealType: 'dinner',
-        targetCalories: dinnerCalories,
-        targetProtein: Math.round(dinnerCalories * 0.25 / 4) // 25% protein
-      })
-    ]);
+    const lunch = await generateAIMeal({
+      ...baseRequest,
+      mealType: 'lunch',
+      targetCalories: getCalorieTarget(userProfile, 'lunch'),
+      targetProtein: Math.round(getCalorieTarget(userProfile, 'lunch') * 0.20 / 4)
+    }, [breakfast]);
 
-    // Generate a personalized snack
+    const dinner = await generateAIMeal({
+      ...baseRequest,
+      mealType: 'dinner',
+      targetCalories: getCalorieTarget(userProfile, 'dinner'),
+      targetProtein: Math.round(getCalorieTarget(userProfile, 'dinner') * 0.25 / 4)
+    }, [breakfast, lunch]);
+
     const snack = await generateAIMeal({
       ...baseRequest,
       mealType: 'snack',
-      targetCalories: snackCalories,
-      targetProtein: Math.round(snackCalories * 0.10 / 4) // 10% protein
-    });
+      targetCalories: getCalorieTarget(userProfile, 'snack'),
+      targetProtein: Math.round(getCalorieTarget(userProfile, 'snack') * 0.10 / 4)
+    }, [breakfast, lunch, dinner]);
 
-    console.log('✅ Full meal plan generated successfully');
+    console.log('✅ Full meal plan generated successfully with maximum pantry usage');
     console.log('📊 Final test metrics:', testMetrics);
 
     return {
