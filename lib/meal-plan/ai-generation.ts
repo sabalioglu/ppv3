@@ -1,27 +1,54 @@
 //lib/meal-plan/ai-generation.ts
-// AI meal generation using Gemini API with comprehensive user profiling + alternatives
+// AI meal generation using OpenAI GPT-4o-mini with comprehensive user profiling + alternatives
 import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse } from './types';
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
-interface GeminiRequest {
-  contents: {
-    parts: {
-      text: string;
-    }[];
+interface OpenAIRequest {
+  model: string;
+  messages: {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
   }[];
+  max_tokens: number;
+  temperature: number;
+  response_format?: { type: 'json_object' };
 }
 
-interface GeminiResponse {
-  candidates: {
-    content: {
-      parts: {
-        text: string;
-      }[];
+interface OpenAIResponse {
+  choices: {
+    message: {
+      content: string;
     };
   }[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
+
+// Test metrikleri için interface
+interface TestMetrics {
+  totalRequests: number;
+  totalCost: number;
+  averageResponseTime: number;
+  successRate: number;
+  averageTokens: {
+    input: number;
+    output: number;
+  };
+}
+
+// Test metriklerini takip et
+let testMetrics: TestMetrics = {
+  totalRequests: 0,
+  totalCost: 0,
+  averageResponseTime: 0,
+  successRate: 0,
+  averageTokens: { input: 0, output: 0 }
+};
 
 // Enhanced user profile analysis
 const analyzeUserProfile = (userProfile: UserProfile | null) => {
@@ -155,38 +182,124 @@ const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): nu
   return Math.round(adjustedTotal * (mealDistribution[mealType as keyof typeof mealDistribution] || 0.25));
 };
 
+// Maliyet hesaplayıcı
+const calculateCost = (usage: any) => {
+  const inputCost = (usage.prompt_tokens / 1000) * 0.000150;
+  const outputCost = (usage.completion_tokens / 1000) * 0.000600;
+  return inputCost + outputCost;
+};
+
+// Token tahmini (yaklaşık)
+const estimateTokens = (text: string) => {
+  return Math.ceil(text.length / 4); // Rough estimate: 1 token ≈ 4 chars
+};
+
+// Test metriklerini güncelle
+const updateMetrics = (responseTime: number, usage: any, success: boolean) => {
+  testMetrics.totalRequests++;
+  if (usage) {
+    testMetrics.totalCost += calculateCost(usage);
+    testMetrics.averageTokens.input = 
+      (testMetrics.averageTokens.input * (testMetrics.totalRequests - 1) + usage.prompt_tokens) / 
+      testMetrics.totalRequests;
+    testMetrics.averageTokens.output = 
+      (testMetrics.averageTokens.output * (testMetrics.totalRequests - 1) + usage.completion_tokens) / 
+      testMetrics.totalRequests;
+  }
+  
+  testMetrics.averageResponseTime = 
+    (testMetrics.averageResponseTime * (testMetrics.totalRequests - 1) + responseTime) / 
+    testMetrics.totalRequests;
+  
+  if (success) {
+    testMetrics.successRate = 
+      ((testMetrics.successRate * (testMetrics.totalRequests - 1)) + 1) / 
+      testMetrics.totalRequests;
+  } else {
+    testMetrics.successRate = 
+      (testMetrics.successRate * (testMetrics.totalRequests - 1)) / 
+      testMetrics.totalRequests;
+  }
+  
+  console.log('📊 Current metrics:', testMetrics);
+};
+
+// Test için basit meal generation
 export const generateAIMeal = async (request: AIGenerationRequest): Promise<Meal> => {
   const prompt = buildEnhancedMealPrompt(request);
   
+  console.log('🧪 Testing GPT-4o-mini...');
+  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
+  
+  const startTime = Date.now();
+  let success = false;
+  
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      } as GeminiRequest)
+        model: "gpt-4o-mini", // ✅ En ucuz ve hızlı model
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional chef and nutritionist. Always respond with valid JSON only. No explanations or additional text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 800, // ✅ Maliyeti kontrol et
+        temperature: 0.7,
+        response_format: { type: "json_object" } // ✅ JSON garantisi
+      } as OpenAIRequest)
     });
 
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    console.log(`⚡ Response time: ${responseTime}ms`);
+
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ OpenAI Error:', errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
-    const data: GeminiResponse = await response.json();
-    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
+    const data: OpenAIResponse = await response.json();
+    
+    // ✅ Usage bilgilerini log'la
+    if (data.usage) {
+      const cost = calculateCost(data.usage);
+      console.log('💰 Token usage:', data.usage);
+      console.log('💰 Estimated cost:', `$${cost.toFixed(6)}`);
+    }
+    
+    const generatedText = data.choices[0]?.message?.content;
     
     if (!generatedText) {
-      throw new Error('No response from Gemini API');
+      throw new Error('No response from OpenAI');
     }
 
+    console.log('✅ GPT-4o-mini response received');
+    success = true;
+    
+    // Metrikleri güncelle
+    updateMetrics(responseTime, data.usage, success);
+    
     return parseMealFromResponse(generatedText, request);
+    
   } catch (error) {
-    console.error('AI meal generation error:', error);
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    
+    // Hata durumunda da metrikleri güncelle
+    updateMetrics(responseTime, null, success);
+    
+    console.error('❌ AI meal generation error:', error);
     throw error;
   }
 };
@@ -199,35 +312,77 @@ export const generateAlternativeMeal = async (
 ): Promise<Meal> => {
   const prompt = buildAlternativePrompt(request, previousMeal, variationType);
   
+  console.log('🧪 Testing GPT-4o-mini for alternative meal...');
+  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
+  
+  const startTime = Date.now();
+  let success = false;
+  
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(OPENAI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      } as GeminiRequest)
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional chef creating alternative meal options. Always respond with valid JSON only. No explanations or additional text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 800,
+        temperature: 0.8, // Slightly higher for more creativity
+        response_format: { type: "json_object" }
+      } as OpenAIRequest)
     });
 
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    console.log(`⚡ Alternative meal response time: ${responseTime}ms`);
+
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ OpenAI Error:', errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
-    const data: GeminiResponse = await response.json();
-    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
+    const data: OpenAIResponse = await response.json();
+    
+    if (data.usage) {
+      const cost = calculateCost(data.usage);
+      console.log('💰 Alternative meal token usage:', data.usage);
+      console.log('💰 Alternative meal estimated cost:', `$${cost.toFixed(6)}`);
+    }
+    
+    const generatedText = data.choices[0]?.message?.content;
     
     if (!generatedText) {
-      throw new Error('No response from Gemini API');
+      throw new Error('No response from OpenAI');
     }
 
+    console.log('✅ GPT-4o-mini alternative meal response received');
+    success = true;
+    
+    // Metrikleri güncelle
+    updateMetrics(responseTime, data.usage, success);
+    
     return parseMealFromResponse(generatedText, request);
+    
   } catch (error) {
-    console.error('AI alternative meal generation error:', error);
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    
+    // Hata durumunda da metrikleri güncelle
+    updateMetrics(responseTime, null, success);
+    
+    console.error('❌ AI alternative meal generation error:', error);
     throw error;
   }
 };
@@ -241,9 +396,10 @@ const buildAlternativePrompt = (
   const { pantryItems, userProfile, mealType } = request;
   const profile = analyzeUserProfile(userProfile);
   
-  const availableIngredients = pantryItems.map(item => 
-    `${item.name} (${item.quantity} ${item.unit || 'units'})`
-  ).join(', ');
+  const availableIngredients = pantryItems
+    .slice(0, 8) // Token tasarrufu için sadece ilk 8 ingredient
+    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
+    .join(', ');
 
   const calorieTarget = getCalorieTarget(userProfile, mealType);
 
@@ -285,16 +441,15 @@ const buildAlternativePrompt = (
   // Build allergen safety instructions
   const allergenSafety = profile.allergenWarnings.length > 0 
     ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives. Double-check all ingredients for cross-contamination risks.`
+       NEVER include these ingredients or their derivatives.`
     : '';
 
   // Build dietary compliance
   const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences to follow: ${profile.dietaryGuidelines.join(', ')}`
+    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
     : '';
 
-  return `
-You are creating an ALTERNATIVE ${mealType} recipe for a user who wants variety.
+  return `Create an ALTERNATIVE ${mealType} recipe.
 
 ${variationInstructions}
 
@@ -302,26 +457,21 @@ USER PROFILE:
 - Cooking Skill: ${profile.skillLevel}
 - Time Constraints: ${profile.timeConstraints}
 - Nutrition Focus: ${profile.nutritionFocus}
-- Preferred Cuisines: ${profile.cuisineStyle}
-- Age: ${userProfile?.age || 'not specified'}
-- Gender: ${userProfile?.gender || 'not specified'}
-- Activity Level: ${userProfile?.activity_level || 'moderate'}
 - Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
 
 ${allergenSafety}
 
 ${dietaryCompliance}
 
-AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+AVAILABLE INGREDIENTS: ${availableIngredients}
 
-RECIPE REQUIREMENTS:
-- Meal Type: ${mealType}
-- Target Calories: ~${calorieTarget} calories
+REQUIREMENTS:
+- Target Calories: ~${calorieTarget}
 - Use maximum pantry ingredients possible
 - Create something DIFFERENT from typical ${mealType} options
-- Be creative while staying within user's dietary restrictions
+- Be creative within dietary restrictions
 
-Please respond with a JSON object in this exact format:
+Respond with this exact JSON structure:
 {
   "name": "Creative Recipe Name",
   "ingredients": [
@@ -336,26 +486,24 @@ Please respond with a JSON object in this exact format:
   "prepTime": 15,
   "cookTime": 20,
   "servings": 1,
-  "difficulty": "${profile.skillLevel}",
+  "difficulty": "Easy",
   "instructions": [
     "Step 1: Detailed preparation step",
     "Step 2: Cooking process with timing",
     "Step 3: Final assembly and serving"
   ],
   "tags": ["alternative", "creative", "personalized"]
-}
-
-Only return the JSON object, no additional text.
-`;
+}`;
 };
 
 const buildEnhancedMealPrompt = (request: AIGenerationRequest): string => {
   const { pantryItems, userProfile, mealType } = request;
   const profile = analyzeUserProfile(userProfile);
   
-  const availableIngredients = pantryItems.map(item => 
-    `${item.name} (${item.quantity} ${item.unit || 'units'})`
-  ).join(', ');
+  const availableIngredients = pantryItems
+    .slice(0, 8) // Token tasarrufu için sadece ilk 8 ingredient
+    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
+    .join(', ');
 
   const calorieTarget = getCalorieTarget(userProfile, mealType);
   const complexityLevel = getComplexityLevel(profile.skillLevel, profile.timeConstraints);
@@ -363,61 +511,46 @@ const buildEnhancedMealPrompt = (request: AIGenerationRequest): string => {
   // Build allergen safety instructions
   const allergenSafety = profile.allergenWarnings.length > 0 
     ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives. Double-check all ingredients for cross-contamination risks.`
+       NEVER include these ingredients or their derivatives.`
     : '';
 
   // Build dietary compliance
   const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences to follow: ${profile.dietaryGuidelines.join(', ')}`
+    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
     : '';
 
-  return `
-You are a professional nutritionist and chef creating a personalized ${mealType} recipe.
+  return `Create a personalized ${mealType} recipe.
 
 USER PROFILE:
 - Cooking Skill: ${profile.skillLevel}
 - Time Constraints: ${profile.timeConstraints}
 - Nutrition Focus: ${profile.nutritionFocus}
 - Preferred Cuisines: ${profile.cuisineStyle}
-- Age: ${userProfile?.age || 'not specified'}
-- Gender: ${userProfile?.gender || 'not specified'}
-- Activity Level: ${userProfile?.activity_level || 'moderate'}
 - Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
 
 ${allergenSafety}
 
 ${dietaryCompliance}
 
-AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+AVAILABLE INGREDIENTS: ${availableIngredients}
 
-RECIPE REQUIREMENTS:
-- Meal Type: ${mealType}
-- Target Calories: ~${calorieTarget} calories
+REQUIREMENTS:
+- Target Calories: ~${calorieTarget}
 - Complexity: ${complexityLevel}
 - Use maximum pantry ingredients possible
-- Minimize shopping list additions
 - Match user's cuisine preferences when possible
-- Consider user's health goals in nutrition balance
-
-RECIPE COMPLEXITY GUIDELINES:
-${profile.skillLevel === 'beginner' ? 
-  '- Keep it simple: basic cooking methods only (boiling, baking, pan-frying)\n- Maximum 5 main ingredients\n- 30 minutes total time or less' :
-  profile.skillLevel === 'intermediate' ?
-  '- Moderate techniques allowed (sautéing, roasting, basic seasoning)\n- Up to 8 ingredients\n- 45 minutes total time' :
-  '- Advanced techniques welcome (braising, complex seasonings, multiple steps)\n- No ingredient limit\n- Any cooking time acceptable'
-}
 
 TIME CONSTRAINTS:
 ${profile.timeConstraints === 'quick' ? 
-  '- Maximum 20 minutes total time\n- Minimal prep work\n- One-pot or sheet-pan meals preferred' :
+  '- Maximum 20 minutes total time' :
   profile.timeConstraints === 'moderate' ?
-  '- 30-45 minutes total time acceptable\n- Some prep work ok' :
-  '- No time restrictions\n- Complex preparation acceptable'
+  '- 30-45 minutes total time acceptable' :
+  '- No time restrictions'
 }
 
-Please respond with a JSON object in this exact format:
+Respond with this exact JSON structure:
 {
-  "name": "Recipe Name (cuisine-inspired if applicable)",
+  "name": "Recipe Name",
   "ingredients": [
     {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"},
     {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein"}
@@ -430,17 +563,14 @@ Please respond with a JSON object in this exact format:
   "prepTime": 15,
   "cookTime": 20,
   "servings": 1,
-  "difficulty": "${profile.skillLevel}",
+  "difficulty": "Easy",
   "instructions": [
     "Step 1: Detailed preparation step",
     "Step 2: Cooking process with timing",
     "Step 3: Final assembly and serving"
   ],
-  "tags": ["health-goal-aligned", "cuisine-style", "skill-appropriate"]
-}
-
-Only return the JSON object, no additional text.
-`;
+  "tags": ["health-goal-aligned", "skill-appropriate"]
+}`;
 };
 
 const parseMealFromResponse = (responseText: string, request: AIGenerationRequest): Meal => {
@@ -528,6 +658,8 @@ export const generateAIMealPlan = async (
   dinner: Meal | null;
   snacks: Meal[];
 }> => {
+  console.log('🧪 Testing GPT-4o-mini for full meal plan...');
+  
   try {
     const baseRequest = {
       pantryItems,
@@ -571,6 +703,9 @@ export const generateAIMealPlan = async (
       targetProtein: Math.round(snackCalories * 0.10 / 4) // 10% protein
     });
 
+    console.log('✅ Full meal plan generated successfully');
+    console.log('📊 Final test metrics:', testMetrics);
+
     return {
       breakfast,
       lunch,
@@ -581,4 +716,20 @@ export const generateAIMealPlan = async (
     console.error('Error generating AI meal plan:', error);
     throw error;
   }
+};
+
+// Test metriklerini dışa aktar
+export const getTestMetrics = (): TestMetrics => {
+  return { ...testMetrics };
+};
+
+// Test metriklerini sıfırla
+export const resetTestMetrics = (): void => {
+  testMetrics = {
+    totalRequests: 0,
+    totalCost: 0,
+    averageResponseTime: 0,
+    successRate: 0,
+    averageTokens: { input: 0, output: 0 }
+  };
 };
