@@ -231,6 +231,44 @@ export const generateFallbackSnacks = (pantryItems: PantryItem[] = []): Meal[] =
   });
 };
 
+// ✅ ADDED: Ingredient Diversity Manager to prevent repetition
+export class IngredientDiversityManager {
+  private usedIngredients: Map<string, number> = new Map();
+  private primaryIngredients: Set<string> = new Set();
+
+  // Track ingredients from a generated meal
+  trackMeal(meal: Meal | null) {
+    if (!meal) return;
+
+    meal.ingredients.forEach(ingredient => {
+      const name = ingredient.name.toLowerCase();
+      this.usedIngredients.set(name, (this.usedIngredients.get(name) || 0) + 1);
+
+      // Assume primary ingredients are proteins or major vegetables
+      if (ingredient.category === 'Protein' || ingredient.category === 'Vegetables') {
+        this.primaryIngredients.add(name);
+      }
+    });
+  }
+
+  // Get a list of ingredients to avoid in the next generation
+  getAvoidanceList(limit: number = 3): string[] {
+    // Sort ingredients by usage count
+    const sorted = Array.from(this.usedIngredients.entries())
+      .filter(([name]) => this.primaryIngredients.has(name)) // Focus on avoiding primary ingredients
+      .sort((a, b) => b[1] - a[1]);
+
+    // Return the names of the most used ingredients
+    return sorted.slice(0, limit).map(item => item[0]);
+  }
+
+  // Reset the manager for a new meal plan
+  reset() {
+    this.usedIngredients.clear();
+    this.primaryIngredients.clear();
+  }
+}
+
 export const generateFallbackPlan = (pantryItems: PantryItem[] = []) => {
   const breakfast = generateFallbackMeal('breakfast', pantryItems);
   const lunch = generateFallbackMeal('lunch', pantryItems);

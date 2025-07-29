@@ -641,3 +641,7 @@ export const DIETARY_RESTRICTIONS = {
     alternatives: ['almond milk', 'coconut milk', 'vegan cheese', 'coconut yogurt', 'olive oil']
   }
 };
+
+// ✅ ADDED: Calorie limits for safety
+export const MIN_DAILY_CALORIES = 1200;
+export const MAX_DAILY_CALORIES = 3500;
