@@ -54,7 +54,8 @@ import {
   generateFallbackMeal, 
   generateFallbackSnacks, 
   generateFallbackPlan,
-  categorizeIngredient 
+  categorizeIngredient,
+  IngredientDiversityManager // ✅ ADDED: Import diversity manager
 } from '@/lib/meal-plan/utils';
 
 // AI Generation imports
@@ -259,8 +260,33 @@ export default function AIMealPlan() {
         return;
       }
 
-      // Generate AI meal plan
-      const aiMeals = await generateAIMealPlan(pantryItems, userProfile);
+      // ✅ ADDED: Use IngredientDiversityManager to ensure variety
+      const diversityManager = new IngredientDiversityManager();
+
+      const breakfast = await generateAIMeal({ mealType: 'breakfast', pantryItems, userProfile });
+      diversityManager.trackMeal(breakfast);
+
+      const lunch = await generateAIMeal(
+        { mealType: 'lunch', pantryItems, userProfile },
+        [breakfast],
+        diversityManager.getAvoidanceList()
+      );
+      diversityManager.trackMeal(lunch);
+
+      const dinner = await generateAIMeal(
+        { mealType: 'dinner', pantryItems, userProfile },
+        [breakfast, lunch],
+        diversityManager.getAvoidanceList()
+      );
+      diversityManager.trackMeal(dinner);
+      
+      const snacks = await generateAIMeal(
+        { mealType: 'snack', pantryItems, userProfile },
+        [breakfast, lunch, dinner],
+        diversityManager.getAvoidanceList()
+      );
+
+      const aiMeals = { breakfast, lunch, dinner, snacks: [snacks].filter(Boolean) as Meal[] };
       
       // Calculate totals
       const totalCalories = (aiMeals.breakfast?.calories || 0) + 
