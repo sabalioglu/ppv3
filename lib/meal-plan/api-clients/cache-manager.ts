@@ -18,7 +18,6 @@ export class CacheManager {
   }
 
   generateKey(namespace: string, params: Record<string, any>): string {
-    // Sort keys for consistent key generation regardless of object property order
     const sortedParams = Object.keys(params).sort().reduce(
       (result, key) => {
         result[key] = params[key];
@@ -90,26 +89,3 @@ export class CacheManager {
 
 // Create a singleton instance
 export const cacheManager = new CacheManager();
-2.3. lib/meal-plan/api-clients/cache-decorator.ts
-Copy// lib/meal-plan/api-clients/cache-decorator.ts
-import { cacheManager, CacheOptions } from './cache-manager';
-
-export function withCache<T>(
-  namespace: string,
-  fn: (params: any) => Promise<T>,
-  options?: Partial<CacheOptions>
-): (params: any) => Promise<T> {
-  return async (params: any): Promise<T> => {
-    const cacheKey = cacheManager.generateKey(namespace, params);
-    
-    const cachedResult = await cacheManager.get<T>(cacheKey);
-    if (cachedResult !== null) {
-      return cachedResult;
-    }
-    
-    const result = await fn(params);
-    cacheManager.set(cacheKey, result, options);
-    
-    return result;
-  };
-}
