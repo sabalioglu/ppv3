@@ -80,7 +80,7 @@ import {
 // Component imports
 import MealDetailModal from '@/components/meal-plan/MealDetailModal';
 import MealCard from '@/components/meal-plan/MealCard';
-import PantryInsights from '@/components/meal-plan/PantryInsights';
+// import PantryInsights from '@/components/meal-plan/PantryInsights';
 import MealPlanSummary from '@/components/meal-plan/MealPlanSummary';
 import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
 
@@ -101,7 +101,6 @@ export default function AIMealPlan() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [pantryInsights, setPantryInsights] = useState<PantryInsight[]>([]);
   
   // Modal states
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -212,8 +211,8 @@ export default function AIMealPlan() {
         setPantryMetrics(metrics);
 
         // Generate pantry insights
-        const insights = generatePantryInsights(validPantryItems, metrics);
-        setPantryInsights(insights);
+        // const insights = generatePantryInsights(validPantryItems, metrics);
+        // setPantryInsights(insights);
 
         // ✅ Generate AI meal plan instead of mock data
         await generateInitialMealPlan(validPantryItems, userProfileData);
@@ -594,9 +593,6 @@ export default function AIMealPlan() {
 
     return (
       <View style={styles.dailyContent}>
-        {/* Pantry Insights */}
-        <PantryInsights insights={pantryInsights} />
-
         {/* Today's Summary Card */}
         <MealPlanSummary plan={plan} />
 
