@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { initializeRecipeApi } from '@/lib/meal-plan/initialize';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -17,6 +18,18 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    // RapidAPI entegrasyonunu başlat
+    initializeRecipeApi({
+      rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
+      spoonacularHost: process.env.EXPO_PUBLIC_SPOONACULAR_HOST,
+      tastyHost: process.env.EXPO_PUBLIC_TASTY_HOST,
+      themealdbHost: process.env.EXPO_PUBLIC_THEMEALDB_HOST,
+      // İsteğe bağlı diğer yapılandırmalar
+      cacheTtl: 3600000, // 1 saat
+      preferApi: true,
+      fallbackToAi: true
+    });
+
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
