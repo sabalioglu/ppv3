@@ -1,28 +1,21 @@
 // lib/meal-plan/api-clients/index.ts
-
-import { ApiProvider, ApiClientConfig, RecipeApiClient } from './types';
+import { RecipeApiClient } from './types';
 import { SpoonacularApiClient } from './spoonacular-client';
 import { TastyApiClient } from './tasty-client';
 import { TheMealDbApiClient } from './themealdb-client';
 
-/**
- * Belirtilen API sağlayıcısı için uygun istemciyi oluşturur
- */
-export function createApiClient(config: ApiClientConfig): RecipeApiClient {
-  switch (config.provider) {
-    case ApiProvider.SPOONACULAR:
-      return new SpoonacularApiClient(config);
-    case ApiProvider.TASTY:
-      return new TastyApiClient(config);
-    case ApiProvider.THEMEALDB:
-      return new TheMealDbApiClient(config);
+export type ApiSource = 'spoonacular' | 'tasty' | 'themealdb';
+
+// Host parametresini ekleyin
+export function createApiClient(source: ApiSource, apiKey: string, host?: string): RecipeApiClient {
+  switch (source) {
+    case 'spoonacular':
+      return new SpoonacularApiClient(apiKey, host);
+    case 'tasty':
+      return new TastyApiClient(apiKey, host);
+    case 'themealdb':
+      return new TheMealDbApiClient(apiKey, host);
     default:
-      throw new Error(`Unsupported API provider: ${config.provider}`);
+      throw new Error(`Unknown API source: ${source}`);
   }
 }
-
-// Tipleri ve sınıfları dışa aktar
-export * from './types';
-export * from './spoonacular-client';
-export * from './tasty-client';
-export * from './themealdb-client';
