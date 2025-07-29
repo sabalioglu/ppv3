@@ -47,7 +47,7 @@ import {
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 import { 
-  calculateOptimizationScore,
+  calculateAverageMatchScore, // ✅ UPDATED
   calculatePantryMatch 
 } from '@/lib/meal-plan/meal-matching';
 import { 
@@ -287,31 +287,20 @@ export default function AIMealPlan() {
 
       const aiMeals = { breakfast, lunch, dinner, snacks: [snacks].filter(Boolean) as Meal[] };
       
-      // Calculate totals
-      const totalCalories = (aiMeals.breakfast?.calories || 0) + 
-                           (aiMeals.lunch?.calories || 0) + 
-                           (aiMeals.dinner?.calories || 0) + 
-                           aiMeals.snacks.reduce((sum, snack) => sum + snack.calories, 0);
-      
-      const totalProtein = (aiMeals.breakfast?.protein || 0) + 
-                          (aiMeals.lunch?.protein || 0) + 
-                          (aiMeals.dinner?.protein || 0) + 
-                          aiMeals.snacks.reduce((sum, snack) => sum + snack.protein, 0);
+      // ✅ FIXED: Calculate totals accurately from the generated meals
+      const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
+      const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+      const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
 
-      // Calculate optimization score
-      const optimizationScore = calculateOptimizationScore(
-        aiMeals.breakfast, 
-        aiMeals.lunch, 
-        aiMeals.dinner, 
-        pantryItems
-      );
+      // ✅ FIXED: Use the new, clear average match score calculation
+      const averageMatchScore = calculateAverageMatchScore(mealsForTotals);
 
       const plan: MealPlan = {
         daily: {
           ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore,
+          optimizationScore: averageMatchScore, // Use the clear average score
           generatedAt: new Date().toISOString(),
           regenerationHistory: {}
         }
