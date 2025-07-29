@@ -1,6 +1,7 @@
 //lib/meal-plan/ai-generation.ts
 // AI meal generation using OpenAI GPT-4o-mini with BRUTAL pantry-focused approach + anti-duplicate logic
 import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse } from './types';
+import { calculatePantryMatch } from './meal-matching'; // ✅ IMPORT aLınDI
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -388,50 +389,62 @@ const buildPantryFocusedPrompt = (
   const skillInstructions = getSkillBasedInstructions(profile.skillLevel);
 
   // Build allergen safety instructions
-  const allergenSafety = profile.allergenWarnings.length > 0 
-    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives.`
+  const allergenSafety = profile.allergenWarnings.length > 0
+    ? `- **Allergens:** NEVER include these ingredients or their derivatives: **${profile.allergenWarnings.join(', ')}**.`
     : '';
 
   // Build dietary compliance
   const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
+    ? `- **Dietary Needs:** The meal MUST be **${profile.dietaryGuidelines.join(', ')}**.`
     : '';
 
-  return `You are a chef creating a ${mealType} recipe. Your PRIMARY GOAL is to maximize pantry ingredient usage while avoiding repetition.
+  // ✅ ADDED: Meal Type Constraints Logic
+  const getMealTypeConstraints = (mealType: string) => {
+    switch(mealType.toLowerCase()) {
+      case 'breakfast':
+        return `- **Meal Type Rule:** This is a **breakfast** meal. It MUST be a typical breakfast food (like eggs, oatmeal, smoothie, pancakes, yogurt). Avoid heavy, complex dinner-style dishes like salmon fillets or steak. It should be quick to prepare.`;
+      case 'lunch':
+        return `- **Meal Type Rule:** This is a **lunch** meal. It can be a salad, sandwich, wrap, soup, or a light-portioned main course. Avoid overly heavy or large dinner plates.`;
+      case 'dinner':
+        return `- **Meal Type Rule:** This is a **dinner** meal. It should be a satisfying and complete main course. It can be more complex than breakfast or lunch.`;
+      case 'snack':
+        return `- **Meal Type Rule:** This is a **snack**. It MUST be a small, light, and easy-to-eat item. Examples: a piece of fruit, yogurt, a handful of nuts, or a small energy bar.`;
+      default:
+        return '';
+    }
+  }
+  const mealTypeConstraint = getMealTypeConstraints(mealType);
+
+  return `You are a world-class chef creating a single, perfect ${mealType} recipe. Your absolute top priority is to follow the user's dietary needs and then maximize pantry usage.
+
+🛑 NON-NEGOTIABLE RULES (MUST BE FOLLOWED):
+${allergenSafety}
+${dietaryCompliance}
+${mealTypeConstraint}
+- You MUST respond with valid JSON only. No extra text or explanations.
 
 🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
 
 🎯 STRICT PANTRY PRIORITY RULES:
-1. Use AT LEAST 80% of ingredients from available pantry items only
-2. Maximum 2 additional ingredients can be suggested for purchase
-3. PROTEIN PRIORITY: If pantry contains protein (${proteinItems.map(p => p.name).join(', ')}), you MUST use one of these as main protein
-4. VEGETABLE PRIORITY: If pantry contains vegetables (${vegetableItems.map(v => v.name).join(', ')}), you MUST incorporate at least 2-3 of these
-5. GRAIN/CARB PRIORITY: If pantry contains grains (${grainItems.map(g => g.name).join(', ')}), use one as the base/side
-6. QUANTITY AWARENESS: Use ingredients with higher quantities first to help reduce pantry waste
-7. EXPIRY PRIORITY: If ingredient names suggest freshness (fresh herbs, leafy greens), prioritize these
-8. VERSATILE INGREDIENTS: Use pantry staples (onions, garlic, oil, spices) that work in multiple dishes
-9. SEASONAL MATCHING: If pantry has seasonal items, build the meal around those
-10. CUISINE ADAPTATION: Adapt cuisine style to match available pantry ingredients rather than forcing specific cuisines
-
-${highQuantityItems.length > 0 ? `🔥 HIGH QUANTITY PRIORITY: These items have surplus quantities and should be used first: ${highQuantityItems.join(', ')}` : ''}
+1.  **Maximize Pantry Usage:** Use AT LEAST 80% of ingredients from the available pantry items.
+2.  **Minimize Shopping:** Suggest a MAXIMUM of 2 additional ingredients for purchase.
+3.  **Protein First:** If the pantry contains protein (${proteinItems.map(p => p.name).join(', ')}), you MUST use one as the main protein.
+4.  **Use Vegetables:** If the pantry has vegetables (${vegetableItems.map(v => v.name).join(', ')}), you MUST include at least 2-3.
+5.  **Grain Base:** If grains are available (${grainItems.map(g => g.name).join(', ')}), use one as a base or side.
+6.  **Use Abundant Items:** Prioritize ingredients with higher quantities to reduce waste. These are high-quantity: ${highQuantityItems.join(', ')}.
+7.  **Cuisine Adaptation:** Adapt the cuisine style to match the pantry ingredients.
 
 🚫 ANTI-DUPLICATE RULES:
-${usedIngredients.length > 0 ? `- AVOID these already used ingredients as main components: ${usedIngredients.slice(0, 10).join(', ')}` : ''}
-${usedCuisines.length > 0 ? `- AVOID these cuisines already used: ${usedCuisines.join(', ')}` : ''}
-${usedMainProteins.length > 0 ? `- AVOID these proteins already used: ${usedMainProteins.join(', ')}` : ''}
-- Create a DIFFERENT meal approach than previous suggestions
-- Use different cooking methods and flavor profiles
+- **Avoid Repeated Ingredients:** Do not use these main ingredients again: ${usedIngredients.slice(0, 10).join(', ')}.
+- **Vary Cuisines:** Avoid these recently used cuisines: ${usedCuisines.join(', ')}.
+- **Rotate Proteins:** Do not use these proteins again: ${usedMainProteins.join(', ')}.
+- Create a DIFFERENT meal approach from previous suggestions.
 
-USER PROFILE:
-- Cooking Skill: ${profile.skillLevel}
-- Time Constraints: ${profile.timeConstraints}
-- Nutrition Focus: ${profile.nutritionFocus}
-- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-${allergenSafety}
-
-${dietaryCompliance}
+👤 USER PROFILE:
+- **Cooking Skill:** ${profile.skillLevel}
+- **Time Constraints:** ${profile.timeConstraints}
+- **Nutrition Focus:** ${profile.nutritionFocus}
+- **Health Goals:** ${userProfile?.health_goals?.join(', ') || 'general health'}
 
 🍳 COOKING GUIDELINES:
 ${skillInstructions}
@@ -487,7 +500,8 @@ Respond with this exact JSON structure:
   ],
   "tags": ["pantry-focused", "budget-friendly", "waste-reducing", "${detectedCuisine}"],
   "pantryUsagePercentage": 85,
-  "shoppingListItems": ["item1", "item2"]
+  "shoppingListItems": ["item1", "item2"],
+  "restrictionsFollowed": true
 }`;
 };
 
@@ -634,46 +648,42 @@ const buildAlternativePrompt = (
   }
 
   // Build allergen safety instructions
-  const allergenSafety = profile.allergenWarnings.length > 0 
-    ? `🚨 CRITICAL ALLERGEN SAFETY: User is allergic to: ${profile.allergenWarnings.join(', ')}. 
-       NEVER include these ingredients or their derivatives.`
+  const allergenSafety = profile.allergenWarnings.length > 0
+    ? `- **Allergens:** NEVER include these ingredients or their derivatives: **${profile.allergenWarnings.join(', ')}**.`
     : '';
 
   // Build dietary compliance
   const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `Dietary preferences: ${profile.dietaryGuidelines.join(', ')}`
+    ? `- **Dietary Needs:** The meal MUST be **${profile.dietaryGuidelines.join(', ')}**.`
     : '';
 
-  return `Create an ALTERNATIVE ${mealType} recipe with MAXIMUM pantry usage and ZERO repetition.
+  return `You are a creative chef generating a completely DIFFERENT ${mealType} recipe. Your top priorities are zero repetition and strict adherence to user needs.
+
+🛑 NON-NEGOTIABLE RULES (MUST BE FOLLOWED):
+${allergenSafety}
+${dietaryCompliance}
+- You MUST respond with valid JSON only. No extra text or explanations.
 
 ${variationInstructions}
 
 🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
 
 🚫 BRUTAL ANTI-DUPLICATE RULES:
-${allUsedIngredients.length > 0 ? `- ABSOLUTELY AVOID these ingredients as main components: ${allUsedIngredients.slice(0, 15).join(', ')}` : ''}
-${allUsedCuisines.length > 0 ? `- COMPLETELY AVOID these cuisines: ${allUsedCuisines.join(', ')}` : ''}
-${allUsedMainProteins.length > 0 ? `- DO NOT USE these proteins: ${allUsedMainProteins.join(', ')}` : ''}
-- Create a RADICALLY DIFFERENT meal approach
-- Use different cooking methods, spice profiles, and presentation styles
-- If previous meals were hot, consider cold preparations (salads, wraps)
-- If previous meals were simple, add complexity (or vice versa)
+- **ABSOLUTELY AVOID** these main ingredients: ${allUsedIngredients.slice(0, 15).join(', ')}.
+- **COMPLETELY AVOID** these cuisines: ${allUsedCuisines.join(', ')}.
+- **DO NOT USE** these proteins again: ${allUsedMainProteins.join(', ')}.
+- Create a **RADICALLY DIFFERENT** meal. Use new cooking methods and flavor profiles.
 
 🎯 PANTRY MAXIMIZATION RULES:
-- Use AT LEAST 80% ingredients from pantry
-- Maximum 2 shopping list items allowed
-- Prioritize unused pantry ingredients
-- Focus on different pantry categories than previous meals
+- Use AT LEAST 80% ingredients from the pantry.
+- Maximum 2 shopping list items.
+- Prioritize UNUSED pantry ingredients.
 
-USER PROFILE:
-- Cooking Skill: ${profile.skillLevel}
-- Time Constraints: ${profile.timeConstraints}
-- Nutrition Focus: ${profile.nutritionFocus}
-- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-${allergenSafety}
-
-${dietaryCompliance}
+👤 USER PROFILE:
+- **Cooking Skill:** ${profile.skillLevel}
+- **Time Constraints:** ${profile.timeConstraints}
+- **Nutrition Focus:** ${profile.nutritionFocus}
+- **Health Goals:** ${userProfile?.health_goals?.join(', ') || 'general health'}
 
 🎯 ALTERNATIVE MEAL REQUIREMENTS:
 - Target Calories: ~${calorieTarget}
@@ -705,7 +715,8 @@ Respond with this exact JSON structure:
   ],
   "tags": ["alternative", "creative", "pantry-focused", "unique"],
   "pantryUsagePercentage": 85,
-  "shoppingListItems": ["item1", "item2"]
+  "shoppingListItems": ["item1", "item2"],
+  "restrictionsFollowed": true
 }`;
 };
 
@@ -719,6 +730,15 @@ const parseMealFromResponse = (responseText: string, request: AIGenerationReques
 
     const parsedMeal = JSON.parse(cleanedText);
     
+    // ✅ AI Self-Verification Check
+    if (parsedMeal.restrictionsFollowed !== true) {
+      console.warn('AI reported that it failed to follow restrictions.');
+      throw new Error('AI failed to follow dietary restrictions. Regenerating...');
+    }
+
+    // ✅ Calculate pantry match score immediately after generation
+    const pantryMatch = calculatePantryMatch(parsedMeal.ingredients || [], request.pantryItems);
+
     // Generate meal ID and add metadata
     const mealId = `ai_${request.mealType}_${Date.now()}`;
     const emoji = getMealEmoji(request.mealType, parsedMeal.name);
@@ -743,10 +763,18 @@ const parseMealFromResponse = (responseText: string, request: AIGenerationReques
       source: 'ai_generated',
       created_at: new Date().toISOString(),
       pantryUsagePercentage: parsedMeal.pantryUsagePercentage || 0,
-      shoppingListItems: parsedMeal.shoppingListItems || []
+      shoppingListItems: parsedMeal.shoppingListItems || [],
+      // ✅ Add match results to the meal object
+      matchPercentage: pantryMatch.matchPercentage,
+      pantryMatch: pantryMatch.matchCount,
+      totalIngredients: pantryMatch.totalIngredients,
+      missingIngredients: pantryMatch.missingIngredients,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing AI meal response:', error);
+    if (error.message.includes('AI failed to follow')) {
+        throw error;
+    }
     throw new Error('Failed to parse AI meal response');
   }
 };
