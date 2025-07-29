@@ -5,14 +5,13 @@ import {
   RecipeSearchParams, 
   RecipeSearchResult 
 } from './api-clients/types';
-import { createApiClient } from './api-clients';
+import { ApiSource, createApiClient } from './api-clients';
 import { cacheManager } from './api-clients/cache-manager';
-
-type ApiSource = 'spoonacular' | 'tasty' | 'themealdb';
 
 interface ApiConfig {
   apiKey: string;
   source: ApiSource;
+  host?: string;
   isActive: boolean;
   priority: number;
 }
@@ -32,7 +31,7 @@ export class ApiManager {
     this.apiConfigs.set(config.source, config);
     
     if (config.isActive) {
-      const client = createApiClient(config.source, config.apiKey);
+      const client = createApiClient(config.source, config.apiKey, config.host);
       this.apiClients.set(config.source, client);
       
       // Sort active APIs by priority
