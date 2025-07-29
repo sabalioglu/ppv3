@@ -109,34 +109,6 @@ export default function MealPlanSummary({ plan, onViewDetails }: MealPlanSummary
         </View>
       </View>
 
-      {/* Meal breakdown */}
-      <View style={styles.mealBreakdown}>
-        <Text style={styles.breakdownTitle}>Meal Breakdown</Text>
-        <View style={styles.mealItems}>
-          {plan.breakfast && (
-            <View style={styles.mealItem}>
-              <Text style={styles.mealEmoji}>{plan.breakfast.emoji}</Text>
-              <Text style={styles.mealItemText}>{plan.breakfast.name}</Text>
-              <Text style={styles.mealCalories}>{plan.breakfast.calories} cal</Text>
-            </View>
-          )}
-          {plan.lunch && (
-            <View style={styles.mealItem}>
-              <Text style={styles.mealEmoji}>{plan.lunch.emoji}</Text>
-              <Text style={styles.mealItemText}>{plan.lunch.name}</Text>
-              <Text style={styles.mealCalories}>{plan.lunch.calories} cal</Text>
-            </View>
-          )}
-          {plan.dinner && (
-            <View style={styles.mealItem}>
-              <Text style={styles.mealEmoji}>{plan.dinner.emoji}</Text>
-              <Text style={styles.mealItemText}>{plan.dinner.name}</Text>
-              <Text style={styles.mealCalories}>{plan.dinner.calories} cal</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
       {onViewDetails && (
         <View style={styles.viewDetailsHint}>
           <Text style={styles.viewDetailsText}>Tap to view details</Text>

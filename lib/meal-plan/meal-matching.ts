@@ -195,43 +195,24 @@ export const findBestMealMatch = (
   return bestMeal;
 };
 
-export const calculateOptimizationScore = (
-  breakfast: Meal | null, 
-  lunch: Meal | null, 
-  dinner: Meal | null, 
-  pantryItems: PantryItem[]
-): number => {
-  const meals = [breakfast, lunch, dinner].filter(Boolean) as Meal[];
-  if (meals.length === 0) return 0;
+// This function is now deprecated in favor of calculateAverageMatchScore for clarity.
+// export const calculateOptimizationScore = ( ... )
 
-  // Average match percentage
-  const avgMatchPercentage = meals.reduce((sum, meal) => 
+/**
+ * Calculates the average pantry match score based on a list of meals.
+ * This provides a clear and direct representation of how well the meal plan matches the user's pantry.
+ * @param meals - An array of Meal objects.
+ * @returns The average match percentage (0-100).
+ */
+export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
+  const validMeals = meals.filter(Boolean) as Meal[];
+  if (validMeals.length === 0) return 0;
+
+  const totalMatchPercentage = validMeals.reduce((sum, meal) =>
     sum + (meal.matchPercentage || 0), 0
-  ) / meals.length;
+  );
 
-  // Expiring items usage
-  const expiringItems = getExpiringItems(pantryItems);
-  const expiringItemsUsed = expiringItems.filter(item =>
-    meals.some(meal => 
-      meal.ingredients.some((ing: Ingredient) =>
-        findIngredientMatch(ing.name, [item])
-      )
-    )
-  ).length;
-
-  const expiringUsageScore = expiringItems.length > 0 
-    ? (expiringItemsUsed / expiringItems.length) * 100 
-    : 100;
-
-  // Nutritional balance (basic)
-  const totalCalories = meals.reduce((sum, meal) => sum + meal.calories, 0);
-  const totalProtein = meals.reduce((sum, meal) => sum + meal.protein, 0);
-  
-  let nutritionScore = 100;
-  if (totalCalories < 1200 || totalCalories > 2500) nutritionScore -= 20;
-  if (totalProtein < 50) nutritionScore -= 15;
-
-  return Math.round((avgMatchPercentage + expiringUsageScore + nutritionScore) / 3);
+  return Math.round(totalMatchPercentage / validMeals.length);
 };
 
 export const getMealSuggestions = (
