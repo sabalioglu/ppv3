@@ -6,7 +6,6 @@ import { TheMealDbApiClient } from './themealdb-client';
 
 export type ApiSource = 'spoonacular' | 'tasty' | 'themealdb';
 
-// Host parametresini ekleyin
 export function createApiClient(source: ApiSource, apiKey: string, host?: string): RecipeApiClient {
   switch (source) {
     case 'spoonacular':
