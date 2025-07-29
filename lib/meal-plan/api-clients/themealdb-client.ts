@@ -8,7 +8,6 @@ export class TheMealDbApiClient implements RecipeApiClient {
   private baseUrl: string;
   private useRapidApi: boolean;
   
-  // Host parametresi ekleyin
   constructor(apiKey: string = '', host?: string) {
     this.apiKey = apiKey;
     this.host = host || 'themealdb.p.rapidapi.com';
@@ -188,20 +187,193 @@ export class TheMealDbApiClient implements RecipeApiClient {
     { ttl: 3600000 } // 1 saat önbellekleme
   );
 
-  // mapRecipe ve mapSimpleMeal metodlarında değişiklik yok
   private mapRecipe(mealData: any): Recipe {
-    // Mevcut mapRecipe implementasyonu
+    // TheMealDB API'den gelen ingredientleri dizi olarak oluştur
+    const ingredients: any[] = [];
+    
+    for (let i = 1; i <= 20; i++) {
+      const ingredient = mealData[`strIngredient${i}`];
+      const measure = mealData[`strMeasure${i}`];
+      
+      if (ingredient && ingredient.trim() !== '') {
+        ingredients.push({
+          name: ingredient,
+          amount: measure || '',
+          original: `${measure || ''} ${ingredient}`.trim()
+        });
+      }
+    }
+    
+    // Analiz edilmiş talimatları oluştur
+    const analyzedInstructions = [];
+    if (mealData.strInstructions) {
+      const steps = mealData.strInstructions
+        .split(/\r\n|\r|\n/)
+        .filter((step: string) => step.trim() !== '')
+        .map((step: string, index: number) => ({
+          number: index + 1,
+          step: step.trim()
+        }));
+        
+      if (steps.length > 0) {
+        analyzedInstructions.push({
+          name: '',
+          steps
+        });
+      }
+    }
+    
     return {
-      // ... mevcut implementasyon
+      id: `themealdb:${mealData.idMeal}`,
+      title: mealData.strMeal,
+      image: mealData.strMealThumb || '',
+      imageType: 'jpg',
+      servings: 4, // TheMealDB API'si porsiyon bilgisi sağlamıyor, varsayılan değer
+      readyInMinutes: 30, // TheMealDB API'si hazırlama süresi sağlamıyor, varsayılan değer
+      license: '',
+      sourceName: mealData.strSource ? new URL(mealData.strSource).hostname : 'TheMealDB',
+      sourceUrl: mealData.strSource || '',
+      spoonacularScore: 0,
+      healthScore: 0,
+      pricePerServing: 0,
+      analyzedInstructions: analyzedInstructions,
+      cheap: false,
+      creditsText: 'TheMealDB',
+      cuisines: mealData.strArea ? [mealData.strArea] : [],
+      dairyFree: false,
+      diets: [], // TheMealDB diyet bilgisi sağlamıyor
+      gaps: '',
+      glutenFree: false,
+      instructions: mealData.strInstructions || '',
+      ketogenic: false,
+      lowFodmap: false,
+      occasions: [],
+      sustainable: false,
+      vegan: false,
+      vegetarian: mealData.strCategory === 'Vegetarian',
+      veryHealthy: false,
+      veryPopular: false,
+      whole30: false,
+      weightWatcherSmartPoints: 0,
+      dishTypes: mealData.strCategory ? [mealData.strCategory] : [],
+      extendedIngredients: ingredients,
+      summary: `${mealData.strMeal} is a ${mealData.strCategory} dish from ${mealData.strArea} cuisine.`,
+      winePairing: {},
+      originalId: mealData.idMeal,
       apiSource: 'themealdb'
     };
   }
   
   private mapSimpleMeal(mealData: any): Recipe {
-    // Mevcut mapSimpleMeal implementasyonu
     return {
-      // ... mevcut implementasyon
+      id: `themealdb:${mealData.idMeal}`,
+      title: mealData.strMeal,
+      image: mealData.strMealThumb || '',
+      imageType: 'jpg',
+      servings: 4,
+      readyInMinutes: 30,
+      license: '',
+      sourceName: 'TheMealDB',
+      sourceUrl: '',
+      spoonacularScore: 0,
+      healthScore: 0,
+      pricePerServing: 0,
+      analyzedInstructions: [],
+      cheap: false,
+      creditsText: 'TheMealDB',
+      cuisines: [],
+      dairyFree: false,
+      diets: [],
+      gaps: '',
+      glutenFree: false,
+      instructions: '',
+      ketogenic: false,
+      lowFodmap: false,
+      occasions: [],
+      sustainable: false,
+      vegan: false,
+      vegetarian: false,
+      veryHealthy: false,
+      veryPopular: false,
+      whole30: false,
+      weightWatcherSmartPoints: 0,
+      dishTypes: [],
+      extendedIngredients: [],
+      summary: '',
+      winePairing: {},
+      originalId: mealData.idMeal,
       apiSource: 'themealdb'
     };
   }
+  
+  // TheMealDB'ye özgü ekstra metodlar
+  async getCategories(): Promise<any[]> {
+    return this.getCategoriesWithCache();
+  }
+  
+  private getCategoriesWithCache = withCache<any[]>(
+    'themealdb:getCategories',
+    async (): Promise<any[]> => {
+      try {
+        const options: RequestInit = {
+          method: 'GET'
+        };
+        
+        if (this.useRapidApi) {
+          options.headers = {
+            'X-RapidAPI-Key': this.apiKey,
+            'X-RapidAPI-Host': this.host
+          };
+        }
+        
+        const response = await fetch(`${this.baseUrl}/categories.php`, options);
+        
+        if (!response.ok) {
+          throw new Error(`TheMealDB API error: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        return data.categories || [];
+      } catch (error) {
+        console.error('Error fetching categories from TheMealDB:', error);
+        throw error;
+      }
+    },
+    { ttl: 86400000 } // 24 saat önbellekleme
+  );
+  
+  async getAreas(): Promise<string[]> {
+    return this.getAreasWithCache();
+  }
+  
+  private getAreasWithCache = withCache<string[]>(
+    'themealdb:getAreas',
+    async (): Promise<string[]> => {
+      try {
+        const options: RequestInit = {
+          method: 'GET'
+        };
+        
+        if (this.useRapidApi) {
+          options.headers = {
+            'X-RapidAPI-Key': this.apiKey,
+            'X-RapidAPI-Host': this.host
+          };
+        }
+        
+        const response = await fetch(`${this.baseUrl}/list.php?a=list`, options);
+        
+        if (!response.ok) {
+          throw new Error(`TheMealDB API error: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        return data.meals ? data.meals.map((area: any) => area.strArea) : [];
+      } catch (error) {
+        console.error('Error fetching areas from TheMealDB:', error);
+        throw error;
+      }
+    },
+    { ttl: 86400000 } // 24 saat önbellekleme
+  );
 }
