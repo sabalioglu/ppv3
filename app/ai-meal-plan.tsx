@@ -1,5 +1,5 @@
 //app/ai-meal-plan.tsx
-// Enhanced AI Meal Plan with individual meal regeneration capabilities
+// Enhanced AI Meal Plan with Gemini API and individual meal regeneration capabilities
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -47,24 +47,14 @@ import {
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 import { 
-  calculateAverageMatchScore, // ✅ UPDATED
   calculatePantryMatch 
 } from '@/lib/meal-plan/meal-matching';
 import { 
   generateFallbackMeal, 
   generateFallbackSnacks, 
   generateFallbackPlan,
-  categorizeIngredient,
-  IngredientDiversityManager // ✅ ADDED: Import diversity manager
+  categorizeIngredient
 } from '@/lib/meal-plan/utils';
-
-// AI Generation imports
-import { 
-  generateAIMealPlan,
-  generateAIMeal,
-  generateAlternativeMeal 
-} from '@/lib/meal-plan/ai-generation';
-import { mealRegenerationManager } from '@/lib/meal-plan/meal-regeneration';
 
 // Error handling imports
 import { 
@@ -80,9 +70,456 @@ import {
 // Component imports
 import MealDetailModal from '@/components/meal-plan/MealDetailModal';
 import MealCard from '@/components/meal-plan/MealCard';
-// import PantryInsights from '@/components/meal-plan/PantryInsights';
 import MealPlanSummary from '@/components/meal-plan/MealPlanSummary';
 import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
+
+// ✅ GEMINI API CONFIGURATION
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
+interface GeminiRequest {
+  contents: {
+    parts: {
+      text: string;
+    }[];
+  }[];
+}
+
+interface GeminiResponse {
+  candidates: {
+    content: {
+      parts: {
+        text: string;
+      }[];
+    };
+  }[];
+}
+
+// ✅ MEAL TYPE CONSTRAINTS FOR CULTURAL APPROPRIATENESS
+const MEAL_TYPE_CONSTRAINTS = {
+  breakfast: {
+    culturallyAppropriate: [
+      'toast', 'eggs', 'oatmeal', 'smoothie', 'pancakes', 'waffles',
+      'yogurt parfait', 'cereal', 'fruit bowl', 'breakfast sandwich', 'avocado toast'
+    ],
+    avoid: ['complex dinners', 'heavy proteins', 'elaborate sauces', 'salmon frittata', 'stir-fry'],
+    maxPrepTime: 20,
+    appropriateIngredients: [
+      'eggs', 'oats', 'yogurt', 'milk', 'bread', 'butter', 'jam', 'honey',
+      'berries', 'banana', 'apple', 'orange juice', 'coffee', 'tea',
+      'bacon', 'sausage', 'pancake mix', 'cereal', 'granola', 'avocado'
+    ]
+  },
+  lunch: {
+    culturallyAppropriate: [
+      'salad', 'sandwich', 'wrap', 'soup', 'pasta', 'stir-fry',
+      'grain bowl', 'light protein with vegetables', 'rice bowl'
+    ],
+    avoid: ['breakfast foods', 'heavy dinner preparations'],
+    maxPrepTime: 30
+  },
+  dinner: {
+    culturallyAppropriate: [
+      'protein with vegetables', 'pasta dishes', 'rice dishes',
+      'stews', 'roasted meals', 'grilled proteins', 'curry dishes'
+    ],
+    avoid: ['breakfast foods', 'overly light meals'],
+    maxPrepTime: 60
+  },
+  snack: {
+    culturallyAppropriate: [
+      'fruit', 'nuts', 'yogurt', 'crackers with cheese',
+      'vegetables with dip', 'simple combinations', 'energy balls'
+    ],
+    avoid: ['cooked meals', 'complex preparations'],
+    maxPrepTime: 5
+  }
+};
+
+// ✅ DIVERSITY MANAGER FOR INGREDIENT VARIETY
+class IngredientDiversityManager {
+  private usedIngredients: Map<string, number> = new Map();
+  private usedCuisines: Set<string> = new Set();
+  private usedProteins: Set<string> = new Set();
+
+  trackMeal(meal: Meal) {
+    meal.ingredients.forEach(ing => {
+      const ingredientName = typeof ing === 'string' ? ing : ing.name;
+      const count = this.usedIngredients.get(ingredientName.toLowerCase()) || 0;
+      this.usedIngredients.set(ingredientName.toLowerCase(), count + 1);
+    });
+
+    meal.tags?.forEach(tag => {
+      if (tag.includes('inspired') || tag.includes('cuisine')) {
+        this.usedCuisines.add(tag);
+      }
+    });
+
+    const proteins = meal.ingredients.filter(ing => {
+      const ingredientName = typeof ing === 'string' ? ing : ing.name;
+      return ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'eggs', 'tofu', 'beans'].some(protein =>
+        ingredientName.toLowerCase().includes(protein)
+      );
+    });
+    
+    proteins.forEach(protein => {
+      const proteinName = typeof protein === 'string' ? protein : protein.name;
+      this.usedProteins.add(proteinName.toLowerCase());
+    });
+  }
+
+  getAvoidanceList() {
+    return {
+      overusedIngredients: Array.from(this.usedIngredients.entries())
+        .filter(([_, count]) => count >= 2)
+        .map(([ingredient, _]) => ingredient),
+      usedCuisines: Array.from(this.usedCuisines),
+      usedProteins: Array.from(this.usedProteins)
+    };
+  }
+
+  reset() {
+    this.usedIngredients.clear();
+    this.usedCuisines.clear();
+    this.usedProteins.clear();
+  }
+}
+
+// ✅ ENHANCED CALORIE CALCULATION WITH SAFETY LIMITS
+const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): number => {
+  const defaultCalories = {
+    breakfast: 350,
+    lunch: 450,
+    dinner: 550,
+    snack: 150
+  };
+
+  if (!userProfile) {
+    return defaultCalories[mealType as keyof typeof defaultCalories] || 400;
+  }
+
+  const { age, gender, height_cm, weight_kg, activity_level, health_goals } = userProfile;
+
+  let bmr = 1500; // Safe default
+  if (age && height_cm && weight_kg && gender) {
+    if (gender === 'male') {
+      bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5;
+    } else {
+      bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
+    }
+  }
+
+  const activityMultipliers = {
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+    extra_active: 1.9,
+  };
+
+  const totalCalories = bmr * (activityMultipliers[activity_level as keyof typeof activityMultipliers] || 1.4);
+
+  let calorieAdjustment = 1.0;
+  if (health_goals?.includes('weight_loss')) calorieAdjustment = 0.85;
+  if (health_goals?.includes('muscle_gain')) calorieAdjustment = 1.15;
+
+  // ✅ STRICT SAFETY LIMITS
+  const maxDailyCalories = 2200;
+  const minDailyCalories = 1400;
+  
+  const adjustedTotal = Math.min(
+    Math.max(totalCalories * calorieAdjustment, minDailyCalories), 
+    maxDailyCalories
+  );
+
+  const mealDistribution = {
+    breakfast: 0.25,
+    lunch: 0.35,
+    dinner: 0.35,
+    snack: 0.05,
+  };
+
+  const targetCalories = Math.round(
+    adjustedTotal * (mealDistribution[mealType as keyof typeof mealDistribution] || 0.25)
+  );
+
+  // ✅ MEAL-SPECIFIC SAFETY LIMITS
+  const mealLimits = {
+    breakfast: { min: 250, max: 500 },
+    lunch: { min: 350, max: 650 },
+    dinner: { min: 400, max: 750 },
+    snack: { min: 100, max: 250 }
+  };
+
+  const limits = mealLimits[mealType as keyof typeof mealLimits] || { min: 300, max: 600 };
+  return Math.min(Math.max(targetCalories, limits.min), limits.max);
+};
+
+// ✅ GEMINI AI MEAL GENERATION
+const generateGeminiAIMeal = async (
+  mealType: string,
+  pantryItems: PantryItem[],
+  userProfile: UserProfile | null,
+  diversityManager: IngredientDiversityManager,
+  previousMeals?: Meal[]
+): Promise<Meal> => {
+  const constraints = MEAL_TYPE_CONSTRAINTS[mealType as keyof typeof MEAL_TYPE_CONSTRAINTS];
+  const avoidance = diversityManager.getAvoidanceList();
+  
+  const availableIngredients = pantryItems
+    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
+    .join(', ');
+
+  const calorieTarget = getCalorieTarget(userProfile, mealType);
+
+  const prompt = `You are creating a ${mealType.toUpperCase()} recipe. This is CRITICAL: you must create a meal that people would actually eat for ${mealType}.
+
+🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+
+🍽️ MEAL TYPE SPECIFIC REQUIREMENTS FOR ${mealType.toUpperCase()}:
+✅ CULTURALLY APPROPRIATE ${mealType.toUpperCase()} OPTIONS:
+${constraints.culturallyAppropriate?.join(', ')}
+
+❌ NEVER CREATE THESE FOR ${mealType.toUpperCase()}:
+${constraints.avoid?.join(', ')}
+
+⏰ TIME CONSTRAINTS:
+- Maximum prep time: ${constraints.maxPrepTime} minutes
+
+🚫 DIVERSITY & ANTI-REPETITION RULES:
+${avoidance.overusedIngredients.length > 0 ? `
+- AVOID OVERUSED INGREDIENTS: ${avoidance.overusedIngredients.join(', ')} (already used 2+ times)
+` : ''}
+${avoidance.usedCuisines.size > 0 ? `
+- AVOID THESE CUISINES: ${Array.from(avoidance.usedCuisines).join(', ')}
+` : ''}
+${avoidance.usedProteins.size > 0 ? `
+- AVOID THESE PROTEINS: ${Array.from(avoidance.usedProteins).join(', ')}
+` : ''}
+
+🧑‍🍳 USER PROFILE:
+- Dietary Restrictions: ${userProfile?.dietary_restrictions?.join(', ') || 'none'}
+- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
+
+🚨 CRITICAL SUCCESS CRITERIA:
+1. Recipe MUST be something people actually eat for ${mealType}
+2. Recipe MUST use maximum pantry ingredients
+3. Recipe MUST be different from previous meals
+4. Recipe MUST be appropriate for the time of day
+
+TARGET NUTRITION:
+- Calories: ~${calorieTarget}
+
+RESPOND WITH THIS EXACT JSON STRUCTURE:
+{
+  "name": "${mealType} Recipe Name (realistic for ${mealType})",
+  "ingredients": [
+    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"}
+  ],
+  "calories": ${calorieTarget},
+  "protein": 20,
+  "carbs": 30,
+  "fat": 10,
+  "fiber": 5,
+  "prepTime": ${Math.min(constraints.maxPrepTime || 30, 15)},
+  "cookTime": ${Math.min((constraints.maxPrepTime || 30) - 10, 10)},
+  "servings": 1,
+  "difficulty": "Easy",
+  "instructions": [
+    "Step 1: ${mealType}-appropriate preparation",
+    "Step 2: Simple cooking method",
+    "Step 3: Final assembly"
+  ],
+  "tags": ["${mealType}-appropriate", "pantry-focused", "realistic"],
+  "mealTypeAppropriate": true
+}
+
+REMEMBER: This must be a meal that people would actually want to eat for ${mealType}!`;
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }]
+      } as GeminiRequest),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data: GeminiResponse = await response.json();
+    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
+
+    if (!generatedText) {
+      throw new Error('No content in Gemini response');
+    }
+
+    const meal = parseMealFromGeminiResponse(generatedText, mealType);
+    
+    // ✅ IMMEDIATELY CALCULATE PANTRY MATCH
+    const pantryMatch = calculatePantryMatch(meal.ingredients, pantryItems);
+    
+    const enhancedMeal = {
+      ...meal,
+      pantryMatch: pantryMatch.matchCount,
+      totalIngredients: pantryMatch.totalIngredients,
+      missingIngredients: pantryMatch.missingIngredients,
+      matchPercentage: pantryMatch.matchPercentage,
+      allergenSafe: true
+    };
+
+    // Track this meal for diversity
+    diversityManager.trackMeal(enhancedMeal);
+
+    return enhancedMeal;
+  } catch (error) {
+    console.error('Gemini AI meal generation error:', error);
+    throw error;
+  }
+};
+
+// ✅ PARSE GEMINI RESPONSE
+const parseMealFromGeminiResponse = (responseText: string, mealType: string): Meal => {
+  try {
+    const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const parsedMeal = JSON.parse(cleanedText);
+
+    const mealId = `gemini_${mealType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const emoji = getMealEmoji(mealType, parsedMeal.name);
+
+    return {
+      id: mealId,
+      name: parsedMeal.name,
+      ingredients: parsedMeal.ingredients || [],
+      calories: Math.min(parsedMeal.calories || 400, getCalorieTarget(null, mealType) * 1.2),
+      protein: parsedMeal.protein || 0,
+      carbs: parsedMeal.carbs || 0,
+      fat: parsedMeal.fat || 0,
+      fiber: parsedMeal.fiber || 0,
+      prepTime: parsedMeal.prepTime || 15,
+      cookTime: parsedMeal.cookTime || 15,
+      servings: parsedMeal.servings || 1,
+      difficulty: parsedMeal.difficulty || 'Easy',
+      emoji: emoji,
+      category: mealType,
+      tags: parsedMeal.tags || [],
+      instructions: parsedMeal.instructions || [],
+      source: 'ai_generated',
+      created_at: new Date().toISOString(),
+      mealTypeAppropriate: parsedMeal.mealTypeAppropriate || true,
+    };
+  } catch (error) {
+    console.error('Error parsing Gemini AI meal response:', error);
+    throw error;
+  }
+};
+
+// ✅ MEAL EMOJI GENERATOR
+const getMealEmoji = (mealType: string, mealName: string): string => {
+  const name = mealName.toLowerCase();
+  
+  if (mealType === 'breakfast') {
+    if (name.includes('egg')) return '🍳';
+    if (name.includes('toast') || name.includes('bread')) return '🍞';
+    if (name.includes('oat') || name.includes('cereal')) return '🥣';
+    if (name.includes('pancake') || name.includes('waffle')) return '🥞';
+    if (name.includes('yogurt')) return '🥛';
+    if (name.includes('fruit') || name.includes('berry')) return '🍓';
+    if (name.includes('avocado')) return '🥑';
+    return '🍳';
+  }
+  
+  if (mealType === 'lunch') {
+    if (name.includes('salad')) return '🥗';
+    if (name.includes('sandwich') || name.includes('wrap')) return '🥪';
+    if (name.includes('soup')) return '🍲';
+    if (name.includes('pasta')) return '🍝';
+    if (name.includes('rice') || name.includes('bowl')) return '🍚';
+    return '🥗';
+  }
+  
+  if (mealType === 'dinner') {
+    if (name.includes('chicken')) return '🍗';
+    if (name.includes('fish') || name.includes('salmon')) return '🐟';
+    if (name.includes('beef') || name.includes('steak')) return '🥩';
+    if (name.includes('pasta')) return '🍝';
+    if (name.includes('rice')) return '🍚';
+    if (name.includes('curry')) return '🍛';
+    return '🍽️';
+  }
+  
+  if (mealType === 'snack') {
+    if (name.includes('fruit')) return '🍎';
+    if (name.includes('nut')) return '🥜';
+    if (name.includes('yogurt')) return '🥛';
+    if (name.includes('vegetable')) return '🥕';
+    return '🍎';
+  }
+  
+  return '🍽️';
+};
+
+// ✅ CALCULATE AVERAGE MATCH SCORE
+const calculateAverageMatchScore = (meals: Meal[]): number => {
+  if (meals.length === 0) return 0;
+  
+  const totalMatchPercentage = meals.reduce((sum, meal) => {
+    return sum + (meal.matchPercentage || 0);
+  }, 0);
+  
+  return Math.round(totalMatchPercentage / meals.length);
+};
+
+// ✅ GENERATE UNIFIED MEAL PLAN WITH GEMINI
+const generateGeminiMealPlan = async (
+  pantryItems: PantryItem[],
+  userProfile: UserProfile | null
+): Promise<{
+  breakfast: Meal | null;
+  lunch: Meal | null;
+  dinner: Meal | null;
+  snacks: Meal[];
+}> => {
+  console.log('🧪 Generating meal plan with Gemini AI...');
+
+  const diversityManager = new IngredientDiversityManager();
+
+  try {
+    // Generate meals sequentially for maximum diversity
+    console.log('🍳 Generating breakfast...');
+    const breakfast = await generateGeminiAIMeal('breakfast', pantryItems, userProfile, diversityManager);
+
+    console.log('🥗 Generating lunch...');
+    const lunch = await generateGeminiAIMeal('lunch', pantryItems, userProfile, diversityManager, [breakfast]);
+
+    console.log('🍽️ Generating dinner...');
+    const dinner = await generateGeminiAIMeal('dinner', pantryItems, userProfile, diversityManager, [breakfast, lunch]);
+
+    console.log('🍎 Generating snack...');
+    const snack = await generateGeminiAIMeal('snack', pantryItems, userProfile, diversityManager, [breakfast, lunch, dinner]);
+
+    console.log('✅ Gemini meal plan generated successfully');
+
+    return {
+      breakfast,
+      lunch,
+      dinner,
+      snacks: [snack],
+    };
+  } catch (error) {
+    console.error('Error generating Gemini meal plan:', error);
+    throw error;
+  }
+};
 
 export default function AIMealPlan() {
   const router = useRouter();
@@ -123,6 +560,9 @@ export default function AIMealPlan() {
     dinner: 0,
     snacks: 0,
   });
+
+  // ✅ Diversity manager instance
+  const [diversityManager] = useState(new IngredientDiversityManager());
 
   useEffect(() => {
     loadAllData();
@@ -210,11 +650,7 @@ export default function AIMealPlan() {
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
 
-        // Generate pantry insights
-        // const insights = generatePantryInsights(validPantryItems, metrics);
-        // setPantryInsights(insights);
-
-        // ✅ Generate AI meal plan instead of mock data
+        // ✅ Generate Gemini AI meal plan
         await generateInitialMealPlan(validPantryItems, userProfileData);
 
       } catch (pantryError) {
@@ -250,7 +686,7 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ Generate initial AI meal plan
+  // ✅ Generate initial Gemini AI meal plan
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
       if (pantryItems.length < 3) {
@@ -259,40 +695,18 @@ export default function AIMealPlan() {
         return;
       }
 
-      // ✅ ADDED: Use IngredientDiversityManager to ensure variety
-      const diversityManager = new IngredientDiversityManager();
+      // ✅ Reset diversity manager for fresh start
+      diversityManager.reset();
 
-      const breakfast = await generateAIMeal({ mealType: 'breakfast', pantryItems, userProfile });
-      diversityManager.trackMeal(breakfast);
-
-      const lunch = await generateAIMeal(
-        { mealType: 'lunch', pantryItems, userProfile },
-        [breakfast],
-        diversityManager.getAvoidanceList()
-      );
-      diversityManager.trackMeal(lunch);
-
-      const dinner = await generateAIMeal(
-        { mealType: 'dinner', pantryItems, userProfile },
-        [breakfast, lunch],
-        diversityManager.getAvoidanceList()
-      );
-      diversityManager.trackMeal(dinner);
+      // ✅ Use Gemini AI meal plan generation
+      const aiMeals = await generateGeminiMealPlan(pantryItems, userProfile);
       
-      const snacks = await generateAIMeal(
-        { mealType: 'snack', pantryItems, userProfile },
-        [breakfast, lunch, dinner],
-        diversityManager.getAvoidanceList()
-      );
-
-      const aiMeals = { breakfast, lunch, dinner, snacks: [snacks].filter(Boolean) as Meal[] };
-      
-      // ✅ FIXED: Calculate totals accurately from the generated meals
+      // ✅ Calculate totals accurately from the generated meals
       const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
       const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
       const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
 
-      // ✅ FIXED: Use the new, clear average match score calculation
+      // ✅ Use the clear average match score calculation
       const averageMatchScore = calculateAverageMatchScore(mealsForTotals);
 
       const plan: MealPlan = {
@@ -308,13 +722,13 @@ export default function AIMealPlan() {
 
       setMealPlan(plan);
     } catch (error) {
-      console.error('Failed to generate AI meal plan:', error);
+      console.error('Failed to generate Gemini AI meal plan:', error);
       // Fall back to basic plan
       setMealPlan(generateFallbackPlan(pantryItems));
     }
   };
 
-  // ✅ Regenerate individual meal
+  // ✅ Regenerate individual meal with Gemini
   const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
     if (!mealPlan || !userProfile) return;
 
@@ -325,16 +739,26 @@ export default function AIMealPlan() {
       const currentMeal = mealPlan.daily[mealType as keyof typeof mealPlan.daily];
       const previousMeal = Array.isArray(currentMeal) ? currentMeal[0] : currentMeal;
 
-      // Create regeneration request
-      const request: MealRegenerationRequest = {
-        mealType: mealType === 'snacks' ? 'snack' : mealType,
+      // Get existing meals for diversity tracking
+      const existingMeals = [
+        mealPlan.daily.breakfast,
+        mealPlan.daily.lunch,
+        mealPlan.daily.dinner,
+        ...(mealPlan.daily.snacks || [])
+      ].filter(Boolean) as Meal[];
+
+      // Track existing meals in diversity manager
+      diversityManager.reset();
+      existingMeals.forEach(meal => diversityManager.trackMeal(meal));
+
+      // Generate new meal using Gemini
+      const newMeal = await generateGeminiAIMeal(
+        mealType === 'snacks' ? 'snack' : mealType,
         pantryItems,
         userProfile,
-        previousMeal: previousMeal || undefined,
-      };
-
-      // Generate new meal using regeneration manager
-      const newMeal = await mealRegenerationManager.regenerateMeal(request);
+        diversityManager,
+        existingMeals
+      );
 
       // Update meal plan
       setMealPlan(prevPlan => {
@@ -349,24 +773,13 @@ export default function AIMealPlan() {
         }
 
         // Recalculate totals
-        const totalCalories = (updatedDaily.breakfast?.calories || 0) + 
-                             (updatedDaily.lunch?.calories || 0) + 
-                             (updatedDaily.dinner?.calories || 0) + 
-                             updatedDaily.snacks.reduce((sum, snack) => sum + snack.calories, 0);
-        
-        const totalProtein = (updatedDaily.breakfast?.protein || 0) + 
-                            (updatedDaily.lunch?.protein || 0) + 
-                            (updatedDaily.dinner?.protein || 0) + 
-                            updatedDaily.snacks.reduce((sum, snack) => sum + snack.protein, 0);
+        const mealsForTotals = [updatedDaily.breakfast, updatedDaily.lunch, updatedDaily.dinner].filter(Boolean) as Meal[];
+        const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+        const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
 
         updatedDaily.totalCalories = totalCalories;
         updatedDaily.totalProtein = totalProtein;
-        updatedDaily.optimizationScore = calculateOptimizationScore(
-          updatedDaily.breakfast, 
-          updatedDaily.lunch, 
-          updatedDaily.dinner, 
-          pantryItems
-        );
+        updatedDaily.optimizationScore = calculateAverageMatchScore(mealsForTotals);
 
         return {
           ...prevPlan,
@@ -400,7 +813,7 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ ÇÖZÜM 1: Enhanced regenerate all meals
+  // ✅ Enhanced regenerate all meals
   const regenerateAllMeals = async () => {
     // Eğer modal açıksa kapatıp selectedMeal'ı temizle
     if (modalVisible) {
@@ -522,11 +935,11 @@ export default function AIMealPlan() {
     setModalVisible(true);
   };
 
-  // ✅ ÇÖZÜM 2: Navigate to recipe detail
+  // Navigate to recipe detail
   const navigateToRecipe = (meal: Meal) => {
     try {
       setModalVisible(false);
-      setSelectedMeal(null); // ✅ Reset selected meal
+      setSelectedMeal(null);
       router.push(`/recipe/${meal.id}?source=meal_plan`);
     } catch (error) {
       const appError = handleError(error, 'navigateToRecipe');
@@ -693,26 +1106,26 @@ export default function AIMealPlan() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
-        <Text style={styles.loadingSubtext}>Analyzing your pantry and preferences</Text>
+        <Text style={styles.loadingSubtext}>Analyzing your pantry with Gemini AI</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* ✅ ÇÖZÜM 3: Modal with proper onClose handler */}
+      {/* Modal with proper onClose handler */}
       <MealDetailModal
         visible={modalVisible}
         meal={selectedMeal}
         onClose={() => {
           setModalVisible(false);
-          setSelectedMeal(null); // ✅ Reset selected meal
+          setSelectedMeal(null);
         }}
         onViewRecipe={navigateToRecipe}
         onAddToNutrition={addToNutritionLog}
         onAddToShopping={(ingredients) => {
           setModalVisible(false);
-          setSelectedMeal(null); // ✅ Reset selected meal when closing
+          setSelectedMeal(null);
           handleAddToShoppingList(ingredients);
         }}
       />
