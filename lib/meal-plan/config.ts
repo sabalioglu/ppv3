@@ -1,8 +1,9 @@
 // lib/meal-plan/config.ts
 export interface RecipeApiConfig {
-  spoonacularApiKey?: string;
-  tastyApiKey?: string;
-  themealdbApiKey?: string;
+  rapidApiKey?: string;
+  spoonacularHost?: string;
+  tastyHost?: string;
+  themealdbHost?: string;
   preferApi: boolean;
   enhanceAiRecipes: boolean;
   fallbackToAi: boolean;
