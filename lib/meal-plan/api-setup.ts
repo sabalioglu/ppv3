@@ -2,35 +2,41 @@
 import { apiManager } from './api-manager';
 
 export function setupApiManager(config: {
-  spoonacularApiKey?: string;
-  tastyApiKey?: string;
-  themealdbApiKey?: string;
+  rapidApiKey?: string;
+  spoonacularHost?: string;
+  tastyHost?: string;
+  themealdbHost?: string;
 }): void {
-  // Register Spoonacular (primary API)
-  if (config.spoonacularApiKey) {
+  // RapidAPI üzerinden Spoonacular
+  if (config.rapidApiKey && config.spoonacularHost) {
     apiManager.registerApi({
       source: 'spoonacular',
-      apiKey: config.spoonacularApiKey,
+      apiKey: config.rapidApiKey,
+      host: config.spoonacularHost,
       isActive: true,
-      priority: 1 // Highest priority
+      priority: 1 // En yüksek öncelik
     });
   }
 
-  // Register Tasty API (secondary API)
-  if (config.tastyApiKey) {
+  // RapidAPI üzerinden Tasty API
+  if (config.rapidApiKey && config.tastyHost) {
     apiManager.registerApi({
       source: 'tasty',
-      apiKey: config.tastyApiKey,
+      apiKey: config.rapidApiKey,
+      host: config.tastyHost,
       isActive: true,
       priority: 2
     });
   }
 
-  // Register TheMealDB (tertiary API, free)
-  apiManager.registerApi({
-    source: 'themealdb',
-    apiKey: config.themealdbApiKey || '', // TheMealDB has a free tier that doesn't require an API key
-    isActive: true,
-    priority: 3 // Lowest priority
-  });
+  // RapidAPI üzerinden TheMealDB
+  if (config.rapidApiKey && config.themealdbHost) {
+    apiManager.registerApi({
+      source: 'themealdb',
+      apiKey: config.rapidApiKey,
+      host: config.themealdbHost,
+      isActive: true,
+      priority: 3 // En düşük öncelik
+    });
+  }
 }
