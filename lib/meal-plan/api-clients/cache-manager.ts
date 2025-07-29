@@ -1,4 +1,4 @@
-// lib/meal-plan/api-clients/cache-manager.ts
+//lib/meal-plan/api-clients/cache-manager.ts
 export interface CacheOptions {
   ttl: number; // Milliseconds
 }
@@ -18,6 +18,7 @@ export class CacheManager {
   }
 
   generateKey(namespace: string, params: Record<string, any>): string {
+    // Sort keys for consistent key generation regardless of object property order
     const sortedParams = Object.keys(params).sort().reduce(
       (result, key) => {
         result[key] = params[key];
