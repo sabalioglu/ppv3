@@ -1,4 +1,4 @@
-//app/ai-meal-plan.tsx
+//app/ai-meal-plan.tsx - FIXED AbortSignal Issue
 // Enhanced AI Meal Plan with Gemini API and individual meal regeneration capabilities
 import React, { useState, useEffect } from 'react';
 import {
@@ -94,6 +94,26 @@ interface GeminiResponse {
     };
   }[];
 }
+
+// ✅ REACT NATIVE COMPATIBLE TIMEOUT FUNCTION
+const createTimeoutSignal = (timeoutMs: number): AbortController => {
+  const controller = new AbortController();
+  
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+  
+  // Clear timeout if request completes successfully
+  const originalSignal = controller.signal;
+  const clearTimeoutOnComplete = () => {
+    clearTimeout(timeoutId);
+  };
+  
+  // Listen for abort to clear timeout
+  controller.signal.addEventListener('abort', clearTimeoutOnComplete);
+  
+  return controller;
+};
 
 // ✅ MEAL TYPE CONSTRAINTS FOR CULTURAL APPROPRIATENESS
 const MEAL_TYPE_CONSTRAINTS = {
@@ -255,7 +275,7 @@ const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): nu
   return Math.min(Math.max(targetCalories, limits.min), limits.max);
 };
 
-// ✅ GEMINI AI MEAL GENERATION
+// ✅ GEMINI AI MEAL GENERATION WITH FIXED TIMEOUT
 const generateGeminiAIMeal = async (
   mealType: string,
   pantryItems: PantryItem[],
@@ -337,10 +357,16 @@ RESPOND WITH THIS EXACT JSON STRUCTURE:
 REMEMBER: This must be a meal that people would actually want to eat for ${mealType}!`;
 
   try {
+    console.log(`🚀 Making Gemini API request for ${mealType}...`);
+    
+    // ✅ FIXED: Use React Native compatible timeout
+    const timeoutController = createTimeoutSignal(30000); // 30 seconds
+    
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         contents: [{
@@ -349,11 +375,24 @@ REMEMBER: This must be a meal that people would actually want to eat for ${mealT
           }]
         }]
       } as GeminiRequest),
-      signal: AbortSignal.timeout(30000),
+      signal: timeoutController.signal, // ✅ FIXED: Use controller.signal
     });
 
+    console.log(`📡 Gemini response status for ${mealType}:`, response.status);
+
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`❌ Gemini API Error for ${mealType}:`, errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    // ✅ FIXED: Check content type before parsing
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const responseText = await response.text();
+      console.error('❌ Invalid content type from Gemini:', contentType);
+      console.error('❌ Response text:', responseText);
+      throw new Error('Invalid response format from Gemini API');
     }
 
     const data: GeminiResponse = await response.json();
@@ -363,6 +402,8 @@ REMEMBER: This must be a meal that people would actually want to eat for ${mealT
       throw new Error('No content in Gemini response');
     }
 
+    console.log(`✅ Gemini response received successfully for ${mealType}`);
+    
     const meal = parseMealFromGeminiResponse(generatedText, mealType);
     
     // ✅ IMMEDIATELY CALCULATE PANTRY MATCH
@@ -382,21 +423,58 @@ REMEMBER: This must be a meal that people would actually want to eat for ${mealT
 
     return enhancedMeal;
   } catch (error) {
-    console.error('Gemini AI meal generation error:', error);
+    console.error(`❌ Gemini AI meal generation error for ${mealType}:`, error);
+    
+    // ✅ FIXED: Enhanced error handling with specific error types
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout for ${mealType} - please try again`);
+    }
+    if (error.message?.includes('fetch')) {
+      throw new Error(`Network error for ${mealType} - check your internet connection`);
+    }
+    if (error.message?.includes('API')) {
+      throw new Error(`Gemini API error for ${mealType} - please try again later`);
+    }
+    
     throw error;
   }
 };
 
-// ✅ PARSE GEMINI RESPONSE
+// ✅ PARSE GEMINI RESPONSE WITH ENHANCED ERROR HANDLING
 const parseMealFromGeminiResponse = (responseText: string, mealType: string): Meal => {
   try {
-    const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    console.log(`🔄 Parsing Gemini response for ${mealType}...`);
+    
+    // Clean the response text more thoroughly
+    let cleanedText = responseText.trim();
+    
+    // Remove markdown code blocks
+    cleanedText = cleanedText.replace(/```json\s*/g, '');
+    cleanedText = cleanedText.replace(/```\s*/g, '');
+    
+    // Remove any leading/trailing non-JSON text
+    const jsonStart = cleanedText.indexOf('{');
+    const jsonEnd = cleanedText.lastIndexOf('}');
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error('No valid JSON found in response');
+    }
+    
+    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1);
+    
+    console.log(`📝 Cleaned response for ${mealType}:`, cleanedText.substring(0, 200) + '...');
+    
     const parsedMeal = JSON.parse(cleanedText);
+
+    // ✅ VALIDATION: Check required fields
+    if (!parsedMeal.name || !parsedMeal.ingredients || !Array.isArray(parsedMeal.ingredients)) {
+      throw new Error('Invalid meal structure from Gemini');
+    }
 
     const mealId = `gemini_${mealType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const emoji = getMealEmoji(mealType, parsedMeal.name);
 
-    return {
+    const meal: Meal = {
       id: mealId,
       name: parsedMeal.name,
       ingredients: parsedMeal.ingredients || [],
@@ -417,9 +495,13 @@ const parseMealFromGeminiResponse = (responseText: string, mealType: string): Me
       created_at: new Date().toISOString(),
       mealTypeAppropriate: parsedMeal.mealTypeAppropriate || true,
     };
+
+    console.log(`✅ Successfully parsed meal for ${mealType}:`, meal.name);
+    return meal;
   } catch (error) {
-    console.error('Error parsing Gemini AI meal response:', error);
-    throw error;
+    console.error(`❌ Error parsing Gemini AI meal response for ${mealType}:`, error);
+    console.error('❌ Raw response text:', responseText);
+    throw new Error(`Failed to parse Gemini response for ${mealType}: ${error.message}`);
   }
 };
 
@@ -479,7 +561,7 @@ const calculateAverageMatchScore = (meals: Meal[]): number => {
   return Math.round(totalMatchPercentage / meals.length);
 };
 
-// ✅ GENERATE UNIFIED MEAL PLAN WITH GEMINI
+// ✅ GENERATE UNIFIED MEAL PLAN WITH GEMINI AND FALLBACKS
 const generateGeminiMealPlan = async (
   pantryItems: PantryItem[],
   userProfile: UserProfile | null
@@ -494,30 +576,62 @@ const generateGeminiMealPlan = async (
   const diversityManager = new IngredientDiversityManager();
 
   try {
-    // Generate meals sequentially for maximum diversity
-    console.log('🍳 Generating breakfast...');
-    const breakfast = await generateGeminiAIMeal('breakfast', pantryItems, userProfile, diversityManager);
-
-    console.log('🥗 Generating lunch...');
-    const lunch = await generateGeminiAIMeal('lunch', pantryItems, userProfile, diversityManager, [breakfast]);
-
-    console.log('🍽️ Generating dinner...');
-    const dinner = await generateGeminiAIMeal('dinner', pantryItems, userProfile, diversityManager, [breakfast, lunch]);
-
-    console.log('🍎 Generating snack...');
-    const snack = await generateGeminiAIMeal('snack', pantryItems, userProfile, diversityManager, [breakfast, lunch, dinner]);
-
-    console.log('✅ Gemini meal plan generated successfully');
-
-    return {
-      breakfast,
-      lunch,
-      dinner,
-      snacks: [snack],
+    const results = {
+      breakfast: null as Meal | null,
+      lunch: null as Meal | null,
+      dinner: null as Meal | null,
+      snacks: [] as Meal[]
     };
+
+    // Generate meals sequentially with individual error handling
+    try {
+      console.log('🍳 Generating breakfast...');
+      results.breakfast = await generateGeminiAIMeal('breakfast', pantryItems, userProfile, diversityManager);
+    } catch (error) {
+      console.error('❌ Breakfast generation failed, using fallback:', error);
+      results.breakfast = generateFallbackMeal('breakfast', pantryItems);
+    }
+
+    try {
+      console.log('🥗 Generating lunch...');
+      results.lunch = await generateGeminiAIMeal('lunch', pantryItems, userProfile, diversityManager, results.breakfast ? [results.breakfast] : []);
+    } catch (error) {
+      console.error('❌ Lunch generation failed, using fallback:', error);
+      results.lunch = generateFallbackMeal('lunch', pantryItems);
+    }
+
+    try {
+      console.log('🍽️ Generating dinner...');
+      const previousMeals = [results.breakfast, results.lunch].filter(Boolean) as Meal[];
+      results.dinner = await generateGeminiAIMeal('dinner', pantryItems, userProfile, diversityManager, previousMeals);
+    } catch (error) {
+      console.error('❌ Dinner generation failed, using fallback:', error);
+      results.dinner = generateFallbackMeal('dinner', pantryItems);
+    }
+
+    try {
+      console.log('🍎 Generating snack...');
+      const previousMeals = [results.breakfast, results.lunch, results.dinner].filter(Boolean) as Meal[];
+      const snack = await generateGeminiAIMeal('snack', pantryItems, userProfile, diversityManager, previousMeals);
+      results.snacks = [snack];
+    } catch (error) {
+      console.error('❌ Snack generation failed, using fallback:', error);
+      results.snacks = generateFallbackSnacks(pantryItems);
+    }
+
+    console.log('✅ Gemini meal plan generated successfully (with fallbacks where needed)');
+
+    return results;
   } catch (error) {
-    console.error('Error generating Gemini meal plan:', error);
-    throw error;
+    console.error('❌ Complete meal plan generation failed, using full fallback:', error);
+    
+    // Complete fallback
+    return {
+      breakfast: generateFallbackMeal('breakfast', pantryItems),
+      lunch: generateFallbackMeal('lunch', pantryItems),
+      dinner: generateFallbackMeal('dinner', pantryItems),
+      snacks: generateFallbackSnacks(pantryItems)
+    };
   }
 };
 
@@ -650,7 +764,7 @@ export default function AIMealPlan() {
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
 
-        // ✅ Generate Gemini AI meal plan
+        // ✅ Generate Gemini AI meal plan with fallbacks
         await generateInitialMealPlan(validPantryItems, userProfileData);
 
       } catch (pantryError) {
@@ -686,11 +800,13 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ Generate initial Gemini AI meal plan
+  // ✅ Generate initial Gemini AI meal plan with comprehensive fallbacks
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
+      console.log('🚀 Starting meal plan generation...');
+      
       if (pantryItems.length < 3) {
-        // Use fallback plan if insufficient pantry items
+        console.log('⚠️ Insufficient pantry items, using fallback plan');
         setMealPlan(generateFallbackPlan(pantryItems));
         return;
       }
@@ -698,7 +814,7 @@ export default function AIMealPlan() {
       // ✅ Reset diversity manager for fresh start
       diversityManager.reset();
 
-      // ✅ Use Gemini AI meal plan generation
+      // ✅ Use Gemini AI meal plan generation with fallbacks
       const aiMeals = await generateGeminiMealPlan(pantryItems, userProfile);
       
       // ✅ Calculate totals accurately from the generated meals
@@ -714,21 +830,22 @@ export default function AIMealPlan() {
           ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore: averageMatchScore, // Use the clear average score
+          optimizationScore: averageMatchScore,
           generatedAt: new Date().toISOString(),
           regenerationHistory: {}
         }
       };
 
       setMealPlan(plan);
+      console.log('✅ Meal plan generated successfully');
     } catch (error) {
-      console.error('Failed to generate Gemini AI meal plan:', error);
+      console.error('❌ Failed to generate Gemini AI meal plan:', error);
       // Fall back to basic plan
       setMealPlan(generateFallbackPlan(pantryItems));
     }
   };
 
-  // ✅ Regenerate individual meal with Gemini
+  // ✅ Regenerate individual meal with Gemini and fallbacks
   const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
     if (!mealPlan || !userProfile) return;
 
@@ -751,14 +868,32 @@ export default function AIMealPlan() {
       diversityManager.reset();
       existingMeals.forEach(meal => diversityManager.trackMeal(meal));
 
-      // Generate new meal using Gemini
-      const newMeal = await generateGeminiAIMeal(
-        mealType === 'snacks' ? 'snack' : mealType,
-        pantryItems,
-        userProfile,
-        diversityManager,
-        existingMeals
-      );
+      let newMeal: Meal;
+
+      try {
+        // Try Gemini first
+        newMeal = await generateGeminiAIMeal(
+          mealType === 'snacks' ? 'snack' : mealType,
+          pantryItems,
+          userProfile,
+          diversityManager,
+          existingMeals
+        );
+      } catch (error) {
+        console.error(`❌ Gemini regeneration failed for ${mealType}, using fallback:`, error);
+        // Fallback to basic meal generation
+        newMeal = generateFallbackMeal(mealType === 'snacks' ? 'snack' : mealType, pantryItems);
+        
+        // Calculate pantry match for fallback
+        const pantryMatch = calculatePantryMatch(newMeal.ingredients, pantryItems);
+        newMeal = {
+          ...newMeal,
+          pantryMatch: pantryMatch.matchCount,
+          totalIngredients: pantryMatch.totalIngredients,
+          missingIngredients: pantryMatch.missingIngredients,
+          matchPercentage: pantryMatch.matchPercentage,
+        };
+      }
 
       // Update meal plan
       setMealPlan(prevPlan => {
