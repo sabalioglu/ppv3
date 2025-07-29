@@ -4,11 +4,14 @@ import { withCache } from './cache-decorator';
 
 export class SpoonacularApiClient implements RecipeApiClient {
   private apiKey: string;
+  private host: string;
   private baseUrl: string;
   
-  constructor(apiKey: string) {
+  // Host parametresi ekleyin
+  constructor(apiKey: string, host?: string) {
     this.apiKey = apiKey;
-    this.baseUrl = 'https://api.spoonacular.com';
+    this.host = host || 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com';
+    this.baseUrl = `https://${this.host}`;
   }
 
   async searchRecipes(params: RecipeSearchParams): Promise<RecipeSearchResult> {
@@ -20,7 +23,6 @@ export class SpoonacularApiClient implements RecipeApiClient {
     async (params: RecipeSearchParams): Promise<RecipeSearchResult> => {
       try {
         const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
         
         if (params.query) queryParams.append('query', params.query);
         if (params.cuisine) queryParams.append('cuisine', params.cuisine);
@@ -35,7 +37,14 @@ export class SpoonacularApiClient implements RecipeApiClient {
         queryParams.append('addRecipeInformation', 'true');
         queryParams.append('fillIngredients', 'true');
         
-        const response = await fetch(`${this.baseUrl}/recipes/complexSearch?${queryParams.toString()}`);
+        // RapidAPI başlıkları ekleyin
+        const response = await fetch(`${this.baseUrl}/recipes/complexSearch?${queryParams.toString()}`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': this.apiKey,
+            'X-RapidAPI-Host': this.host
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`Spoonacular API error: ${response.statusText}`);
@@ -66,10 +75,16 @@ export class SpoonacularApiClient implements RecipeApiClient {
     async (id: string): Promise<Recipe> => {
       try {
         const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
         queryParams.append('includeNutrition', 'true');
         
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/information?${queryParams.toString()}`);
+        // RapidAPI başlıkları ekleyin
+        const response = await fetch(`${this.baseUrl}/recipes/${id}/information?${queryParams.toString()}`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': this.apiKey,
+            'X-RapidAPI-Host': this.host
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`Spoonacular API error: ${response.statusText}`);
@@ -94,14 +109,20 @@ export class SpoonacularApiClient implements RecipeApiClient {
     async (params: { tags?: string; number?: number }): Promise<Recipe[]> => {
       try {
         const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
         queryParams.append('number', (params.number || 1).toString());
         
         if (params.tags) {
           queryParams.append('tags', params.tags);
         }
         
-        const response = await fetch(`${this.baseUrl}/recipes/random?${queryParams.toString()}`);
+        // RapidAPI başlıkları ekleyin
+        const response = await fetch(`${this.baseUrl}/recipes/random?${queryParams.toString()}`, {
+          method: 'GET',
+          headers: {
+            'X-RapidAPI-Key': this.apiKey,
+            'X-RapidAPI-Host': this.host
+          }
+        });
         
         if (!response.ok) {
           throw new Error(`Spoonacular API error: ${response.statusText}`);
@@ -117,7 +138,9 @@ export class SpoonacularApiClient implements RecipeApiClient {
     { ttl: 3600000 } // 1 saat önbellekleme
   );
 
+  // mapRecipe metodunda değişiklik yok
   private mapRecipe(recipeData: any): Recipe {
+    // Mevcut mapRecipe implementasyonu aynı kalacak
     return {
       id: recipeData.id.toString(),
       title: recipeData.title,
@@ -158,232 +181,4 @@ export class SpoonacularApiClient implements RecipeApiClient {
       apiSource: 'spoonacular'
     };
   }
-  
-  async getSimilarRecipes(id: string, number: number = 5): Promise<Recipe[]> {
-    return this.getSimilarRecipesWithCache(id, number);
-  }
-  
-  private getSimilarRecipesWithCache = withCache<Recipe[]>(
-    'spoonacular:getSimilarRecipes',
-    async (id: string, number: number = 5): Promise<Recipe[]> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        queryParams.append('number', number.toString());
-        
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/similar?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        const similarRecipes = await response.json();
-        
-        // Similar recipes endpoint returns limited information, so we need to fetch full recipe details
-        const recipePromises = similarRecipes.map((recipe: any) => 
-          this.getRecipeById(recipe.id.toString())
-        );
-        
-        return Promise.all(recipePromises);
-      } catch (error) {
-        console.error(`Error fetching similar recipes for ${id} from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async getRecipeNutrition(id: string): Promise<any> {
-    return this.getRecipeNutritionWithCache(id);
-  }
-  
-  private getRecipeNutritionWithCache = withCache<any>(
-    'spoonacular:getRecipeNutrition',
-    async (id: string): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/nutritionWidget.json?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching nutrition for recipe ${id} from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async getRecipeEquipment(id: string): Promise<any> {
-    return this.getRecipeEquipmentWithCache(id);
-  }
-  
-  private getRecipeEquipmentWithCache = withCache<any>(
-    'spoonacular:getRecipeEquipment',
-    async (id: string): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/equipmentWidget.json?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching equipment for recipe ${id} from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async autocompleteRecipeSearch(query: string, number: number = 10): Promise<any[]> {
-    return this.autocompleteRecipeSearchWithCache(query, number);
-  }
-  
-  private autocompleteRecipeSearchWithCache = withCache<any[]>(
-    'spoonacular:autocompleteRecipeSearch',
-    async (query: string, number: number = 10): Promise<any[]> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        queryParams.append('query', query);
-        queryParams.append('number', number.toString());
-        
-        const response = await fetch(`${this.baseUrl}/recipes/autocomplete?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching autocomplete for query "${query}" from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 3600000 } // 1 saat önbellekleme
-  );
-  
-  async getRecipeInformation(id: string): Promise<any> {
-    return this.getRecipeInformationWithCache(id);
-  }
-  
-  private getRecipeInformationWithCache = withCache<any>(
-    'spoonacular:getRecipeInformation',
-    async (id: string): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        queryParams.append('includeNutrition', 'false');
-        
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/information?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching information for recipe ${id} from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async getRecipeIngredientsById(id: string): Promise<any> {
-    return this.getRecipeIngredientsByIdWithCache(id);
-  }
-  
-  private getRecipeIngredientsByIdWithCache = withCache<any>(
-    'spoonacular:getRecipeIngredientsById',
-    async (id: string): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/ingredientWidget.json?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error fetching ingredients for recipe ${id} from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async searchIngredients(query: string, number: number = 10): Promise<any> {
-    return this.searchIngredientsWithCache(query, number);
-  }
-  
-  private searchIngredientsWithCache = withCache<any>(
-    'spoonacular:searchIngredients',
-    async (query: string, number: number = 10): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        queryParams.append('query', query);
-        queryParams.append('number', number.toString());
-        queryParams.append('metaInformation', 'true');
-        
-        const response = await fetch(`${this.baseUrl}/food/ingredients/search?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error searching ingredients with query "${query}" from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
-  
-  async getMealPlanWeek(targetCalories: number, diet?: string): Promise<any> {
-    return this.getMealPlanWeekWithCache(targetCalories, diet);
-  }
-  
-  private getMealPlanWeekWithCache = withCache<any>(
-    'spoonacular:getMealPlanWeek',
-    async (targetCalories: number, diet?: string): Promise<any> => {
-      try {
-        const queryParams = new URLSearchParams();
-        queryParams.append('apiKey', this.apiKey);
-        queryParams.append('targetCalories', targetCalories.toString());
-        queryParams.append('timeFrame', 'week');
-        
-        if (diet) {
-          queryParams.append('diet', diet);
-        }
-        
-        const response = await fetch(`${this.baseUrl}/mealplanner/generate?${queryParams.toString()}`);
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        return response.json();
-      } catch (error) {
-        console.error(`Error generating meal plan from Spoonacular:`, error);
-        throw error;
-      }
-    },
-    { ttl: 86400000 } // 24 saat önbellekleme
-  );
 }
