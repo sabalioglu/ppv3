@@ -20,16 +20,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     // ✅ API entegrasyonunu başlat
+    // ✅ RapidAPI entegrasyonunu başlat
     initializeRecipeApi({
-      rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
+      rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY, // ✅ RapidAPI key
       spoonacularHost: process.env.EXPO_PUBLIC_SPOONACULAR_HOST || 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
-      tastyHost: process.env.EXPO_PUBLIC_TASTY_HOST || 'tasty.p.rapidapi.com',
       themealdbHost: process.env.EXPO_PUBLIC_THEMEALDB_HOST || 'themealdb.p.rapidapi.com',
+
       // İsteğe bağlı diğer yapılandırmalar
       cacheTtl: 3600000, // 1 saat
       preferApi: true,
       fallbackToAi: true,
-      // Yeni eklenen konfigürasyonlar
       maxRetries: 3,
       retryDelay: 1000,
       timeout: 10000

@@ -6,16 +6,36 @@ export class SpoonacularApiClient implements RecipeApiClient {
   private apiKey: string;
   private host: string;
   private baseUrl: string;
-  
-  // Host parametresi ekleyin
+
   constructor(apiKey: string, host?: string) {
     this.apiKey = apiKey;
     this.host = host || 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com';
     this.baseUrl = `https://${this.host}`;
   }
 
+  private async makeRequest(endpoint: string, params?: URLSearchParams): Promise<any> {
+    const url = params ? `${this.baseUrl}${endpoint}?${params.toString()}` : `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': this.apiKey,
+        'X-RapidAPI-Host': this.host,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Spoonacular API error: ${response.status} ${response.statusText} - ${errorBody}`);
+    }
+
+    return await response.json();
+  }
+
+  // 1. Kompleks Arama (Ana Endpoint) - RapidAPI için güncellendi
   async searchRecipes(params: RecipeSearchParams): Promise<RecipeSearchResult> {
-    return this.searchRecipesWithCache(params);
+      return this.searchRecipesWithCache(params);
   }
 
   private searchRecipesWithCache = withCache<RecipeSearchResult>(
@@ -37,69 +57,76 @@ export class SpoonacularApiClient implements RecipeApiClient {
         queryParams.append('addRecipeInformation', 'true');
         queryParams.append('fillIngredients', 'true');
         
-        // RapidAPI başlıkları ekleyin
-        const response = await fetch(`${this.baseUrl}/recipes/complexSearch?${queryParams.toString()}`, {
-          method: 'GET',
-          headers: {
-            'X-RapidAPI-Key': this.apiKey,
-            'X-RapidAPI-Host': this.host
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const data = await this.makeRequest('/recipes/complexSearch', queryParams);
         
         return {
           results: data.results.map((recipe: any) => this.mapRecipe(recipe)),
-          offset: params.offset || 0,
+          offset: data.offset,
           number: data.number,
           totalResults: data.totalResults
         };
       } catch (error) {
-        console.error('Error fetching recipes from Spoonacular:', error);
+        console.error('Error fetching recipes from Spoonacular (RapidAPI):', error);
         throw error;
       }
     },
-    { ttl: 3600000 } // 1 saat önbellekleme
+    { ttl: 3600000 }
   );
 
+  // 2. Malzeme Bazlı Arama - RapidAPI için güncellendi
+  async findByIngredients(ingredients: string, number: number = 10): Promise<Recipe[]> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('ingredients', ingredients);
+    queryParams.append('number', number.toString());
+    queryParams.append('ranking', '1');
+    queryParams.append('ignorePantry', 'true');
+
+    const data = await this.makeRequest('/recipes/findByIngredients', queryParams);
+
+    const detailedRecipes = await Promise.all(
+      data.map((recipe: any) => this.getRecipeById(recipe.id.toString()))
+    );
+    return detailedRecipes;
+  }
+
+  // Besin Değeri Bazlı Arama
+  async findByNutrients(params: Record<string, string | number>, number: number = 10): Promise<Recipe[]> {
+      const queryParams = new URLSearchParams();
+      for (const key in params) {
+          queryParams.append(key, String(params[key]));
+      }
+      queryParams.append('number', String(number));
+      const data = await this.makeRequest('/recipes/findByNutrients', queryParams);
+      const detailedRecipes = await Promise.all(
+        data.map((recipe: any) => this.getRecipeById(recipe.id.toString()))
+      );
+      return detailedRecipes;
+  }
+
+  // 3. Recipe By ID - RapidAPI için güncellendi
   async getRecipeById(id: string): Promise<Recipe> {
     return this.getRecipeByIdWithCache(id);
   }
-  
+
   private getRecipeByIdWithCache = withCache<Recipe>(
     'spoonacular:getRecipeById',
     async (id: string): Promise<Recipe> => {
       try {
+        const actualId = id.replace('spoonacular:', '');
         const queryParams = new URLSearchParams();
         queryParams.append('includeNutrition', 'true');
         
-        // RapidAPI başlıkları ekleyin
-        const response = await fetch(`${this.baseUrl}/recipes/${id}/information?${queryParams.toString()}`, {
-          method: 'GET',
-          headers: {
-            'X-RapidAPI-Key': this.apiKey,
-            'X-RapidAPI-Host': this.host
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const data = await this.makeRequest(`/recipes/${actualId}/information`, queryParams);
         return this.mapRecipe(data);
       } catch (error) {
-        console.error(`Error fetching recipe ${id} from Spoonacular:`, error);
+        console.error(`Error fetching recipe ${id} from Spoonacular (RapidAPI):`, error);
         throw error;
       }
     },
-    { ttl: 86400000 } // 24 saat önbellekleme
+    { ttl: 86400000 }
   );
-  
+
+  // 4. Random Recipes - RapidAPI için güncellendi
   async getRandomRecipes(params: { tags?: string; number?: number }): Promise<Recipe[]> {
     return this.getRandomRecipesWithCache(params);
   }
@@ -115,41 +142,26 @@ export class SpoonacularApiClient implements RecipeApiClient {
           queryParams.append('tags', params.tags);
         }
         
-        // RapidAPI başlıkları ekleyin
-        const response = await fetch(`${this.baseUrl}/recipes/random?${queryParams.toString()}`, {
-          method: 'GET',
-          headers: {
-            'X-RapidAPI-Key': this.apiKey,
-            'X-RapidAPI-Host': this.host
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Spoonacular API error: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        const data = await this.makeRequest('/recipes/random', queryParams);
         return data.recipes.map((recipe: any) => this.mapRecipe(recipe));
       } catch (error) {
-        console.error('Error fetching random recipes from Spoonacular:', error);
+        console.error('Error fetching random recipes from Spoonacular (RapidAPI):', error);
         throw error;
       }
     },
-    { ttl: 3600000 } // 1 saat önbellekleme
+    { ttl: 3600000 }
   );
 
-  // mapRecipe metodunda değişiklik yok
   private mapRecipe(recipeData: any): Recipe {
-    // Mevcut mapRecipe implementasyonu aynı kalacak
     return {
-      id: recipeData.id.toString(),
+      id: `spoonacular:${recipeData.id.toString()}`,
       title: recipeData.title,
       image: recipeData.image || '',
       imageType: recipeData.imageType || '',
       servings: recipeData.servings || 0,
       readyInMinutes: recipeData.readyInMinutes || 0,
       license: recipeData.license || '',
-      sourceName: recipeData.sourceName || '',
+      sourceName: recipeData.sourceName || 'Spoonacular',
       sourceUrl: recipeData.sourceUrl || '',
       spoonacularScore: recipeData.spoonacularScore || 0,
       healthScore: recipeData.healthScore || 0,
@@ -177,7 +189,7 @@ export class SpoonacularApiClient implements RecipeApiClient {
       extendedIngredients: recipeData.extendedIngredients || [],
       summary: recipeData.summary || '',
       winePairing: recipeData.winePairing || {},
-      originalId: recipeData.originalId || null,
+      originalId: recipeData.id.toString(),
       apiSource: 'spoonacular'
     };
   }
