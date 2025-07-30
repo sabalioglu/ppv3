@@ -1,5 +1,5 @@
-//app/ai-meal-plan.tsx - FIXED AbortSignal Issue + API Integration
-// Enhanced AI Meal Plan with Gemini API and individual meal regeneration capabilities
+//app/ai-meal-plan.tsx
+// Enhanced AI Meal Plan with individual meal regeneration capabilities
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -47,14 +47,24 @@ import {
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 import { 
+  calculateAverageMatchScore, // ✅ UPDATED
   calculatePantryMatch 
 } from '@/lib/meal-plan/meal-matching';
 import { 
   generateFallbackMeal, 
   generateFallbackSnacks, 
   generateFallbackPlan,
-  categorizeIngredient
+  categorizeIngredient,
+  IngredientDiversityManager // ✅ ADDED: Import diversity manager
 } from '@/lib/meal-plan/utils';
+
+// AI Generation imports
+import { 
+  generateAIMealPlan,
+  generateAIMeal,
+  generateAlternativeMeal 
+} from '@/lib/meal-plan/ai-generation';
+import { mealRegenerationManager } from '@/lib/meal-plan/meal-regeneration';
 
 // Error handling imports
 import { 
@@ -70,629 +80,9 @@ import {
 // Component imports
 import MealDetailModal from '@/components/meal-plan/MealDetailModal';
 import MealCard from '@/components/meal-plan/MealCard';
+// import PantryInsights from '@/components/meal-plan/PantryInsights';
 import MealPlanSummary from '@/components/meal-plan/MealPlanSummary';
 import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
-
-// API Manager import
-import { apiManager } from '@/lib/meal-plan/api-manager';
-
-// ✅ GEMINI API CONFIGURATION - FIXED URL
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
-interface GeminiRequest {
-  contents: {
-    parts: {
-      text: string;
-    }[];
-  }[];
-}
-
-interface GeminiResponse {
-  candidates: {
-    content: {
-      parts: {
-        text: string;
-      }[];
-    };
-  }[];
-}
-
-// ✅ REACT NATIVE COMPATIBLE TIMEOUT FUNCTION
-const createTimeoutSignal = (timeoutMs: number): AbortController => {
-  const controller = new AbortController();
-  
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-  
-  // Clear timeout if request completes successfully
-  const originalSignal = controller.signal;
-  const clearTimeoutOnComplete = () => {
-    clearTimeout(timeoutId);
-  };
-  
-  // Listen for abort to clear timeout
-  controller.signal.addEventListener('abort', clearTimeoutOnComplete);
-  
-  return controller;
-};
-
-// ✅ MEAL TYPE CONSTRAINTS FOR CULTURAL APPROPRIATENESS
-const MEAL_TYPE_CONSTRAINTS = {
-  breakfast: {
-    culturallyAppropriate: [
-      'toast', 'eggs', 'oatmeal', 'smoothie', 'pancakes', 'waffles',
-      'yogurt parfait', 'cereal', 'fruit bowl', 'breakfast sandwich', 'avocado toast'
-    ],
-    avoid: ['complex dinners', 'heavy proteins', 'elaborate sauces', 'salmon frittata', 'stir-fry'],
-    maxPrepTime: 20,
-    appropriateIngredients: [
-      'eggs', 'oats', 'yogurt', 'milk', 'bread', 'butter', 'jam', 'honey',
-      'berries', 'banana', 'apple', 'orange juice', 'coffee', 'tea',
-      'bacon', 'sausage', 'pancake mix', 'cereal', 'granola', 'avocado'
-    ]
-  },
-  lunch: {
-    culturallyAppropriate: [
-      'salad', 'sandwich', 'wrap', 'soup', 'pasta', 'stir-fry',
-      'grain bowl', 'light protein with vegetables', 'rice bowl'
-    ],
-    avoid: ['breakfast foods', 'heavy dinner preparations'],
-    maxPrepTime: 30
-  },
-  dinner: {
-    culturallyAppropriate: [
-      'protein with vegetables', 'pasta dishes', 'rice dishes',
-      'stews', 'roasted meals', 'grilled proteins', 'curry dishes'
-    ],
-    avoid: ['breakfast foods', 'overly light meals'],
-    maxPrepTime: 60
-  },
-  snack: {
-    culturallyAppropriate: [
-      'fruit', 'nuts', 'yogurt', 'crackers with cheese',
-      'vegetables with dip', 'simple combinations', 'energy balls'
-    ],
-    avoid: ['cooked meals', 'complex preparations'],
-    maxPrepTime: 5
-  }
-};
-
-// ✅ DIVERSITY MANAGER FOR INGREDIENT VARIETY
-class IngredientDiversityManager {
-  private usedIngredients: Map<string, number> = new Map();
-  private usedCuisines: Set<string> = new Set();
-  private usedProteins: Set<string> = new Set();
-
-  trackMeal(meal: Meal) {
-    meal.ingredients.forEach(ing => {
-      const ingredientName = typeof ing === 'string' ? ing : ing.name;
-      const count = this.usedIngredients.get(ingredientName.toLowerCase()) || 0;
-      this.usedIngredients.set(ingredientName.toLowerCase(), count + 1);
-    });
-
-    meal.tags?.forEach(tag => {
-      if (tag.includes('inspired') || tag.includes('cuisine')) {
-        this.usedCuisines.add(tag);
-      }
-    });
-
-    const proteins = meal.ingredients.filter(ing => {
-      const ingredientName = typeof ing === 'string' ? ing : ing.name;
-      return ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'eggs', 'tofu', 'beans'].some(protein =>
-        ingredientName.toLowerCase().includes(protein)
-      );
-    });
-    
-    proteins.forEach(protein => {
-      const proteinName = typeof protein === 'string' ? protein : protein.name;
-      this.usedProteins.add(proteinName.toLowerCase());
-    });
-  }
-
-  getAvoidanceList() {
-    return {
-      overusedIngredients: Array.from(this.usedIngredients.entries())
-        .filter(([_, count]) => count >= 2)
-        .map(([ingredient, _]) => ingredient),
-      usedCuisines: Array.from(this.usedCuisines),
-      usedProteins: Array.from(this.usedProteins)
-    };
-  }
-
-  reset() {
-    this.usedIngredients.clear();
-    this.usedCuisines.clear();
-    this.usedProteins.clear();
-  }
-}
-
-// ✅ ENHANCED CALORIE CALCULATION WITH SAFETY LIMITS
-const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): number => {
-  const defaultCalories = {
-    breakfast: 350,
-    lunch: 450,
-    dinner: 550,
-    snack: 150
-  };
-
-  if (!userProfile) {
-    return defaultCalories[mealType as keyof typeof defaultCalories] || 400;
-  }
-
-  const { age, gender, height_cm, weight_kg, activity_level, health_goals } = userProfile;
-
-  let bmr = 1500; // Safe default
-  if (age && height_cm && weight_kg && gender) {
-    if (gender === 'male') {
-      bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5;
-    } else {
-      bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
-    }
-  }
-
-  const activityMultipliers = {
-    sedentary: 1.2,
-    lightly_active: 1.375,
-    moderately_active: 1.55,
-    very_active: 1.725,
-    extra_active: 1.9,
-  };
-
-  const totalCalories = bmr * (activityMultipliers[activity_level as keyof typeof activityMultipliers] || 1.4);
-
-  let calorieAdjustment = 1.0;
-  if (health_goals?.includes('weight_loss')) calorieAdjustment = 0.85;
-  if (health_goals?.includes('muscle_gain')) calorieAdjustment = 1.15;
-
-  // ✅ STRICT SAFETY LIMITS
-  const maxDailyCalories = 2200;
-  const minDailyCalories = 1400;
-  
-  const adjustedTotal = Math.min(
-    Math.max(totalCalories * calorieAdjustment, minDailyCalories), 
-    maxDailyCalories
-  );
-
-  const mealDistribution = {
-    breakfast: 0.25,
-    lunch: 0.35,
-    dinner: 0.35,
-    snack: 0.05,
-  };
-
-  const targetCalories = Math.round(
-    adjustedTotal * (mealDistribution[mealType as keyof typeof mealDistribution] || 0.25)
-  );
-
-  // ✅ MEAL-SPECIFIC SAFETY LIMITS
-  const mealLimits = {
-    breakfast: { min: 250, max: 500 },
-    lunch: { min: 350, max: 650 },
-    dinner: { min: 400, max: 750 },
-    snack: { min: 100, max: 250 }
-  };
-
-  const limits = mealLimits[mealType as keyof typeof mealLimits] || { min: 300, max: 600 };
-  return Math.min(Math.max(targetCalories, limits.min), limits.max);
-};
-
-// ✅ Recipe'i Meal'e dönüştüren helper fonksiyon
-function mapRecipeToMeal(recipe: any, mealType: string, pantryItems: PantryItem[]): Meal {
-  // Emoji belirle
-  const emoji = getMealEmoji(mealType, recipe.title || '');
-  
-  // Kategoriyi belirle
-  const category = mealType === 'snack' ? 'snacks' : mealType;
-  
-  // Tarifi meal formatına dönüştür
-  const meal: Meal = {
-    id: `api_${recipe.apiSource}_${recipe.id}`,
-    name: recipe.title,
-    ingredients: recipe.extendedIngredients?.map((ing: any) => 
-      typeof ing === 'string' ? ing : (ing.original || ing.name || '')
-    ) || [],
-    calories: recipe.calories || recipe.healthScore || 350,
-    protein: recipe.protein || 20,
-    carbs: recipe.carbs || 30,
-    fat: recipe.fat || 10,
-    fiber: recipe.fiber || 5,
-    prepTime: recipe.readyInMinutes || 15,
-    cookTime: recipe.readyInMinutes ? Math.floor(recipe.readyInMinutes / 2) : 15,
-    servings: recipe.servings || 1,
-    difficulty: recipe.difficulty || 'Medium',
-    emoji: emoji,
-    category,
-    tags: [
-      ...(recipe.diets || []),
-      ...(recipe.dishTypes || []),
-      ...(recipe.cuisines || []),
-      recipe.apiSource
-    ].filter(Boolean),
-    instructions: recipe.instructions?.split('\n') || [],
-    source: recipe.apiSource || 'api',
-    created_at: new Date().toISOString(),
-    imageUrl: recipe.image || '',
-    mealTypeAppropriate: true,
-    sourceUrl: recipe.sourceUrl || '',
-    pantryMatch: 0, // Hesaplanacak
-    totalIngredients: recipe.extendedIngredients?.length || 0,
-    missingIngredients: [], // Hesaplanacak
-    matchPercentage: 0 // Hesaplanacak
-  };
-  
-  // Pantry eşleşmesini hesapla
-  if (pantryItems && pantryItems.length > 0) {
-    const pantryMatch = calculatePantryMatch(meal.ingredients, pantryItems);
-    meal.pantryMatch = pantryMatch.matchCount;
-    meal.totalIngredients = pantryMatch.totalIngredients;
-    meal.missingIngredients = pantryMatch.missingIngredients;
-    meal.matchPercentage = pantryMatch.matchPercentage;
-  }
-  
-  return meal;
-}
-
-// ✅ GEMINI AI MEAL GENERATION WITH FIXED TIMEOUT
-const generateGeminiAIMeal = async (
-  mealType: string,
-  pantryItems: PantryItem[],
-  userProfile: UserProfile | null,
-  diversityManager: IngredientDiversityManager,
-  previousMeals?: Meal[]
-): Promise<Meal> => {
-  const constraints = MEAL_TYPE_CONSTRAINTS[mealType as keyof typeof MEAL_TYPE_CONSTRAINTS];
-  const avoidance = diversityManager.getAvoidanceList();
-  
-  const availableIngredients = pantryItems
-    .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
-    .join(', ');
-
-  const calorieTarget = getCalorieTarget(userProfile, mealType);
-
-  const prompt = `You are creating a ${mealType.toUpperCase()} recipe. This is CRITICAL: you must create a meal that people would actually eat for ${mealType}.
-
-🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
-
-🍽️ MEAL TYPE SPECIFIC REQUIREMENTS FOR ${mealType.toUpperCase()}:
-✅ CULTURALLY APPROPRIATE ${mealType.toUpperCase()} OPTIONS:
-${constraints.culturallyAppropriate?.join(', ')}
-
-❌ NEVER CREATE THESE FOR ${mealType.toUpperCase()}:
-${constraints.avoid?.join(', ')}
-
-⏰ TIME CONSTRAINTS:
-- Maximum prep time: ${constraints.maxPrepTime} minutes
-
-🚫 DIVERSITY & ANTI-REPETITION RULES:
-${avoidance.overusedIngredients.length > 0 ? `
-- AVOID OVERUSED INGREDIENTS: ${avoidance.overusedIngredients.join(', ')} (already used 2+ times)
-` : ''}
-${avoidance.usedCuisines.size > 0 ? `
-- AVOID THESE CUISINES: ${Array.from(avoidance.usedCuisines).join(', ')}
-` : ''}
-${avoidance.usedProteins.size > 0 ? `
-- AVOID THESE PROTEINS: ${Array.from(avoidance.usedProteins).join(', ')}
-` : ''}
-
-🧑‍🍳 USER PROFILE:
-- Dietary Restrictions: ${userProfile?.dietary_restrictions?.join(', ') || 'none'}
-- Health Goals: ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-🚨 CRITICAL SUCCESS CRITERIA:
-1. Recipe MUST be something people actually eat for ${mealType}
-2. Recipe MUST use maximum pantry ingredients
-3. Recipe MUST be different from previous meals
-4. Recipe MUST be appropriate for the time of day
-
-TARGET NUTRITION:
-- Calories: ~${calorieTarget}
-
-RESPOND WITH THIS EXACT JSON STRUCTURE:
-{
-  "name": "${mealType} Recipe Name (realistic for ${mealType})",
-  "ingredients": [
-    {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables"}
-  ],
-  "calories": ${calorieTarget},
-  "protein": 20,
-  "carbs": 30,
-  "fat": 10,
-  "fiber": 5,
-  "prepTime": ${Math.min(constraints.maxPrepTime || 30, 15)},
-  "cookTime": ${Math.min((constraints.maxPrepTime || 30) - 10, 10)},
-  "servings": 1,
-  "difficulty": "Easy",
-  "instructions": [
-    "Step 1: ${mealType}-appropriate preparation",
-    "Step 2: Simple cooking method",
-    "Step 3: Final assembly"
-  ],
-  "tags": ["${mealType}-appropriate", "pantry-focused", "realistic"],
-  "mealTypeAppropriate": true
-}
-
-REMEMBER: This must be a meal that people would actually want to eat for ${mealType}!`;
-
-  try {
-    console.log(`🚀 Making Gemini API request for ${mealType}...`);
-    
-    // ✅ FIXED: Use React Native compatible timeout
-    const timeoutController = createTimeoutSignal(30000); // 30 seconds
-    
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      } as GeminiRequest),
-      signal: timeoutController.signal, // ✅ FIXED: Use controller.signal
-    });
-
-    console.log(`📡 Gemini response status for ${mealType}:`, response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Gemini API Error for ${mealType}:`, errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    // ✅ FIXED: Check content type before parsing
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const responseText = await response.text();
-      console.error('❌ Invalid content type from Gemini:', contentType);
-      console.error('❌ Response text:', responseText);
-      throw new Error('Invalid response format from Gemini API');
-    }
-
-    const data: GeminiResponse = await response.json();
-    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
-
-    if (!generatedText) {
-      throw new Error('No content in Gemini response');
-    }
-
-    console.log(`✅ Gemini response received successfully for ${mealType}`);
-    
-    const meal = parseMealFromGeminiResponse(generatedText, mealType);
-    
-    // ✅ IMMEDIATELY CALCULATE PANTRY MATCH
-    const pantryMatch = calculatePantryMatch(meal.ingredients, pantryItems);
-    
-    const enhancedMeal = {
-      ...meal,
-      pantryMatch: pantryMatch.matchCount,
-      totalIngredients: pantryMatch.totalIngredients,
-      missingIngredients: pantryMatch.missingIngredients,
-      matchPercentage: pantryMatch.matchPercentage,
-      allergenSafe: true
-    };
-
-    // Track this meal for diversity
-    diversityManager.trackMeal(enhancedMeal);
-
-    return enhancedMeal;
-  } catch (error) {
-    console.error(`❌ Gemini AI meal generation error for ${mealType}:`, error);
-    
-    // ✅ FIXED: Enhanced error handling with specific error types
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timeout for ${mealType} - please try again`);
-    }
-    if (error.message?.includes('fetch')) {
-      throw new Error(`Network error for ${mealType} - check your internet connection`);
-    }
-    if (error.message?.includes('API')) {
-      throw new Error(`Gemini API error for ${mealType} - please try again later`);
-    }
-    
-    throw error;
-  }
-};
-
-// ✅ PARSE GEMINI RESPONSE WITH ENHANCED ERROR HANDLING
-const parseMealFromGeminiResponse = (responseText: string, mealType: string): Meal => {
-  try {
-    console.log(`🔄 Parsing Gemini response for ${mealType}...`);
-    
-    // Clean the response text more thoroughly
-    let cleanedText = responseText.trim();
-    
-    // Remove markdown code blocks
-    cleanedText = cleanedText.replace(/```json\s*/g, '');
-    cleanedText = cleanedText.replace(/```\s*/g, '');
-    
-    // Remove any leading/trailing non-JSON text
-    const jsonStart = cleanedText.indexOf('{');
-    const jsonEnd = cleanedText.lastIndexOf('}');
-    
-    if (jsonStart === -1 || jsonEnd === -1) {
-      throw new Error('No valid JSON found in response');
-    }
-    
-    cleanedText = cleanedText.substring(jsonStart, jsonEnd + 1);
-    
-    console.log(`📝 Cleaned response for ${mealType}:`, cleanedText.substring(0, 200) + '...');
-    
-    const parsedMeal = JSON.parse(cleanedText);
-
-    // ✅ VALIDATION: Check required fields
-    if (!parsedMeal.name || !parsedMeal.ingredients || !Array.isArray(parsedMeal.ingredients)) {
-      throw new Error('Invalid meal structure from Gemini');
-    }
-
-    const mealId = `gemini_${mealType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const emoji = getMealEmoji(mealType, parsedMeal.name);
-
-    const meal: Meal = {
-      id: mealId,
-      name: parsedMeal.name,
-      ingredients: parsedMeal.ingredients || [],
-      calories: Math.min(parsedMeal.calories || 400, getCalorieTarget(null, mealType) * 1.2),
-      protein: parsedMeal.protein || 0,
-      carbs: parsedMeal.carbs || 0,
-      fat: parsedMeal.fat || 0,
-      fiber: parsedMeal.fiber || 0,
-      prepTime: parsedMeal.prepTime || 15,
-      cookTime: parsedMeal.cookTime || 15,
-      servings: parsedMeal.servings || 1,
-      difficulty: parsedMeal.difficulty || 'Easy',
-      emoji: emoji,
-      category: mealType,
-      tags: parsedMeal.tags || [],
-      instructions: parsedMeal.instructions || [],
-      source: 'ai_generated',
-      created_at: new Date().toISOString(),
-      mealTypeAppropriate: parsedMeal.mealTypeAppropriate || true,
-    };
-
-    console.log(`✅ Successfully parsed meal for ${mealType}:`, meal.name);
-    return meal;
-  } catch (error) {
-    console.error(`❌ Error parsing Gemini AI meal response for ${mealType}:`, error);
-    console.error('❌ Raw response text:', responseText);
-    throw new Error(`Failed to parse Gemini response for ${mealType}: ${error.message}`);
-  }
-};
-
-// ✅ MEAL EMOJI GENERATOR
-const getMealEmoji = (mealType: string, mealName: string): string => {
-  const name = mealName.toLowerCase();
-  
-  if (mealType === 'breakfast') {
-    if (name.includes('egg')) return '🍳';
-    if (name.includes('toast') || name.includes('bread')) return '🍞';
-    if (name.includes('oat') || name.includes('cereal')) return '🥣';
-    if (name.includes('pancake') || name.includes('waffle')) return '🥞';
-    if (name.includes('yogurt')) return '🥛';
-    if (name.includes('fruit') || name.includes('berry')) return '🍓';
-    if (name.includes('avocado')) return '🥑';
-    return '🍳';
-  }
-  
-  if (mealType === 'lunch') {
-    if (name.includes('salad')) return '🥗';
-    if (name.includes('sandwich') || name.includes('wrap')) return '🥪';
-    if (name.includes('soup')) return '🍲';
-    if (name.includes('pasta')) return '🍝';
-    if (name.includes('rice') || name.includes('bowl')) return '🍚';
-    return '🥗';
-  }
-  
-  if (mealType === 'dinner') {
-    if (name.includes('chicken')) return '🍗';
-    if (name.includes('fish') || name.includes('salmon')) return '🐟';
-    if (name.includes('beef') || name.includes('steak')) return '🥩';
-    if (name.includes('pasta')) return '🍝';
-    if (name.includes('rice')) return '🍚';
-    if (name.includes('curry')) return '🍛';
-    return '🍽️';
-  }
-  
-  if (mealType === 'snack') {
-    if (name.includes('fruit')) return '🍎';
-    if (name.includes('nut')) return '🥜';
-    if (name.includes('yogurt')) return '🥛';
-    if (name.includes('vegetable')) return '🥕';
-    return '🍎';
-  }
-  
-  return '🍽️';
-};
-
-// ✅ CALCULATE AVERAGE MATCH SCORE
-const calculateAverageMatchScore = (meals: Meal[]): number => {
-  if (meals.length === 0) return 0;
-  
-  const totalMatchPercentage = meals.reduce((sum, meal) => {
-    return sum + (meal.matchPercentage || 0);
-  }, 0);
-  
-  return Math.round(totalMatchPercentage / meals.length);
-};
-
-// ✅ GENERATE UNIFIED MEAL PLAN WITH GEMINI AND FALLBACKS
-const generateGeminiMealPlan = async (
-  pantryItems: PantryItem[],
-  userProfile: UserProfile | null
-): Promise<{
-  breakfast: Meal | null;
-  lunch: Meal | null;
-  dinner: Meal | null;
-  snacks: Meal[];
-}> => {
-  console.log('🧪 Generating meal plan with Gemini AI...');
-
-  const diversityManager = new IngredientDiversityManager();
-
-  try {
-    const results = {
-      breakfast: null as Meal | null,
-      lunch: null as Meal | null,
-      dinner: null as Meal | null,
-      snacks: [] as Meal[]
-    };
-
-    // Generate meals sequentially with individual error handling
-    try {
-      console.log('🍳 Generating breakfast...');
-      results.breakfast = await generateGeminiAIMeal('breakfast', pantryItems, userProfile, diversityManager);
-    } catch (error) {
-      console.error('❌ Breakfast generation failed, using fallback:', error);
-      results.breakfast = generateFallbackMeal('breakfast', pantryItems);
-    }
-
-    try {
-      console.log('🥗 Generating lunch...');
-      results.lunch = await generateGeminiAIMeal('lunch', pantryItems, userProfile, diversityManager, results.breakfast ? [results.breakfast] : []);
-    } catch (error) {
-      console.error('❌ Lunch generation failed, using fallback:', error);
-      results.lunch = generateFallbackMeal('lunch', pantryItems);
-    }
-
-    try {
-      console.log('🍽️ Generating dinner...');
-      const previousMeals = [results.breakfast, results.lunch].filter(Boolean) as Meal[];
-      results.dinner = await generateGeminiAIMeal('dinner', pantryItems, userProfile, diversityManager, previousMeals);
-    } catch (error) {
-      console.error('❌ Dinner generation failed, using fallback:', error);
-      results.dinner = generateFallbackMeal('dinner', pantryItems);
-    }
-
-    try {
-      console.log('🍎 Generating snack...');
-      const previousMeals = [results.breakfast, results.lunch, results.dinner].filter(Boolean) as Meal[];
-      const snack = await generateGeminiAIMeal('snack', pantryItems, userProfile, diversityManager, previousMeals);
-      results.snacks = [snack];
-    } catch (error) {
-      console.error('❌ Snack generation failed, using fallback:', error);
-      results.snacks = generateFallbackSnacks(pantryItems);
-    }
-
-    console.log('✅ Gemini meal plan generated successfully (with fallbacks where needed)');
-
-    return results;
-  } catch (error) {
-    console.error('❌ Complete meal plan generation failed, using full fallback:', error);
-    
-    // Complete fallback
-    return {
-      breakfast: generateFallbackMeal('breakfast', pantryItems),
-      lunch: generateFallbackMeal('lunch', pantryItems),
-      dinner: generateFallbackMeal('dinner', pantryItems),
-      snacks: generateFallbackSnacks(pantryItems)
-    };
-  }
-};
 
 export default function AIMealPlan() {
   const router = useRouter();
@@ -733,9 +123,6 @@ export default function AIMealPlan() {
     dinner: 0,
     snacks: 0,
   });
-
-  // ✅ Diversity manager instance
-  const [diversityManager] = useState(new IngredientDiversityManager());
 
   useEffect(() => {
     loadAllData();
@@ -823,7 +210,11 @@ export default function AIMealPlan() {
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
 
-        // ✅ Generate meal plan with API integration
+        // Generate pantry insights
+        // const insights = generatePantryInsights(validPantryItems, metrics);
+        // setPantryInsights(insights);
+
+        // ✅ Generate AI meal plan instead of mock data
         await generateInitialMealPlan(validPantryItems, userProfileData);
 
       } catch (pantryError) {
@@ -859,115 +250,49 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ Generate initial meal plan with API integration and comprehensive fallbacks
+  // ✅ Generate initial AI meal plan
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
-      console.log('🚀 Starting meal plan generation...');
-      
       if (pantryItems.length < 3) {
-        console.log('⚠️ Insufficient pantry items, using fallback plan');
+        // Use fallback plan if insufficient pantry items
         setMealPlan(generateFallbackPlan(pantryItems));
         return;
       }
 
-      // ✅ Reset diversity manager for fresh start
-      diversityManager.reset();
+      // ✅ ADDED: Use IngredientDiversityManager to ensure variety
+      const diversityManager = new IngredientDiversityManager();
 
-      // ✅ API ENTEGRASYONU İLE MEAL PLAN ÜRETMEYI DENE
-      try {
-        console.log('🔍 Trying to generate meal plan with API...');
-        
-        // Kullanıcının diyet kısıtlamalarını ve tercihlerini al
-        const dietaryRestrictions = userProfile?.dietary_restrictions?.join(' ') || '';
-        const preferences = userProfile?.dietary_preferences?.join(' ') || '';
-        
-        // API'den tarifleri çekmeyi dene (önce breakfast, lunch ve dinner için)
-        const [breakfastResults, lunchResults, dinnerResults, snackResults] = await Promise.all([
-          apiManager.searchRecipes({
-            query: `breakfast ${dietaryRestrictions} ${preferences}`.trim(),
-            limit: 1
-          }).catch(() => ({ results: [] })),
-          
-          apiManager.searchRecipes({
-            query: `lunch ${dietaryRestrictions} ${preferences}`.trim(),
-            limit: 1
-          }).catch(() => ({ results: [] })),
-          
-          apiManager.searchRecipes({
-            query: `dinner ${dietaryRestrictions} ${preferences}`.trim(),
-            limit: 1
-          }).catch(() => ({ results: [] })),
-          
-          apiManager.searchRecipes({
-            query: `snack ${dietaryRestrictions} ${preferences}`.trim(),
-            limit: 1
-          }).catch(() => ({ results: [] }))
-        ]);
-        
-        // API sonuçları var mı kontrol et
-        const breakfastRecipe = breakfastResults.results?.[0];
-        const lunchRecipe = lunchResults.results?.[0];
-        const dinnerRecipe = dinnerResults.results?.[0];
-        const snackRecipe = snackResults.results?.[0];
-        
-        // Eğer yeterli API sonucu varsa (en az bir öğün) bunları kullan
-        if (breakfastRecipe || lunchRecipe || dinnerRecipe || snackRecipe) {
-          console.log('✅ API meal generation successful for some meals');
-          
-          // Meal formatına dönüştür
-          const breakfast = breakfastRecipe ? mapRecipeToMeal(breakfastRecipe, 'breakfast', pantryItems) : null;
-          const lunch = lunchRecipe ? mapRecipeToMeal(lunchRecipe, 'lunch', pantryItems) : null;
-          const dinner = dinnerRecipe ? mapRecipeToMeal(dinnerRecipe, 'dinner', pantryItems) : null;
-          const snacks = snackRecipe ? [mapRecipeToMeal(snackRecipe, 'snack', pantryItems)] : [];
-          
-          // API ile bulunamayanlar için Gemini'yi kullan
-          const finalBreakfast = breakfast || (await generateGeminiAIMeal('breakfast', pantryItems, userProfile, diversityManager).catch(() => generateFallbackMeal('breakfast', pantryItems)));
-          const finalLunch = lunch || (await generateGeminiAIMeal('lunch', pantryItems, userProfile, diversityManager).catch(() => generateFallbackMeal('lunch', pantryItems)));
-          const finalDinner = dinner || (await generateGeminiAIMeal('dinner', pantryItems, userProfile, diversityManager).catch(() => generateFallbackMeal('dinner', pantryItems)));
-          const finalSnacks = snacks.length > 0 ? snacks : [(await generateGeminiAIMeal('snack', pantryItems, userProfile, diversityManager).catch(() => generateFallbackMeal('snack', pantryItems)))];
-          
-          // Hesaplamalar
-          const meals = [finalBreakfast, finalLunch, finalDinner].filter(Boolean) as Meal[];
-          const totalCalories = meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-          const totalProtein = meals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
-          const averageMatchScore = calculateAverageMatchScore(meals);
-          
-          // Meal plan oluştur
-          const plan: MealPlan = {
-            daily: {
-              breakfast: finalBreakfast,
-              lunch: finalLunch,
-              dinner: finalDinner,
-              snacks: finalSnacks,
-              totalCalories,
-              totalProtein,
-              optimizationScore: averageMatchScore,
-              generatedAt: new Date().toISOString(),
-              regenerationHistory: {}
-            }
-          };
-          
-          setMealPlan(plan);
-          console.log('✅ Hybrid meal plan generated successfully (API + AI)');
-          return;
-        }
-        
-        // API sonuçları yetersizse, Gemini'ye devam et
-        console.log('⚠️ API did not return enough results, falling back to Gemini AI');
-      } catch (apiError) {
-        console.error('❌ API meal plan generation failed:', apiError);
-        console.log('⚠️ Falling back to Gemini AI');
-      }
+      const breakfast = await generateAIMeal({ mealType: 'breakfast', pantryItems, userProfile });
+      diversityManager.trackMeal(breakfast);
 
-      // ✅ Use Gemini AI meal plan generation with fallbacks
-      const aiMeals = await generateGeminiMealPlan(pantryItems, userProfile);
+      const lunch = await generateAIMeal(
+        { mealType: 'lunch', pantryItems, userProfile },
+        [breakfast],
+        diversityManager.getAvoidanceList()
+      );
+      diversityManager.trackMeal(lunch);
+
+      const dinner = await generateAIMeal(
+        { mealType: 'dinner', pantryItems, userProfile },
+        [breakfast, lunch],
+        diversityManager.getAvoidanceList()
+      );
+      diversityManager.trackMeal(dinner);
       
-      // ✅ Calculate totals accurately from the generated meals
+      const snacks = await generateAIMeal(
+        { mealType: 'snack', pantryItems, userProfile },
+        [breakfast, lunch, dinner],
+        diversityManager.getAvoidanceList()
+      );
+
+      const aiMeals = { breakfast, lunch, dinner, snacks: [snacks].filter(Boolean) as Meal[] };
+      
+      // ✅ FIXED: Calculate totals accurately from the generated meals
       const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
       const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
       const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
 
-      // ✅ Use the clear average match score calculation
+      // ✅ FIXED: Use the new, clear average match score calculation
       const averageMatchScore = calculateAverageMatchScore(mealsForTotals);
 
       const plan: MealPlan = {
@@ -975,22 +300,21 @@ export default function AIMealPlan() {
           ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore: averageMatchScore,
+          optimizationScore: averageMatchScore, // Use the clear average score
           generatedAt: new Date().toISOString(),
           regenerationHistory: {}
         }
       };
 
       setMealPlan(plan);
-      console.log('✅ Meal plan generated successfully');
     } catch (error) {
-      console.error('❌ Failed to generate meal plan:', error);
+      console.error('Failed to generate AI meal plan:', error);
       // Fall back to basic plan
       setMealPlan(generateFallbackPlan(pantryItems));
     }
   };
 
-  // ✅ Regenerate individual meal with API integration and Gemini fallbacks
+  // ✅ Regenerate individual meal
   const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
     if (!mealPlan || !userProfile) return;
 
@@ -998,118 +322,19 @@ export default function AIMealPlan() {
       // Set loading state for this specific meal
       setLoadingStates(prev => ({ ...prev, [mealType]: true }));
 
-      // Önce API'den almayı dene
-      try {
-        console.log(`🔍 Trying to regenerate ${mealType} with API...`);
-        const actualMealType = mealType === 'snacks' ? 'snack' : mealType;
-        
-        // Kullanıcının diyet kısıtlamalarını ve tercihlerini al
-        const dietaryRestrictions = userProfile?.dietary_restrictions?.join(' ') || '';
-        const preferences = userProfile?.dietary_preferences?.join(' ') || '';
-        
-        const apiResult = await apiManager.searchRecipes({
-          query: `${actualMealType} ${dietaryRestrictions} ${preferences}`.trim(),
-          limit: 1,
-          // Önceki aramalardan farklı sonuçlar almak için offset kullan
-          offset: (regenerationAttempts[mealType] || 0) + 1
-        });
-        
-        if (apiResult.results && apiResult.results.length > 0) {
-          console.log(`✅ Successfully regenerated ${mealType} with API`);
-          const newMeal = mapRecipeToMeal(apiResult.results[0], actualMealType, pantryItems);
-          
-          // Update meal plan
-          setMealPlan(prevPlan => {
-            if (!prevPlan) return prevPlan;
-
-            const updatedDaily = { ...prevPlan.daily };
-            
-            if (mealType === 'snacks') {
-              updatedDaily.snacks = [newMeal];
-            } else {
-              updatedDaily[mealType] = newMeal;
-            }
-
-            // Recalculate totals
-            const mealsForTotals = [updatedDaily.breakfast, updatedDaily.lunch, updatedDaily.dinner].filter(Boolean) as Meal[];
-            const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-            const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
-
-            updatedDaily.totalCalories = totalCalories;
-            updatedDaily.totalProtein = totalProtein;
-            updatedDaily.optimizationScore = calculateAverageMatchScore(mealsForTotals);
-
-            return {
-              ...prevPlan,
-              daily: updatedDaily
-            };
-          });
-          
-          // Update regeneration attempts
-          setRegenerationAttempts(prev => ({
-            ...prev,
-            [mealType]: prev[mealType] + 1
-          }));
-
-          // Show success message
-          Alert.alert(
-            'Meal Updated! ✨',
-            `Your ${mealType} has been regenerated with a new recipe from ${apiResult.results[0].apiSource}.`,
-            [{ text: 'Great!' }]
-          );
-          
-          setLoadingStates(prev => ({ ...prev, [mealType]: false }));
-          return;
-        }
-        
-        console.log(`⚠️ API regeneration failed for ${mealType}, falling back to Gemini AI`);
-      } catch (apiError) {
-        console.error(`❌ API regeneration error for ${mealType}:`, apiError);
-        console.log(`⚠️ Falling back to Gemini AI for ${mealType}`);
-      }
-
-      // Mevcut Gemini regeneration kodunu buradan devam ettir...
       const currentMeal = mealPlan.daily[mealType as keyof typeof mealPlan.daily];
       const previousMeal = Array.isArray(currentMeal) ? currentMeal[0] : currentMeal;
 
-      // Get existing meals for diversity tracking
-      const existingMeals = [
-        mealPlan.daily.breakfast,
-        mealPlan.daily.lunch,
-        mealPlan.daily.dinner,
-        ...(mealPlan.daily.snacks || [])
-      ].filter(Boolean) as Meal[];
+      // Create regeneration request
+      const request: MealRegenerationRequest = {
+        mealType: mealType === 'snacks' ? 'snack' : mealType,
+        pantryItems,
+        userProfile,
+        previousMeal: previousMeal || undefined,
+      };
 
-      // Track existing meals in diversity manager
-      diversityManager.reset();
-      existingMeals.forEach(meal => diversityManager.trackMeal(meal));
-
-      let newMeal: Meal;
-
-      try {
-        // Try Gemini first
-        newMeal = await generateGeminiAIMeal(
-          mealType === 'snacks' ? 'snack' : mealType,
-          pantryItems,
-          userProfile,
-          diversityManager,
-          existingMeals
-        );
-      } catch (error) {
-        console.error(`❌ Gemini regeneration failed for ${mealType}, using fallback:`, error);
-        // Fallback to basic meal generation
-        newMeal = generateFallbackMeal(mealType === 'snacks' ? 'snack' : mealType, pantryItems);
-        
-        // Calculate pantry match for fallback
-        const pantryMatch = calculatePantryMatch(newMeal.ingredients, pantryItems);
-        newMeal = {
-          ...newMeal,
-          pantryMatch: pantryMatch.matchCount,
-          totalIngredients: pantryMatch.totalIngredients,
-          missingIngredients: pantryMatch.missingIngredients,
-          matchPercentage: pantryMatch.matchPercentage,
-        };
-      }
+      // Generate new meal using regeneration manager
+      const newMeal = await mealRegenerationManager.regenerateMeal(request);
 
       // Update meal plan
       setMealPlan(prevPlan => {
@@ -1124,13 +349,24 @@ export default function AIMealPlan() {
         }
 
         // Recalculate totals
-        const mealsForTotals = [updatedDaily.breakfast, updatedDaily.lunch, updatedDaily.dinner].filter(Boolean) as Meal[];
-        const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-        const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
+        const totalCalories = (updatedDaily.breakfast?.calories || 0) + 
+                             (updatedDaily.lunch?.calories || 0) + 
+                             (updatedDaily.dinner?.calories || 0) + 
+                             updatedDaily.snacks.reduce((sum, snack) => sum + snack.calories, 0);
+        
+        const totalProtein = (updatedDaily.breakfast?.protein || 0) + 
+                            (updatedDaily.lunch?.protein || 0) + 
+                            (updatedDaily.dinner?.protein || 0) + 
+                            updatedDaily.snacks.reduce((sum, snack) => sum + snack.protein, 0);
 
         updatedDaily.totalCalories = totalCalories;
         updatedDaily.totalProtein = totalProtein;
-        updatedDaily.optimizationScore = calculateAverageMatchScore(mealsForTotals);
+        updatedDaily.optimizationScore = calculateOptimizationScore(
+          updatedDaily.breakfast, 
+          updatedDaily.lunch, 
+          updatedDaily.dinner, 
+          pantryItems
+        );
 
         return {
           ...prevPlan,
@@ -1164,7 +400,7 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ Enhanced regenerate all meals
+  // ✅ ÇÖZÜM 1: Enhanced regenerate all meals
   const regenerateAllMeals = async () => {
     // Eğer modal açıksa kapatıp selectedMeal'ı temizle
     if (modalVisible) {
@@ -1286,11 +522,11 @@ export default function AIMealPlan() {
     setModalVisible(true);
   };
 
-  // Navigate to recipe detail
+  // ✅ ÇÖZÜM 2: Navigate to recipe detail
   const navigateToRecipe = (meal: Meal) => {
     try {
       setModalVisible(false);
-      setSelectedMeal(null);
+      setSelectedMeal(null); // ✅ Reset selected meal
       router.push(`/recipe/${meal.id}?source=meal_plan`);
     } catch (error) {
       const appError = handleError(error, 'navigateToRecipe');
@@ -1438,12 +674,10 @@ export default function AIMealPlan() {
                 <Text style={styles.snackStats}>
                   {snack.calories} cal • {snack.protein}g protein
                 </Text>
-                {(snack.source === 'ai_generated' || snack.source === 'api') && (
+                {snack.source === 'ai_generated' && (
                   <View style={styles.snackAiBadge}>
                     <Sparkles size={10} color={colors.accent[600]} />
-                    <Text style={styles.snackAiText}>
-                      {snack.source === 'api' ? 'API' : 'AI'}
-                    </Text>
+                    <Text style={styles.snackAiText}>AI</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -1459,26 +693,26 @@ export default function AIMealPlan() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
-        <Text style={styles.loadingSubtext}>Analyzing your pantry with AI & Recipe APIs</Text>
+        <Text style={styles.loadingSubtext}>Analyzing your pantry and preferences</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Modal with proper onClose handler */}
+      {/* ✅ ÇÖZÜM 3: Modal with proper onClose handler */}
       <MealDetailModal
         visible={modalVisible}
         meal={selectedMeal}
         onClose={() => {
           setModalVisible(false);
-          setSelectedMeal(null);
+          setSelectedMeal(null); // ✅ Reset selected meal
         }}
         onViewRecipe={navigateToRecipe}
         onAddToNutrition={addToNutritionLog}
         onAddToShopping={(ingredients) => {
           setModalVisible(false);
-          setSelectedMeal(null);
+          setSelectedMeal(null); // ✅ Reset selected meal when closing
           handleAddToShoppingList(ingredients);
         }}
       />

@@ -8,7 +8,7 @@ export interface OrchestrationOptions {
   validateResults?: boolean; // Sonuçları doğrulayalım mı
   enhanceAiRecipes?: boolean; // AI tariflerini geliştirelim mi
   fallbackToAi?: boolean; // API başarısız olursa AI'ya geri dönelim mi
-  preferredApiSource?: 'spoonacular' | 'themealdb'; // Tercih edilen API kaynağı
+  preferredApiSource?: 'spoonacular' | 'tasty' | 'themealdb'; // Tercih edilen API kaynağı
 }
 
 export interface OrchestrationResult<T> {

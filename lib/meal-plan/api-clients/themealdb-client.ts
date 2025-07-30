@@ -8,17 +8,11 @@ export class TheMealDbApiClient implements RecipeApiClient {
   private baseUrl: string;
   private useRapidApi: boolean;
   
-  constructor(apiKey: string = '1', host?: string) {
+  constructor(apiKey: string = '', host?: string) {
     this.apiKey = apiKey;
-    this.host = host || 'www.themealdb.com';
-    this.useRapidApi = !!host;
-
-    if (this.useRapidApi) {
-      this.baseUrl = `https://${this.host}`;
-    } else {
-      // Ücretsiz genel API için anahtar URL yolunun bir parçasıdır
-      this.baseUrl = `https://www.themealdb.com/api/json/v1/${this.apiKey}`;
-    }
+    this.host = host || 'themealdb.p.rapidapi.com';
+    this.useRapidApi = !!host; // Host varsa RapidAPI kullanıyoruz demektir
+    this.baseUrl = `https://${this.host}`;
   }
 
   async searchRecipes(params: RecipeSearchParams): Promise<RecipeSearchResult> {

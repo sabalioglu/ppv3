@@ -1,35 +1,42 @@
+// lib/meal-plan/api-setup.ts
 import { apiManager } from './api-manager';
 
 export function setupApiManager(config: {
   rapidApiKey?: string;
   spoonacularHost?: string;
+  tastyHost?: string;
   themealdbHost?: string;
 }): void {
-  console.log('🚀 Setting up API Manager with RapidAPI');
-
-  // 1. Öncelik: Spoonacular (RapidAPI üzerinden)
+  // RapidAPI üzerinden Spoonacular
   if (config.rapidApiKey && config.spoonacularHost) {
-    console.log('📡 Registering Spoonacular API (RapidAPI - Primary)');
     apiManager.registerApi({
       source: 'spoonacular',
-      apiKey: config.rapidApiKey, // RapidAPI key
-      host: config.spoonacularHost, // RapidAPI host
+      apiKey: config.rapidApiKey,
+      host: config.spoonacularHost,
       isActive: true,
-      priority: 1
+      priority: 1 // En yüksek öncelik
     });
   }
 
-  // 2. Fallback: TheMealDB (RapidAPI üzerinden)
-  if (config.rapidApiKey && config.themealdbHost) {
-    console.log('🔄 Registering TheMealDB API (RapidAPI - Fallback)');
+  // RapidAPI üzerinden Tasty API
+  if (config.rapidApiKey && config.tastyHost) {
     apiManager.registerApi({
-      source: 'themealdb',
-      apiKey: config.rapidApiKey, // Aynı RapidAPI key
-      host: config.themealdbHost, // RapidAPI host
+      source: 'tasty',
+      apiKey: config.rapidApiKey,
+      host: config.tastyHost,
       isActive: true,
       priority: 2
     });
   }
 
-  console.log('✅ API Manager setup completed');
+  // RapidAPI üzerinden TheMealDB
+  if (config.rapidApiKey && config.themealdbHost) {
+    apiManager.registerApi({
+      source: 'themealdb',
+      apiKey: config.rapidApiKey,
+      host: config.themealdbHost,
+      isActive: true,
+      priority: 3 // En düşük öncelik
+    });
+  }
 }

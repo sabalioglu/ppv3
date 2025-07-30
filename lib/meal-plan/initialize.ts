@@ -6,13 +6,14 @@ import { cacheManager } from './api-clients/cache-manager';
 export function initializeRecipeApi(config: {
   rapidApiKey?: string;
   spoonacularHost?: string;
+  tastyHost?: string;
   themealdbHost?: string;
   cacheTtl?: number;
   preferApi?: boolean;
   enhanceAiRecipes?: boolean;
   fallbackToAi?: boolean;
   validateResults?: boolean;
-  defaultApiSource?: 'spoonacular' | 'themealdb';
+  defaultApiSource?: 'spoonacular' | 'tasty' | 'themealdb';
 }): void {
   // Yapılandırmayı ayarla
   configManager.setConfig({
@@ -28,6 +29,7 @@ export function initializeRecipeApi(config: {
   setupApiManager({
     rapidApiKey: config.rapidApiKey,
     spoonacularHost: config.spoonacularHost,
+    tastyHost: config.tastyHost,
     themealdbHost: config.themealdbHost
   });
   
