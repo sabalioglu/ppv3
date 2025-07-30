@@ -1,4 +1,4 @@
-//app>_layouyt.tsx
+//app/_layout.tsx - API Integration Initialization
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect } from 'react';
@@ -19,16 +19,20 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // RapidAPI entegrasyonunu başlat
+    // ✅ API entegrasyonunu başlat
     initializeRecipeApi({
       rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
-      spoonacularHost: process.env.EXPO_PUBLIC_SPOONACULAR_HOST,
-      tastyHost: process.env.EXPO_PUBLIC_TASTY_HOST,
-      themealdbHost: process.env.EXPO_PUBLIC_THEMEALDB_HOST,
+      spoonacularHost: process.env.EXPO_PUBLIC_SPOONACULAR_HOST || 'spoonacular-recipe-food-nutrition-v1.p.rapidapi.com',
+      tastyHost: process.env.EXPO_PUBLIC_TASTY_HOST || 'tasty.p.rapidapi.com',
+      themealdbHost: process.env.EXPO_PUBLIC_THEMEALDB_HOST || 'themealdb.p.rapidapi.com',
       // İsteğe bağlı diğer yapılandırmalar
       cacheTtl: 3600000, // 1 saat
       preferApi: true,
-      fallbackToAi: true
+      fallbackToAi: true,
+      // Yeni eklenen konfigürasyonlar
+      maxRetries: 3,
+      retryDelay: 1000,
+      timeout: 10000
     });
 
     if (fontsLoaded) {
