@@ -171,7 +171,7 @@ export class ApiManager {
   }
 
   private isValidApiSource(source: string): source is ApiSource {
-    return ['spoonacular', 'tasty', 'themealdb'].includes(source);
+    return ['spoonacular', 'themealdb'].includes(source);
   }
 }
 
