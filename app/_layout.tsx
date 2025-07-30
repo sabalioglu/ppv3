@@ -1,3 +1,4 @@
+//app>_layouyt.tsx
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect } from 'react';
