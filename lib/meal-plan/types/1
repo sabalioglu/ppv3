@@ -1,5 +1,3 @@
-// lib/meal-plan/types/ai-recipe-types.ts (GEÇİCİ - BASİT VERSİYON)
-
 export interface AIRecipe {
   id: string;
   name: string;
