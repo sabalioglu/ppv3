@@ -1,7 +1,8 @@
 // lib/meal-plan/recipe-orchestrator.ts
-import { Recipe, RecipeSearchParams } from './api-clients/types';
+import { Recipe, RecipeSearchParams, PantryItem } from './api-clients/types';
 import { apiManager } from './api-manager';
 import { recipeValidator, ValidationResult } from './recipe-validator';
+import { spoonacularEdgeClient } from './api-clients/spoonacular-edge-client';
 
 export interface OrchestrationOptions {
   preferApi?: boolean; // API'yi mi yoksa AI'yı mı tercih edelim
@@ -22,6 +23,30 @@ export class RecipeOrchestrator {
   
   constructor(aiRecipeGenerator: (params: any) => Promise<any>) {
     this.aiRecipeGenerator = aiRecipeGenerator;
+  }
+
+  async findRecipesByPantry(
+    pantryItems: PantryItem[],
+    options: OrchestrationOptions = {}
+  ): Promise<OrchestrationResult<Recipe[]>> {
+    const { preferApi = true, fallbackToAi = true } = options;
+
+    if (preferApi) {
+      try {
+        const apiResult = await spoonacularEdgeClient.findRecipesByPantry({ number: 10, ranking: 1 });
+        if (apiResult && apiResult.length > 0) {
+          return { source: 'api', data: apiResult };
+        }
+      } catch (error) {
+        console.error('API pantry search failed:', error);
+      }
+    }
+
+    if (fallbackToAi) {
+      return this.generateRecipesWithAi({ pantryItems }, options);
+    }
+
+    return { source: 'api', data: [] }; // Changed to api and empty data
   }
 
   async searchRecipes(
@@ -120,12 +145,17 @@ export class RecipeOrchestrator {
   }
 
   private async generateRecipesWithAi(
-    params: RecipeSearchParams,
+    params: RecipeSearchParams | { pantryItems: PantryItem[] },
     options: { enhanceAiRecipes?: boolean } = {}
   ): Promise<OrchestrationResult<Recipe[]>> {
     try {
+      const aiRecipeRequest = {
+        pantryItems: 'pantryItems' in params ? params.pantryItems : [],
+        userPreferences: 'userPreferences' in params ? params.userPreferences : undefined,
+        avoidList: 'avoidList' in params ? params.avoidList : undefined,
+      };
       // AI ile tarif üret
-      const aiRecipe = await this.aiRecipeGenerator(params);
+      const aiRecipe = await this.aiRecipeGenerator(aiRecipeRequest);
       
       // AI tarifini doğrula ve geliştir
       const validationResult = await recipeValidator.validateAiRecipe(
