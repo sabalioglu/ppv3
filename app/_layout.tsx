@@ -5,7 +5,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { initializeRecipeApi } from '@/lib/meal-plan/initialize';
+//import { initializeRecipeApi } from '@/lib/meal-plan/initialize';
+import { mealPlanInitializer } from '../lib/meal-plan/initialize';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
