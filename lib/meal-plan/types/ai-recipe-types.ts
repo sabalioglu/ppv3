@@ -1,24 +1,22 @@
-// lib/meal-plan/types/ai-recipe-types.ts (YENİ DOSYA)
+// lib/meal-plan/types/ai-recipe-types.ts (GEÇİCİ - BASİT VERSİYON)
+
 export interface AIRecipe {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   ingredients: AIIngredient[];
   instructions: string[];
   cookingTime: number;
   servings: number;
-  difficulty: 'easy' | 'medium' | 'hard';
   calories: number;
-  macros: {
+  macros?: {
     protein: number;
     carbs: number;
     fat: number;
-    fiber: number;
+    fiber?: number;
   };
-  tags: string[];
-  cuisine: string;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  pantryMatch: number; // 0-100
+  pantryMatch: number;
   missingIngredients: string[];
   compatibilityScore: number;
   source: 'ai-generated';
@@ -29,9 +27,8 @@ export interface AIIngredient {
   name: string;
   amount: number;
   unit: string;
-  category: string;
+  category?: string;
   isOptional?: boolean;
-  substitutes?: string[];
 }
 
 export interface AIRecipeRequest {
@@ -39,24 +36,15 @@ export interface AIRecipeRequest {
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   servings: number;
   maxCookingTime?: number;
-  difficulty?: 'easy' | 'medium' | 'hard';
-  cuisine?: string;
   dietaryRestrictions: string[];
   allergies: string[];
-  calorieTarget?: number;
-  nutritionalGoals?: {
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-  };
-  avoidIngredients?: string[];
-  preferredIngredients?: string[];
+  avoidIngredients: string[];
+  preferredIngredients: string[];
   userGoal: 'weight_loss' | 'muscle_gain' | 'maintenance' | 'general_health';
 }
 
 export interface AIRecipeResponse {
   recipe: AIRecipe;
   confidence: number;
-  reasoning: string;
-  alternatives?: AIRecipe[];
+  reasoning?: string;
 }
