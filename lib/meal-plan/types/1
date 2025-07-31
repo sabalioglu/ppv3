@@ -1,0 +1,50 @@
+// lib/meal-plan/types/ai-recipe-types.ts (GEÇİCİ - BASİT VERSİYON)
+
+export interface AIRecipe {
+  id: string;
+  name: string;
+  description?: string;
+  ingredients: AIIngredient[];
+  instructions: string[];
+  cookingTime: number;
+  servings: number;
+  calories: number;
+  macros?: {
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber?: number;
+  };
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  pantryMatch: number;
+  missingIngredients: string[];
+  compatibilityScore: number;
+  source: 'ai-generated';
+  createdAt: Date;
+}
+
+export interface AIIngredient {
+  name: string;
+  amount: number;
+  unit: string;
+  category?: string;
+  isOptional?: boolean;
+}
+
+export interface AIRecipeRequest {
+  pantryItems: string[];
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  servings: number;
+  maxCookingTime?: number;
+  dietaryRestrictions: string[];
+  allergies: string[];
+  avoidIngredients: string[];
+  preferredIngredients: string[];
+  userGoal: 'weight_loss' | 'muscle_gain' | 'maintenance' | 'general_health';
+}
+
+export interface AIRecipeResponse {
+  recipe: AIRecipe;
+  confidence: number;
+  reasoning?: string;
+}
