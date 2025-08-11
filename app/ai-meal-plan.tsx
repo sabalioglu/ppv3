@@ -26,8 +26,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
-import { useMealPlanStore } from '@/lib/meal-plan/store';
-import { useMealPlanStore } from '@/lib/meal-plan/store';
+import { useMealPlanStore, useMealPlanAutoLoad } from '@/lib/meal-plan/store';
 
 // ✅ FIXED: Proper imports restored
 import type { 
@@ -207,10 +206,12 @@ export default function AIMealPlan() {
   const router = useRouter();
   
   // ✅ CRITICAL: Use the store hooks properly
+  const isStoreLoaded = useMealPlanAutoLoad();
   const { 
     currentMealPlan, 
     setCurrentMealPlan,
-    isLoaded,
+    aiMeals,
+    setAIMeal,
     loadingError 
   } = useMealPlanStore();
   
@@ -253,11 +254,11 @@ export default function AIMealPlan() {
 
   // ✅ CRITICAL: Use currentMealPlan from store when available
   useEffect(() => {
-    if (currentMealPlan && isLoaded) {
+    if (currentMealPlan && isStoreLoaded) {
       setMealPlan(currentMealPlan);
       console.log('✅ Meal plan loaded from store');
     }
-  }, [currentMealPlan, isLoaded]);
+  }, [currentMealPlan, isStoreLoaded]);
 
   useEffect(() => {
     loadAllData();
