@@ -656,11 +656,26 @@ export const normalizeIngredientName = (name: string): string => {
 
 // ✅ ADDED: Conflicting combinations for quality control
 export const CONFLICTING_COMBINATIONS = [
-  { ingredients: ['chocolate', 'salmon'], reason: 'Chocolate with salmon is unusual' },
-  { ingredients: ['ice cream', 'curry'], reason: 'Ice cream with curry is unusual' },
-  { ingredients: ['sugar', 'raw meat'], reason: 'Sugar with raw meat is unsafe' },
-  { ingredients: ['dessert', 'fish'], reason: 'Dessert ingredients with fish is unusual' },
-  { ingredients: ['sweet', 'savory meat'], reason: 'Sweet and savory meat combination needs care' }
+  {
+    ingredients: ['chocolate', 'fish'],
+    reason: 'Chocolate and fish create an unpleasant flavor combination'
+  },
+  {
+    ingredients: ['chocolate', 'salmon'],
+    reason: 'Sweet chocolate conflicts with savory salmon'
+  },
+  {
+    ingredients: ['ice cream', 'curry'],
+    reason: 'Cold dessert conflicts with hot spicy curry'
+  },
+  {
+    ingredients: ['toothpaste', 'orange'],
+    reason: 'Mint and citrus create a terrible taste combination'
+  },
+  {
+    ingredients: ['milk', 'lemon'],
+    reason: 'Acid causes milk to curdle'
+  }
 ];
 
 // ✅ ADDED: Enhanced cuisine detection

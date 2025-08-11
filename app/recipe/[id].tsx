@@ -49,6 +49,35 @@ interface Recipe {
   updated_at: string;
 }
 
+// Recipe interface (schema-compliant)
+interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  image_url?: string;
+  prep_time: number;
+  cook_time: number;
+  servings: number;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
+  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
+  nutrition?: {
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    fiber?: number;
+  };
+  tags: string[];
+  category: string;
+  is_favorite: boolean;
+  is_ai_generated: boolean;
+  source_url?: string;
+  ai_match_score?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PantryItem {
   id: string;
   name: string;
@@ -69,9 +98,6 @@ export default function RecipeDetail() {
   const [recipe, setRecipe] = useState<Recipe | Meal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
-  const [pantryMatch, setPantryMatch] = useState<PantryMatchResult | null>(null);
-  const [loadingPantry, setLoadingPantry] = useState(false);
   
   // ✅ FIXED: Get meal plan state for AI meals with proper hooks
   const { getAIMeal, isLoaded, loadMealPlan, loadingError } = useMealPlanStore();
@@ -103,7 +129,7 @@ export default function RecipeDetail() {
         await loadMealPlan();
       }
 
-      // ✅ CRITICAL FIX: Use getAIMeal instead of searching meal plan
+      // ✅ CRITICAL FIX: Use getAIMeal function
       const foundMeal = getAIMeal(mealId);
       
       if (foundMeal) {
@@ -228,70 +254,6 @@ export default function RecipeDetail() {
     }
   };
 
-  // Load pantry data and calculate match
-  const loadPantryData = async (userId: string, recipe: Recipe | Meal) => {
-    try {
-      setLoadingPantry(true);
-      
-      const { data: pantry, error } = await supabase
-        .from('pantry_items')
-        .select('*')
-        .eq('user_id', userId)
-        .gt('quantity', 0);
-
-      if (error) throw error;
-
-      const pantryItems = pantry || [];
-      setPantryItems(pantryItems);
-
-      // Calculate enhanced pantry match
-      const enhancedMatch = calculateEnhancedPantryMatch(recipe, pantryItems);
-      setPantryMatch(enhancedMatch);
-
-    } catch (error) {
-      console.error('Error loading pantry data:', error);
-      // Don't show error, just continue without pantry data
-    } finally {
-      setLoadingPantry(false);
-    }
-  };
-
-  // Enhanced pantry match calculation
-  const calculateEnhancedPantryMatch = (recipe: Recipe | Meal, pantryItems: PantryItem[]): PantryMatchResult => {
-    const availableIngredients: string[] = [];
-    const missingIngredients: string[] = [];
-    let sufficientQuantity = true;
-
-    recipe.ingredients.forEach(ingredient => {
-      const pantryItem = pantryItems.find(item => 
-        item.name.toLowerCase().includes(ingredient.name.toLowerCase()) ||
-        ingredient.name.toLowerCase().includes(item.name.toLowerCase())
-      );
-
-      if (pantryItem && pantryItem.quantity > 0) {
-        availableIngredients.push(ingredient.name);
-        
-        // Check quantity sufficiency (basic logic)
-        if (ingredient.quantity && pantryItem.quantity < parseFloat(ingredient.quantity)) {
-          sufficientQuantity = false;
-        }
-      } else {
-        missingIngredients.push(ingredient.name);
-      }
-    });
-
-    const matchPercentage = recipe.ingredients.length > 0 
-      ? Math.round((availableIngredients.length / recipe.ingredients.length) * 100)
-      : 0;
-
-    return {
-      matchPercentage,
-      availableIngredients,
-      missingIngredients,
-      sufficientQuantity
-    };
-  };
-
   // Helper function for ingredient categorization
   const categorizeIngredient = (ingredient: string): string => {
     const lowerIngredient = ingredient.toLowerCase();
@@ -328,9 +290,6 @@ export default function RecipeDetail() {
       // Add to nutrition logs
       await addToNutritionLog(recipe, user.id);
       
-      // Consume ingredients from pantry
-      await consumeIngredientsFromPantry(recipe, user.id);
-      
       // Update statistics if it's a database recipe
       if (!isAIMealId(recipe.id)) {
         await updateRecipeStatistics(recipe.id);
@@ -340,7 +299,7 @@ export default function RecipeDetail() {
       console.log('✅ Recipe completion successful!');
       Alert.alert(
         'Great Job! 👨‍🍳',
-        'Recipe marked as cooked and added to your nutrition log. Pantry quantities updated.',
+        'Recipe marked as cooked and added to your nutrition log.',
         [
           { text: 'View Nutrition', onPress: () => router.push('/(tabs)/nutrition') },
           { text: 'OK' }
@@ -378,30 +337,6 @@ export default function RecipeDetail() {
     if (error) throw error;
   };
 
-  const consumeIngredientsFromPantry = async (recipe: Recipe | Meal, userId: string) => {
-    console.log('🥫 Consuming ingredients from pantry');
-    
-    if (pantryMatch?.availableIngredients) {
-      const updates = pantryItems
-        .filter(item => pantryMatch.availableIngredients.some(ing => 
-          item.name.toLowerCase().includes(ing.toLowerCase())
-        ))
-        .map(item => ({
-          id: item.id,
-          quantity: Math.max(0, item.quantity - 1)
-        }));
-
-      if (updates.length > 0) {
-        for (const update of updates) {
-          await supabase
-            .from('pantry_items')
-            .update({ quantity: update.quantity })
-            .eq('id', update.id);
-        }
-      }
-    }
-  };
-
   const updateRecipeStatistics = async (recipeId: string) => {
     console.log('📈 Updating recipe statistics');
     // This would update cooking frequency, last cooked date, etc.
@@ -412,53 +347,10 @@ export default function RecipeDetail() {
   useEffect(() => {
     if (!isLoaded) {
       console.log('🔄 Auto-loading meal plan...');
+      console.log('🔄 Auto-loading meal plan...');
       loadMealPlan();
     }
   }, [isLoaded, loadMealPlan]);
-
-  // Load pantry data when component mounts for meal plan recipes
-  useEffect(() => {
-    if (isFromMealPlan && recipe) {
-      const getUserAndLoadPantry = async () => {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await loadPantryData(user.id, recipe);
-          }
-        } catch (error) {
-          console.error('Error loading pantry data:', error);
-        }
-      };
-      
-      getUserAndLoadPantry();
-    }
-  }, [isFromMealPlan, recipe]);
-
-  // Real-time pantry updates listener
-  useEffect(() => {
-    if (!isFromMealPlan || !recipe) return;
-
-    const subscription = supabase
-      .channel('recipe_pantry_updates')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'pantry_items' },
-        async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user && recipe) {
-              await loadPantryData(user.id, recipe);
-            }
-          } catch (error) {
-            console.error('Error in real-time pantry update:', error);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [isFromMealPlan, recipe]);
 
   // Main load effect - wait for store to be ready for AI meals
   useEffect(() => {
@@ -542,8 +434,8 @@ export default function RecipeDetail() {
   };
 
   const handleAddMissingToCart = async () => {
-    if (!pantryMatch?.missingIngredients || pantryMatch.missingIngredients.length === 0) {
-      Alert.alert('Info', 'You have all ingredients needed for this recipe!');
+    if (!recipe?.missingIngredients || recipe.missingIngredients.length === 0) {
+      Alert.alert('Info', 'No missing ingredients information available.');
       return;
     }
 
@@ -554,15 +446,15 @@ export default function RecipeDetail() {
         return;
       }
 
-      const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
+      const shoppingItems = recipe.missingIngredients.map(ingredient => ({
         user_id: user.id,
         item_name: ingredient,
-        category: categorizeIngredient(ingredient),
+        category: 'general',
         quantity: 1,
         unit: 'unit',
         is_completed: false,
         source: 'recipe',
-        recipe_id: recipe?.id,
+        recipe_id: recipe.id,
         ingredient_name: ingredient,
         priority: 'high',
       }));
@@ -575,9 +467,9 @@ export default function RecipeDetail() {
 
       Alert.alert(
         'Success',
-        `Added ${pantryMatch.missingIngredients.length} missing ingredients to your shopping list`,
+        `Added ${recipe.missingIngredients.length} missing ingredients to your shopping list`,
         [
-          { text: 'View List', onPress: () => router.push('/(tabs)/shopping') },
+          { text: 'View List', onPress: () => router.push('/(tabs)/shopping-list') },
           { text: 'OK' }
         ]
       );
@@ -885,21 +777,10 @@ export default function RecipeDetail() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
           {recipe.ingredients.map((ingredient, index) => {
-            const isAvailable = isFromMealPlan && pantryMatch?.availableIngredients.includes(ingredient.name);
-            const isMissing = isFromMealPlan && pantryMatch?.missingIngredients.includes(ingredient.name);
-            
             return (
               <View key={index} style={styles.ingredientItem}>
-                <View style={[
-                  styles.ingredientBullet,
-                  isAvailable && { backgroundColor: colors.success[500] },
-                  isMissing && { backgroundColor: colors.error[500] }
-                ]} />
-                <Text style={[
-                  styles.ingredientText,
-                  isAvailable && { color: colors.success[700] },
-                  isMissing && { color: colors.error[700] }
-                ]}>
+                <View style={styles.ingredientBullet} />
+                <Text style={styles.ingredientText}>
                   {ingredient.quantity && ingredient.unit 
                     ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`
                     : ingredient.name
@@ -908,12 +789,6 @@ export default function RecipeDetail() {
                     <Text style={styles.ingredientNotes}> ({ingredient.notes})</Text>
                   )}
                 </Text>
-                {isFromMealPlan && (
-                  <View style={styles.ingredientStatus}>
-                    {isAvailable && <CheckCircle size={16} color={colors.success[500]} />}
-                    {isMissing && <XCircle size={16} color={colors.error[500]} />}
-                  </View>
-                )}
               </View>
             );
           })}
@@ -922,10 +797,10 @@ export default function RecipeDetail() {
         {/* Instructions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Instructions</Text>
-          {recipe.instructions.map((instruction, index) => (
+          {Array.isArray(recipe.instructions) ? recipe.instructions.map((instruction, index) => (
             <View key={index} style={styles.instructionItem}>
               <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{instruction.step}</Text>
+                <Text style={styles.stepNumberText}>{instruction.step || index + 1}</Text>
               </View>
               <View style={styles.instructionContent}>
                 <Text style={styles.instructionText}>{instruction.instruction}</Text>
@@ -936,7 +811,9 @@ export default function RecipeDetail() {
                 )}
               </View>
             </View>
-          ))}
+          )) : (
+            <Text style={styles.noDataText}>No instructions available</Text>
+          )}
         </View>
 
         {/* Nutrition Info */}
@@ -973,11 +850,11 @@ export default function RecipeDetail() {
         )}
 
         {/* Tags */}
-        {(recipe as Recipe).tags && (recipe as Recipe).tags.length > 0 && (
+        {recipe.tags && Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tags</Text>
             <View style={styles.tagsContainer}>
-              {(recipe as Recipe).tags.map((tag, index) => (
+              {recipe.tags.map((tag, index) => (
                 <View key={index} style={styles.tag}>
                   <Text style={styles.tagText}>{tag}</Text>
                 </View>
@@ -1407,10 +1284,6 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     fontStyle: 'italic',
   },
-  ingredientStatus: {
-    marginLeft: spacing.sm,
-    marginTop: 2,
-  },
   instructionItem: {
     flexDirection: 'row',
     marginBottom: spacing.lg,
@@ -1487,5 +1360,12 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
     fontWeight: '500',
     color: colors.primary[600],
+  },
+  noDataText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: spacing.lg,
   },
 });

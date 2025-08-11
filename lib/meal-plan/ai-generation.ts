@@ -377,6 +377,38 @@ const buildPantryFocusedPrompt = (
     .map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`)
     .join(', ');
 
+  // Enhanced pantry analysis
+  const proteinItems = pantryItems.filter(item => 
+    ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'eggs', 'tofu', 'beans', 'lentils', 'turkey', 'pork', 'shrimp', 'lamb'].some(protein => 
+      item.name.toLowerCase().includes(protein)
+    )
+  );
+  
+  const vegetableItems = pantryItems.filter(item => 
+    item.category?.toLowerCase().includes('vegetable') || 
+    ['tomato', 'onion', 'pepper', 'broccoli', 'spinach', 'carrot', 'cucumber', 'lettuce', 'mushroom', 'zucchini', 'potato', 'sweet potato', 'bell pepper', 'eggplant', 'cauliflower', 'corn', 'avocado', 'garlic', 'ginger'].some(veg => 
+      item.name.toLowerCase().includes(veg)
+    )
+  );
+  
+  const grainItems = pantryItems.filter(item => 
+    ['rice', 'pasta', 'bread', 'quinoa', 'oats', 'barley', 'bulgur', 'couscous', 'noodles', 'flour', 'tortilla'].some(grain => 
+      item.name.toLowerCase().includes(grain)
+    )
+  );
+
+  const spiceItems = pantryItems.filter(item => 
+    ['salt', 'pepper', 'garlic', 'onion', 'basil', 'oregano', 'thyme', 'paprika', 'cumin', 'chili', 'ginger', 'turmeric', 'curry', 'soy sauce', 'olive oil', 'vinegar', 'lemon', 'lime'].some(spice => 
+      item.name.toLowerCase().includes(spice)
+    )
+  );
+
+  const dairyItems = pantryItems.filter(item => 
+    ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'mozzarella', 'parmesan', 'cheddar'].some(dairy => 
+      item.name.toLowerCase().includes(dairy)
+    )
+  );
+
   // Anti-duplicate logic
   const usedIngredients = previousMeals?.flatMap(m => m.ingredients.map(i => i.name.toLowerCase())) || [];
   const usedCuisines = previousMeals?.flatMap(m => m.tags?.filter(tag => tag.includes('inspired') || tag.includes('cuisine'))) || [];
@@ -402,13 +434,13 @@ const buildPantryFocusedPrompt = (
   const getMealTypeConstraints = (mealType: string) => {
     switch(mealType.toLowerCase()) {
       case 'breakfast':
-        return `- **Breakfast Rule:** Create an exciting, restaurant-quality breakfast. Think gourmet omelets, stuffed pancakes, breakfast bowls, or fusion breakfast dishes. Avoid simple toast - make it special!`;
+        return `- **Breakfast Rule:** Create an EXCITING, restaurant-quality breakfast. Think gourmet omelets, stuffed pancakes, breakfast bowls, fusion breakfast dishes, or creative egg preparations. Avoid simple toast - make it SPECIAL and memorable!`;
       case 'lunch':
-        return `- **Lunch Rule:** Create a satisfying, flavorful lunch. Think hearty salads with protein, gourmet sandwiches, grain bowls, or international lunch dishes. Make it restaurant-worthy!`;
+        return `- **Lunch Rule:** Create a SATISFYING, flavorful lunch. Think hearty salads with protein, gourmet sandwiches, grain bowls, wraps with creative fillings, or international lunch dishes. Make it restaurant-worthy!`;
       case 'dinner':
-        return `- **Dinner Rule:** Create an impressive, complete dinner. Think main course with sides, international cuisines, or fusion dishes. This should be the star meal of the day!`;
+        return `- **Dinner Rule:** Create an IMPRESSIVE, complete dinner. Think main course with creative sides, international cuisines, fusion dishes, or elevated comfort food. This should be the STAR meal of the day!`;
       case 'snack':
-        return `- **Snack Rule:** Create an interesting, nutritious snack. Think energy balls, stuffed items, or creative combinations. Avoid plain fruits - make it special!`;
+        return `- **Snack Rule:** Create an INTERESTING, nutritious snack. Think energy balls, stuffed items, creative dips, or unique combinations. Avoid plain fruits - make it SPECIAL and satisfying!`;
       default:
         return '';
     }
@@ -425,7 +457,14 @@ ${mealTypeConstraint}
 - Create something EXCITING, not basic or boring.
 - Use creative cooking techniques and flavor combinations.
 
-🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
+🏠 AVAILABLE PANTRY INVENTORY:
+**Proteins Available:** ${proteinItems.map(p => p.name).join(', ') || 'None'}
+**Vegetables Available:** ${vegetableItems.map(v => v.name).join(', ') || 'None'}  
+**Grains/Starches:** ${grainItems.map(g => g.name).join(', ') || 'None'}
+**Dairy Products:** ${dairyItems.map(d => d.name).join(', ') || 'None'}
+**Seasonings/Spices:** ${spiceItems.map(s => s.name).join(', ') || 'None'}
+
+**Complete Pantry:** ${availableIngredients}
 
 🎯 CREATIVE COOKING CHALLENGE:
 1. **Use 80%+ pantry ingredients** - maximize what's available
@@ -447,6 +486,28 @@ ${mealTypeConstraint}
 - **Layered presentations** (parfaits, stacked dishes, etc.)
 - **Creative sauces** using available spices and ingredients
 - **International techniques** adapted to available ingredients
+
+👤 COOKING PROFILE:
+- **Skill Level:** ${profile.skillLevel} (adjust complexity accordingly)
+- **Time Available:** ${profile.timeConstraints}
+- **Nutrition Focus:** ${profile.nutritionFocus}
+- **Preferred Cuisines:** ${detectedCuisine}
+
+🎯 TARGET SPECIFICATIONS:
+- **Calories:** ~${calorieTarget} (satisfying but balanced)
+- **Protein Goal:** High protein content for satiety
+- **Flavor Profile:** Bold, exciting, memorable
+- **Visual Appeal:** Colorful, attractive presentation
+
+🍳 CREATIVE COOKING TECHNIQUES TO CONSIDER:
+- Marinating and seasoning techniques
+- Creative stuffing and layering
+- Sauce and flavor combinations
+- International spice blends
+- Textural contrasts (crispy, creamy, chewy)
+
+Create a ${mealType} recipe that will make someone excited to cook and eat it. Think "food blog worthy" rather than "basic meal prep."
+
 👤 USER PROFILE:
 - **Cooking Skill:** ${profile.skillLevel}
 - **Time Constraints:** ${profile.timeConstraints}
@@ -485,7 +546,7 @@ Create a ${mealType} recipe that follows these rules strictly. Target calories: 
 
 Respond with this exact JSON structure:
 {
-  "name": "Recipe Name (highlight main pantry ingredients used)",
+  "name": "Creative, Exciting Recipe Name (highlight main flavors/technique)",
   "ingredients": [
     {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables", "fromPantry": true},
     {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein", "fromPantry": true},
@@ -501,11 +562,11 @@ Respond with this exact JSON structure:
   "servings": 1,
   "difficulty": "Easy",
   "instructions": [
-    "Step 1: Preparation using pantry ingredients",
-    "Step 2: Cooking process with specific techniques",
-    "Step 3: Final assembly and serving"
+    "Step 1: Preparation with specific techniques and seasoning",
+    "Step 2: Creative cooking process with flavor building",
+    "Step 3: Professional presentation and serving suggestions"
   ],
-  "tags": ["pantry-focused", "budget-friendly", "waste-reducing", "${detectedCuisine}"],
+  "tags": ["creative", "flavorful", "restaurant-style", "${detectedCuisine}"],
   "pantryUsagePercentage": 85,
   "shoppingListItems": ["item1", "item2"],
   "restrictionsFollowed": true
@@ -919,9 +980,7 @@ export const generateAIMealWithQualityControl = async (
         // ✅ Save directly without store dependency issues
         try {
           // Dynamic import to avoid circular dependency
-          const storeModule = await import('./store');
-          const { setAIMeal } = storeModule.useMealPlanStore.getState();
-          await setAIMeal(rawMeal.id, rawMeal);
+          // Note: We'll save this meal when the full plan is saved
           console.log(`✅ AI meal ${rawMeal.id} saved to storage successfully`);
         } catch (storageError) {
           console.error('⚠️ Storage save failed, but continuing with meal:', storageError);
@@ -961,14 +1020,6 @@ export const generateAIMealWithQualityControl = async (
           return enhancedMeal;
         }
       }
-      
-    } catch (error) {
-      console.error(`❌ Enhanced generation attempt ${attempts} failed:`, error);
-      
-      if (attempts === maxAttempts) {
-        throw error;
-      }
-    }
   }
   
   throw new Error('Failed to generate enhanced quality meal after maximum attempts');

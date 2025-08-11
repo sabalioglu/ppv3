@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
+import React from 'react';
 import { Meal, MealPlan } from './types';
 
 interface MealPlanState {
@@ -39,15 +40,15 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       const daily = mealPlan.daily;
       
       // Save individual AI meals with null checks
-      if (daily.breakfast?.source === 'ai_generated' && daily.breakfast.id) {
+      if (daily.breakfast?.source === 'ai_generated') {
         allMeals[daily.breakfast.id] = daily.breakfast;
         console.log('✅ Breakfast AI meal extracted:', daily.breakfast.id);
       }
-      if (daily.lunch?.source === 'ai_generated' && daily.lunch.id) {
+      if (daily.lunch?.source === 'ai_generated') {
         allMeals[daily.lunch.id] = daily.lunch;
         console.log('✅ Lunch AI meal extracted:', daily.lunch.id);
       }
-      if (daily.dinner?.source === 'ai_generated' && daily.dinner.id) {
+      if (daily.dinner?.source === 'ai_generated') {
         allMeals[daily.dinner.id] = daily.dinner;
         console.log('✅ Dinner AI meal extracted:', daily.dinner.id);
       }
@@ -55,7 +56,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       // Save snacks with array safety
       if (Array.isArray(daily.snacks)) {
         daily.snacks.forEach(snack => {
-          if (snack.source === 'ai_generated' && snack.id) {
+          if (snack.source === 'ai_generated') {
             allMeals[snack.id] = snack;
             console.log('✅ Snack AI meal extracted:', snack.id);
           }
@@ -83,6 +84,11 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       return;
     }
     
+    if (!mealId || !meal) {
+      console.error('❌ Invalid meal data for storage');
+      return;
+    }
+    
     console.log(`💾 Saving individual AI meal: ${mealId}`);
     
     const currentAIMeals = get().aiMeals || {};
@@ -95,11 +101,17 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     } catch (error) {
       console.error(`❌ Error saving AI meal ${mealId}:`, error);
       set({ loadingError: `Failed to save meal ${mealId}` });
+      set({ loadingError: `Failed to save meal ${mealId}` });
     }
   },
   
   getAIMeal: (mealId: string) => {
     if (!mealId) {
+      console.error('❌ No meal ID provided to getAIMeal');
+      return null;
+    }
+    
+    const aiMeals = get().aiMeals || {};
       console.error('❌ No meal ID provided to getAIMeal');
       return null;
     }
@@ -126,6 +138,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       console.log('✅ All meal data cleared from storage');
     } catch (error) {
       console.error('❌ Error clearing meal plan:', error);
+      set({ loadingError: 'Failed to clear storage' });
       set({ loadingError: 'Failed to clear storage' });
     }
   },
@@ -192,6 +205,7 @@ export const useMealPlanAutoLoad = () => {
   
   React.useEffect(() => {
     if (!isLoaded) {
+      console.log('🔄 Auto-loading meal plan...');
       console.log('🔄 Auto-loading meal plan...');
       loadMealPlan();
     }

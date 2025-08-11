@@ -27,6 +27,7 @@ import {
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useMealPlanStore } from '@/lib/meal-plan/store';
+import { useMealPlanStore } from '@/lib/meal-plan/store';
 
 // ✅ FIXED: Proper imports restored
 import type { 
@@ -51,12 +52,6 @@ import {
 } from '@/lib/meal-plan/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
-
-// ❌ ESKİ COMPONENT IMPORT'LAR - Geçici mock components
-// import MealDetailModal from '@/components/meal-plan/MealDetailModal';
-// import MealCard from '@/components/meal-plan/MealCard';
-// import MealPlanSummary from '@/components/meal-plan/MealPlanSummary';
-// import ViewModeTabs from '@/components/meal-plan/ViewModeTabs';
 
 // ✅ GEÇİCİ MOCK COMPONENTS
 const MealDetailModal = ({ visible, onClose, meal, onViewRecipe, onAddToNutrition, onAddToShopping }: any) => {
@@ -211,6 +206,14 @@ const ViewModeTabs = ({ viewMode, onViewModeChange }: any) => (
 export default function AIMealPlan() {
   const router = useRouter();
   
+  // ✅ CRITICAL: Use the store hooks properly
+  const { 
+    currentMealPlan, 
+    setCurrentMealPlan,
+    isLoaded,
+    loadingError 
+  } = useMealPlanStore();
+  
   // ✅ Enhanced loading states for individual meals
   const [loadingStates, setLoadingStates] = useState<MealLoadingStates>({
     breakfast: false,
@@ -247,6 +250,14 @@ export default function AIMealPlan() {
     dinner: 0,
     snacks: 0,
   });
+
+  // ✅ CRITICAL: Use currentMealPlan from store when available
+  useEffect(() => {
+    if (currentMealPlan && isLoaded) {
+      setMealPlan(currentMealPlan);
+      console.log('✅ Meal plan loaded from store');
+    }
+  }, [currentMealPlan, isLoaded]);
 
   useEffect(() => {
     loadAllData();
@@ -325,8 +336,10 @@ export default function AIMealPlan() {
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
 
-        // ✅ Generate AI meal plan instead of mock data
-        await generateInitialMealPlan(validPantryItems, userProfileData);
+        // ✅ Generate AI meal plan if not already loaded from store
+        if (!currentMealPlan) {
+          await generateInitialMealPlan(validPantryItems, userProfileData);
+        }
 
       } catch (pantryError) {
         console.error('Pantry error:', pantryError);
@@ -339,7 +352,11 @@ export default function AIMealPlan() {
           expiredItems: 0,
           categories: {},
         });
-        setMealPlan(generateFallbackPlan());
+        if (!currentMealPlan) {
+          const fallbackPlan = generateFallbackPlan();
+          await setCurrentMealPlan(fallbackPlan);
+          setMealPlan(fallbackPlan);
+        }
       }
 
       setLoadingStates(prev => ({ ...prev, initial: false }));
@@ -355,11 +372,13 @@ export default function AIMealPlan() {
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
       if (pantryItems.length < 3) {
-        setMealPlan(generateFallbackPlan(pantryItems));
+        const fallbackPlan = generateFallbackPlan(pantryItems);
+        await setCurrentMealPlan(fallbackPlan);
+        setMealPlan(fallbackPlan);
         return;
       }
 
-      console.log('🤖 Generating enhanced AI meal plan with quality control...');
+      console.log('🚀 Generating enhanced AI meal plan...');
       
       const breakfast = await generateAIMealWithQualityControl('breakfast', pantryItems, userProfile, []);
       const lunch = await generateAIMealWithQualityControl('lunch', pantryItems, userProfile, [breakfast]);
@@ -390,17 +409,18 @@ export default function AIMealPlan() {
         }
       };
 
-      // ✅ FIXED: Use the hook directly
-      const store = useMealPlanStore.getState();
-      await store.setCurrentMealPlan(plan);
+      // ✅ CRITICAL: Use the hook function directly
       await setCurrentMealPlan(plan);
       
       setMealPlan(plan);
-      console.log('✅ Enhanced AI meal plan generated and saved successfully');
+      console.log('✅ Enhanced AI meal plan generated successfully');
       
     } catch (error) {
       console.error('Failed to generate enhanced AI meal plan:', error);
-      setMealPlan(generateFallbackPlan(pantryItems));
+      console.log('🔄 Generating fallback meal plan...');
+      const fallbackPlan = generateFallbackPlan(pantryItems);
+      await setCurrentMealPlan(fallbackPlan);
+      setMealPlan(fallbackPlan);
     }
   };
 
@@ -450,10 +470,15 @@ export default function AIMealPlan() {
         updatedDaily.totalProtein = totalProtein;
         updatedDaily.optimizationScore = 85; // Mock score
 
-        return {
+        const updatedPlan = {
           ...prevPlan,
           daily: updatedDaily
         };
+
+        // ✅ Save to store using hook
+        setCurrentMealPlan(updatedPlan);
+
+        return updatedPlan;
       });
 
       // Update regeneration attempts
@@ -765,6 +790,9 @@ export default function AIMealPlan() {
         <ActivityIndicator size="large" color={colors.primary[500]} />
         <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
         <Text style={styles.loadingSubtext}>Analyzing your pantry and preferences</Text>
+        {loadingError && (
+          <Text style={styles.errorText}>Storage: {loadingError}</Text>
+        )}
       </View>
     );
   }
@@ -928,6 +956,12 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.error[600],
     marginTop: spacing.sm,
     textAlign: 'center',
   },
