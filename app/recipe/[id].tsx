@@ -13,26 +13,12 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { 
-  ArrowLeft, 
-  Clock, 
-  Users, 
-  Flame, 
-  Heart, 
-  ExternalLink, 
-  Play, 
-  ShoppingCart, 
-  Edit3, 
-  Share,
-  CheckCircle,
-  XCircle,
-  TrendingUp,
-  Package
-} from 'lucide-react-native';
+import { ArrowLeft, Clock, Users, Flame, Heart, ExternalLink, Play, ShoppingCart, CreditCard as Edit3, Share, CircleCheck as CheckCircle, Circle as XCircle, TrendingUp, Package } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useMealPlanStore } from '@/lib/meal-plan/store';
+import { consumePantryIngredients } from '@/lib/meal-plan/pantry-consumption';
 
 // Recipe interface (schema-compliant)
 interface Recipe {
@@ -409,12 +395,24 @@ export default function RecipeDetail() {
   const consumeIngredientsFromPantry = async (recipe: Recipe | Meal, userId: string) => {
     console.log('🥫 Consuming ingredients from pantry');
     
-    // ✅ Use enhanced pantry consumption system
-    try {
-      const consumptionRecords = await consumePantryIngredients(recipe, pantryItems, userId);
-      console.log(`✅ Consumed ${consumptionRecords.length} pantry items`);
-    } catch (error) {
-      console.error('❌ Error consuming pantry ingredients:', error);
+    if (pantryMatch?.availableIngredients) {
+      const updates = pantryItems
+        .filter(item => pantryMatch.availableIngredients.some(ing => 
+          item.name.toLowerCase().includes(ing.toLowerCase())
+        ))
+        .map(item => ({
+          id: item.id,
+          quantity: Math.max(0, item.quantity - 1)
+        }));
+
+      if (updates.length > 0) {
+        for (const update of updates) {
+          await supabase
+            .from('pantry_items')
+            .update({ quantity: update.quantity })
+            .eq('id', update.id);
+        }
+      }
     }
   };
 
