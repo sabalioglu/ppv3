@@ -84,11 +84,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       return;
     }
     
-    if (!mealId || !meal) {
-      console.error('❌ Invalid meal data for storage');
-      return;
-    }
-    
     console.log(`💾 Saving individual AI meal: ${mealId}`);
     
     const currentAIMeals = get().aiMeals || {};
@@ -101,17 +96,11 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     } catch (error) {
       console.error(`❌ Error saving AI meal ${mealId}:`, error);
       set({ loadingError: `Failed to save meal ${mealId}` });
-      set({ loadingError: `Failed to save meal ${mealId}` });
     }
   },
   
   getAIMeal: (mealId: string) => {
     if (!mealId) {
-      console.error('❌ No meal ID provided to getAIMeal');
-      return null;
-    }
-    
-    const aiMeals = get().aiMeals || {};
       console.error('❌ No meal ID provided to getAIMeal');
       return null;
     }
@@ -138,7 +127,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       console.log('✅ All meal data cleared from storage');
     } catch (error) {
       console.error('❌ Error clearing meal plan:', error);
-      set({ loadingError: 'Failed to clear storage' });
       set({ loadingError: 'Failed to clear storage' });
     }
   },
@@ -205,7 +193,6 @@ export const useMealPlanAutoLoad = () => {
   
   React.useEffect(() => {
     if (!isLoaded) {
-      console.log('🔄 Auto-loading meal plan...');
       console.log('🔄 Auto-loading meal plan...');
       loadMealPlan();
     }
