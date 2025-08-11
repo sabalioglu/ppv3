@@ -353,18 +353,29 @@ export default function AIMealPlan() {
   // ✅ Generate initial AI meal plan
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
+      // ✅ ARRAY SAFETY: Check pantry items
       if (pantryItems.length < 3) {
         // Use fallback plan if insufficient pantry items
         setMealPlan(generateFallbackPlan(pantryItems));
+        console.log('⚠️ Using fallback plan due to insufficient pantry items');
         return;
       }
 
-      const breakfast = await generateAIMeal({ mealType: 'breakfast', pantryItems, userProfile });
-      const lunch = await generateAIMeal({ mealType: 'lunch', pantryItems, userProfile }, [breakfast]);
-      const dinner = await generateAIMeal({ mealType: 'dinner', pantryItems, userProfile }, [breakfast, lunch]);
-      const snacks = await generateAIMeal({ mealType: 'snack', pantryItems, userProfile }, [breakfast, lunch, dinner]);
+      console.log('🤖 Generating AI meal plan with quality control...');
+      
+      // ✅ FIXED: Use quality-controlled generation
+      const breakfast = await generateAIMealWithQualityControl('breakfast', pantryItems, userProfile, []);
+      const lunch = await generateAIMealWithQualityControl('lunch', pantryItems, userProfile, [breakfast]);
+      const dinner = await generateAIMealWithQualityControl('dinner', pantryItems, userProfile, [breakfast, lunch]);
+      const snacks = await generateAIMealWithQualityControl('snack', pantryItems, userProfile, [breakfast, lunch, dinner]);
 
-      const aiMeals = { breakfast, lunch, dinner, snacks: [snacks].filter(Boolean) as Meal[] };
+      // ✅ ARRAY SAFETY: Filter out null meals
+      const aiMeals = { 
+        breakfast: breakfast || null, 
+        lunch: lunch || null, 
+        dinner: dinner || null, 
+        snacks: [snacks].filter(Boolean) as Meal[] 
+      };
       
       // ✅ FIXED: Calculate totals accurately from the generated meals
       const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
@@ -385,7 +396,13 @@ export default function AIMealPlan() {
         }
       };
 
+      // ✅ CRITICAL: Save to storage using the store
+      const { setCurrentMealPlan } = useMealPlanStore.getState();
+      await setCurrentMealPlan(plan);
+      
       setMealPlan(plan);
+      console.log('✅ AI meal plan generated and saved successfully');
+      
     } catch (error) {
       console.error('Failed to generate AI meal plan:', error);
       // Fall back to basic plan

@@ -25,17 +25,27 @@ export const findBestPantryMatch = (
   ingredient: Ingredient, 
   pantryItems: PantryItem[]
 ): PantryItem | null => {
+  // ✅ ARRAY SAFETY: Check if arrays exist
+  if (!Array.isArray(pantryItems) || pantryItems.length === 0) {
+    return null;
+  }
+  
+  if (!ingredient || !ingredient.name) {
+    return null;
+  }
+  
   const ingredientName = normalizeIngredientName(ingredient.name);
   
   // Direct name match
   let bestMatch = pantryItems.find(item => 
-    normalizeIngredientName(item.name) === ingredientName
+    item.name && normalizeIngredientName(item.name) === ingredientName
   );
   
   if (bestMatch) return bestMatch;
   
   // Partial name match
   bestMatch = pantryItems.find(item => {
+    if (!item.name) return false;
     const itemName = normalizeIngredientName(item.name);
     return itemName.includes(ingredientName) || ingredientName.includes(itemName);
   });
@@ -45,6 +55,7 @@ export const findBestPantryMatch = (
   // Category-based intelligent matching
   const aliases = INGREDIENT_ALIASES[ingredientName] || [];
   bestMatch = pantryItems.find(item => {
+    if (!item.name) return false;
     const normalizedPantry = normalizeIngredientName(item.name);
     return aliases.some(alias => 
       normalizeIngredientName(alias) === normalizedPantry ||

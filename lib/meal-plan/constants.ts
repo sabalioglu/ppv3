@@ -641,6 +641,15 @@ export const DIETARY_RESTRICTIONS = {
   }
 };
 
+// ✅ ADDED: Conflicting combinations for quality control
+export const CONFLICTING_COMBINATIONS = [
+  { ingredients: ['chocolate', 'salmon'], reason: 'Chocolate with salmon is unusual' },
+  { ingredients: ['ice cream', 'curry'], reason: 'Ice cream with curry is unusual' },
+  { ingredients: ['sugar', 'raw meat'], reason: 'Sugar with raw meat is unsafe' },
+  { ingredients: ['dessert', 'fish'], reason: 'Dessert ingredients with fish is unusual' },
+  { ingredients: ['sweet', 'savory meat'], reason: 'Sweet and savory meat combination needs care' }
+];
+
 // ✅ ADDED: Calorie limits for safety
 export const MIN_DAILY_CALORIES = 1200;
 export const MAX_DAILY_CALORIES = 3500;

@@ -270,27 +270,32 @@ export class IngredientDiversityManager {
 }
 
 export const generateFallbackPlan = (pantryItems: PantryItem[] = []) => {
+  console.log('🔄 Generating fallback meal plan...');
+  
   const breakfast = generateFallbackMeal('breakfast', pantryItems);
   const lunch = generateFallbackMeal('lunch', pantryItems);
   const dinner = generateFallbackMeal('dinner', pantryItems);
   const snacks = generateFallbackSnacks(pantryItems);
 
+  // ✅ ARRAY SAFETY: Ensure snacks is always an array
+  const safeSnacks = Array.isArray(snacks) ? snacks : [];
+
   const totalCalories = breakfast.calories + lunch.calories + dinner.calories + 
-                       snacks.reduce((sum, snack) => sum + snack.calories, 0);
+                       safeSnacks.reduce((sum, snack) => sum + snack.calories, 0);
   
   const totalProtein = breakfast.protein + lunch.protein + dinner.protein + 
-                      snacks.reduce((sum, snack) => sum + snack.protein, 0);
+                      safeSnacks.reduce((sum, snack) => sum + snack.protein, 0);
 
-  const avgMatchPercentage = [breakfast, lunch, dinner, ...snacks]
+  const avgMatchPercentage = [breakfast, lunch, dinner, ...safeSnacks]
     .reduce((sum, meal) => sum + (meal.matchPercentage || 0), 0) / 
-    (3 + snacks.length);
+    (3 + safeSnacks.length);
 
   return {
     daily: {
       breakfast,
       lunch,
       dinner,
-      snacks,
+      snacks: safeSnacks,
       totalCalories,
       totalProtein,
       optimizationScore: Math.round(avgMatchPercentage)

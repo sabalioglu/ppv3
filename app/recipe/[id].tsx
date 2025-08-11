@@ -18,7 +18,7 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useMealPlanStore } from '@/lib/meal-plan/store';
-import { consumePantryIngredients } from '@/lib/meal-plan/pantry-consumption';
+import { Meal } from '@/lib/meal-plan/types';
 
 // Recipe interface (schema-compliant)
 interface Recipe {
@@ -49,26 +49,6 @@ interface Recipe {
   updated_at: string;
 }
 
-interface Meal {
-  id: string;
-  name: string;
-  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
-  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
-  nutrition?: {
-    calories?: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-  };
-  category?: string;
-  description?: string;
-  prep_time?: number;
-  cook_time?: number;
-  servings?: number;
-  difficulty?: 'Easy' | 'Medium' | 'Hard';
-}
-
 interface PantryItem {
   id: string;
   name: string;
@@ -93,8 +73,8 @@ export default function RecipeDetail() {
   const [pantryMatch, setPantryMatch] = useState<PantryMatchResult | null>(null);
   const [loadingPantry, setLoadingPantry] = useState(false);
   
-  // Get meal plan state for AI meals with auto-load
-  const { currentMealPlan, loadMealPlan, isLoaded } = useMealPlanStore();
+  // ✅ FIXED: Get meal plan state for AI meals with proper hooks
+  const { getAIMeal, isLoaded, loadMealPlan, loadingError } = useMealPlanStore();
 
   // Check if this recipe is from meal plan
   const isFromMealPlan = source === 'meal_plan';
@@ -123,36 +103,42 @@ export default function RecipeDetail() {
         await loadMealPlan();
       }
 
-      // Get the current meal plan after loading
-      const mealPlan = useMealPlanStore.getState().currentMealPlan;
+      // ✅ CRITICAL FIX: Use getAIMeal instead of searching meal plan
+      const foundMeal = getAIMeal(mealId);
       
-      if (!mealPlan) {
-        throw new Error('Meal plan not found in storage');
+      if (foundMeal) {
+        console.log('✅ AI meal loaded from storage:', foundMeal.name);
+        setRecipe(foundMeal);
+        setError(null);
+      } else {
+        console.error('❌ AI meal not found in storage:', mealId);
+        
+        if (loadingError) {
+          throw new Error(`Storage error: ${loadingError}`);
+        } else {
+          throw new Error('Recipe not found in storage. It may have been cleared.');
+        }
       }
 
-      // Find meal in current meal plan
-      let foundMeal: Meal | null = null;
-      
-      // Search in all meal categories
-      const allMeals = [
-        ...mealPlan.breakfast || [],
-        ...mealPlan.lunch || [],
-        ...mealPlan.dinner || [],
-        ...mealPlan.snacks || []
-      ];
-
-      foundMeal = allMeals.find((meal: any) => meal.id === mealId) || null;
-
-      if (!foundMeal) {
-        throw new Error(`AI meal not found: ${mealId}`);
-      }
-
-      console.log('✅ AI meal loaded from state:', foundMeal.name);
-      setRecipe(foundMeal);
-      
     } catch (err) {
       console.error('❌ Error loading AI meal from state:', err);
       setError(err instanceof Error ? err.message : 'Failed to load AI meal');
+      
+      // Show user-friendly error
+      Alert.alert(
+        'Recipe Not Available',
+        'This recipe is no longer available. It may have been cleared from storage.',
+        [
+          { text: 'Go Back', onPress: () => router.back() },
+          { 
+            text: 'Generate New Plan', 
+            onPress: () => {
+              router.dismiss();
+              router.push('/ai-meal-plan');
+            }
+          }
+        ]
+      );
     }
   };
 
