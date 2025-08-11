@@ -1,12 +1,7 @@
-//lib/meal-plan/meal-matching.ts
+// lib/meal-plan/meal-matching.ts
 // Enhanced meal matching algorithms with better ingredient recognition
 import { Meal, PantryItem, Ingredient, MatchResult, UserProfile } from './types';
-import { MEAL_DATABASE, INGREDIENT_ALIASES } from './constants';
-import { getExpiringItems } from './pantry-analysis';
-
-export const normalizeIngredientName = (name: string): string => {
-  return name.toLowerCase().trim().replace(/s$/, ''); // Remove plural 's'
-};
+import { normalizeIngredientName, INGREDIENT_ALIASES } from './constants';
 
 export const findIngredientMatch = (requiredIngredient: string, pantryItems: PantryItem[]): PantryItem | null => {
   const normalizedRequired = normalizeIngredientName(requiredIngredient);
@@ -121,9 +116,9 @@ export const calculateMealScore = (
   });
   
   // User preference bonus
-  if (userProfile?.preferences?.length) {
+  if (userProfile?.dietary_preferences?.length) {
     const hasPreferredTag = meal.tags.some(tag => 
-      userProfile.preferences.includes(tag)
+      userProfile.dietary_preferences!.includes(tag)
     );
     if (hasPreferredTag) {
       score += 10;
@@ -195,26 +190,6 @@ export const findBestMealMatch = (
   return bestMeal;
 };
 
-// This function is now deprecated in favor of calculateAverageMatchScore for clarity.
-// export const calculateOptimizationScore = ( ... )
-
-/**
- * Calculates the average pantry match score based on a list of meals.
- * This provides a clear and direct representation of how well the meal plan matches the user's pantry.
- * @param meals - An array of Meal objects.
- * @returns The average match percentage (0-100).
- */
-export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
-  const validMeals = meals.filter(Boolean) as Meal[];
-  if (validMeals.length === 0) return 0;
-
-  const totalMatchPercentage = validMeals.reduce((sum, meal) => 
-    sum + (meal.matchPercentage || 0), 0
-  );
-
-  return Math.round(totalMatchPercentage / validMeals.length);
-};
-
 export const getMealSuggestions = (
   mealType: string,
   pantryItems: PantryItem[],
@@ -242,3 +217,18 @@ export const getMealSuggestions = (
   
   return scoredMeals;
 };
+
+// Helper function to get expiring items (imported from pantry-analysis)
+const getExpiringItems = (items: PantryItem[], daysAhead: number = 3): PantryItem[] => {
+  const today = new Date();
+  const futureDate = new Date(today.getTime() + (daysAhead * 24 * 60 * 60 * 1000));
+  
+  return items.filter(item => {
+    if (!item.expiry_date) return false;
+    const expiryDate = new Date(item.expiry_date);
+    return expiryDate >= today && expiryDate <= futureDate;
+  });
+};
+
+// Import MEAL_DATABASE from constants
+import { MEAL_DATABASE } from './constants';

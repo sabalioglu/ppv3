@@ -1,5 +1,4 @@
-//lib/meal-plan/constants.ts
-// Complete enhanced meal database with comprehensive ingredient matching
+// lib/meal-plan/constants.ts - Complete enhanced meal database with comprehensive ingredient matching
 import { Meal } from './types';
 
 export const MEAL_DATABASE: Record<string, Meal[]> = {
@@ -645,3 +644,12 @@ export const DIETARY_RESTRICTIONS = {
 // ✅ ADDED: Calorie limits for safety
 export const MIN_DAILY_CALORIES = 1200;
 export const MAX_DAILY_CALORIES = 3500;
+
+// Normalize ingredient names for matching
+export const normalizeIngredientName = (name: string): string => {
+  return name.toLowerCase()
+    .trim()
+    .replace(/s$/, '') // Remove plural 's'
+    .replace(/[^a-z0-9\s]/g, '') // Remove special characters
+    .replace(/\s+/g, ' '); // Normalize spaces
+};

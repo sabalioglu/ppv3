@@ -972,3 +972,15 @@ export const resetTestMetrics = (): void => {
     averageTokens: { input: 0, output: 0 }
   };
 };
+
+// ✅ ADDED: Missing function that ai-meal-plan.tsx needs
+export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
+  const validMeals = meals.filter(Boolean) as Meal[];
+  if (validMeals.length === 0) return 0;
+
+  const totalMatchPercentage = validMeals.reduce((sum, meal) => 
+    sum + (meal.matchPercentage || 0), 0
+  );
+
+  return Math.round(totalMatchPercentage / validMeals.length);
+};

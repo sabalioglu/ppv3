@@ -2,6 +2,7 @@
 // Automatic pantry consumption system for meal plan integration
 import { supabase } from '../supabase';
 import { PantryItem, Meal, Ingredient } from './types';
+import { normalizeIngredientName, INGREDIENT_ALIASES } from './constants';
 
 export interface ConsumptionRecord {
   pantryItemId: string;
