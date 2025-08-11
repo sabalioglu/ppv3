@@ -1,9 +1,7 @@
-// lib/meal-plan/store.ts - Complete storage solution with AI meal management
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { Meal, MealPlan } from './types';
-import React from 'react';
 
 interface MealPlanState {
   currentMealPlan: MealPlan | null;
@@ -28,18 +26,15 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   
   setCurrentMealPlan: async (mealPlan: MealPlan) => {
     console.log('💾 Saving meal plan to storage...');
-    set({ currentMealPlan: mealPlan, loadingError: null });
+    set({ currentMealPlan: mealPlan });
     
     try {
-      // Save main meal plan
       await AsyncStorage.setItem(MEAL_PLAN_STORAGE_KEY, JSON.stringify(mealPlan));
       console.log('✅ Main meal plan saved');
       
-      // ✅ Extract and save ALL AI meals with safety checks
       const allMeals: { [key: string]: Meal } = {};
       const daily = mealPlan.daily;
       
-      // Save individual AI meals with null checks
       if (daily.breakfast?.source === 'ai_generated') {
         allMeals[daily.breakfast.id] = daily.breakfast;
         console.log('✅ Breakfast AI meal extracted:', daily.breakfast.id);
@@ -53,7 +48,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
         console.log('✅ Dinner AI meal extracted:', daily.dinner.id);
       }
       
-      // Save snacks with array safety
       if (Array.isArray(daily.snacks)) {
         daily.snacks.forEach(snack => {
           if (snack.source === 'ai_generated') {
@@ -63,32 +57,25 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
         });
       }
       
-      // Merge with existing AI meals
-      const currentAIMeals = get().aiMeals || {};
+      const currentAIMeals = get().aiMeals;
       const updatedAIMeals = { ...currentAIMeals, ...allMeals };
       set({ aiMeals: updatedAIMeals });
       
-      // Save to storage
       await AsyncStorage.setItem(AI_MEALS_STORAGE_KEY, JSON.stringify(updatedAIMeals));
       console.log(`✅ ${Object.keys(allMeals).length} AI meals saved to storage`);
       
     } catch (error) {
       console.error('❌ Error saving meal plan:', error);
-      set({ loadingError: `Save failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      set({ loadingError: `Save failed: ${error.message}` });
     }
   },
   
   setAIMeal: async (mealId: string, meal: Meal) => {
-    if (!mealId || !meal) {
-      console.error('❌ Invalid meal data for storage');
-      return;
-    }
-    
     console.log(`💾 Saving individual AI meal: ${mealId}`);
     
-    const currentAIMeals = get().aiMeals || {};
+    const currentAIMeals = get().aiMeals;
     const updatedAIMeals = { ...currentAIMeals, [mealId]: meal };
-    set({ aiMeals: updatedAIMeals, loadingError: null });
+    set({ aiMeals: updatedAIMeals });
     
     try {
       await AsyncStorage.setItem(AI_MEALS_STORAGE_KEY, JSON.stringify(updatedAIMeals));
@@ -100,12 +87,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
   },
   
   getAIMeal: (mealId: string) => {
-    if (!mealId) {
-      console.error('❌ No meal ID provided to getAIMeal');
-      return null;
-    }
-    
-    const aiMeals = get().aiMeals || {};
+    const aiMeals = get().aiMeals;
     const meal = aiMeals[mealId];
     
     if (meal) {
@@ -127,7 +109,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       console.log('✅ All meal data cleared from storage');
     } catch (error) {
       console.error('❌ Error clearing meal plan:', error);
-      set({ loadingError: 'Failed to clear storage' });
     }
   },
   
@@ -143,7 +124,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       let mealPlan = null;
       let aiMeals = {};
       
-      // Load meal plan with error handling
       if (storedMealPlan[1]) {
         try {
           mealPlan = JSON.parse(storedMealPlan[1]);
@@ -154,7 +134,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
         }
       }
       
-      // Load AI meals with error handling
       if (storedAIMeals[1]) {
         try {
           aiMeals = JSON.parse(storedAIMeals[1]);
@@ -180,7 +159,7 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
       console.error('❌ Error loading meal plan:', error);
       set({ 
         isLoaded: true, 
-        loadingError: `Load failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        loadingError: `Load failed: ${error.message}`,
         currentMealPlan: null,
         aiMeals: {}
       });
