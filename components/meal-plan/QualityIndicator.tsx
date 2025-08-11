@@ -9,14 +9,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  Info, 
-  X,
-  Shield,
-  TrendingUp 
-} from 'lucide-react-native';
+import { TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Info, X, Shield, TrendingUp } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { Meal } from '../../lib/meal-plan/types';
 import { getQualityMetrics } from '../../lib/meal-plan/quality-control';
