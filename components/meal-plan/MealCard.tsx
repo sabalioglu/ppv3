@@ -8,16 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { 
-  Flame, 
-  TrendingUp, 
-  Clock, 
-  AlertCircle, 
-  Plus, 
-  CheckCircle, 
-  RefreshCw,
-  Sparkles 
-} from 'lucide-react-native';
+import { Flame, TrendingUp, Clock, CircleAlert as AlertCircle, Plus, CircleCheck as CheckCircle, RefreshCw, Sparkles } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { Meal } from '@/lib/meal-plan/types';
 import { QualityIndicator } from './QualityIndicator';
