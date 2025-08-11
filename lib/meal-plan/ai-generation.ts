@@ -390,56 +390,63 @@ const buildPantryFocusedPrompt = (
 
   // Build allergen safety instructions
   const allergenSafety = profile.allergenWarnings.length > 0
-    ? `- **Allergens:** NEVER include these ingredients or their derivatives: **${profile.allergenWarnings.join(', ')}**.`
+    ? `- **CRITICAL ALLERGEN WARNING:** NEVER include these ingredients: **${profile.allergenWarnings.join(', ')}**. This is non-negotiable.`
     : '';
 
   // Build dietary compliance
   const dietaryCompliance = profile.dietaryGuidelines.length > 0
-    ? `- **Dietary Needs:** The meal MUST be **${profile.dietaryGuidelines.join(', ')}**.`
+    ? `- **DIETARY REQUIREMENTS:** The meal MUST be **${profile.dietaryGuidelines.join(', ')}**. No exceptions.`
     : '';
 
-  // ✅ ADDED: Meal Type Constraints Logic
+  // Enhanced meal type constraints
   const getMealTypeConstraints = (mealType: string) => {
     switch(mealType.toLowerCase()) {
       case 'breakfast':
-        return `- **Meal Type Rule:** This is a **breakfast** meal. It MUST be a typical breakfast food (like eggs, oatmeal, smoothie, pancakes, yogurt). Avoid heavy, complex dinner-style dishes like salmon fillets or steak. It should be quick to prepare.`;
+        return `- **Breakfast Rule:** Create an exciting, restaurant-quality breakfast. Think gourmet omelets, stuffed pancakes, breakfast bowls, or fusion breakfast dishes. Avoid simple toast - make it special!`;
       case 'lunch':
-        return `- **Meal Type Rule:** This is a **lunch** meal. It can be a salad, sandwich, wrap, soup, or a light-portioned main course. Avoid overly heavy or large dinner plates.`;
+        return `- **Lunch Rule:** Create a satisfying, flavorful lunch. Think hearty salads with protein, gourmet sandwiches, grain bowls, or international lunch dishes. Make it restaurant-worthy!`;
       case 'dinner':
-        return `- **Meal Type Rule:** This is a **dinner** meal. It should be a satisfying and complete main course. It can be more complex than breakfast or lunch.`;
+        return `- **Dinner Rule:** Create an impressive, complete dinner. Think main course with sides, international cuisines, or fusion dishes. This should be the star meal of the day!`;
       case 'snack':
-        return `- **Meal Type Rule:** This is a **snack**. It MUST be a small, light, and easy-to-eat item. Examples: a piece of fruit, yogurt, a handful of nuts, or a small energy bar.`;
+        return `- **Snack Rule:** Create an interesting, nutritious snack. Think energy balls, stuffed items, or creative combinations. Avoid plain fruits - make it special!`;
       default:
         return '';
     }
   }
   const mealTypeConstraint = getMealTypeConstraints(mealType);
 
-  return `You are a world-class chef creating a single, perfect ${mealType} recipe. Your absolute top priority is to follow the user's dietary needs and then maximize pantry usage.
+  return `You are a creative, world-class chef tasked with creating an EXCITING and DELICIOUS ${mealType} recipe. Your goal is to create restaurant-quality, impressive meals that people will love and want to make again.
 
-🛑 NON-NEGOTIABLE RULES (MUST BE FOLLOWED):
+🛑 ABSOLUTE REQUIREMENTS (MUST FOLLOW):
 ${allergenSafety}
 ${dietaryCompliance}
 ${mealTypeConstraint}
-- You MUST respond with valid JSON only. No extra text or explanations.
+- You MUST respond with valid JSON only.
+- Create something EXCITING, not basic or boring.
+- Use creative cooking techniques and flavor combinations.
 
 🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
 
-🎯 STRICT PANTRY PRIORITY RULES:
-1.  **Maximize Pantry Usage:** Use AT LEAST 80% of ingredients from the available pantry items.
-2.  **Minimize Shopping:** Suggest a MAXIMUM of 2 additional ingredients for purchase.
-3.  **Protein First:** If the pantry contains protein (${proteinItems.map(p => p.name).join(', ')}), you MUST use one as the main protein.
-4.  **Use Vegetables:** If the pantry has vegetables (${vegetableItems.map(v => v.name).join(', ')}), you MUST include at least 2-3.
-5.  **Grain Base:** If grains are available (${grainItems.map(g => g.name).join(', ')}), use one as a base or side.
-6.  **Use Abundant Items:** Prioritize ingredients with higher quantities to reduce waste. These are high-quantity: ${highQuantityItems.join(', ')}.
-7.  **Cuisine Adaptation:** Adapt the cuisine style to match the pantry ingredients.
+🎯 CREATIVE COOKING CHALLENGE:
+1. **Use 80%+ pantry ingredients** - maximize what's available
+2. **Create something EXCITING** - avoid boring, basic recipes
+3. **Restaurant-quality presentation** - make it special and appealing
+4. **Flavor-packed combinations** - use spices and techniques creatively
+5. **Instagram-worthy** - something people would want to photograph and share
 
-🚫 ANTI-DUPLICATE RULES:
-- **Avoid Repeated Ingredients:** Do not use these main ingredients again: ${usedIngredients.slice(0, 10).join(', ')}.
-- **Vary Cuisines:** Avoid these recently used cuisines: ${usedCuisines.join(', ')}.
-- **Rotate Proteins:** Do not use these proteins again: ${usedMainProteins.join(', ')}.
-- Create a DIFFERENT meal approach from previous suggestions.
+🚫 AVOID THESE BORING PATTERNS:
+- Simple [protein] and [vegetable] combinations
+- Basic salads without interesting components
+- Plain grilled/boiled preparations
+- Recipes that sound like "Simple X" or "Basic Y"
+- Repetitive ingredients from: ${usedIngredients.slice(0, 8).join(', ')}
 
+🌟 CREATIVITY INSPIRATION:
+- **Fusion dishes** combining cuisines (Asian-Mexican, Italian-Indian, etc.)
+- **Stuffed preparations** (stuffed peppers, loaded grain bowls, etc.)
+- **Layered presentations** (parfaits, stacked dishes, etc.)
+- **Creative sauces** using available spices and ingredients
+- **International techniques** adapted to available ingredients
 👤 USER PROFILE:
 - **Cooking Skill:** ${profile.skillLevel}
 - **Time Constraints:** ${profile.timeConstraints}
@@ -662,60 +669,44 @@ const buildAlternativePrompt = (
 🛑 NON-NEGOTIABLE RULES (MUST BE FOLLOWED):
 ${allergenSafety}
 ${dietaryCompliance}
-- You MUST respond with valid JSON only. No extra text or explanations.
-
+🎯 TARGET SPECIFICATIONS:
+- **Calories:** ~${calorieTarget} (satisfying but balanced)
+- **Protein Goal:** High protein content for satiety
+- **Flavor Profile:** Bold, exciting, memorable
+- **Visual Appeal:** Colorful, attractive presentation
 ${variationInstructions}
-
-🏠 AVAILABLE PANTRY INGREDIENTS: ${availableIngredients}
-
-🚫 BRUTAL ANTI-DUPLICATE RULES:
-- **ABSOLUTELY AVOID** these main ingredients: ${allUsedIngredients.slice(0, 15).join(', ')}.
-- **COMPLETELY AVOID** these cuisines: ${allUsedCuisines.join(', ')}.
-- **DO NOT USE** these proteins again: ${allUsedMainProteins.join(', ')}.
+🍳 CREATIVE COOKING TECHNIQUES TO CONSIDER:
+- Marinating and seasoning techniques
+- Creative stuffing and layering
+- Sauce and flavor combinations
+- International spice blends
+- Textural contrasts (crispy, creamy, chewy)
 - Create a **RADICALLY DIFFERENT** meal. Use new cooking methods and flavor profiles.
-
+Create a ${mealType} recipe that will make someone excited to cook and eat it. Think "food blog worthy" rather than "basic meal prep."
 🎯 PANTRY MAXIMIZATION RULES:
-- Use AT LEAST 80% ingredients from the pantry.
-- Maximum 2 shopping list items.
-- Prioritize UNUSED pantry ingredients.
-
-👤 USER PROFILE:
-- **Cooking Skill:** ${profile.skillLevel}
-- **Time Constraints:** ${profile.timeConstraints}
-- **Nutrition Focus:** ${profile.nutritionFocus}
-- **Health Goals:** ${userProfile?.health_goals?.join(', ') || 'general health'}
-
-🎯 ALTERNATIVE MEAL REQUIREMENTS:
-- Target Calories: ~${calorieTarget}
-- Use maximum pantry ingredients possible
-- Create something COMPLETELY DIFFERENT from previous suggestions
-- Be creative while staying within dietary restrictions
-- Focus on underutilized pantry items
-
 Respond with this exact JSON structure:
 {
-  "name": "Unique Creative Recipe Name (highlight pantry ingredients)",
+  "name": "Creative, Exciting Recipe Name (highlight main flavors/technique)",
   "ingredients": [
     {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables", "fromPantry": true},
     {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein", "fromPantry": true}
-  ],
   "calories": ${calorieTarget},
   "protein": 25,
   "carbs": 40,
   "fat": 15,
   "fiber": 8,
   "prepTime": 15,
-  "cookTime": 20,
+  "cookTime": 25,
   "servings": 1,
   "difficulty": "Easy",
   "instructions": [
-    "Step 1: Different preparation approach using pantry ingredients",
-    "Step 2: Unique cooking process with specific techniques",
-    "Step 3: Creative assembly and serving"
+    "Step 1: Preparation with specific techniques and seasoning",
+    "Step 2: Creative cooking process with flavor building",
+    "Step 3: Professional presentation and serving suggestions"
   ],
-  "tags": ["alternative", "creative", "pantry-focused", "unique"],
+  "tags": ["creative", "flavorful", "restaurant-style", "${detectedCuisine}"],
   "pantryUsagePercentage": 85,
-  "shoppingListItems": ["item1", "item2"],
+  "shoppingListItems": ["ingredient1", "ingredient2"],
   "restrictionsFollowed": true
 }`;
 };
@@ -885,7 +876,7 @@ export const generateAIMealWithQualityControl = async (
   userProfile: UserProfile | null,
   previousMeals: Meal[] = []
 ): Promise<Meal> => {
-  console.log(`🎯 Starting quality-controlled generation for ${mealType}`);
+  console.log(`🎯 Starting enhanced quality-controlled generation for ${mealType}`);
   
   // ✅ ARRAY SAFETY: Ensure arrays exist before processing
   const safePantryItems = Array.isArray(pantryItems) ? pantryItems : [];
@@ -896,10 +887,10 @@ export const generateAIMealWithQualityControl = async (
   
   while (attempts < maxAttempts) {
     attempts++;
-    console.log(`🎯 Quality-controlled generation attempt ${attempts}/${maxAttempts}`);
+    console.log(`🎯 Enhanced generation attempt ${attempts}/${maxAttempts}`);
     
     try {
-      // Generate raw meal with array safety
+      // Generate raw meal with enhanced prompts
       const rawMeal = await generateAIMeal({
         pantryItems: safePantryItems,
         userProfile,
@@ -914,20 +905,22 @@ export const generateAIMealWithQualityControl = async (
         console.warn('⚠️ Generated meal had no ingredients array, creating empty array');
       }
       
-      // ✅ SAFE QUALITY VALIDATION: Use simple validation instead of complex quality control
+      // Enhanced quality validation
       const hasIngredients = rawMeal.ingredients.length > 0;
       const hasValidName = rawMeal.name && rawMeal.name.trim().length > 0;
       const hasValidCalories = rawMeal.calories && rawMeal.calories > 0;
+      const isNotBasic = rawMeal.name && !rawMeal.name.toLowerCase().includes('simple') && !rawMeal.name.toLowerCase().includes('basic');
       
-      const isValid = hasIngredients && hasValidName && hasValidCalories;
+      const isValid = hasIngredients && hasValidName && hasValidCalories && isNotBasic;
       
       if (isValid) {
-        console.log(`✅ Quality control passed on attempt ${attempts}`);
+        console.log(`✅ Enhanced quality control passed on attempt ${attempts}`);
         
-        // ✅ CRITICAL: Save to AI meals store immediately
+        // ✅ Save directly without store dependency issues
         try {
-          const { useMealPlanStore } = await import('./store');
-          const { setAIMeal } = useMealPlanStore.getState();
+          // Dynamic import to avoid circular dependency
+          const storeModule = await import('./store');
+          const { setAIMeal } = storeModule.useMealPlanStore.getState();
           await setAIMeal(rawMeal.id, rawMeal);
           console.log(`✅ AI meal ${rawMeal.id} saved to storage successfully`);
         } catch (storageError) {
@@ -936,80 +929,49 @@ export const generateAIMealWithQualityControl = async (
         
         return rawMeal;
         
-      } else if (attempts === maxAttempts) {
-        // Return meal with warning on last attempt
-        console.warn(`⚠️ Returning meal with quality warning after ${maxAttempts} attempts`);
+      } else {
+        console.log(`❌ Enhanced quality check failed on attempt ${attempts}:`, {
+          hasIngredients,
+          hasValidName,
+          hasValidCalories,
+          isNotBasic,
+          mealName: rawMeal.name
+        });
         
-        const warningMeal = {
-          ...rawMeal,
-          qualityWarning: true,
-          qualityScore: 50,
-          ingredients: rawMeal.ingredients || []
-        };
-        
-        // Try to save warning meal too
-        try {
-          const { useMealPlanStore } = await import('./store');
-          const { setAIMeal } = useMealPlanStore.getState();
-          await setAIMeal(warningMeal.id, warningMeal);
-        } catch (storageError) {
-          console.error('⚠️ Storage save failed for warning meal:', storageError);
+        if (attempts === maxAttempts) {
+          // Return enhanced meal with warning on last attempt
+          const enhancedMeal = {
+            ...rawMeal,
+            name: rawMeal.name?.includes('simple') || rawMeal.name?.includes('basic') 
+              ? `Gourmet ${rawMeal.name.replace(/simple|basic/gi, '').trim()}` 
+              : rawMeal.name,
+            qualityWarning: true,
+            qualityScore: 60,
+            ingredients: rawMeal.ingredients || []
+          };
+          
+          try {
+            const storeModule = await import('./store');
+            const { setAIMeal } = storeModule.useMealPlanStore.getState();
+            await setAIMeal(enhancedMeal.id, enhancedMeal);
+          } catch (storageError) {
+            console.error('⚠️ Storage save failed for warning meal:', storageError);
+          }
+          
+          return enhancedMeal;
         }
-        
-        return warningMeal;
       }
       
-      console.log(`❌ Basic quality check failed on attempt ${attempts}:`, {
-        hasIngredients,
-        hasValidName,
-        hasValidCalories
-      });
-      
     } catch (error) {
-      console.error(`❌ Generation attempt ${attempts} failed:`, error);
+      console.error(`❌ Enhanced generation attempt ${attempts} failed:`, error);
       
       if (attempts === maxAttempts) {
-        // Generate fallback meal
-        const fallbackMeal: Meal = {
-          id: `ai_${mealType}_${Date.now()}_fallback`,
-          name: `Simple ${mealType}`,
-          ingredients: [
-            { name: 'Basic ingredient', amount: 1, unit: 'cup', category: 'General' }
-          ],
-          calories: 300,
-          protein: 15,
-          carbs: 30,
-          fat: 10,
-          fiber: 5,
-          prepTime: 10,
-          cookTime: 15,
-          servings: 1,
-          difficulty: 'Easy',
-          emoji: getMealEmoji(mealType, 'fallback'),
-          category: mealType,
-          tags: ['fallback', 'simple'],
-          instructions: ['Prepare ingredients', 'Cook as needed', 'Serve immediately'],
-          source: 'ai_generated',
-          created_at: new Date().toISOString(),
-          qualityWarning: true,
-          qualityScore: 30
-        };
-        
-        // Save fallback meal
-        try {
-          const { useMealPlanStore } = await import('./store');
-          const { setAIMeal } = useMealPlanStore.getState();
-          await setAIMeal(fallbackMeal.id, fallbackMeal);
-        } catch (storageError) {
-          console.error('⚠️ Storage save failed for fallback meal:', storageError);
-        }
-        
-        return fallbackMeal;
+        throw error;
       }
     }
   }
   
-  throw new Error('Failed to generate quality meal after maximum attempts');
+  throw new Error('Failed to generate enhanced quality meal after maximum attempts');
 };
 
 // Export quality metrics for UI display

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
+import { useMealPlanStore } from '@/lib/meal-plan/store';
 
 // ✅ FIXED: Proper imports restored
 import type { 
@@ -353,23 +354,18 @@ export default function AIMealPlan() {
   // ✅ Generate initial AI meal plan
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
-      // ✅ ARRAY SAFETY: Check pantry items
       if (pantryItems.length < 3) {
-        // Use fallback plan if insufficient pantry items
         setMealPlan(generateFallbackPlan(pantryItems));
-        console.log('⚠️ Using fallback plan due to insufficient pantry items');
         return;
       }
 
-      console.log('🤖 Generating AI meal plan with quality control...');
+      console.log('🤖 Generating enhanced AI meal plan with quality control...');
       
-      // ✅ FIXED: Use quality-controlled generation
       const breakfast = await generateAIMealWithQualityControl('breakfast', pantryItems, userProfile, []);
       const lunch = await generateAIMealWithQualityControl('lunch', pantryItems, userProfile, [breakfast]);
       const dinner = await generateAIMealWithQualityControl('dinner', pantryItems, userProfile, [breakfast, lunch]);
       const snacks = await generateAIMealWithQualityControl('snack', pantryItems, userProfile, [breakfast, lunch, dinner]);
 
-      // ✅ ARRAY SAFETY: Filter out null meals
       const aiMeals = { 
         breakfast: breakfast || null, 
         lunch: lunch || null, 
@@ -377,12 +373,10 @@ export default function AIMealPlan() {
         snacks: [snacks].filter(Boolean) as Meal[] 
       };
       
-      // ✅ FIXED: Calculate totals accurately from the generated meals
       const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
       const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
       const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
 
-      // ✅ FIXED: Use the new, clear average match score calculation
       const averageMatchScore = calculateAverageMatchScore(mealsForTotals);
 
       const plan: MealPlan = {
@@ -390,22 +384,22 @@ export default function AIMealPlan() {
           ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore: averageMatchScore, // Use the clear average score
+          optimizationScore: averageMatchScore,
           generatedAt: new Date().toISOString(),
           regenerationHistory: {}
         }
       };
 
-      // ✅ CRITICAL: Save to storage using the store
-      const { setCurrentMealPlan } = useMealPlanStore.getState();
+      // ✅ FIXED: Use the hook directly
+      const store = useMealPlanStore.getState();
+      await store.setCurrentMealPlan(plan);
       await setCurrentMealPlan(plan);
       
       setMealPlan(plan);
-      console.log('✅ AI meal plan generated and saved successfully');
+      console.log('✅ Enhanced AI meal plan generated and saved successfully');
       
     } catch (error) {
-      console.error('Failed to generate AI meal plan:', error);
-      // Fall back to basic plan
+      console.error('Failed to generate enhanced AI meal plan:', error);
       setMealPlan(generateFallbackPlan(pantryItems));
     }
   };
