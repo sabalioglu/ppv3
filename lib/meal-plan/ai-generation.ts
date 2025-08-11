@@ -378,20 +378,20 @@ const buildPantryFocusedPrompt = (
     .join(', ');
 
   // Enhanced pantry analysis
-  const proteinItems = pantryItems.filter(item => 
+  const proteinItems2 = pantryItems.filter(item => 
     ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'eggs', 'tofu', 'beans', 'lentils', 'turkey', 'pork', 'shrimp', 'lamb'].some(protein => 
       item.name.toLowerCase().includes(protein)
     )
   );
   
-  const vegetableItems = pantryItems.filter(item => 
+  const vegetableItems2 = pantryItems.filter(item => 
     item.category?.toLowerCase().includes('vegetable') || 
     ['tomato', 'onion', 'pepper', 'broccoli', 'spinach', 'carrot', 'cucumber', 'lettuce', 'mushroom', 'zucchini', 'potato', 'sweet potato', 'bell pepper', 'eggplant', 'cauliflower', 'corn', 'avocado', 'garlic', 'ginger'].some(veg => 
       item.name.toLowerCase().includes(veg)
     )
   );
   
-  const grainItems = pantryItems.filter(item => 
+  const grainItems2 = pantryItems.filter(item => 
     ['rice', 'pasta', 'bread', 'quinoa', 'oats', 'barley', 'bulgur', 'couscous', 'noodles', 'flour', 'tortilla'].some(grain => 
       item.name.toLowerCase().includes(grain)
     )
@@ -444,7 +444,7 @@ const buildPantryFocusedPrompt = (
       default:
         return '';
     }
-  }
+  };
   const mealTypeConstraint = getMealTypeConstraints(mealType);
 
   return `You are a creative, world-class chef tasked with creating an EXCITING and DELICIOUS ${mealType} recipe. Your goal is to create restaurant-quality, impressive meals that people will love and want to make again.
@@ -751,6 +751,7 @@ Respond with this exact JSON structure:
   "ingredients": [
     {"name": "ingredient1", "amount": 1, "unit": "cup", "category": "Vegetables", "fromPantry": true},
     {"name": "ingredient2", "amount": 2, "unit": "pieces", "category": "Protein", "fromPantry": true}
+  ],
   "calories": ${calorieTarget},
   "protein": 25,
   "carbs": 40,
@@ -765,7 +766,7 @@ Respond with this exact JSON structure:
     "Step 2: Creative cooking process with flavor building",
     "Step 3: Professional presentation and serving suggestions"
   ],
-  "tags": ["creative", "flavorful", "restaurant-style", "${detectedCuisine}"],
+  "tags": ["creative", "flavorful", "restaurant-style", "${detectPantryCuisine(pantryItems)}"],
   "pantryUsagePercentage": 85,
   "shoppingListItems": ["ingredient1", "ingredient2"],
   "restrictionsFollowed": true
@@ -1020,6 +1021,12 @@ export const generateAIMealWithQualityControl = async (
           return enhancedMeal;
         }
       }
+    } catch (error) {
+      console.error(`❌ Generation attempt ${attempts} failed:`, error);
+      if (attempts === maxAttempts) {
+        throw error;
+      }
+    }
   }
   
   throw new Error('Failed to generate enhanced quality meal after maximum attempts');
