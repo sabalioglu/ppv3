@@ -981,7 +981,9 @@ export const generateAIMealWithQualityControl = async (
         // ✅ Save directly without store dependency issues
         try {
           // Dynamic import to avoid circular dependency
-          // Note: We'll save this meal when the full plan is saved
+          const storeModule = await import('./store');
+          const { setAIMeal } = storeModule.useMealPlanStore.getState();
+          await setAIMeal(rawMeal.id, rawMeal);
           console.log(`✅ AI meal ${rawMeal.id} saved to storage successfully`);
         } catch (storageError) {
           console.error('⚠️ Storage save failed, but continuing with meal:', storageError);
