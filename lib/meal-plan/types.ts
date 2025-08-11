@@ -326,6 +326,7 @@ export interface MealPlanPreferences {
   updated_at?: string;
 }
 
+// ✅ ENHANCED: Quality control and pantry matching fields
 // ✅ NEW: Weekly and monthly planning types
 export interface WeeklyMealPlan {
   id: string;
@@ -373,6 +374,12 @@ export interface FavoriteRecipe {
   user_id: string;
   meal_id: string;
   added_at: string;
+  // ✅ NEW: Quality control fields
+  qualityScore?: number;
+  qualityWarning?: boolean;
+  qualityIssues?: any[];
+  autoFixed?: boolean;
+  qualityAssessment?: any;
   notes?: string;
   custom_modifications?: string[];
 }

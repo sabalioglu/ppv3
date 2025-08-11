@@ -878,6 +878,85 @@ export const generateAIMealPlan = async (
   }
 };
 
+// ✅ CRITICAL: Export the missing function that ai-meal-plan.tsx needs
+export const generateAIMealWithQualityControl = async (
+  mealType: string,
+  pantryItems: PantryItem[],
+  userProfile: UserProfile | null,
+  previousMeals: Meal[] = []
+): Promise<Meal> => {
+  const { validateMealWithStages } = await import('./quality-control');
+  const { consumePantryIngredients } = await import('./pantry-consumption');
+  
+  let attempts = 0;
+  const maxAttempts = 3;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log(`🎯 Quality-controlled generation attempt ${attempts}/${maxAttempts}`);
+    
+    try {
+      // Generate raw meal
+      const rawMeal = await generateAIMeal({
+        pantryItems,
+        userProfile,
+        mealType,
+        preferences: userProfile?.dietary_preferences || [],
+        restrictions: userProfile?.dietary_restrictions || []
+      }, previousMeals);
+      
+      // Run quality control
+      const qualityAssessment = await validateMealWithStages(rawMeal, pantryItems, userProfile);
+      
+      if (qualityAssessment.overallPass && qualityAssessment.confidence > 70) {
+        console.log(`✅ Quality control passed on attempt ${attempts}`);
+        
+        // Consume pantry ingredients
+        if (userProfile?.id) {
+          await consumePantryIngredients(qualityAssessment.finalMeal || rawMeal, pantryItems, userProfile.id);
+        }
+        
+        return qualityAssessment.finalMeal || rawMeal;
+      } else if (attempts === maxAttempts) {
+        // Last attempt - return with warning
+        console.warn(`⚠️ Quality control failed after ${maxAttempts} attempts`);
+        return {
+          ...qualityAssessment.finalMeal || rawMeal,
+          qualityWarning: true,
+          qualityIssues: qualityAssessment.stages.filter(s => !s.passed),
+          qualityScore: qualityAssessment.confidence
+        };
+      }
+      
+      console.log(`❌ Quality control failed attempt ${attempts}, retrying...`);
+      
+    } catch (error) {
+      console.error(`❌ Generation attempt ${attempts} failed:`, error);
+      
+      if (attempts === maxAttempts) {
+        throw error;
+      }
+    }
+  }
+  
+  throw new Error('Failed to generate quality meal after maximum attempts');
+};
+
+// Export quality metrics for UI display
+export const getQualityMetrics = (meal: Meal): {
+  hasQualityData: boolean;
+  score?: number;
+  warning?: boolean;
+  issues?: any[];
+} => {
+  return {
+    hasQualityData: !!(meal as any).qualityScore,
+    score: (meal as any).qualityScore,
+    warning: (meal as any).qualityWarning,
+    issues: (meal as any).qualityIssues
+  };
+};
+
 // Test metriklerini dışa aktar
 export const getTestMetrics = (): TestMetrics => {
   return { ...testMetrics };
