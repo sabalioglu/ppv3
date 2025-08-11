@@ -641,15 +641,6 @@ export const DIETARY_RESTRICTIONS = {
   }
 };
 
-// ✅ ADDED: Conflicting combinations for quality control
-export const CONFLICTING_COMBINATIONS = [
-  { ingredients: ['chocolate', 'salmon'], reason: 'Chocolate with salmon is unusual' },
-  { ingredients: ['ice cream', 'curry'], reason: 'Ice cream with curry is unusual' },
-  { ingredients: ['sugar', 'raw meat'], reason: 'Sugar with raw meat is unsafe' },
-  { ingredients: ['dessert', 'fish'], reason: 'Dessert ingredients with fish is unusual' },
-  { ingredients: ['sweet', 'savory meat'], reason: 'Sweet and savory meat combination needs care' }
-];
-
 // ✅ ADDED: Calorie limits for safety
 export const MIN_DAILY_CALORIES = 1200;
 export const MAX_DAILY_CALORIES = 3500;
@@ -661,4 +652,23 @@ export const normalizeIngredientName = (name: string): string => {
     .replace(/s$/, '') // Remove plural 's'
     .replace(/[^a-z0-9\s]/g, '') // Remove special characters
     .replace(/\s+/g, ' '); // Normalize spaces
+};
+
+// ✅ ADDED: Conflicting combinations for quality control
+export const CONFLICTING_COMBINATIONS = [
+  { ingredients: ['chocolate', 'salmon'], reason: 'Chocolate with salmon is unusual' },
+  { ingredients: ['ice cream', 'curry'], reason: 'Ice cream with curry is unusual' },
+  { ingredients: ['sugar', 'raw meat'], reason: 'Sugar with raw meat is unsafe' },
+  { ingredients: ['dessert', 'fish'], reason: 'Dessert ingredients with fish is unusual' },
+  { ingredients: ['sweet', 'savory meat'], reason: 'Sweet and savory meat combination needs care' }
+];
+
+// ✅ ADDED: Enhanced cuisine detection
+export const CUISINE_MARKERS = {
+  italian: ['tomato', 'basil', 'mozzarella', 'pasta', 'olive oil', 'parmesan', 'oregano'],
+  asian: ['soy sauce', 'ginger', 'rice', 'sesame oil', 'sriracha', 'rice vinegar'],
+  mexican: ['cumin', 'chili powder', 'lime', 'cilantro', 'beans', 'corn', 'avocado'],
+  mediterranean: ['olive oil', 'feta', 'olives', 'lemon', 'cucumber', 'tomato'],
+  indian: ['curry powder', 'turmeric', 'garam masala', 'coconut milk', 'cilantro', 'ginger'],
+  middle_eastern: ['tahini', 'chickpeas', 'lemon', 'olive oil', 'parsley', 'cumin']
 };

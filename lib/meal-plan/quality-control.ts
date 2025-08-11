@@ -1,5 +1,5 @@
 // lib/meal-plan/quality-control.ts
-// 4+ Stage Quality Control System with Anti-Nonsense Validation
+// Enhanced Quality Control System with Anti-Nonsense Validation
 import { Meal, PantryItem, UserProfile, Ingredient } from './types';
 import { findBestPantryMatch } from './pantry-consumption';
 import { CONFLICTING_COMBINATIONS } from './constants';

@@ -1,6 +1,7 @@
 // lib/meal-plan/store.ts - Complete storage solution with AI meal management
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
 import { Meal, MealPlan } from './types';
 
 interface MealPlanState {
@@ -185,9 +186,6 @@ export const useMealPlanStore = create<MealPlanState>((set, get) => ({
     }
   },
 }));
-
-// ✅ React import fix
-import React from 'react';
 
 export const useMealPlanAutoLoad = () => {
   const { loadMealPlan, isLoaded } = useMealPlanStore();
