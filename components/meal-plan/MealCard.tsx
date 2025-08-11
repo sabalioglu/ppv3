@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { Meal } from '@/lib/meal-plan/types';
+import { QualityIndicator } from './QualityIndicator';
 
 interface MealCardProps {
   meal: Meal;
@@ -144,6 +145,7 @@ export default function MealCard({
               />
             </TouchableOpacity>
           )}
+          <QualityIndicator meal={meal} showDetails={true} />
         </View>
       </View>
       

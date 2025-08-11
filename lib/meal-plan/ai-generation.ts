@@ -282,7 +282,7 @@ export const generateAIMeal = async (
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -293,8 +293,8 @@ export const generateAIMeal = async (
             content: prompt
           }
         ],
-        max_tokens: 1000, // Increased for detailed pantry analysis
-        temperature: 0.7,
+        max_tokens: 1500,
+        temperature: 0.1,
         response_format: { type: "json_object" }
       } as OpenAIRequest)
     });
@@ -528,7 +528,7 @@ export const generateAlternativeMeal = async (
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -539,8 +539,8 @@ export const generateAlternativeMeal = async (
             content: prompt
           }
         ],
-        max_tokens: 1000,
-        temperature: 0.8, // Higher for more creativity in alternatives
+        max_tokens: 1500,
+        temperature: 0.2,
         response_format: { type: "json_object" }
       } as OpenAIRequest)
     });
