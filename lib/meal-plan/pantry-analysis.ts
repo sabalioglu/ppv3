@@ -288,3 +288,40 @@ export const getPantryHealthScore = (items: PantryItem[]): number => {
   // Ensure score is between 0 and 100
   return Math.max(0, Math.min(100, score));
 };
+
+// ✅ EXPORT: Missing function that ai-meal-plan.tsx needs
+export const generatePantryInsights = (pantryItems: PantryItem[], metrics: PantryMetrics): PantryInsight[] => {
+  const insights: PantryInsight[] = [];
+  
+  // Critical: Expired items
+  if (metrics.expiredItems > 0) {
+    const expiredItems = getExpiredItems(pantryItems);
+    insights.push({
+      type: 'error',
+      icon: 'AlertCircle',
+      title: 'Expired Items Found',
+      message: `${metrics.expiredItems} items have expired and should be removed`,
+      items: expiredItems.map(item => item.name).slice(0, 3),
+      action: 'Clean pantry now',
+      priority: 'urgent',
+      actionable: true
+    });
+  }
+  
+  // High Priority: Expiring items
+  if (metrics.expiringItems > 0) {
+    const expiringItems = getExpiringItems(pantryItems);
+    insights.push({
+      type: 'warning',
+      icon: 'AlertCircle',
+      title: 'Items Expiring Soon',
+      message: `${metrics.expiringItems} items expiring in the next 3 days`,
+      items: expiringItems.map(item => item.name).slice(0, 3),
+      action: 'Use in next meals',
+      priority: 'high',
+      actionable: true
+    });
+  }
+  
+  return insights;
+};

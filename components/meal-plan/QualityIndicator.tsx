@@ -12,7 +12,7 @@ import {
 import { TriangleAlert as AlertTriangle, CircleCheck as CheckCircle, Info, X, Shield, TrendingUp } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { Meal } from '../../lib/meal-plan/types';
-import { getQualityMetrics } from '../../lib/meal-plan/quality-control';
+import { getQualityMetrics } from '../../lib/meal-plan/ai-generation';
 
 interface QualityIndicatorProps {
   meal: Meal;

@@ -27,183 +27,29 @@ import {
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
-// ❌ ESKİ IMPORT'LAR - Problemli olanları kaldırdım
-// Type imports - Bu dosyaları kontrol et ve düzelt
+// ✅ FIXED: Proper imports restored
 import type { 
-  // Meal, 
-  // PantryItem, 
-  // MealPlan, 
-  // PantryMetrics, 
-  // UserProfile,
-  // PantryInsight,
-  // MealLoadingStates,
-  // MealRegenerationRequest
+  Meal, 
+  PantryItem, 
+  MealPlan, 
+  PantryMetrics, 
+  UserProfile,
+  MealLoadingStates
 } from '@/lib/meal-plan/types';
 
-// ✅ GEÇİCİ TYPE'LAR - Import sorunu çözülene kadar
-interface PantryItem {
-  id: string;
-  user_id: string;
-  item_name: string;
-  quantity: number;
-  unit: string;
-  expiry_date?: string;
-  category?: string;
-}
+// ✅ FIXED: Proper utility imports
+import { 
+  calculatePantryMetrics, 
+  generatePantryInsights 
+} from '@/lib/meal-plan/pantry-analysis';
 
-interface UserProfile {
-  id: string;
-  dietary_restrictions?: string[];
-  dietary_preferences?: string[];
-}
+import { 
+  generateAIMeal,
+  generateAIMealWithQualityControl,
+  calculateAverageMatchScore 
+} from '@/lib/meal-plan/ai-generation';
 
-interface Meal {
-  id: string;
-  name: string;
-  category: string;
-  calories: number;
-  protein: number;
-  carbs?: number;
-  fat?: number;
-  fiber?: number;
-  sugar?: number;
-  sodium?: number;
-  emoji: string;
-  ingredients: string[];
-  missingIngredients?: string[];
-  source?: string;
-}
-
-interface MealPlan {
-  daily: {
-    breakfast?: Meal;
-    lunch?: Meal;
-    dinner?: Meal;
-    snacks: Meal[];
-    totalCalories: number;
-    totalProtein: number;
-    optimizationScore: number;
-    generatedAt: string;
-    regenerationHistory: Record<string, any>;
-  };
-}
-
-interface PantryMetrics {
-  totalItems: number;
-  expiringItems: number;
-  expiredItems: number;
-  categories: Record<string, number>;
-}
-
-interface MealLoadingStates {
-  breakfast: boolean;
-  lunch: boolean;
-  dinner: boolean;
-  snacks: boolean;
-  initial: boolean;
-}
-
-// ❌ ESKİ UTILITY IMPORT'LAR - Geçici olarak local function'lara çevirdim
-// import { 
-//   calculatePantryMetrics, 
-//   getExpiringItems, 
-//   analyzePantryComposition,
-//   generatePantryInsights 
-// } from '@/lib/meal-plan/pantry-analysis';
-
-// ✅ GEÇİCİ UTILITY FUNCTIONS
-const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
-  const now = new Date();
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-
-  return {
-    totalItems: items.length,
-    expiringItems: items.filter(item => {
-      if (!item.expiry_date) return false;
-      const expiryDate = new Date(item.expiry_date);
-      return expiryDate <= threeDaysFromNow && expiryDate >= now;
-    }).length,
-    expiredItems: items.filter(item => {
-      if (!item.expiry_date) return false;
-      return new Date(item.expiry_date) < now;
-    }).length,
-    categories: items.reduce((acc, item) => {
-      const cat = item.category || 'other';
-      acc[cat] = (acc[cat] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  };
-};
-
-const calculateAverageMatchScore = (meals: Meal[]): number => {
-  if (!meals.length) return 0;
-  return meals.reduce((sum, meal) => sum + (85), 0) / meals.length; // Mock score
-};
-
-const generateFallbackPlan = (pantryItems: PantryItem[] = []): MealPlan => {
-  const fallbackMeal: Meal = {
-    id: `fallback-${Date.now()}`,
-    name: 'Simple Breakfast',
-    category: 'breakfast',
-    calories: 300,
-    protein: 15,
-    emoji: '🍳',
-    ingredients: pantryItems.slice(0, 3).map(item => item.item_name),
-    source: 'fallback'
-  };
-
-  return {
-    daily: {
-      breakfast: fallbackMeal,
-      lunch: { ...fallbackMeal, name: 'Simple Lunch', category: 'lunch', emoji: '🥪' },
-      dinner: { ...fallbackMeal, name: 'Simple Dinner', category: 'dinner', emoji: '🍽️' },
-      snacks: [{ ...fallbackMeal, name: 'Healthy Snack', category: 'snack', emoji: '🍎' }],
-      totalCalories: 1200,
-      totalProtein: 60,
-      optimizationScore: 75,
-      generatedAt: new Date().toISOString(),
-      regenerationHistory: {}
-    }
-  };
-};
-
-// ❌ ESKİ AI GENERATION IMPORT'LAR - Geçici mock functions
-// import { 
-//   generateAIMealPlan,
-//   generateAIMeal,
-//   generateAlternativeMeal 
-// } from '@/lib/meal-plan/ai-generation';
-
-// ✅ GEÇİCİ AI GENERATION FUNCTIONS
-const generateAIMeal = async (params: {
-  mealType: string;
-  pantryItems: PantryItem[];
-  userProfile: UserProfile | null;
-}, previousMeals: Meal[] = [], avoidList: string[] = []): Promise<Meal> => {
-  // Simulate AI delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  const mealEmojis = {
-    breakfast: '🍳',
-    lunch: '🥗',
-    dinner: '🍽️',
-    snack: '🍎'
-  };
-
-  return {
-    id: `ai-${params.mealType}-${Date.now()}`,
-    name: `AI ${params.mealType.charAt(0).toUpperCase() + params.mealType.slice(1)}`,
-    category: params.mealType,
-    calories: 350,
-    protein: 20,
-    carbs: 30,
-    fat: 15,
-    emoji: mealEmojis[params.mealType as keyof typeof mealEmojis] || '🍽️',
-    ingredients: params.pantryItems.slice(0, 4).map(item => item.item_name),
-    missingIngredients: [],
-    source: 'ai_generated'
-  };
-};
+import { generateFallbackPlan } from '@/lib/meal-plan/utils';
 
 // ❌ ESKİ COMPONENT IMPORT'LAR - Geçici mock components
 // import MealDetailModal from '@/components/meal-plan/MealDetailModal';

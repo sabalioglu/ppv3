@@ -298,6 +298,15 @@ export const generateFallbackPlan = (pantryItems: PantryItem[] = []) => {
   };
 };
 
+export const calculateAverageMatchScore = (meals: Meal[]): number => {
+  if (!meals.length) return 0;
+  const validMeals = meals.filter(meal => meal.matchPercentage !== undefined);
+  if (validMeals.length === 0) return 0;
+  
+  const totalMatch = validMeals.reduce((sum, meal) => sum + (meal.matchPercentage || 0), 0);
+  return Math.round(totalMatch / validMeals.length);
+};
+
 export const formatNutritionValue = (value: number, unit: string = ''): string => {
   if (value < 1) {
     return `${(value * 1000).toFixed(0)}m${unit}`;

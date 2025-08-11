@@ -24,43 +24,34 @@ export const findBestPantryMatch = (
   ingredient: Ingredient, 
   pantryItems: PantryItem[]
 ): PantryItem | null => {
-  const ingredientName = ingredient.name.toLowerCase().trim();
+  const ingredientName = normalizeIngredientName(ingredient.name);
   
   // Direct name match
   let bestMatch = pantryItems.find(item => 
-    item.name.toLowerCase().trim() === ingredientName
+    normalizeIngredientName(item.name) === ingredientName
   );
   
   if (bestMatch) return bestMatch;
   
   // Partial name match
   bestMatch = pantryItems.find(item => {
-    const itemName = item.name.toLowerCase().trim();
+    const itemName = normalizeIngredientName(item.name);
     return itemName.includes(ingredientName) || ingredientName.includes(itemName);
   });
   
   if (bestMatch) return bestMatch;
   
   // Category-based intelligent matching
-  const categoryMatches = {
-    'protein': ['chicken', 'beef', 'fish', 'salmon', 'tuna', 'turkey', 'pork', 'tofu', 'eggs'],
-    'vegetables': ['tomato', 'onion', 'pepper', 'broccoli', 'spinach', 'carrot', 'lettuce'],
-    'grains': ['rice', 'pasta', 'bread', 'quinoa', 'oats', 'flour'],
-    'dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream'],
-    'fruits': ['apple', 'banana', 'orange', 'berries', 'lemon', 'lime']
-  };
+  const aliases = INGREDIENT_ALIASES[ingredientName] || [];
+  bestMatch = pantryItems.find(item => {
+    const normalizedPantry = normalizeIngredientName(item.name);
+    return aliases.some(alias => 
+      normalizeIngredientName(alias) === normalizedPantry ||
+      normalizedPantry.includes(normalizeIngredientName(alias))
+    );
+  });
   
-  for (const [category, keywords] of Object.entries(categoryMatches)) {
-    if (keywords.some(keyword => ingredientName.includes(keyword))) {
-      bestMatch = pantryItems.find(item => 
-        item.category?.toLowerCase() === category ||
-        keywords.some(keyword => item.name.toLowerCase().includes(keyword))
-      );
-      if (bestMatch) return bestMatch;
-    }
-  }
-  
-  return null;
+  return bestMatch || null;
 };
 
 // Calculate consumption amount based on recipe requirement

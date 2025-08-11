@@ -2,6 +2,7 @@
 // 4+ Stage Quality Control System with Anti-Nonsense Validation
 import { Meal, PantryItem, UserProfile, Ingredient } from './types';
 import { findBestPantryMatch } from './pantry-consumption';
+import { calculatePantryMatch } from './meal-matching';
 
 export interface QualityCheckResult {
   stage: number;

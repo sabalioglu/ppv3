@@ -12,6 +12,7 @@ import { Flame, TrendingUp, Clock, CircleAlert as AlertCircle, Plus, CircleCheck
 import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { Meal } from '@/lib/meal-plan/types';
 import { QualityIndicator } from './QualityIndicator';
+import { getQualityMetrics } from '@/lib/meal-plan/ai-generation';
 
 interface MealCardProps {
   meal: Meal;
