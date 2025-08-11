@@ -409,24 +409,12 @@ export default function RecipeDetail() {
   const consumeIngredientsFromPantry = async (recipe: Recipe | Meal, userId: string) => {
     console.log('🥫 Consuming ingredients from pantry');
     
-    if (pantryMatch?.availableIngredients) {
-      const updates = pantryItems
-        .filter(item => pantryMatch.availableIngredients.some(ing => 
-          item.name.toLowerCase().includes(ing.toLowerCase())
-        ))
-        .map(item => ({
-          id: item.id,
-          quantity: Math.max(0, item.quantity - 1)
-        }));
-
-      if (updates.length > 0) {
-        for (const update of updates) {
-          await supabase
-            .from('pantry_items')
-            .update({ quantity: update.quantity })
-            .eq('id', update.id);
-        }
-      }
+    // ✅ Use enhanced pantry consumption system
+    try {
+      const consumptionRecords = await consumePantryIngredients(recipe, pantryItems, userId);
+      console.log(`✅ Consumed ${consumptionRecords.length} pantry items`);
+    } catch (error) {
+      console.error('❌ Error consuming pantry ingredients:', error);
     }
   };
 

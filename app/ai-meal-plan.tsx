@@ -559,11 +559,12 @@ export default function AIMealPlan() {
       const previousMeal = Array.isArray(currentMeal) ? currentMeal[0] : currentMeal;
 
       // Generate new meal
-      const newMeal = await generateAIMeal({
-        mealType: mealType === 'snacks' ? 'snack' : mealType,
+      const newMeal = await generateAIMealWithQualityControl(
+        mealType === 'snacks' ? 'snack' : mealType,
         pantryItems,
-        userProfile
-      });
+        userProfile,
+        Object.values(mealPlan.daily).filter(Boolean) as Meal[]
+      );
 
       // Update meal plan
       setMealPlan(prevPlan => {
