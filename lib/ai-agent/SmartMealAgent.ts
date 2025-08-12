@@ -13,21 +13,32 @@ export class SmartMealAgent {
     mealType: string, 
     pantry: PantryItem[], 
     previousMeals: Meal[],
-    opts?: { targetCuisine?: string; perSlot?: { kcal:number; protein:number; carbs:number; fat:number } }
+    opts?: {
+      targetCuisine?: string;
+      perSlot?: { kcal:number; protein:number; carbs:number; fat:number };
+      forbiddenTokens?: string[];
+      breakfastSeafoodMode?: 'allow'|'avoid'|'contextual';
+      breakfastSeafoodAllowList?: string[];
+    }
   ) {
     const u = this.userContext;
-    const per = opts?.perSlot;
-    const goal = per?.kcal ?? u.nutritionalNeeds.mealDistribution[mealType as keyof typeof u.nutritionalNeeds.mealDistribution];
+    const goal = opts?.perSlot?.kcal ?? u.nutritionalNeeds.mealDistribution[mealType as keyof typeof u.nutritionalNeeds.mealDistribution];
 
     const prevNames = previousMeals.map(m=>m.name).join(', ');
     const usedMain = previousMeals.flatMap(m => (m.ingredients||[]).slice(0,2).map(i=>i.name)).join(', ');
 
     const HARD = [
+      `MEAL_TYPE: ${mealType}`,
       `MEAL_KCAL_TARGET: ${goal}`,
-      `MACROS_TARGET_PER_SLOT: ${per ? `${per.protein}P/${per.carbs}C/${per.fat}F` : 'derive from distribution'}`,
+      `MACROS_TARGET_PER_SLOT: ${opts?.perSlot ? `${opts.perSlot.protein}P/${opts.perSlot.carbs}C/${opts.perSlot.fat}F` : 'derive from distribution'}`,
       `TARGET_CUISINE: ${opts?.targetCuisine || (u.culturalProfile.primaryCuisines[0] || 'modern')} (MUST MATCH)`,
-      `DIET_RULES: ${u.restrictions.dietaryRestrictions.join(', ') || 'none'}`,
+      `DIET_RULES_SELECTED: ${(u.restrictions.dietaryRestrictions||[]).join(', ') || 'none'}`,
       `ALLERGENS_FORBIDDEN: ${u.restrictions.allergens.join(', ') || 'none'}`,
+      `ABSOLUTE_FORBIDDEN_TOKENS: ${(opts?.forbiddenTokens||[]).join(', ') || 'none'}`,
+      ...(mealType==='breakfast' ? [
+        `BREAKFAST_SEAFOOD_MODE: ${opts?.breakfastSeafoodMode || 'contextual'}`,
+        `BREAKFAST_SEAFOOD_ALLOWED_CUISINES: ${(opts?.breakfastSeafoodAllowList||[]).join(', ') || 'none'}`
+      ] : [])
     ].join('\n');
 
     const STYLE = [
@@ -54,12 +65,13 @@ export class SmartMealAgent {
   "carbs": number,
   "fat": number,
   "fiber": number,
+  "prepTime": number,
+  "cookTime": number,
   "instructions": [string],
   "tags": [string]
 }`;
 
     return [
-      `MEAL_TYPE: ${mealType}`,
       'HARD_RULES:\n'+HARD,
       'STYLE:\n'+STYLE,
       'VARIETY:\n'+VARIETY,

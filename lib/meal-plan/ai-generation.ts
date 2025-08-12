@@ -5,6 +5,7 @@ import { loadDiversity, pushToday } from '@/lib/policy/diversity-memory';
 import { SmartMealAgent } from '@/lib/ai-agent/SmartMealAgent';
 import { proteinCategoryOf, extractMethods, isNearDuplicateByName, containsAllergen, identifyPrimaryCuisine } from '@/lib/ai-agent/helpers';
 import { createLLM } from '@/lib/llm';
+import { breakfastSeafoodMode, breakfastSeafoodAllowedForCuisine, includesSeafood, breakfastSeafoodAllowList } from '@/lib/policy/cultural-rules';
 
 import type { PantryItem, UserProfile, Meal } from '@/lib/meal-plan/types';
 
@@ -64,6 +65,8 @@ const MealSchema = z.object({
   carbs: z.coerce.number().min(0).optional(),
   fat: z.coerce.number().min(0).optional(),
   fiber: z.coerce.number().min(0).optional(),
+  prepTime: z.coerce.number().optional(),
+  cookTime: z.coerce.number().optional(),
   instructions: z.array(z.string()).min(1),
   tags: z.array(z.string()).optional()
 });

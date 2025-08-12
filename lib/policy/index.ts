@@ -1,4 +1,6 @@
 // lib/policy/index.ts
+import { compileDietPolicy } from './diet-registry';
+
 export type NutritionTarget = { kcal:number; protein:number; carbs:number; fat:number };
 
 export type CuisinePolicy = {
@@ -22,6 +24,11 @@ export type MealPolicy = {
     timeConstraint: 'quick'|'moderate'|'none';
   };
   targets: NutritionTarget;
+  compiledDiet?: {
+    picked: string[];
+    tokens: string[];
+    restrictions: Record<string, string[]>;
+  };
 };
 
 const clamp = (x:number,min:number,max:number)=>Math.max(min,Math.min(max,x));
@@ -74,6 +81,8 @@ export function buildPolicyFromOnboarding(user:any): MealPolicy {
 
   const dietRules = (dietary_preferences ?? []) as string[];
 
+  const compiled = compileDietPolicy(dietRules);
+
   return {
     hard: {
       allergens: dietary_restrictions ?? [],
@@ -89,7 +98,8 @@ export function buildPolicyFromOnboarding(user:any): MealPolicy {
       skill: (cooking_skill_level || 'beginner'),
       timeConstraint: 'moderate'
     },
-    targets: macroSplit(targetKcal, health_goals)
+    targets: macroSplit(targetKcal, health_goals),
+    compiledDiet: compiled
   };
 }
 
