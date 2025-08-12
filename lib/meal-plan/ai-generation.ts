@@ -127,59 +127,53 @@ export async function generateAIMealWithQualityControl(
       const raw = await llm.generateMealJSON({ prompt });
       parsed = MealSchema.parse(JSON.parse(raw));
     } catch (e:any) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy);
       continue;
     }
 
-    // 0) kahvaltıda deniz ürünü guard (opsiyonel env ile)
-    if (BREAKFAST_NO_SEAFOOD && slot === 'breakfast') {
-      const hasSea = (parsed.ingredients||[]).some((i:any)=> /salmon|tuna|fish|shrimp|anchovy|mackerel|sardine|cod/i.test(i.name||''));
-      if (hasSea) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
-    }
-
-    // 1) Hard allergen
+    // 1) Allergen
     const allergenErr = buildHardAllergenCheck(parsed, policy.hard.allergens||[]);
-    if (allergenErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
+    if (allergenErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
 
-    // 2) Diet rules (vegan/veg/pesc/halal/kosher...)
-    const dietErr = validateDietRules(parsed, policy.hard.dietRules||[]);
-    if (!dietErr && (policy.hard.dietRules||[]).map((r:string)=>r.toLowerCase()).includes('kosher')) {
-      const ings = parsed.ingredients || [];
-      const hasMeat  = ings.some((i:any)=> /beef|lamb|chicken|turkey/i.test(i.name||''));
-      const hasDairy = ings.some((i:any)=> /milk|cheese|butter|cream|yogurt|paneer|whey|casein|ghee/i.test(i.name||''));
-      if (hasMeat && hasDairy) {
-        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-        continue;
-      }
-    }
-    if (dietErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
+    // 2) Diet rules
+    const dietErr = validateAllDietRules(parsed, policy, perSlot);
+    if (dietErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
 
-    // 3) Calories: yalnızca per-slot hedefe göre band
-    if (typeof parsed.calories === 'number') {
-      const tgt = perSlot.kcal; // hedef bu slot için
-      // snack'ler için makul alt sınır koy, çok düşükse kabul etme
-      const band = { min: Math.max(60, Math.round(tgt*0.85)), max: Math.round(tgt*1.15) };
-      if (parsed.calories < band.min || parsed.calories > band.max) {
-        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-        continue;
-      }
+    // 3) Breakfast seafood — culture aware
+    const primaryCuisineForCheck = identifyPrimaryCuisine(parsed, prefs);
+    if (slot === 'breakfast' && includesSeafood(parsed.ingredients)) {
+      const seafoodOk = breakfastSeafoodAllowedForCuisine(
+        primaryCuisineForCheck, bfSeafoodMode, prefs, policy.hard?.dietRules||[]
+      );
+      if (!seafoodOk) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
     }
 
-    // 4) Makrolar (varsa) – ± band
-    const pOK = withinBand(parsed.protein, perSlot.protein, 0.20);
-    const cOK = withinBand(parsed.carbs,   perSlot.carbs,   0.25);
-    const fOK = withinBand(parsed.fat,     perSlot.fat,     0.25);
-    if (!(pOK && cOK && fOK)) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
-    }
+    // 4) Energy & macros
+    const kcOK = withinBand(parsed.calories, perSlot.kcal, 0.15);
+    const pOK  = withinBand(parsed.protein, perSlot.protein, 0.20);
+    const cOK  = withinBand(parsed.carbs,   perSlot.carbs,   0.25);
+    const fOK  = withinBand(parsed.fat,     perSlot.fat,     0.25);
+    if (!(kcOK && pOK && cOK && fOK)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
 
-    // 4.5) Time constraint for quick profiles
+    // 5) Variety: name, protein, methods, cuisine rotation
+    if (isNearDuplicateByName(parsed.name, prevNames)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+
+    const cat = proteinCategoryOf(parsed.ingredients || []);
+    if (cat && usedProteinCats.has(cat)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+
+    const methods = extractMethods(parsed.instructions || []);
+    if (methods.some(m => usedMethods.has(m))) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+
+    const primaryCuisine = primaryCuisineForCheck;
+    if ((prefs.length>1) && usedCuisines.has(primaryCuisine)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+    if (prefs.length>0 && targetCuisine && primaryCuisine !== targetCuisine) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+
+    // 6) Time constraint (quick ≤ 25min)
     const tc = (policy.user?.timeConstraint||'moderate');
     if (tc==='quick') {
       const totalTime = (parsed.prepTime || 10) + (parsed.cookTime || 10);
       if (totalTime > 25) { 
-        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); 
+        if (attempts>=MAX) return policyAwareFallback(slot, policy); 
         continue; 
       }
     }
@@ -187,37 +181,11 @@ export async function generateAIMealWithQualityControl(
     // 5) Variety: isim
     if (isNearDuplicateByName(parsed.name, prevNames)) {
       if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
     }
-
-    // 6) Variety: protein & yöntem
-    const cat = proteinCategoryOf(parsed.ingredients || []);
-    if (cat && usedProteinCats.has(cat)) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
-    }
-    const methods = extractMethods(parsed.instructions || []);
-    if (methods.some(m => usedMethods.has(m))) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
-    }
-
-    // 7) Variety: cuisine (kullanıcı 2+ mutfak seçtiyse aynı gün tekrar etme)
-    const primaryCuisine = identifyPrimaryCuisine(parsed, userProfile?.cuisine_preferences || []);
-    
-    // TARGET_CUISINE validation
-    if (prefs.length > 0 && targetCuisine && primaryCuisine !== targetCuisine) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
-    }
-    
-    if ((userProfile?.cuisine_preferences?.length||0) > 1 && usedCuisines.has(primaryCuisine)) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-      continue;
-    }
-
-    // Passed → build final Meal
+    // Build meal
     const mealId = `smart_ai_${slot}_${Date.now()}`;
+    const matchScore = scoreMealCompliance(parsed, perSlot);
+
     const meal: Meal = {
       id: mealId,
       name: parsed.name,
@@ -231,11 +199,16 @@ export async function generateAIMealWithQualityControl(
       cookTime: parsed.cookTime ?? 10,
       servings: 1,
       difficulty: 'Easy',
+      prepTime: parsed.prepTime ?? 10,
+      cookTime: parsed.cookTime ?? 10,
+      servings: 1,
+      difficulty: 'Easy',
       instructions: parsed.instructions,
       tags: [...(parsed.tags||[]), 'smart_generated', primaryCuisine].filter(Boolean),
       emoji: '🍽️',
       category: slot,
       source: 'ai_generated',
+      matchPercentage: matchScore,
       created_at: new Date().toISOString()
     } as Meal;
 
@@ -254,7 +227,7 @@ export async function generateAIMealWithQualityControl(
     return meal;
   }
 
-  return policyAwareFallback(slot, policy, pantryItems);
+  return policyAwareFallback(slot, policy);
 }
 
 // Legacy compatibility functions
