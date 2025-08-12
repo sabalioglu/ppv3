@@ -3,6 +3,8 @@ import { compileDietPolicy } from './diet-registry';
 
 export type NutritionTarget = { kcal:number; protein:number; carbs:number; fat:number };
 
+import { compileDietPolicy } from './diet-registry';
+
 export type CuisinePolicy = {
   weights: Record<string, number>;
   exploreRate: number;
@@ -24,6 +26,11 @@ export type MealPolicy = {
     timeConstraint: 'quick'|'moderate'|'none';
   };
   targets: NutritionTarget;
+  compiledDiet?: {
+    picked: string[];
+    tokens: string[];
+    restrictions: Record<string, string[]>;
+  };
   compiledDiet?: {
     picked: string[];
     tokens: string[];
@@ -83,6 +90,8 @@ export function buildPolicyFromOnboarding(user:any): MealPolicy {
 
   const compiled = compileDietPolicy(dietRules);
 
+  const compiled = compileDietPolicy(dietRules);
+
   return {
     hard: {
       allergens: dietary_restrictions ?? [],
@@ -99,6 +108,7 @@ export function buildPolicyFromOnboarding(user:any): MealPolicy {
       timeConstraint: 'moderate'
     },
     targets: macroSplit(targetKcal, health_goals),
+    compiledDiet: compiled
     compiledDiet: compiled
   };
 }

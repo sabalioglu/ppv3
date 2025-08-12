@@ -37,20 +37,80 @@ function withinBand(value:number|undefined, target:number, tol=0.2) {
   return value >= min && value <= max;
 }
 
-function generateFallbackMeal(mealType:string): Meal {
-  const id = `fallback_${mealType}_${Date.now()}`;
-  return {
-    id,
-    name: `Simple ${mealType}`,
-    ingredients: [{ name:'egg', amount:2, unit:'pcs', category:'Protein' }],
-    calories: 350, protein: 20, carbs: 20, fat: 18, fiber: 2,
-    instructions: ['Beat eggs','Cook on pan','Serve'],
-    tags: ['fallback'],
-    emoji:'🍽️', category: mealType, source:'ai_generated', created_at:new Date().toISOString()
-  } as Meal;
+function validateAllDietRules(parsed:any, policy:any, perSlot:{kcal:number;protein:number;carbs:number;fat:number}) {
+  const ings = (parsed?.ingredients||[]).map((i:any)=>String(i.name||'').toLowerCase());
+  const has = (needle:string) => ings.some(n => n.includes(needle.toLowerCase()));
+
+  // 1) compiledDiet token'ları (registry'den gelen kesin yasaklar)
+  for (const t of (policy?.compiledDiet?.tokens || [])) {
+    if (has(t)) return `Diet token forbidden: ${t}`;
+  }
+
+  // 2) Back-compat: eski basit kurallar (vegan/veg/pesc/halal/kosher…)
+  //    compiledDiet boş ise (veya kaçmış bir token yoksa) bunu da uygula
+  const fallbackErr = validateDietRules(parsed, policy?.hard?.dietRules || []);
+  if (fallbackErr) return fallbackErr;
+
+  // 3) (İstersen buraya makro yüzdeleri gibi ileri kuralları da eklersin)
+  return null;
 }
 
-const BREAKFAST_NO_SEAFOOD = String(process.env.EXPO_PUBLIC_BREAKFAST_NO_SEAFOOD || 'true').toLowerCase() === 'true';
+// Politika-dostu fallback (allergen/diet güvenli)
+function policyAwareFallback(mealType:string, policy:any): Meal {
+  const id = `fallback_${mealType}_${Date.now()}`;
+  const rules = (policy?.hard?.dietRules||[]).map((r:string)=>r.toLowerCase());
+  const allergens = (policy?.hard?.allergens||[]).map((r:string)=>r.toLowerCase());
+
+  const forbidEgg   = allergens.includes('eggs') || rules.includes('vegan');
+  const forbidDairy = allergens.includes('dairy') || rules.includes('vegan') || rules.includes('dairy_free');
+  const veganFallback: Meal = {
+    id,
+    name:`Simple ${mealType}: chickpea herb salad`,
+    ingredients:[
+      {name:'chickpeas',amount:1,unit:'cup',category:'Protein'},
+      {name:'cucumber',amount:0.5,unit:'cup',category:'Vegetable'},
+      {name:'tomato',amount:0.5,unit:'cup',category:'Vegetable'},
+      {name:'parsley',amount:2,unit:'tbsp',category:'Herb'},
+      {name:'lemon',amount:1,unit:'tbsp',category:'Acid'}
+    ],
+    calories: 320, protein: 18, carbs: 35, fat: 8, fiber: 8,
+    prepTime: 5,
+    cookTime: 0,
+    servings: 1,
+    difficulty: 'Easy',
+    instructions:['Combine, season, serve'],
+    tags:['fallback','policy-safe','vegan'],
+    emoji:'🍽️', category: mealType, source:'ai_generated', created_at:new Date().toISOString()
+  } as Meal;
+  if (rules.includes('vegan')) return veganFallback;
+
+  const ovo: Meal = {
+    id,
+    name:`Simple ${mealType}: egg veggie scramble`,
+    ingredients:[
+      ...(forbidEgg? [] : [{name:'egg',amount:2,unit:'pcs',category:'Protein'}]),
+      {name:'spinach',amount:1,unit:'cup',category:'Vegetable'},
+      {name:'tomato',amount:0.5,unit:'cup',category:'Vegetable'}
+    ],
+    calories: 330, protein: 22, carbs: 12, fat: 14, fiber: 3,
+    prepTime: 5,
+    cookTime: 10,
+    servings: 1,
+    difficulty: 'Easy',
+    instructions:['Beat eggs','Sauté veg','Scramble & serve'],
+    tags:['fallback','policy-safe'],
+    emoji:'🍽️', category: mealType, source:'ai_generated', created_at:new Date().toISOString()
+  } as Meal;
+  return forbidEgg ? veganFallback : ovo;
+}
+
+function scoreMealCompliance(parsed:any, perSlot:{kcal:number;protein:number;carbs:number;fat:number}) {
+  const kc = Math.min(parsed.calories / Math.max(perSlot.kcal,1), perSlot.kcal / Math.max(parsed.calories,1));
+  const p  = parsed.protein ? Math.min(parsed.protein / Math.max(perSlot.protein,1), perSlot.protein / Math.max(parsed.protein,1)) : 0.8;
+  const c  = parsed.carbs   ? Math.min(parsed.carbs   / Math.max(perSlot.carbs,1),   perSlot.carbs   / Math.max(parsed.carbs,1))   : 0.8;
+  const f  = parsed.fat     ? Math.min(parsed.fat     / Math.max(perSlot.fat,1),     perSlot.fat     / Math.max(parsed.fat,1))     : 0.8;
+  return Math.round(((kc*0.25 + p*0.25 + c*0.25 + f*0.25) * 100));
+}
 
 const MealSchema = z.object({
   name: z.string().min(2),
@@ -65,6 +125,8 @@ const MealSchema = z.object({
   carbs: z.coerce.number().min(0).optional(),
   fat: z.coerce.number().min(0).optional(),
   fiber: z.coerce.number().min(0).optional(),
+  prepTime: z.coerce.number().optional(),
+  cookTime: z.coerce.number().optional(),
   prepTime: z.coerce.number().optional(),
   cookTime: z.coerce.number().optional(),
   instructions: z.array(z.string()).min(1),
@@ -108,13 +170,26 @@ export async function generateAIMealWithQualityControl(
   const prevMeals = Array.isArray(previousMeals) ? previousMeals.filter(isMeal) : [];
   const prevNames = prevMeals.map(m=>m.name);
 
-  const agent = new SmartMealAgent(userProfile as any);
-  const prompt = agent.buildPrompt(slot, pantryItems, prevMeals);
-
   const recent = await loadDiversity();
   const usedProteinCats = new Set(recent.flatMap(s => s.proteinCats));
   const usedMethods     = new Set(recent.flatMap(s => s.methods));
   const usedCuisines    = new Set(recent.flatMap(s => s.cuisines));
+
+  // ✅ EKSİKLERİ ekle
+  const prefs = userProfile?.cuisine_preferences || [];
+  const targetCuisine = prefs.find(c => !usedCuisines.has(c)) || prefs[0] || 'modern';
+  const bfSeafoodMode = breakfastSeafoodMode(prefs, policy.hard?.dietRules||[], process.env.EXPO_PUBLIC_BREAKFAST_SEAFOOD_DEFAULT);
+
+  const agent = new SmartMealAgent(userProfile as any);
+  const prompt = agent.buildPrompt(
+    slot, pantryItems, prevMeals, {
+      targetCuisine,
+      perSlot,
+      forbiddenTokens: policy?.compiledDiet?.tokens || [],
+      breakfastSeafoodMode: bfSeafoodMode,
+      breakfastSeafoodAllowList: breakfastSeafoodAllowList(prefs)
+    }
+  );
 
   let attempts = 0;
   const MAX = 3;
@@ -132,12 +207,6 @@ export async function generateAIMealWithQualityControl(
     }
 
     // 1) Allergen
-    const allergenErr = buildHardAllergenCheck(parsed, policy.hard.allergens||[]);
-    if (allergenErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-
-    // 2) Diet rules
-    const dietErr = validateAllDietRules(parsed, policy, perSlot);
-    if (dietErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
 
     // 3) Breakfast seafood — culture aware
     const primaryCuisineForCheck = identifyPrimaryCuisine(parsed, prefs);
@@ -153,37 +222,26 @@ export async function generateAIMealWithQualityControl(
     const pOK  = withinBand(parsed.protein, perSlot.protein, 0.20);
     const cOK  = withinBand(parsed.carbs,   perSlot.carbs,   0.25);
     const fOK  = withinBand(parsed.fat,     perSlot.fat,     0.25);
-    if (!(kcOK && pOK && cOK && fOK)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-
-    // 5) Variety: name, protein, methods, cuisine rotation
+    // 5) Çeşitlilik
     if (isNearDuplicateByName(parsed.name, prevNames)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
 
-    const cat = proteinCategoryOf(parsed.ingredients || []);
     if (cat && usedProteinCats.has(cat)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-
-    const methods = extractMethods(parsed.instructions || []);
+    if (dietErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
     if (methods.some(m => usedMethods.has(m))) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-
-    const primaryCuisine = primaryCuisineForCheck;
-    if ((prefs.length>1) && usedCuisines.has(primaryCuisine)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-    if (prefs.length>0 && targetCuisine && primaryCuisine !== targetCuisine) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
-
-    // 6) Time constraint (quick ≤ 25min)
+    if ((prefs.length>1) && usedCuisines.has(primaryCuisineForCheck)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+    if (prefs.length>0 && targetCuisine && primaryCuisineForCheck !== targetCuisine) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+    if (!(kcOK && pOK && cOK && fOK)) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
+    // 6) Süre kısıtı
     const tc = (policy.user?.timeConstraint||'moderate');
     if (tc==='quick') {
       const totalTime = (parsed.prepTime || 10) + (parsed.cookTime || 10);
-      if (totalTime > 25) { 
-        if (attempts>=MAX) return policyAwareFallback(slot, policy); 
-        continue; 
-      }
+      if (totalTime > 25) { if (attempts>=MAX) return policyAwareFallback(slot, policy); continue; }
     }
 
-    // 5) Variety: isim
-    if (isNearDuplicateByName(parsed.name, prevNames)) {
-      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
-    }
-    // Build meal
+    // ✅ Son: meal objesi (duplicate alanlar temiz)
     const mealId = `smart_ai_${slot}_${Date.now()}`;
+    const matchScore = scoreMealCompliance(parsed, perSlot);
+
     const matchScore = scoreMealCompliance(parsed, perSlot);
 
     const meal: Meal = {
@@ -203,20 +261,21 @@ export async function generateAIMealWithQualityControl(
       cookTime: parsed.cookTime ?? 10,
       servings: 1,
       difficulty: 'Easy',
+      prepTime: parsed.prepTime ?? 10,
+      cookTime: parsed.cookTime ?? 10,
+      servings: 1,
+      difficulty: 'Easy',
       instructions: parsed.instructions,
-      tags: [...(parsed.tags||[]), 'smart_generated', primaryCuisine].filter(Boolean),
+      tags: [...(parsed.tags||[]), 'smart_generated', primaryCuisineForCheck].filter(Boolean),
       emoji: '🍽️',
       category: slot,
       source: 'ai_generated',
       matchPercentage: matchScore,
+      matchPercentage: matchScore,
       created_at: new Date().toISOString()
     } as Meal;
 
-    await pushToday({
-      proteinCats: cat ? [cat] : [],
-      cuisines: [primaryCuisine],
-      methods
-    });
+    await pushToday({ proteinCats: cat ? [cat] : [], cuisines: [primaryCuisineForCheck], methods });
 
     try {
       const { useMealPlanStore } = await import('./store');
