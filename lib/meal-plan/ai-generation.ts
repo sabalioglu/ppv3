@@ -242,8 +242,6 @@ export async function generateAIMealWithQualityControl(
     const mealId = `smart_ai_${slot}_${Date.now()}`;
     const matchScore = scoreMealCompliance(parsed, perSlot);
 
-    const matchScore = scoreMealCompliance(parsed, perSlot);
-
     const meal: Meal = {
       id: mealId,
       name: parsed.name,
