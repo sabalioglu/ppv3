@@ -3,11 +3,9 @@ export interface LLMClient {
   generateMealJSON(input: { prompt: string }): Promise<string>; // returns raw JSON text
 }
 
+import { OpenAIClient } from './providers/openai';
+import { GeminiClient } from './providers/gemini';
+
 export function createLLM(provider: 'openai'|'gemini' = 'openai'): LLMClient {
-  if (provider === 'gemini') {
-    // @ts-ignore
-    return new (require('./providers/gemini').GeminiClient)();
-  }
-  // @ts-ignore
-  return new (require('./providers/openai').OpenAIClient)();
+  return provider === 'gemini' ? new GeminiClient() : new OpenAIClient();
 }
