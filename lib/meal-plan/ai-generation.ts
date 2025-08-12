@@ -124,23 +124,32 @@ export async function generateAIMealWithQualityControl(
       const raw = await llm.generateMealJSON({ prompt });
       parsed = MealSchema.parse(JSON.parse(raw));
     } catch (e:any) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
     }
 
     // 0) kahvaltıda deniz ürünü guard (opsiyonel env ile)
     if (BREAKFAST_NO_SEAFOOD && slot === 'breakfast') {
       const hasSea = (parsed.ingredients||[]).some((i:any)=> /salmon|tuna|fish|shrimp|anchovy|mackerel|sardine|cod/i.test(i.name||''));
-      if (hasSea) { if (attempts>=MAX) return generateFallbackMeal(slot); continue; }
+      if (hasSea) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
     }
 
     // 1) Hard allergen
     const allergenErr = buildHardAllergenCheck(parsed, policy.hard.allergens||[]);
-    if (allergenErr) { if (attempts>=MAX) return generateFallbackMeal(slot); continue; }
+    if (allergenErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
 
     // 2) Diet rules (vegan/veg/pesc/halal/kosher...)
     const dietErr = validateDietRules(parsed, policy.hard.dietRules||[]);
-    if (dietErr) { if (attempts>=MAX) return generateFallbackMeal(slot); continue; }
+    if (!dietErr && (policy.hard.dietRules||[]).map((r:string)=>r.toLowerCase()).includes('kosher')) {
+      const ings = parsed.ingredients || [];
+      const hasMeat  = ings.some((i:any)=> /beef|lamb|chicken|turkey/i.test(i.name||''));
+      const hasDairy = ings.some((i:any)=> /milk|cheese|butter|cream|yogurt|paneer|whey|casein|ghee/i.test(i.name||''));
+      if (hasMeat && hasDairy) {
+        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
+        continue;
+      }
+    }
+    if (dietErr) { if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); continue; }
 
     // 3) Calories: yalnızca per-slot hedefe göre band
     if (typeof parsed.calories === 'number') {
@@ -148,7 +157,7 @@ export async function generateAIMealWithQualityControl(
       // snack'ler için makul alt sınır koy, çok düşükse kabul etme
       const band = { min: Math.max(60, Math.round(tgt*0.85)), max: Math.round(tgt*1.15) };
       if (parsed.calories < band.min || parsed.calories > band.max) {
-        if (attempts>=MAX) return generateFallbackMeal(slot);
+        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
         continue;
       }
     }
@@ -158,32 +167,49 @@ export async function generateAIMealWithQualityControl(
     const cOK = withinBand(parsed.carbs,   perSlot.carbs,   0.25);
     const fOK = withinBand(parsed.fat,     perSlot.fat,     0.25);
     if (!(pOK && cOK && fOK)) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
+    }
+
+    // 4.5) Time constraint for quick profiles
+    const tc = (policy.user?.timeConstraint||'moderate');
+    if (tc==='quick') {
+      const totalTime = (parsed.prepTime || 10) + (parsed.cookTime || 10);
+      if (totalTime > 25) { 
+        if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems); 
+        continue; 
+      }
     }
 
     // 5) Variety: isim
     if (isNearDuplicateByName(parsed.name, prevNames)) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
     }
 
     // 6) Variety: protein & yöntem
     const cat = proteinCategoryOf(parsed.ingredients || []);
     if (cat && usedProteinCats.has(cat)) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
     }
     const methods = extractMethods(parsed.instructions || []);
     if (methods.some(m => usedMethods.has(m))) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
     }
 
     // 7) Variety: cuisine (kullanıcı 2+ mutfak seçtiyse aynı gün tekrar etme)
     const primaryCuisine = identifyPrimaryCuisine(parsed, userProfile?.cuisine_preferences || []);
+    
+    // TARGET_CUISINE validation
+    if (prefs.length > 0 && targetCuisine && primaryCuisine !== targetCuisine) {
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
+      continue;
+    }
+    
     if ((userProfile?.cuisine_preferences?.length||0) > 1 && usedCuisines.has(primaryCuisine)) {
-      if (attempts>=MAX) return generateFallbackMeal(slot);
+      if (attempts>=MAX) return policyAwareFallback(slot, policy, pantryItems);
       continue;
     }
 
@@ -198,6 +224,10 @@ export async function generateAIMealWithQualityControl(
       carbs: parsed.carbs ?? 0,
       fat: parsed.fat ?? 0,
       fiber: parsed.fiber ?? 0,
+      prepTime: parsed.prepTime ?? 10,
+      cookTime: parsed.cookTime ?? 10,
+      servings: 1,
+      difficulty: 'Easy',
       instructions: parsed.instructions,
       tags: [...(parsed.tags||[]), 'smart_generated', primaryCuisine].filter(Boolean),
       emoji: '🍽️',
@@ -221,7 +251,7 @@ export async function generateAIMealWithQualityControl(
     return meal;
   }
 
-  return generateFallbackMeal(slot);
+  return policyAwareFallback(slot, policy, pantryItems);
 }
 
 // Legacy compatibility functions

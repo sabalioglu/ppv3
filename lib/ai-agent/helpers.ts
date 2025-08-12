@@ -65,17 +65,17 @@ export function identifyPrimaryCuisine(meal:any, prefs:string[]){
 }
 
 export const ALLERGEN_MAP: Record<string,string[]> = {
-  nuts:['almond','walnut','cashew','pecan','hazelnut','pistachio'],
-  peanuts:['peanut','peanut butter'],
-  dairy:['milk','cheese','butter','cream','yogurt','whey','casein','ghee'],
-  eggs:['egg','albumen','mayonnaise','aioli'],
-  soy:['soy','tofu','tempeh','miso','edamame','soy sauce'],
-  wheat:['wheat','flour','breadcrumbs','semolina','farina'],
-  gluten:['wheat','barley','rye','malt','spelt','semolina'],
-  fish:['fish','salmon','tuna','cod','mackerel','anchovy'],
-  shellfish:['shrimp','prawn','crab','lobster','oyster','scallop','clam','mussel'],
-  sesame:['sesame','tahini','sesame oil','gomashio'],
-  sulfites:['sulfite','sulphite','wine','treated dried fruit']
+  nuts:['almond','walnut','cashew','pecan','hazelnut','pistachio','macadamia','brazil nut'],
+  peanuts:['peanut','peanut butter','peanut oil','groundnut'],
+  dairy:['milk','cheese','butter','cream','yogurt','whey','casein','ghee','lactose','dairy powder'],
+  eggs:['egg','albumen','mayonnaise','aioli','lecithin','egg white','egg yolk'],
+  soy:['soy','tofu','tempeh','miso','edamame','soy sauce','soy lecithin','soy protein','tamari'],
+  wheat:['wheat','flour','breadcrumbs','semolina','farina','wheat starch','durum'],
+  gluten:['wheat','barley','rye','malt','spelt','semolina','malt vinegar','soy sauce','wheat starch'],
+  fish:['fish','salmon','tuna','cod','mackerel','anchovy','fish sauce','anchovy paste','worcestershire sauce'],
+  shellfish:['shrimp','prawn','crab','lobster','oyster','scallop','clam','mussel','krill','crayfish'],
+  sesame:['sesame','tahini','sesame oil','gomashio','sesame seed'],
+  sulfites:['sulfite','sulphite','wine','treated dried fruit','vinegar','dried vegetables']
 };
 
 export const containsAllergen = (ingredientName:string, allergen:string) => {

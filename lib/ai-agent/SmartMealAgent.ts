@@ -8,18 +8,20 @@ export class SmartMealAgent {
   constructor(userProfile: UserProfile) {
     this.userContext = UserContextAnalyzer.analyzeUser(userProfile);
   }
-
+    previousMeals: Meal[],
+    opts?: { targetCuisine?: string; perSlot?: { kcal:number; protein:number; carbs:number; fat:number } }
   buildPrompt(mealType: string, pantry: PantryItem[], previousMeals: Meal[]) {
     const u = this.userContext;
-    const goal = u.nutritionalNeeds.mealDistribution[mealType as keyof typeof u.nutritionalNeeds.mealDistribution];
+    const per = opts?.perSlot;
+    const goal = per?.kcal ?? u.nutritionalNeeds.mealDistribution[mealType as keyof typeof u.nutritionalNeeds.mealDistribution];
 
     const prevNames = previousMeals.map(m=>m.name).join(', ');
     const usedMain = previousMeals.flatMap(m => (m.ingredients||[]).slice(0,2).map(i=>i.name)).join(', ');
 
     const HARD = [
-      `TOTAL_KCAL_TODAY_RANGE: ${u.healthProfile.calorieRange.min}-${u.healthProfile.calorieRange.max}`,
       `MEAL_KCAL_TARGET: ${goal}`,
-      `MACROS_TARGET: ${u.healthProfile.macroTargets.protein}P/${u.healthProfile.macroTargets.carbs}C/${u.healthProfile.macroTargets.fat}F (scale per meal)`,
+      `MACROS_TARGET_PER_SLOT: ${per ? `${per.protein}P/${per.carbs}C/${per.fat}F` : 'derive from distribution'}`,
+      `TARGET_CUISINE: ${opts?.targetCuisine || (u.culturalProfile.primaryCuisines[0] || 'modern')} (MUST MATCH)`,
       `DIET_RULES: ${u.restrictions.dietaryRestrictions.join(', ') || 'none'}`,
       `ALLERGENS_FORBIDDEN: ${u.restrictions.allergens.join(', ') || 'none'}`,
     ].join('\n');
