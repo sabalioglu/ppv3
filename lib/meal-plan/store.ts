@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import { Meal, MealPlan } from './types';
+import { Meal, MealPlan, UserProfile } from './api-clients/types';
 
 interface MealPlanState {
   currentMealPlan: MealPlan | null;
