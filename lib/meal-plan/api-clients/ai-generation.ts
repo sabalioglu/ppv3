@@ -1076,4 +1076,3 @@ export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
 
   return Math.round(totalMatchPercentage / validMeals.length);
 };
-
