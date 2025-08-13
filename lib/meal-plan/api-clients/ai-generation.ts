@@ -1,7 +1,16 @@
-//lib/meal-plan/api-clients/ai-generation.ts
+// lib/meal-plan/api-clients/ai-generation.ts
 // AI meal generation using OpenAI GPT-4o-mini with BRUTAL pantry-focused approach + anti-duplicate logic
-import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse, MealPolicy, QCValidationResult } from './types';
-import { calculatePantryMatch } from '../pantry-analysis'; // ✅ Yol düzeltildi
+
+import { 
+  PantryItem, 
+  UserProfile, 
+  Meal, 
+  AIGenerationRequest, 
+  AIGenerationResponse, 
+  MealPolicy, 
+  QCValidationResult 
+} from './types';
+import { calculatePantryMatch } from '../pantry-analysis';
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -30,17 +39,6 @@ interface OpenAIResponse {
   };
 }
 
-// ✅ Policy interface eklendi
-interface MealPolicy {
-  name: string;
-  dietaryRestrictions: string[];
-  allergens: string[];
-  targetCalories: number;
-  preferredModel?: string;
-  minPantryUsage: number;
-  cuisines: string[];
-}
-
 // Test metrikleri için interface
 interface TestMetrics {
   totalRequests: number;
@@ -62,16 +60,16 @@ let testMetrics: TestMetrics = {
   averageTokens: { input: 0, output: 0 }
 };
 
-// ✅ CRITICAL FIX: QC Validation Chain - "cat is not defined" hatası burada!
+// ✅ FIXED: QC Validation with proper types from types.ts
 const validateMealQuality = async (
   meal: any,
-  policy: MealPolicy,
+  policy: MealPolicy, // ✅ Now imported from types.ts
   existingMeals: Meal[],
   attempt: number
-): Promise<{ isValid: boolean; reason?: string; score: number }> => {
+): Promise<QCValidationResult> => { // ✅ Return type from types.ts
   
   // 1. Parse ve validate meal structure
-  const parsedMeal = parseMealFromResponse(meal, {
+  const parsedMeal = parseMealFromResponse(JSON.stringify(meal), {
     pantryItems: policy.pantryItems || [],
     userProfile: null,
     mealType: 'lunch',
@@ -80,23 +78,41 @@ const validateMealQuality = async (
   });
   
   if (!parsedMeal) {
-    return { isValid: false, reason: "PARSE_ERROR", score: 0 };
+    return { 
+      isValid: false, 
+      reason: "PARSE_ERROR", 
+      score: 0,
+      confidenceLevel: 'low'
+    };
   }
 
-  // ✅ 2. Değişkenleri düzgün tanımla - "cat" hatasının kaynağı!
+  // 2. Extract variables properly
   const mealName = parsedMeal.name?.toLowerCase() || '';
   const ingredients = parsedMeal.ingredients || [];
-  const category = parsedMeal.category || parsedMeal.tags?.[0] || 'unknown'; // cat -> category
-  const cookingMethod = parsedMeal.difficulty || 'Easy'; // method yerine difficulty kullan
+  const category = parsedMeal.category || parsedMeal.tags?.[0] || 'unknown';
+  const cookingMethod = parsedMeal.difficulty || 'Easy';
   const calories = parsedMeal.calories || 0;
   
   console.log('🔍 QC Check Variables:', {
     mealName,
     ingredientsCount: ingredients.length,
-    category, // artık "cat" değil "category"
+    category,
     cookingMethod,
     calories
   });
+
+  // Initialize validation details
+  const validationDetails = {
+    dietCompliance: true,
+    allergenSafety: true,
+    calorieCompliance: true,
+    varietyCheck: true,
+    culturalAppropriateness: true,
+    pantryUsage: 0
+  };
+
+  const issues: string[] = [];
+  const suggestions: string[] = [];
 
   // 3. Name duplicate check
   const isDuplicateName = existingMeals.some(existing => 
@@ -106,21 +122,55 @@ const validateMealQuality = async (
   
   if (isDuplicateName) {
     console.log('❌ QC Failed: DUPLICATE_NAME');
-    return { isValid: false, reason: "DUPLICATE_NAME", score: 0.2 };
+    issues.push('Duplicate meal name detected');
+    suggestions.push('Try a different cuisine style or cooking method');
+    validationDetails.varietyCheck = false;
+    
+    return { 
+      isValid: false, 
+      reason: "DUPLICATE_NAME", 
+      score: 0.2,
+      issues,
+      suggestions,
+      confidenceLevel: 'low',
+      validationDetails
+    };
   }
 
   // 4. Diet enforcement check
   const dietViolation = checkDietCompliance(parsedMeal, policy);
   if (dietViolation) {
     console.log('❌ QC Failed: DIET_VIOLATION -', dietViolation);
-    return { isValid: false, reason: `DIET_VIOLATION: ${dietViolation}`, score: 0.1 };
+    issues.push(dietViolation);
+    validationDetails.dietCompliance = false;
+    
+    return { 
+      isValid: false, 
+      reason: `DIET_VIOLATION: ${dietViolation}`, 
+      score: 0.1,
+      issues,
+      suggestions: ['Ensure all ingredients comply with dietary restrictions'],
+      confidenceLevel: 'low',
+      validationDetails
+    };
   }
 
   // 5. Allergen check
   const allergenViolation = checkAllergenCompliance(ingredients, policy.allergens);
   if (allergenViolation) {
     console.log('❌ QC Failed: ALLERGEN_VIOLATION -', allergenViolation);
-    return { isValid: false, reason: `ALLERGEN_VIOLATION: ${allergenViolation}`, score: 0.1 };
+    issues.push(`Contains allergen: ${allergenViolation}`);
+    validationDetails.allergenSafety = false;
+    
+    return { 
+      isValid: false, 
+      reason: `ALLERGEN_VIOLATION: ${allergenViolation}`, 
+      score: 0.1,
+      issues,
+      suggestions: ['Remove allergen ingredients'],
+      confidenceLevel: 'low',
+      validationDetails
+    };
   }
 
   // 6. Calorie band check
@@ -129,7 +179,18 @@ const validateMealQuality = async (
   
   if (calorieVariance > 0.25) {
     console.log('❌ QC Failed: CALORIE_BAND_VIOLATION');
-    return { isValid: false, reason: "CALORIE_BAND_VIOLATION", score: 0.4 };
+    issues.push(`Calories ${calories} outside target range (${targetCalories}±25%)`);
+    validationDetails.calorieCompliance = false;
+    
+    return { 
+      isValid: false, 
+      reason: "CALORIE_BAND_VIOLATION", 
+      score: 0.4,
+      issues,
+      suggestions: ['Adjust portion sizes to meet calorie target'],
+      confidenceLevel: 'medium',
+      validationDetails
+    };
   }
 
   // 7. Forbidden patterns check
@@ -140,10 +201,21 @@ const validateMealQuality = async (
   
   if (hasForbiddenPattern) {
     console.log('❌ QC Failed: FORBIDDEN_PATTERN');
-    return { isValid: false, reason: "FORBIDDEN_PATTERN", score: 0.2 };
+    issues.push('Meal name contains forbidden pattern');
+    suggestions.push('Use more creative and appealing meal names');
+    
+    return { 
+      isValid: false, 
+      reason: "FORBIDDEN_PATTERN", 
+      score: 0.2,
+      issues,
+      suggestions,
+      confidenceLevel: 'medium',
+      validationDetails
+    };
   }
 
-  // 8. Variety check (same day cuisine/protein/method)
+  // 8. Variety check
   const todayMeals = existingMeals.filter(m => 
     new Date(m.created_at || '').toDateString() === new Date().toDateString()
   );
@@ -155,21 +227,46 @@ const validateMealQuality = async (
   
   if (hasVarietyConflict && attempt < 3) {
     console.log('❌ QC Failed: VARIETY_CONFLICT');
-    return { isValid: false, reason: "VARIETY_CONFLICT", score: 0.5 };
+    issues.push('Similar meal already exists today');
+    validationDetails.varietyCheck = false;
+    
+    return { 
+      isValid: false, 
+      reason: "VARIETY_CONFLICT", 
+      score: 0.5,
+      issues,
+      suggestions: ['Try a different cuisine or cooking method'],
+      confidenceLevel: 'medium',
+      validationDetails
+    };
   }
+
+  // Calculate pantry usage
+  const pantryUsage = parsedMeal.pantryUsagePercentage || 0;
+  validationDetails.pantryUsage = pantryUsage / 100;
 
   // Final score calculation
   const matchScore = calculateMatchScore(parsedMeal, policy);
   
+  // Determine confidence level
+  let confidenceLevel: 'high' | 'medium' | 'low' = 'high';
+  if (matchScore < 0.6) confidenceLevel = 'low';
+  else if (matchScore < 0.8) confidenceLevel = 'medium';
+  
   console.log('✅ QC Passed with score:', matchScore);
+  
   return { 
     isValid: true, 
     score: matchScore,
-    reason: "QUALITY_PASSED" 
+    reason: "QUALITY_PASSED",
+    issues: issues.length > 0 ? issues : undefined,
+    suggestions: suggestions.length > 0 ? suggestions : undefined,
+    confidenceLevel,
+    validationDetails
   };
 };
 
-// ✅ Helper functions for QC
+// Helper functions for QC
 const checkDietCompliance = (meal: Meal, policy: MealPolicy): string | null => {
   const dietRules = policy.dietaryRestrictions || [];
   const ingredients = meal.ingredients.map(ing => ing.name.toLowerCase());
@@ -189,6 +286,22 @@ const checkDietCompliance = (meal: Meal, policy: MealPolicy): string | null => {
         ingredients.some(ing => ing.includes(keyword))
       );
       if (violation) return `Vegetarian diet violated by: ${violation}`;
+    }
+    
+    if (rule === 'gluten_free') {
+      const glutenKeywords = ['wheat', 'bread', 'pasta', 'flour', 'barley', 'rye'];
+      const violation = glutenKeywords.find(keyword => 
+        ingredients.some(ing => ing.includes(keyword))
+      );
+      if (violation) return `Gluten-free diet violated by: ${violation}`;
+    }
+    
+    if (rule === 'dairy_free') {
+      const dairyKeywords = ['milk', 'cheese', 'butter', 'cream', 'yogurt'];
+      const violation = dairyKeywords.find(keyword => 
+        ingredients.some(ing => ing.includes(keyword))
+      );
+      if (violation) return `Dairy-free diet violated by: ${violation}`;
     }
   }
   
@@ -210,15 +323,16 @@ const checkAllergenCompliance = (ingredients: any[], allergens: string[]): strin
 };
 
 const calculateMatchScore = (meal: Meal, policy: MealPolicy): number => {
-  // Basit match score hesapla
   const hasGoodCalories = Math.abs(meal.calories - policy.targetCalories) / policy.targetCalories < 0.2;
   const hasIngredients = meal.ingredients.length > 2;
   const hasGoodName = !meal.name.toLowerCase().includes('simple');
+  const hasPantryUsage = (meal.pantryUsagePercentage || 0) >= (policy.minPantryUsage * 100);
   
-  let score = 0.5; // Base score
+  let score = 0.4; // Base score
   if (hasGoodCalories) score += 0.2;
-  if (hasIngredients) score += 0.2;
+  if (hasIngredients) score += 0.15;
   if (hasGoodName) score += 0.1;
+  if (hasPantryUsage) score += 0.15;
   
   return Math.min(1.0, score);
 };
@@ -242,7 +356,7 @@ const analyzeUserProfile = (userProfile: UserProfile | null) => {
   const cuisineStyle = userProfile.cuisine_preferences?.length > 0 
     ? userProfile.cuisine_preferences.join(', ') 
     : 'international';
-  const allergenWarnings = userProfile.dietary_restrictions || [];
+  const allergenWarnings = userProfile.allergens || [];
   const dietaryGuidelines = userProfile.dietary_preferences || [];
 
   return {
@@ -283,22 +397,11 @@ const getNutritionFocus = (healthGoals?: string[]): string => {
   return 'balanced';
 };
 
-const getComplexityLevel = (skillLevel: string, timeConstraints: string): string => {
-  if (skillLevel === 'beginner' || timeConstraints === 'quick') {
-    return 'simple, 5 ingredients or less, minimal techniques';
-  }
-  if (skillLevel === 'intermediate' && timeConstraints === 'moderate') {
-    return 'moderate complexity, up to 8 ingredients, basic techniques';
-  }
-  if (skillLevel === 'advanced' || skillLevel === 'expert') {
-    return 'can be complex, multiple techniques allowed, gourmet ingredients ok';
-  }
-  return 'simple to moderate';
-};
-
 const getCalorieTarget = (userProfile: UserProfile | null, mealType: string): number => {
   if (!userProfile) {
-    return mealType === 'breakfast' ? 350 : mealType === 'lunch' ? 450 : mealType === 'dinner' ? 550 : 150;
+    return mealType === 'breakfast' ? 350 : 
+           mealType === 'lunch' ? 450 : 
+           mealType === 'dinner' ? 550 : 150;
   }
 
   const { age, gender, height_cm, weight_kg, activity_level, health_goals } = userProfile;
@@ -406,193 +509,13 @@ const updateMetrics = (responseTime: number, usage: any, success: boolean) => {
   } else {
     testMetrics.successRate = 
       (testMetrics.successRate * (testMetrics.totalRequests - 1)) / 
-      testMetrics.totalRequents;
+      testMetrics.totalRequests;
   }
   
   console.log('📊 Current metrics:', testMetrics);
 };
 
-// ✅ BRUTAL PANTRY-FOCUSED meal generation with enhanced QC
-export const generateAIMeal = async (
-  request: AIGenerationRequest, 
-  previousMeals?: Meal[]
-): Promise<Meal> => {
-  const prompt = buildPantryFocusedPrompt(request, previousMeals);
-  
-  console.log('🧪 Testing GPT-4o-mini with BRUTAL pantry focus...');
-  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
-  
-  const startTime = Date.now();
-  let success = false;
-  
-  try {
-    const response = await fetch(OPENAI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional chef specialized in maximizing pantry ingredient usage. You MUST prioritize pantry ingredients above all else. Always respond with valid JSON only. No explanations or additional text."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.1,
-        response_format: { type: "json_object" }
-      } as OpenAIRequest)
-    });
-
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    console.log(`⚡ Response time: ${responseTime}ms`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenAI Error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data: OpenAIResponse = await response.json();
-    
-    if (data.usage) {
-      const cost = calculateCost(data.usage);
-      console.log('💰 Token usage:', data.usage);
-      console.log('💰 Estimated cost:', `$${cost.toFixed(6)}`);
-    }
-    
-    const generatedText = data.choices[0]?.message?.content;
-    
-    if (!generatedText) {
-      throw new Error('No response from OpenAI');
-    }
-
-    console.log('✅ GPT-4o-mini pantry-focused response received');
-    success = true;
-    
-    updateMetrics(responseTime, data.usage, success);
-    
-    return parseMealFromResponse(generatedText, request);
-    
-  } catch (error) {
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    
-    updateMetrics(responseTime, null, success);
-    
-    console.error('❌ AI meal generation error:', error);
-    throw error;
-  }
-};
-
-// ✅ ENHANCED: Quality Control meal generation with proper validation
-export const generateAIMealWithQualityControl = async (
-  mealType: string,
-  pantryItems: PantryItem[],
-  userProfile: UserProfile | null,
-  previousMeals: Meal[] = []
-): Promise<Meal> => {
-  console.log(`🎯 Starting enhanced quality-controlled generation for ${mealType}`);
-  
-  const safePantryItems = Array.isArray(pantryItems) ? pantryItems : [];
-  const safePreviousMeals = Array.isArray(previousMeals) ? previousMeals : [];
-  
-  // ✅ Build policy object
-  const policy: MealPolicy = {
-    name: 'enhanced_quality',
-    dietaryRestrictions: userProfile?.dietary_restrictions || [],
-    allergens: userProfile?.allergens || [],
-    targetCalories: getCalorieTarget(userProfile, mealType),
-    minPantryUsage: 0.7,
-    cuisines: userProfile?.cuisine_preferences || [],
-    pantryItems: safePantryItems
-  };
-  
-  let attempts = 0;
-  const maxAttempts = 3;
-  let bestMeal: Meal | null = null;
-  let bestScore = 0;
-  
-  while (attempts < maxAttempts) {
-    attempts++;
-    console.log(`🎯 Enhanced generation attempt ${attempts}/${maxAttempts}`);
-    
-    try {
-      // Generate raw meal
-      const rawMeal = await generateAIMeal({
-        pantryItems: safePantryItems,
-        userProfile,
-        mealType,
-        preferences: userProfile?.dietary_preferences || [],
-        restrictions: userProfile?.dietary_restrictions || []
-      }, safePreviousMeals);
-      
-      // ✅ CRITICAL: Ensure meal has ingredients array
-      if (!rawMeal.ingredients || !Array.isArray(rawMeal.ingredients)) {
-        rawMeal.ingredients = [];
-        console.warn('⚠️ Generated meal had no ingredients array, creating empty array');
-      }
-      
-      // ✅ Quality Control validation - burada "cat" hatası düzeltildi
-      const qcResult = await validateMealQuality(rawMeal, policy, safePreviousMeals, attempts);
-      
-      console.log(`🔍 QC Result for attempt ${attempts}:`, {
-        isValid: qcResult.isValid,
-        reason: qcResult.reason,
-        score: qcResult.score
-      });
-
-      // Track best result
-      if (qcResult.score > bestScore) {
-        bestMeal = rawMeal;
-        bestScore = qcResult.score;
-      }
-
-      // Accept if valid and good enough
-      if (qcResult.isValid && qcResult.score > 0.7) {
-        console.log(`✅ Quality meal accepted on attempt ${attempts}`);
-        
-        // Save meal with quality data
-        const enhancedMeal = {
-          ...rawMeal,
-          qualityScore: qcResult.score,
-          qualityReason: qcResult.reason,
-          generationAttempts: attempts
-        };
-        
-        return enhancedMeal;
-      }
-      
-    } catch (error) {
-      console.error(`❌ Generation attempt ${attempts} failed:`, error);
-      if (attempts === maxAttempts) {
-        throw error;
-      }
-    }
-  }
-  
-  // Use best meal if no perfect match found
-  if (bestMeal && bestScore > 0.3) {
-    console.log(`⚠️ Using best meal with score ${bestScore}`);
-    return {
-      ...bestMeal,
-      qualityScore: bestScore,
-      qualityWarning: true,
-      generationAttempts: maxAttempts
-    };
-  }
-  
-  throw new Error('Failed to generate quality meal after maximum attempts');
-};
-
-// ✅ Build pantry-focused prompt (aynı kalıyor, sadece temizlendi)
+// Build pantry-focused prompt
 const buildPantryFocusedPrompt = (
   request: AIGenerationRequest, 
   previousMeals?: Meal[]
@@ -724,7 +647,7 @@ Respond with this exact JSON structure:
 }`;
 };
 
-// ✅ Parse meal function (düzeltildi)
+// Parse meal from response
 const parseMealFromResponse = (responseText: string, request: AIGenerationRequest): Meal => {
   try {
     const cleanedText = responseText
@@ -811,7 +734,197 @@ const getMealEmoji = (mealType: string, mealName: string): string => {
   }
 };
 
-// ✅ ADDED: Missing function that ai-meal-plan.tsx needs
+// ✅ MAIN EXPORT: Generate AI Meal
+export const generateAIMeal = async (
+  request: AIGenerationRequest, 
+  previousMeals?: Meal[]
+): Promise<Meal> => {
+  const prompt = buildPantryFocusedPrompt(request, previousMeals);
+  
+  console.log('🧪 Testing GPT-4o-mini with BRUTAL pantry focus...');
+  console.log('📊 Estimated tokens - Input:', estimateTokens(prompt));
+  
+  const startTime = Date.now();
+  let success = false;
+  
+  try {
+    const response = await fetch(OPENAI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional chef specialized in maximizing pantry ingredient usage. You MUST prioritize pantry ingredients above all else. Always respond with valid JSON only. No explanations or additional text."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1500,
+        temperature: 0.1,
+        response_format: { type: "json_object" }
+      } as OpenAIRequest)
+    });
+
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    console.log(`⚡ Response time: ${responseTime}ms`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ OpenAI Error:', errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data: OpenAIResponse = await response.json();
+    
+    if (data.usage) {
+      const cost = calculateCost(data.usage);
+      console.log('💰 Token usage:', data.usage);
+      console.log('💰 Estimated cost:', `$${cost.toFixed(6)}`);
+    }
+    
+    const generatedText = data.choices[0]?.message?.content;
+    
+    if (!generatedText) {
+      throw new Error('No response from OpenAI');
+    }
+
+    console.log('✅ GPT-4o-mini pantry-focused response received');
+    success = true;
+    
+    updateMetrics(responseTime, data.usage, success);
+    
+    return parseMealFromResponse(generatedText, request);
+    
+  } catch (error) {
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+    
+    updateMetrics(responseTime, null, success);
+    
+    console.error('❌ AI meal generation error:', error);
+    throw error;
+  }
+};
+
+// ✅ ENHANCED: Quality Control meal generation
+export const generateAIMealWithQualityControl = async (
+  mealType: string,
+  pantryItems: PantryItem[],
+  userProfile: UserProfile | null,
+  previousMeals: Meal[] = []
+): Promise<Meal> => {
+  console.log(`🎯 Starting enhanced quality-controlled generation for ${mealType}`);
+  
+  const safePantryItems = Array.isArray(pantryItems) ? pantryItems : [];
+  const safePreviousMeals = Array.isArray(previousMeals) ? previousMeals : [];
+  
+  // Build policy object with proper types
+  const policy: MealPolicy = {
+    name: 'enhanced_quality',
+    dietaryRestrictions: userProfile?.dietary_restrictions || [],
+    allergens: userProfile?.allergens || [],
+    targetCalories: getCalorieTarget(userProfile, mealType),
+    minPantryUsage: 0.7,
+    cuisines: userProfile?.cuisine_preferences || [],
+    pantryItems: safePantryItems,
+    culturalConstraints: [],
+    behaviorHints: {
+      preferredIngredients: [],
+      avoidedIngredients: [],
+      preferredComplexity: 'moderate',
+      preferredCookingTime: 'moderate',
+      flavorProfiles: [],
+      texturePreferences: []
+    }
+  };
+  
+  let attempts = 0;
+  const maxAttempts = 3;
+  let bestMeal: Meal | null = null;
+  let bestScore = 0;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log(`🎯 Enhanced generation attempt ${attempts}/${maxAttempts}`);
+    
+    try {
+      // Generate raw meal
+      const rawMeal = await generateAIMeal({
+        pantryItems: safePantryItems,
+        userProfile,
+        mealType,
+        preferences: userProfile?.dietary_preferences || [],
+        restrictions: userProfile?.dietary_restrictions || []
+      }, safePreviousMeals);
+      
+      // Ensure meal has ingredients array
+      if (!rawMeal.ingredients || !Array.isArray(rawMeal.ingredients)) {
+        rawMeal.ingredients = [];
+        console.warn('⚠️ Generated meal had no ingredients array, creating empty array');
+      }
+      
+      // Quality Control validation
+      const qcResult = await validateMealQuality(rawMeal, policy, safePreviousMeals, attempts);
+      
+      console.log(`🔍 QC Result for attempt ${attempts}:`, {
+        isValid: qcResult.isValid,
+        reason: qcResult.reason,
+        score: qcResult.score,
+        confidence: qcResult.confidenceLevel
+      });
+
+      // Track best result
+      if (qcResult.score > bestScore) {
+        bestMeal = rawMeal;
+        bestScore = qcResult.score;
+      }
+
+      // Accept if valid and good enough
+      if (qcResult.isValid && qcResult.score > 0.7) {
+        console.log(`✅ Quality meal accepted on attempt ${attempts}`);
+        
+        // Save meal with quality data
+        const enhancedMeal = {
+          ...rawMeal,
+          qualityScore: qcResult.score,
+          qualityReason: qcResult.reason,
+          generationAttempts: attempts
+        };
+        
+        return enhancedMeal;
+      }
+      
+    } catch (error) {
+      console.error(`❌ Generation attempt ${attempts} failed:`, error);
+      if (attempts === maxAttempts) {
+        throw error;
+      }
+    }
+  }
+  
+  // Use best meal if no perfect match found
+  if (bestMeal && bestScore > 0.3) {
+    console.log(`⚠️ Using best meal with score ${bestScore}`);
+    return {
+      ...bestMeal,
+      qualityScore: bestScore,
+      qualityWarning: true,
+      generationAttempts: maxAttempts
+    };
+  }
+  
+  throw new Error('Failed to generate quality meal after maximum attempts');
+};
+
+// ✅ Calculate average match score
 export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
   const validMeals = meals.filter(Boolean) as Meal[];
   if (validMeals.length === 0) return 0;
@@ -823,11 +936,53 @@ export const calculateAverageMatchScore = (meals: (Meal | null)[]): number => {
   return Math.round(totalMatchPercentage / validMeals.length);
 };
 
-// Export other functions
-export const generateAlternativeMeal = generateAIMeal; // Simplified
-export const generateAIMealPlan = async () => { throw new Error('Not implemented yet'); };
-export const getQualityMetrics = () => ({ hasQualityData: false });
+// ✅ Generate alternative meal (simplified)
+export const generateAlternativeMeal = generateAIMeal;
+
+// ✅ Generate full meal plan
+export const generateAIMealPlan = async (
+  pantryItems: PantryItem[],
+  userProfile: UserProfile | null
+): Promise<{
+  breakfast: Meal | null;
+  lunch: Meal | null;
+  dinner: Meal | null;
+  snacks: Meal[];
+}> => {
+  console.log('🧪 Generating full meal plan with quality control...');
+  
+  try {
+    const breakfast = await generateAIMealWithQualityControl('breakfast', pantryItems, userProfile, []);
+    const lunch = await generateAIMealWithQualityControl('lunch', pantryItems, userProfile, [breakfast]);
+    const dinner = await generateAIMealWithQualityControl('dinner', pantryItems, userProfile, [breakfast, lunch]);
+    const snack = await generateAIMealWithQualityControl('snack', pantryItems, userProfile, [breakfast, lunch, dinner]);
+
+    return {
+      breakfast,
+      lunch,
+      dinner,
+      snacks: [snack]
+    };
+  } catch (error) {
+    console.error('Error generating AI meal plan:', error);
+    throw error;
+  }
+};
+
+// ✅ Get quality metrics
+export const getQualityMetrics = (meal: Meal) => {
+  return {
+    hasQualityData: !!(meal as any).qualityScore,
+    score: (meal as any).qualityScore,
+    warning: (meal as any).qualityWarning,
+    attempts: (meal as any).generationAttempts
+  };
+};
+
+// ✅ Get test metrics
 export const getTestMetrics = (): TestMetrics => ({ ...testMetrics });
+
+// ✅ Reset test metrics
 export const resetTestMetrics = (): void => {
   testMetrics = {
     totalRequests: 0,
