@@ -1,6 +1,7 @@
 // lib/meal-plan/api-clients/types.ts
 
 import { PantryItem, Meal } from '../types';
+import { MealPolicy, QCValidationResult } from './types';
 
 // ============================================
 // EXISTING SPOONACULAR/RECIPE TYPES
