@@ -62,7 +62,7 @@ import {
   generateAIMeal,
   generateAIMealWithQualityControl,
   calculateAverageMatchScore 
-} from '@/lib/meal-plan/ai-generation';
+} from '@/lib/meal-plan/api-clients/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
 
