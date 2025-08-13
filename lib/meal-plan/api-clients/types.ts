@@ -1,7 +1,136 @@
 // lib/meal-plan/api-clients/types.ts
 
-import { PantryItem, Meal } from '../types';
-import { MealPolicy, QCValidationResult } from './types';
+// ✅ DÜZELTME: Döngüsel import'u kaldırdık, types'ı direkt burada tanımlıyoruz
+// import { PantryItem, Meal } from '../types'; // KALDIRILDI
+// import { MealPolicy, QCValidationResult } from './types'; // KALDIRILDI - zaten burada tanımlı
+
+// ============================================
+// BASE TYPES (from ../types.ts if needed)
+// ============================================
+
+export interface PantryItem {
+  id: string;
+  user_id: string;
+  name: string;
+  quantity: number;
+  unit?: string;
+  category?: string;
+  expiry_date?: string;
+  purchase_date?: string;
+  location?: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Ingredient {
+  name: string;
+  amount: number;
+  unit: string;
+  category?: string;
+  fromPantry?: boolean;
+}
+
+export interface Meal {
+  id: string;
+  name: string;
+  ingredients: Ingredient[];
+  calories: number;
+  protein: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  prepTime?: number;
+  cookTime?: number;
+  servings?: number;
+  difficulty?: string;
+  emoji?: string;
+  category?: string;
+  tags?: string[];
+  instructions?: string[];
+  source?: 'ai_generated' | 'spoonacular' | 'user_created' | 'database';
+  created_at?: string;
+  pantryUsagePercentage?: number;
+  shoppingListItems?: string[];
+  matchPercentage?: number;
+  pantryMatch?: number;
+  totalIngredients?: number;
+  missingIngredients?: string[];
+  qualityScore?: number;
+  qualityReason?: string;
+  qualityWarning?: boolean;
+  generationAttempts?: number;
+}
+
+export interface MealPlan {
+  daily: {
+    breakfast: Meal | null;
+    lunch: Meal | null;
+    dinner: Meal | null;
+    snacks: Meal[];
+    totalCalories: number;
+    totalProtein: number;
+    optimizationScore: number;
+    generatedAt: string;
+    regenerationHistory?: Record<string, number>;
+  };
+  weekly?: {
+    [key: string]: {
+      breakfast: Meal | null;
+      lunch: Meal | null;
+      dinner: Meal | null;
+      snacks: Meal[];
+    };
+  };
+}
+
+export interface UserProfile {
+  id: string;
+  email?: string;
+  full_name?: string;
+  dietary_restrictions?: string[];
+  dietary_preferences?: string[];
+  allergens?: string[];
+  cuisine_preferences?: string[];
+  cooking_skill_level?: string;
+  activity_level?: string;
+  health_goals?: string[];
+  age?: number;
+  gender?: string;
+  height_cm?: number;
+  weight_kg?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PantryMetrics {
+  totalItems: number;
+  expiringItems: number;
+  expiredItems: number;
+  categories: Record<string, number>;
+  healthScore?: number;
+  varietyScore?: number;
+  freshness?: number;
+}
+
+export interface AIGenerationRequest {
+  pantryItems: PantryItem[];
+  userProfile: UserProfile | null;
+  mealType: string;
+  preferences: string[];
+  restrictions: string[];
+  targetCalories?: number;
+  targetProtein?: number;
+}
+
+export interface AIGenerationResponse {
+  meal: Meal;
+  confidence: number;
+  alternativeOptions?: Meal[];
+  reasoning?: string;
+}
 
 // ============================================
 // EXISTING SPOONACULAR/RECIPE TYPES
@@ -101,23 +230,6 @@ export interface RecipeApiClient {
 // NEW AI GENERATION & QUALITY CONTROL TYPES
 // ============================================
 
-// ✅ Policy Interface for AI Generation
-export interface MealPolicy {
-  name: string;
-  dietaryRestrictions: string[];
-  allergens: string[];
-  targetCalories: number;
-  preferredModel?: string;
-  minPantryUsage: number;
-  cuisines: string[];
-  pantryItems?: PantryItem[];
-  culturalConstraints?: string[];     // Cultural rules (e.g., no seafood for breakfast)
-  pantryCulture?: string;              // Detected culture from pantry
-  behaviorHints?: UserBehaviorHints;   // Learned user preferences
-  seasonalPreferences?: SeasonalPreferences;
-  mealTypeRules?: MealTypeRules;
-}
-
 // ✅ User Behavior Hints for AI
 export interface UserBehaviorHints {
   preferredIngredients: string[];
@@ -171,6 +283,23 @@ export interface MealTypeRules {
   };
 }
 
+// ✅ Policy Interface for AI Generation
+export interface MealPolicy {
+  name: string;
+  dietaryRestrictions: string[];
+  allergens: string[];
+  targetCalories: number;
+  preferredModel?: string;
+  minPantryUsage: number;
+  cuisines: string[];
+  pantryItems?: PantryItem[];
+  culturalConstraints?: string[];
+  pantryCulture?: string;
+  behaviorHints?: UserBehaviorHints;
+  seasonalPreferences?: SeasonalPreferences;
+  mealTypeRules?: MealTypeRules;
+}
+
 // ✅ QC Validation Result
 export interface QCValidationResult {
   isValid: boolean;
@@ -204,19 +333,6 @@ export interface EnhancedMeal extends Meal {
   sustainabilityScore?: number;
 }
 
-// ✅ User Behavior Profile for Learning
-export interface UserBehaviorProfile {
-  userId: string;
-  preferredIngredients: string[];
-  avoidedIngredients: string[];
-  cuisineRatings: Record<string, number>;
-  mealComplexityPreference: 'simple' | 'moderate' | 'complex';
-  cookingTimePreference: 'quick' | 'moderate' | 'elaborate';
-  regenerationPatterns: RegenerationPattern;
-  mealRatings: MealRatingHistory[];
-  dietaryJourney: DietaryJourney;
-}
-
 // ✅ Regeneration Pattern Analysis
 export interface RegenerationPattern {
   mostRegeneratedMealTypes: string[];
@@ -248,6 +364,29 @@ export interface DietaryJourney {
   }>;
 }
 
+// ✅ User Behavior Profile for Learning
+export interface UserBehaviorProfile {
+  userId: string;
+  preferredIngredients: string[];
+  avoidedIngredients: string[];
+  cuisineRatings: Record<string, number>;
+  mealComplexityPreference: 'simple' | 'moderate' | 'complex';
+  cookingTimePreference: 'quick' | 'moderate' | 'elaborate';
+  regenerationPatterns: RegenerationPattern;
+  mealRatings: MealRatingHistory[];
+  dietaryJourney: DietaryJourney;
+}
+
+// ✅ Cultural Meal Preferences
+export interface CulturalMealPreferences {
+  allowedIngredients: string[];
+  forbiddenIngredients: string[];
+  preferredCombinations: string[][];
+  avoidedCombinations: string[][];
+  typicalDishes: string[];
+  cookingMethods: string[];
+}
+
 // ✅ Cultural Learning Model
 export interface CulturalLearningModel {
   detectedCultures: string[];
@@ -259,16 +398,6 @@ export interface CulturalLearningModel {
   cookingMethodPreferences: Record<string, number>;
   spiceToleranceLevel: 1 | 2 | 3 | 4 | 5;
   fusionAcceptance: boolean;
-}
-
-// ✅ Cultural Meal Preferences
-export interface CulturalMealPreferences {
-  allowedIngredients: string[];
-  forbiddenIngredients: string[];
-  preferredCombinations: string[][];
-  avoidedCombinations: string[][];
-  typicalDishes: string[];
-  cookingMethods: string[];
 }
 
 // ✅ Meal Loading States
@@ -283,16 +412,13 @@ export interface MealLoadingStates {
   error: string | null;
 }
 
-// ✅ Agent Learning Data
-export interface AgentLearningData {
-  userBehavior: UserBehaviorProfile;
-  culturalModel: CulturalLearningModel;
-  timestamp: string;
-  version: string;
-  confidence: number;
-  dataPoints: number;
-  lastUpdated: string;
-  insights: AgentInsights;
+// ✅ Nutrition Balance
+export interface NutritionBalance {
+  proteinPercentage: number;
+  carbsPercentage: number;
+  fatPercentage: number;
+  fiberGramsPerDay: number;
+  micronutrientScore: number;
 }
 
 // ✅ Agent Insights
@@ -307,13 +433,16 @@ export interface AgentInsights {
   shoppingOptimizations: string[];
 }
 
-// ✅ Nutrition Balance
-export interface NutritionBalance {
-  proteinPercentage: number;
-  carbsPercentage: number;
-  fatPercentage: number;
-  fiberGramsPerDay: number;
-  micronutrientScore: number;
+// ✅ Agent Learning Data
+export interface AgentLearningData {
+  userBehavior: UserBehaviorProfile;
+  culturalModel: CulturalLearningModel;
+  timestamp: string;
+  version: string;
+  confidence: number;
+  dataPoints: number;
+  lastUpdated: string;
+  insights: AgentInsights;
 }
 
 // ✅ AI Generation Metrics
@@ -370,27 +499,70 @@ export interface MealPlanAnalytics {
   achievements: string[];
 }
 
-// ✅ Export all types for easy import
-export type {
-  MealPolicy,
-  UserBehaviorHints,
-  FlavorProfile,
-  TexturePreference,
-  SeasonalPreferences,
-  MealTypeRules,
-  QCValidationResult,
-  EnhancedMeal,
-  UserBehaviorProfile,
-  RegenerationPattern,
-  MealRatingHistory,
-  DietaryJourney,
-  CulturalLearningModel,
-  CulturalMealPreferences,
-  MealLoadingStates,
-  AgentLearningData,
-  AgentInsights,
-  NutritionBalance,
-  AIGenerationMetrics,
-  PantryOptimization,
-  MealPlanAnalytics
-};
+// ✅ Shopping List Item
+export interface ShoppingListItem {
+  id?: string;
+  user_id: string;
+  item_name: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  is_completed: boolean;
+  priority?: 'low' | 'medium' | 'high';
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ✅ Nutrition Log Entry
+export interface NutritionLogEntry {
+  id?: string;
+  user_id: string;
+  date: string;
+  meal_type: string;
+  food_name: string;
+  quantity: number;
+  unit: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  created_at?: string;
+}
+
+// ✅ Recipe Review
+export interface RecipeReview {
+  id?: string;
+  user_id: string;
+  recipe_id: string;
+  rating: number;
+  review?: string;
+  difficulty_rating?: number;
+  would_make_again: boolean;
+  tags?: string[];
+  created_at?: string;
+}
+
+// ✅ User Preferences (Extended)
+export interface UserPreferences {
+  theme?: 'light' | 'dark' | 'auto';
+  language?: string;
+  measurementSystem?: 'metric' | 'imperial';
+  notifications?: {
+    mealReminders: boolean;
+    expiryAlerts: boolean;
+    weeklyReports: boolean;
+    shoppingReminders: boolean;
+  };
+  privacy?: {
+    shareData: boolean;
+    allowAnalytics: boolean;
+    publicProfile: boolean;
+  };
+}
+
+// ✅ Export all types
+export * from './types';
