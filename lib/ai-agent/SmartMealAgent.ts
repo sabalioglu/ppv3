@@ -23,7 +23,12 @@ export class SmartMealAgent {
     this.initializePolicy(userProfile);
   }
 
-  private initializePolicy(userProfile: UserProfile) {
+  buildPrompt(
+    mealType: string, 
+    pantry: PantryItem[], 
+    previousMeals: Meal[],
+    opts?: { targetCuisine?: string; perSlot?: { kcal:number; protein:number; carbs:number; fat:number } }
+  ) {
     this.policy = {
       name: 'smart_agent_policy',
       dietaryRestrictions: userProfile.dietary_restrictions || [],
