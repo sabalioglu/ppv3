@@ -1,7 +1,62 @@
-//lib/meal-plan/pantry-analysis.ts
+// lib/meal-plan/pantry-analysis.ts
 // Enhanced pantry analysis with better insights generation
 import { PantryItem, PantryMetrics, PantryComposition, PantryInsight } from './types';
-// ✅ Icon import'ları kaldırıldı - artık string olarak kullanılacak
+
+// ✅ ADDED: Missing PantryMatchResult interface and calculatePantryMatch function
+export interface PantryMatchResult {
+  matchPercentage: number;
+  matchCount: number;
+  totalIngredients: number;
+  missingIngredients: string[];
+}
+
+export function calculatePantryMatch(
+  mealIngredients: any[], 
+  pantryItems: PantryItem[]
+): PantryMatchResult {
+  if (!mealIngredients || mealIngredients.length === 0) {
+    return {
+      matchPercentage: 0,
+      matchCount: 0,
+      totalIngredients: 0,
+      missingIngredients: []
+    };
+  }
+
+  const pantryNames = pantryItems.map(item => item.name.toLowerCase().trim());
+  let matchCount = 0;
+  const missingIngredients: string[] = [];
+
+  for (const ingredient of mealIngredients) {
+    const ingredientName = (ingredient.name || '').toLowerCase().trim();
+    
+    // Check for exact or partial match
+    const isInPantry = pantryNames.some(pantryName => 
+      pantryName.includes(ingredientName) || 
+      ingredientName.includes(pantryName) ||
+      ingredientName.split(' ').some(part => pantryName.includes(part))
+    );
+
+    if (isInPantry) {
+      matchCount++;
+      // Mark ingredient as from pantry
+      if (typeof ingredient === 'object') {
+        ingredient.fromPantry = true;
+      }
+    } else {
+      missingIngredients.push(ingredient.name || 'Unknown ingredient');
+    }
+  }
+
+  const matchPercentage = Math.round((matchCount / mealIngredients.length) * 100);
+
+  return {
+    matchPercentage,
+    matchCount,
+    totalIngredients: mealIngredients.length,
+    missingIngredients
+  };
+}
 
 export const calculatePantryMetrics = (items: PantryItem[]): PantryMetrics => {
   const today = new Date();
@@ -153,7 +208,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
     const expiredItems = getExpiredItems(pantryItems);
     insights.push({
       type: 'error',
-      icon: 'AlertCircle', // ✅ String instead of component
+      icon: 'AlertCircle',
       title: 'Expired Items Found',
       message: `${metrics.expiredItems} items have expired and should be removed`,
       items: expiredItems.map(item => item.name).slice(0, 3),
@@ -175,7 +230,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
     
     insights.push({
       type: 'warning',
-      icon: 'AlertCircle', // ✅ String instead of component
+      icon: 'AlertCircle',
       title: urgentItems.length > 0 ? 'Items Expiring Today!' : 'Items Expiring Soon',
       message: `${metrics.expiringItems} items expiring in the next 3 days`,
       items: expiringItems.map(item => {
@@ -195,7 +250,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (lowStockItems.length > 0) {
     insights.push({
       type: 'low_stock',
-      icon: 'TrendingDown', // ✅ String instead of component
+      icon: 'TrendingDown',
       title: 'Low Stock Alert',
       message: `${lowStockItems.length} items are running low`,
       items: lowStockItems.map(item => `${item.name} (${item.quantity} ${item.unit || 'units'})`).slice(0, 3),
@@ -211,7 +266,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Protein') || (metrics.categories['Protein'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
-      icon: 'Package', // ✅ String instead of component
+      icon: 'Package',
       title: 'Low on Protein Sources',
       message: 'Consider adding more protein variety to your pantry',
       action: 'Shop for proteins',
@@ -223,7 +278,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Vegetables') || (metrics.categories['Vegetables'] || 0) < 5) {
     insights.push({
       type: 'suggestion',
-      icon: 'Package', // ✅ String instead of component
+      icon: 'Package',
       title: 'Need More Vegetables',
       message: 'A variety of vegetables ensures balanced nutrition',
       action: 'Shop for vegetables',
@@ -235,7 +290,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (!categories.includes('Fruits') || (metrics.categories['Fruits'] || 0) < 3) {
     insights.push({
       type: 'suggestion',
-      icon: 'Info', // ✅ String instead of component
+      icon: 'Info',
       title: 'Add Fresh Fruits',
       message: 'Fruits provide essential vitamins and natural sweetness',
       action: 'Shop for fruits',
@@ -248,7 +303,7 @@ export const generatePantryInsights = (pantryItems: PantryItem[], metrics: Pantr
   if (metrics.totalItems > 20 && metrics.expiringItems === 0 && metrics.expiredItems === 0) {
     insights.push({
       type: 'suggestion',
-      icon: 'Package', // ✅ String instead of component
+      icon: 'Package',
       title: 'Well-Stocked Pantry!',
       message: 'Your pantry is well-organized with no expiring items',
       priority: 'low',
@@ -289,3 +344,5 @@ export const getPantryHealthScore = (items: PantryItem[]): number => {
   return Math.max(0, Math.min(100, score));
 };
 
+// ✅ ADDED: Export PantryMatchResult type for other files
+export type { PantryMatchResult };
