@@ -1,5 +1,4 @@
-//app/ai-meal-plan.tsx
-// Enhanced AI Meal Plan with individual meal regeneration capabilities
+// app/ai-meal-plan.tsx - Sadece import kısmı düzeltildi
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -28,29 +27,47 @@ import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useMealPlanStore, useMealPlanAutoLoad } from '@/lib/meal-plan/store';
 
-// ✅ FIXED: Proper imports restored
+// ✅ DÜZELTME: types.ts'den import (api-clients/types değil)
 import type { 
   Meal, 
   PantryItem, 
   MealPlan, 
-  PantryMetrics, 
   UserProfile,
-  MealLoadingStates
 } from '@/lib/meal-plan/types';
 
-// ✅ FIXED: Proper utility imports
+// ✅ DÜZELTME: PantryMetrics ve MealLoadingStates için ayrı tanımlama
+interface PantryMetrics {
+  totalItems: number;
+  expiringItems: number;
+  expiredItems: number;
+  categories: Record<string, number>;
+}
+
+interface MealLoadingStates {
+  breakfast: boolean;
+  lunch: boolean;
+  dinner: boolean;
+  snacks: boolean;
+  initial: boolean;
+}
+
+// ✅ Utility imports düzeltildi
 import { 
   calculatePantryMetrics, 
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 
+// ✅ AI generation imports düzeltildi
 import { 
   generateAIMeal,
   generateAIMealWithQualityControl,
   calculateAverageMatchScore 
-} from '@/lib/meal-plan/api-clients/ai-generation';
+} from '@/lib/meal-plan/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
+
+// ... Geri kalan kod aynı kalacak
+
 
 // ✅ GEÇİCİ MOCK COMPONENTS
 const MealDetailModal = ({ visible, onClose, meal, onViewRecipe, onAddToNutrition, onAddToShopping }: any) => {
