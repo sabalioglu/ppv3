@@ -1,6 +1,6 @@
 //lib/meal-plan/api-clients/ai-generation.ts
 // AI meal generation using OpenAI GPT-4o-mini with BRUTAL pantry-focused approach + anti-duplicate logic
-import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse } from '../types';
+import { PantryItem, UserProfile, Meal, AIGenerationRequest, AIGenerationResponse, MealPolicy, QCValidationResult } from './types';
 import { calculatePantryMatch } from '../pantry-analysis'; // ✅ Yol düzeltildi
 
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
