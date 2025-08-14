@@ -1,3 +1,4 @@
+//lib/policy/cultural-rrules.ts
 // Cultural rules for meal-time conventions (breakfast seafood, etc.)
 export type BreakfastSeafoodMode = 'allow'|'avoid'|'contextual';
 
