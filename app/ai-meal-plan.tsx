@@ -911,10 +911,10 @@ export default function AIMealPlan() {
               Kişiselleştirilmiş menü önerileri, beslenme hedefleri ve akıllı pantry eşleştirmesi yakında geliyor
             </Text>
             <View style={styles.featuresList}>
-              <Text style={styles.featureItem}>🍽️ Günlük menü planlaması</Text>
-              <Text style={styles.featureItem}>🎯 Beslenme hedefi takibi</Text>
-              <Text style={styles.featureItem}>🤖 AI destekli öneriler</Text>
-              <Text style={styles.featureItem}>🛒 Otomatik alışveriş listesi</Text>
+              <Text style={styles.featureItem}>🍽️ Daily Meal Planning</Text>
+              <Text style={styles.featureItem}>🎯 Nutrition Tracking</Text>
+              <Text style={styles.featureItem}>🤖 AI Based Meal - Recipe Suggestions</Text>
+              <Text style={styles.featureItem}>🛒 Automatic Shopping List</Text>
             </View>
           </View>
         )}
