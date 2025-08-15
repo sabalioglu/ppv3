@@ -1,3 +1,4 @@
+//lib/supabase-functions.ts 
 import { supabase } from './supabase';
 
 /**
