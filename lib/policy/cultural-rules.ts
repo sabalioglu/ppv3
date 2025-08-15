@@ -1,13 +1,12 @@
-// lib/policy/cultural-rules.ts - COMPLETE OPTIMIZED VERSION
+// lib/policy/cultural-rules.ts - COMPLETE FIXED VERSION WITH SAFETY CHECKS
 
 // Safe import handling
-let CULTURAL_KNOWLEDGE_BASE: any;
+let CULTURAL_KNOWLEDGE_BASE: any = null;
 try {
   const db = require('../cultural-intelligence/cultural-database');
   CULTURAL_KNOWLEDGE_BASE = db.CULTURAL_KNOWLEDGE_BASE;
 } catch (e) {
   console.warn('Cultural database not available, using fallback patterns');
-  CULTURAL_KNOWLEDGE_BASE = null;
 }
 
 // Type definitions
@@ -31,6 +30,24 @@ export interface CulturalProfile {
   religiousRestrictions?: string[];
   personalPreferences?: string[];
 }
+
+// 🛡️ SAFETY HELPER FUNCTIONS
+const safeObjectAccess = (obj: any, key: any, fallback: any = null): any => {
+  if (obj === null || obj === undefined) return fallback;
+  if (key === null || key === undefined) return fallback;
+  if (typeof key === 'string' && key === 'undefined') return fallback;
+  return obj[key] ?? fallback;
+};
+
+const isValidCuisine = (cuisine: any): cuisine is CulturalCuisine => {
+  const validCuisines: CulturalCuisine[] = ['turkish', 'japanese', 'american', 'mediterranean', 'indian', 'chinese', 'middle_eastern', 'european'];
+  return validCuisines.includes(cuisine);
+};
+
+const isValidMealType = (mealType: any): mealType is MealType => {
+  const validMealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+  return validMealTypes.includes(mealType);
+};
 
 // COMPREHENSIVE MEAL PATTERNS FOR ALL CUISINES
 export const CULTURAL_MEAL_PATTERNS: Record<CulturalCuisine, Record<MealType, CulturalMealPattern>> = {
@@ -540,14 +557,23 @@ export const REGIONAL_FOOD_PREFERENCES = {
   }
 };
 
-// ⚡ OPTIMIZED detectCulturalCuisine function
+// ⚡ FIXED detectCulturalCuisine with safety checks
 export const detectCulturalCuisine = (
   meal: any,
-  userPreferences: string[] = []
+  userPreferences: any = []
 ): CulturalCuisine => {
-  const ingredients = meal.ingredients || [];
-  const cookingMethods = meal.cookingMethods || [];
-  const spices = meal.spices || [];
+  // 🛡️ Input validation
+  if (!meal || typeof meal !== 'object') {
+    console.warn('detectCulturalCuisine: Invalid meal object, using default');
+    return 'american';
+  }
+
+  // Ensure userPreferences is an array
+  const safePreferences = Array.isArray(userPreferences) ? userPreferences : [];
+  
+  const ingredients = Array.isArray(meal.ingredients) ? meal.ingredients : [];
+  const cookingMethods = Array.isArray(meal.cookingMethods) ? meal.cookingMethods : [];
+  const spices = Array.isArray(meal.spices) ? meal.spices : [];
   
   let scores: Record<CulturalCuisine, number> = {
     turkish: 0,
@@ -560,136 +586,85 @@ export const detectCulturalCuisine = (
     european: 0
   };
 
-  // Use CULTURAL_KNOWLEDGE_BASE if available
-  if (CULTURAL_KNOWLEDGE_BASE && CULTURAL_KNOWLEDGE_BASE.spices) {
-    Object.entries(CULTURAL_KNOWLEDGE_BASE.spices).forEach(([cuisine, pattern]: [string, any]) => {
-      if (!(cuisine in scores)) return;
-      
-      if (pattern && pattern.essential) {
-        const essentialMatches = pattern.essential.filter((spice: string) => 
-          spices.some((s: string) => s?.toLowerCase().includes(spice.toLowerCase()))
-        ).length;
-        scores[cuisine as CulturalCuisine] += essentialMatches * 3;
-      }
-      
-      if (pattern && pattern.common) {
-        const commonMatches = pattern.common.filter((spice: string) => 
-          spices.some((s: string) => s?.toLowerCase().includes(spice.toLowerCase()))
-        ).length;
-        scores[cuisine as CulturalCuisine] += commonMatches * 1;
-      }
-    });
+  // Score based on database if available
+  if (CULTURAL_KNOWLEDGE_BASE?.spices) {
+    try {
+      Object.entries(CULTURAL_KNOWLEDGE_BASE.spices).forEach(([cuisine, pattern]: [string, any]) => {
+        if (!isValidCuisine(cuisine)) return;
+        
+        if (pattern?.essential && Array.isArray(pattern.essential)) {
+          const essentialMatches = pattern.essential.filter((spice: any) => 
+            typeof spice === 'string' && spices.some((s: any) => 
+              typeof s === 'string' && s.toLowerCase().includes(spice.toLowerCase())
+            )
+          ).length;
+          scores[cuisine] += essentialMatches * 3;
+        }
+        
+        if (pattern?.common && Array.isArray(pattern.common)) {
+          const commonMatches = pattern.common.filter((spice: any) => 
+            typeof spice === 'string' && spices.some((s: any) => 
+              typeof s === 'string' && s.toLowerCase().includes(spice.toLowerCase())
+            )
+          ).length;
+          scores[cuisine] += commonMatches * 1;
+        }
+      });
+    } catch (e) {
+      console.warn('Error processing spices from database:', e);
+    }
   }
 
-  if (CULTURAL_KNOWLEDGE_BASE && CULTURAL_KNOWLEDGE_BASE.cookingMethods) {
-    Object.entries(CULTURAL_KNOWLEDGE_BASE.cookingMethods).forEach(([cuisine, methods]: [string, any]) => {
-      if (!(cuisine in scores)) return;
-      
-      if (methods && methods.primary) {
-        const primaryMatches = methods.primary.filter((method: string) => 
-          cookingMethods.some((m: string) => m?.toLowerCase().includes(method.toLowerCase()))
-        ).length;
-        scores[cuisine as CulturalCuisine] += primaryMatches * 2;
-      }
-      
-      if (methods && methods.signature) {
-        const signatureMatches = methods.signature.filter((sig: string) => 
-          cookingMethods.some((m: string) => m?.toLowerCase().includes(sig.toLowerCase()))
-        ).length;
-        scores[cuisine as CulturalCuisine] += signatureMatches * 3;
-      }
-    });
-  }
-
-  // Fallback to local patterns if database not available or no scores yet
-  if (!CULTURAL_KNOWLEDGE_BASE || Object.values(scores).every(s => s === 0)) {
+  // Fallback to local patterns
+  if (Object.values(scores).every(s => s === 0)) {
     Object.entries(CULTURAL_SPICE_PATTERNS).forEach(([cuisine, pattern]) => {
-      if (!(cuisine in scores)) return;
+      if (!isValidCuisine(cuisine)) return;
       
       pattern.essential.forEach(spice => {
-        if (spices.some((s: string) => s?.toLowerCase().includes(spice.toLowerCase()))) {
-          scores[cuisine as CulturalCuisine] += 3;
-        }
-      });
-      
-      pattern.common.forEach(spice => {
-        if (spices.some((s: string) => s?.toLowerCase().includes(spice.toLowerCase()))) {
-          scores[cuisine as CulturalCuisine] += 1;
-        }
-      });
-    });
-
-    Object.entries(CULTURAL_COOKING_METHODS).forEach(([cuisine, methods]) => {
-      if (!(cuisine in scores)) return;
-      
-      methods.preferred.forEach(method => {
-        if (cookingMethods.some((m: string) => m?.toLowerCase().includes(method.toLowerCase()))) {
-          scores[cuisine as CulturalCuisine] += 2;
-        }
-      });
-      
-      methods.signature.forEach(sig => {
-        if (cookingMethods.some((m: string) => m?.toLowerCase().includes(sig.toLowerCase()))) {
-          scores[cuisine as CulturalCuisine] += 3;
+        if (spices.some((s: any) => typeof s === 'string' && s.toLowerCase().includes(spice.toLowerCase()))) {
+          scores[cuisine] += 3;
         }
       });
     });
   }
 
-  // Score based on ingredient analysis
-  if (ingredients.length > 0) {
-    const cuisineIndicators = {
-      turkish: ['beyaz peynir', 'sucuk', 'simit', 'börek', 'kebab', 'baklava', 'lahmacun'],
-      japanese: ['miso', 'soy sauce', 'nori', 'sushi', 'tofu', 'ramen', 'tempura'],
-      indian: ['curry', 'dal', 'chapati', 'naan', 'paneer', 'masala', 'tandoori'],
-      mediterranean: ['feta', 'olive oil', 'hummus', 'pita', 'tzatziki', 'tahini'],
-      chinese: ['bok choy', 'dim sum', 'wonton', 'hoisin', 'five spice', 'soy sauce'],
-      middle_eastern: ['tahini', 'falafel', 'shawarma', 'labneh', 'zaatar', 'halloumi'],
-      american: ['burger', 'hot dog', 'bbq', 'mac and cheese', 'buffalo', 'ranch'],
-      european: ['baguette', 'croissant', 'pasta', 'risotto', 'schnitzel', 'paella']
-    };
+  // Score based on ingredients
+  const cuisineIndicators: Record<CulturalCuisine, string[]> = {
+    turkish: ['beyaz peynir', 'sucuk', 'simit', 'börek', 'kebab'],
+    japanese: ['miso', 'soy sauce', 'nori', 'sushi', 'tofu'],
+    indian: ['curry', 'dal', 'chapati', 'naan', 'paneer'],
+    mediterranean: ['feta', 'olive oil', 'hummus', 'pita', 'tzatziki'],
+    chinese: ['bok choy', 'dim sum', 'wonton', 'hoisin', 'five spice'],
+    middle_eastern: ['tahini', 'falafel', 'shawarma', 'labneh', 'zaatar'],
+    american: ['burger', 'hot dog', 'bbq', 'mac and cheese', 'buffalo'],
+    european: ['baguette', 'croissant', 'pasta', 'risotto', 'schnitzel']
+  };
 
-    Object.entries(cuisineIndicators).forEach(([cuisine, indicators]) => {
-      if (ingredients.some((ing: string) => 
-        indicators.some(indicator => ing?.toLowerCase().includes(indicator.toLowerCase()))
-      )) {
-        scores[cuisine as CulturalCuisine] += 5;
-      }
-    });
-  }
+  Object.entries(cuisineIndicators).forEach(([cuisine, indicators]) => {
+    if (!isValidCuisine(cuisine)) return;
+    
+    if (ingredients.some((ing: any) => 
+      typeof ing === 'string' && indicators.some(indicator => 
+        ing.toLowerCase().includes(indicator.toLowerCase())
+      )
+    )) {
+      scores[cuisine] += 5;
+    }
+  });
 
-  // User preference scoring
-  userPreferences.forEach(pref => {
-    if (!pref) return;
+  // Score based on user preferences
+  safePreferences.forEach((pref: any) => {
+    if (typeof pref !== 'string') return;
     const lowerPref = pref.toLowerCase();
     
-    const preferenceMap: Record<string, CulturalCuisine[]> = {
-      'turkish': ['turkish'],
-      'türk': ['turkish'],
-      'japanese': ['japanese'],
-      'japan': ['japanese'],
-      'indian': ['indian'],
-      'curry': ['indian'],
-      'mediterranean': ['mediterranean'],
-      'greek': ['mediterranean'],
-      'italian': ['mediterranean'],
-      'chinese': ['chinese'],
-      'asian': ['chinese', 'japanese'],
-      'middle eastern': ['middle_eastern'],
-      'arabic': ['middle_eastern'],
-      'lebanese': ['middle_eastern'],
-      'american': ['american'],
-      'usa': ['american'],
-      'european': ['european'],
-      'french': ['european'],
-      'german': ['european']
-    };
-
-    Object.entries(preferenceMap).forEach(([keyword, cuisines]) => {
-      if (lowerPref.includes(keyword)) {
-        cuisines.forEach(c => scores[c] += 10);
-      }
-    });
+    if (lowerPref.includes('turkish') || lowerPref.includes('türk')) scores.turkish += 10;
+    if (lowerPref.includes('japanese') || lowerPref.includes('japan')) scores.japanese += 10;
+    if (lowerPref.includes('indian') || lowerPref.includes('curry')) scores.indian += 10;
+    if (lowerPref.includes('mediterranean') || lowerPref.includes('greek')) scores.mediterranean += 10;
+    if (lowerPref.includes('chinese') || lowerPref.includes('asian')) scores.chinese += 10;
+    if (lowerPref.includes('middle eastern') || lowerPref.includes('arabic')) scores.middle_eastern += 10;
+    if (lowerPref.includes('american') || lowerPref.includes('usa')) scores.american += 10;
+    if (lowerPref.includes('european') || lowerPref.includes('french')) scores.european += 10;
   });
 
   // Find highest scoring cuisine
@@ -697,201 +672,220 @@ export const detectCulturalCuisine = (
   let detectedCuisine: CulturalCuisine = 'american';
   
   Object.entries(scores).forEach(([cuisine, score]) => {
-    if (score > maxScore) {
+    if (isValidCuisine(cuisine) && score > maxScore) {
       maxScore = score;
-      detectedCuisine = cuisine as CulturalCuisine;
+      detectedCuisine = cuisine;
     }
   });
 
   return detectedCuisine;
 };
 
-// Alternative name for backward compatibility
-export const identifyPrimaryCuisine = detectCulturalCuisine;
+// 🛡️ SAFE WRAPPER FUNCTIONS
+export const safeDetectCulturalCuisine = (meal: any, prefs: any = []): CulturalCuisine => {
+  try {
+    return detectCulturalCuisine(meal, prefs);
+  } catch (error) {
+    console.error('Cultural cuisine detection failed:', error);
+    return 'american';
+  }
+};
 
-// createCulturalProfile function
+export const getCulturalCuisine = (culturalProfile: any): CulturalCuisine => {
+  if (!culturalProfile) return 'american';
+  
+  const cuisine = culturalProfile.cuisine || 
+                 culturalProfile.primaryCuisine || 
+                 culturalProfile.culturalCuisine;
+  
+  return isValidCuisine(cuisine) ? cuisine : 'american';
+};
+
+export const getMealPattern = (cuisine: any, mealType: any): CulturalMealPattern => {
+  const defaultPattern: CulturalMealPattern = {
+    preferred: [],
+    forbidden: [],
+    timing: '12:00',
+    style: 'flexible',
+    cookingMethods: ['any'],
+    portionSize: 'moderate',
+    temperature: 'mixed'
+  };
+
+  if (!isValidCuisine(cuisine) || !isValidMealType(mealType)) {
+    return defaultPattern;
+  }
+
+  return safeObjectAccess(
+    safeObjectAccess(CULTURAL_MEAL_PATTERNS, cuisine, {}),
+    mealType,
+    defaultPattern
+  );
+};
+
+// Alternative name for backward compatibility
+export const identifyPrimaryCuisine = safeDetectCulturalCuisine;
+
+// createCulturalProfile function with safety
 export const createCulturalProfile = (
   user: any,
   onboardingData?: any
 ): CulturalProfile => {
-  const inferredCuisine = inferPrimaryCuisine(user, onboardingData);
-  const inferredRegion = inferRegion(user?.location || onboardingData?.location);
-  const religiousRestrictions = parseReligiousRestrictions(user, onboardingData);
-  const personalPreferences = parsePersonalPreferences(user, onboardingData);
+  try {
+    const inferredCuisine = inferPrimaryCuisine(user, onboardingData);
+    const inferredRegion = inferRegion(user?.location || onboardingData?.location);
+    const religiousRestrictions = parseReligiousRestrictions(user, onboardingData);
+    const personalPreferences = parsePersonalPreferences(user, onboardingData);
 
-  return {
-    cuisine: inferredCuisine,
-    region: inferredRegion,
-    religiousRestrictions,
-    personalPreferences
-  };
+    return {
+      cuisine: inferredCuisine,
+      region: inferredRegion,
+      religiousRestrictions,
+      personalPreferences
+    };
+  } catch (error) {
+    console.error('Error creating cultural profile:', error);
+    return {
+      cuisine: 'american',
+      region: 'urban',
+      religiousRestrictions: [],
+      personalPreferences: []
+    };
+  }
 };
 
-// Helper function: inferPrimaryCuisine
+// Helper functions with safety
 export const inferPrimaryCuisine = (
   user: any,
   onboardingData?: any
 ): CulturalCuisine => {
-  const explicitCuisine = user?.culturalPreferences?.primaryCuisine || 
-                         onboardingData?.cuisine ||
-                         user?.cuisine;
-  
-  if (explicitCuisine && Object.keys(CULTURAL_MEAL_PATTERNS).includes(explicitCuisine)) {
-    return explicitCuisine as CulturalCuisine;
-  }
+  try {
+    const explicitCuisine = user?.culturalPreferences?.primaryCuisine || 
+                           onboardingData?.cuisine ||
+                           user?.cuisine;
+    
+    if (isValidCuisine(explicitCuisine)) {
+      return explicitCuisine;
+    }
 
-  const location = user?.location || user?.country || onboardingData?.location;
-  if (location) {
+    const location = (user?.location || user?.country || onboardingData?.location || '').toString();
+    if (location) {
+      const locationLower = location.toLowerCase();
+      
+      if (locationLower.includes('turkey') || locationLower.includes('türkiye')) return 'turkish';
+      if (locationLower.includes('japan')) return 'japanese';
+      if (locationLower.includes('india')) return 'indian';
+      if (locationLower.includes('china')) return 'chinese';
+      if (['greece', 'italy', 'spain', 'portugal'].some(c => locationLower.includes(c))) return 'mediterranean';
+      if (['egypt', 'lebanon', 'syria', 'jordan', 'saudi', 'uae'].some(c => locationLower.includes(c))) return 'middle_eastern';
+      if (['usa', 'united states', 'america', 'canada'].some(c => locationLower.includes(c))) return 'american';
+      if (['germany', 'france', 'uk', 'england', 'netherlands', 'sweden'].some(c => locationLower.includes(c))) return 'european';
+    }
+
+    return 'american';
+  } catch (error) {
+    console.error('Error inferring primary cuisine:', error);
+    return 'american';
+  }
+};
+
+export const inferRegion = (location?: any): 'coastal' | 'inland' | 'urban' | 'rural' => {
+  try {
+    if (!location || typeof location !== 'string') return 'urban';
+    
     const locationLower = location.toLowerCase();
     
-    const locationMap: Record<string, CulturalCuisine> = {
-      'turkey': 'turkish',
-      'türkiye': 'turkish',
-      'japan': 'japanese',
-      'india': 'indian',
-      'china': 'chinese',
-      'usa': 'american',
-      'united states': 'american'
-    };
+    const coastalKeywords = ['coast', 'beach', 'port', 'bay', 'ocean', 'sea', 'harbor', 'marina'];
+    if (coastalKeywords.some(keyword => locationLower.includes(keyword))) return 'coastal';
 
-    for (const [key, cuisine] of Object.entries(locationMap)) {
-      if (locationLower.includes(key)) return cuisine;
-    }
+    const coastalCities = ['istanbul', 'tokyo', 'new york', 'los angeles', 'miami', 'barcelona'];
+    if (coastalCities.some(city => locationLower.includes(city))) return 'coastal';
 
-    if (['greece', 'italy', 'spain', 'portugal'].some(c => locationLower.includes(c))) {
-      return 'mediterranean';
-    }
-    if (['egypt', 'lebanon', 'syria', 'jordan', 'saudi', 'uae'].some(c => locationLower.includes(c))) {
-      return 'middle_eastern';
-    }
-    if (['germany', 'france', 'uk', 'england', 'netherlands', 'sweden'].some(c => locationLower.includes(c))) {
-      return 'european';
-    }
-  }
+    const urbanKeywords = ['city', 'metro', 'downtown', 'urban', 'center'];
+    if (urbanKeywords.some(keyword => locationLower.includes(keyword))) return 'urban';
 
-  const dietaryPrefs = user?.dietaryPreferences || onboardingData?.dietary || [];
-  if (Array.isArray(dietaryPrefs)) {
-    if (dietaryPrefs.some(pref => pref.toLowerCase().includes('halal'))) {
-      return 'middle_eastern';
-    }
-    if (dietaryPrefs.some(pref => pref.toLowerCase().includes('vegetarian'))) {
-      return 'indian';
-    }
-  }
+    const ruralKeywords = ['village', 'town', 'rural', 'farm', 'countryside'];
+    if (ruralKeywords.some(keyword => locationLower.includes(keyword))) return 'rural';
 
-  return 'american';
-};
-
-// Helper function: inferRegion
-export const inferRegion = (location?: string): 'coastal' | 'inland' | 'urban' | 'rural' => {
-  if (!location) return 'urban';
-  
-  const locationLower = location.toLowerCase();
-  
-  const coastalKeywords = ['coast', 'beach', 'port', 'bay', 'ocean', 'sea', 'harbor', 'marina'];
-  if (coastalKeywords.some(keyword => locationLower.includes(keyword))) {
-    return 'coastal';
-  }
-
-  const coastalCities = ['istanbul', 'tokyo', 'new york', 'los angeles', 'miami', 'barcelona', 'nice', 'naples'];
-  if (coastalCities.some(city => locationLower.includes(city))) {
-    return 'coastal';
-  }
-
-  const urbanKeywords = ['city', 'metro', 'downtown', 'urban', 'center'];
-  if (urbanKeywords.some(keyword => locationLower.includes(keyword))) {
+    return 'inland';
+  } catch (error) {
+    console.error('Error inferring region:', error);
     return 'urban';
   }
-
-  const ruralKeywords = ['village', 'town', 'rural', 'farm', 'countryside'];
-  if (ruralKeywords.some(keyword => locationLower.includes(keyword))) {
-    return 'rural';
-  }
-
-  return 'inland';
 };
 
-// Helper function: parseReligiousRestrictions
 export const parseReligiousRestrictions = (
   user: any,
   onboardingData?: any
 ): string[] => {
-  const restrictions: string[] = [];
-  
-  const religiousInfo = user?.religion || 
-                       user?.religiousPreferences || 
-                       onboardingData?.religion ||
-                       user?.dietaryRestrictions;
+  try {
+    const restrictions: string[] = [];
+    
+    const sources = [
+      user?.religion,
+      user?.religiousPreferences,
+      onboardingData?.religion,
+      user?.dietaryRestrictions
+    ];
 
-  if (!religiousInfo) return restrictions;
+    const processText = (text: any) => {
+      if (typeof text !== 'string') return;
+      const lower = text.toLowerCase();
+      
+      if (lower.includes('halal') || lower.includes('muslim')) restrictions.push('halal');
+      if (lower.includes('kosher') || lower.includes('jewish')) restrictions.push('kosher');
+      if (lower.includes('hindu')) restrictions.push('hindu_vegetarian');
+      if (lower.includes('jain')) restrictions.push('jain');
+      if (lower.includes('buddhist')) restrictions.push('buddhist');
+    };
 
-  const processRestriction = (text: string) => {
-    const lower = text.toLowerCase();
-    if (lower.includes('halal') || lower.includes('muslim') || lower.includes('islam')) {
-      restrictions.push('halal');
-    }
-    if (lower.includes('kosher') || lower.includes('jewish') || lower.includes('judaism')) {
-      restrictions.push('kosher');
-    }
-    if (lower.includes('hindu') || lower.includes('hinduism')) {
-      restrictions.push('hindu_vegetarian');
-    }
-    if (lower.includes('jain') || lower.includes('jainism')) {
-      restrictions.push('jain');
-    }
-    if (lower.includes('buddhist') || lower.includes('buddhism')) {
-      restrictions.push('buddhist');
-    }
-  };
+    sources.forEach(source => {
+      if (Array.isArray(source)) {
+        source.forEach(processText);
+      } else {
+        processText(source);
+      }
+    });
 
-  if (Array.isArray(religiousInfo)) {
-    religiousInfo.forEach(processRestriction);
-  } else if (typeof religiousInfo === 'string') {
-    processRestriction(religiousInfo);
+    return [...new Set(restrictions)];
+  } catch (error) {
+    console.error('Error parsing religious restrictions:', error);
+    return [];
   }
-
-  return [...new Set(restrictions)];
 };
 
-// Helper function: parsePersonalPreferences
 export const parsePersonalPreferences = (
   user: any,
   onboardingData?: any
 ): string[] => {
-  const preferences: string[] = [];
-  
-  const sources = [
-    user?.personalPreferences,
-    user?.foodPreferences,
-    onboardingData?.preferences,
-    user?.cuisinePreferences,
-    user?.dietaryPreferences,
-    onboardingData?.dietary
-  ];
+  try {
+    const preferences: string[] = [];
+    
+    const sources = [
+      user?.personalPreferences,
+      user?.foodPreferences,
+      onboardingData?.preferences,
+      user?.cuisinePreferences,
+      user?.dietaryPreferences,
+      onboardingData?.dietary
+    ];
 
-  sources.forEach(source => {
-    if (Array.isArray(source)) {
-      preferences.push(...source);
-    } else if (typeof source === 'string') {
-      preferences.push(source);
-    }
-  });
+    sources.forEach(source => {
+      if (Array.isArray(source)) {
+        preferences.push(...source.filter((p: any) => typeof p === 'string'));
+      } else if (typeof source === 'string') {
+        preferences.push(source);
+      }
+    });
 
-  return preferences.filter(pref => pref && typeof pref === 'string');
-};
-
-// Additional helper function
-export const detectPrimaryCuisine = (
-  meal: any,
-  culturalProfile?: CulturalProfile
-): CulturalCuisine => {
-  if (culturalProfile?.cuisine) {
-    return culturalProfile.cuisine;
+    return preferences;
+  } catch (error) {
+    console.error('Error parsing personal preferences:', error);
+    return [];
   }
-  return detectCulturalCuisine(meal, culturalProfile?.personalPreferences || []);
 };
 
-// evaluateCulturalAppropriateness function
+// evaluateCulturalAppropriateness with safety
 export const evaluateCulturalAppropriateness = (
   meal: any,
   mealType: MealType,
@@ -903,188 +897,177 @@ export const evaluateCulturalAppropriateness = (
   suggestions: string[];
   warnings: string[];
 } => {
-  const violations: string[] = [];
-  const suggestions: string[] = [];
-  const warnings: string[] = [];
-  let score = 100;
+  try {
+    const violations: string[] = [];
+    const suggestions: string[] = [];
+    const warnings: string[] = [];
+    let score = 100;
 
-  const cuisine = culturalProfile.cuisine;
-  const mealPattern = CULTURAL_MEAL_PATTERNS[cuisine]?.[mealType];
-  
-  if (!mealPattern) {
+    if (!isValidCuisine(culturalProfile?.cuisine) || !isValidMealType(mealType)) {
+      return {
+        isAppropriate: true,
+        violations: [],
+        score: 50,
+        suggestions: ['Invalid cuisine or meal type'],
+        warnings: []
+      };
+    }
+
+    const cuisine = culturalProfile.cuisine;
+    const mealPattern = getMealPattern(cuisine, mealType);
+
+    // Check forbidden items
+    if (Array.isArray(meal?.ingredients) && Array.isArray(mealPattern?.forbidden)) {
+      mealPattern.forbidden.forEach(forbidden => {
+        if (meal.ingredients.some((ing: any) => 
+          typeof ing === 'string' && ing.toLowerCase().includes(forbidden.toLowerCase())
+        )) {
+          violations.push(`Contains forbidden item: ${forbidden}`);
+          score -= 25;
+        }
+      });
+    }
+
+    // Check religious constraints
+    if (Array.isArray(culturalProfile?.religiousRestrictions)) {
+      culturalProfile.religiousRestrictions.forEach(restriction => {
+        const religious = safeObjectAccess(RELIGIOUS_DIETARY_CONSTRAINTS, restriction);
+        if (religious?.forbidden && Array.isArray(religious.forbidden)) {
+          religious.forbidden.forEach((item: string) => {
+            if (meal?.ingredients?.some((ing: any) => 
+              typeof ing === 'string' && ing.toLowerCase().includes(item.toLowerCase())
+            )) {
+              violations.push(`Religious violation: contains ${item}`);
+              score -= 50;
+            }
+          });
+        }
+      });
+    }
+
+    return {
+      isAppropriate: violations.length === 0 && score >= 50,
+      violations,
+      score: Math.max(0, score),
+      suggestions,
+      warnings
+    };
+  } catch (error) {
+    console.error('Error evaluating cultural appropriateness:', error);
     return {
       isAppropriate: true,
       violations: [],
       score: 50,
-      suggestions: ['No specific cultural patterns found'],
-      warnings: []
+      suggestions: [],
+      warnings: ['Evaluation error occurred']
     };
   }
-
-  // Check forbidden items
-  mealPattern.forbidden.forEach(forbidden => {
-    if (meal.ingredients?.some((ing: string) => ing?.includes(forbidden))) {
-      violations.push(`Contains forbidden item: ${forbidden}`);
-      score -= 25;
-    }
-  });
-
-  // Check religious constraints
-  if (culturalProfile.religiousRestrictions) {
-    culturalProfile.religiousRestrictions.forEach(restriction => {
-      const religious = RELIGIOUS_DIETARY_CONSTRAINTS[restriction as keyof typeof RELIGIOUS_DIETARY_CONSTRAINTS];
-      if (religious) {
-        religious.forbidden.forEach(item => {
-          if (meal.ingredients?.some((ing: string) => ing?.toLowerCase().includes(item))) {
-            violations.push(`Religious violation: contains ${item}`);
-            score -= 50;
-          }
-        });
-      }
-    });
-  }
-
-  // Check cooking methods
-  const cookingMethod = CULTURAL_COOKING_METHODS[cuisine];
-  if (cookingMethod && meal.cookingMethod) {
-    if (cookingMethod.avoided.includes(meal.cookingMethod)) {
-      warnings.push(`Cooking method ${meal.cookingMethod} is typically avoided`);
-      score -= 10;
-    }
-    if (!cookingMethod.preferred.includes(meal.cookingMethod)) {
-      suggestions.push(`Consider using preferred methods: ${cookingMethod.preferred.join(', ')}`);
-      score -= 5;
-    }
-  }
-
-  // Check regional preferences
-  const regional = REGIONAL_FOOD_PREFERENCES[culturalProfile.region];
-  if (regional) {
-    const hasPreferred = meal.ingredients?.some((ing: string) => 
-      regional.preferred.some(pref => ing?.includes(pref))
-    );
-    if (!hasPreferred) {
-      suggestions.push(`Consider adding regional preferences: ${regional.preferred.slice(0, 3).join(', ')}`);
-    }
-  }
-
-  // Check spice profile
-  const spicePattern = CULTURAL_SPICE_PATTERNS[cuisine];
-  if (spicePattern && meal.spices) {
-    const hasEssential = spicePattern.essential.some(spice => 
-      meal.spices?.includes(spice)
-    );
-    if (!hasEssential) {
-      suggestions.push(`Missing essential spices: ${spicePattern.essential.slice(0, 3).join(', ')}`);
-      score -= 10;
-    }
-  }
-
-  return {
-    isAppropriate: violations.length === 0 && score >= 50,
-    violations,
-    score: Math.max(0, score),
-    suggestions,
-    warnings
-  };
 };
 
-// Helper functions
+// Additional helper functions
 export const getMealTypeRecommendations = (
-  mealType: MealType,
-  cuisine: CulturalCuisine
+  mealType: any,
+  cuisine: any
 ): string[] => {
-  return CULTURAL_MEAL_PATTERNS[cuisine]?.[mealType]?.preferred || [];
+  if (!isValidMealType(mealType) || !isValidCuisine(cuisine)) return [];
+  const pattern = getMealPattern(cuisine, mealType);
+  return pattern?.preferred || [];
 };
 
 export const getCookingMethodsForCuisine = (
-  cuisine: CulturalCuisine
+  cuisine: any
 ): string[] => {
-  return CULTURAL_COOKING_METHODS[cuisine]?.preferred || [];
+  if (!isValidCuisine(cuisine)) return [];
+  return safeObjectAccess(CULTURAL_COOKING_METHODS, cuisine, {})?.preferred || [];
 };
 
 export const getSpicesForCuisine = (
-  cuisine: CulturalCuisine
+  cuisine: any
 ): string[] => {
-  return CULTURAL_SPICE_PATTERNS[cuisine]?.essential || [];
+  if (!isValidCuisine(cuisine)) return [];
+  return safeObjectAccess(CULTURAL_SPICE_PATTERNS, cuisine, {})?.essential || [];
 };
 
 export const checkReligiousCompliance = (
-  ingredients: string[],
-  religiousRestrictions: string[]
+  ingredients: any,
+  religiousRestrictions: any
 ): boolean => {
-  for (const restriction of religiousRestrictions) {
-    const rules = RELIGIOUS_DIETARY_CONSTRAINTS[restriction as keyof typeof RELIGIOUS_DIETARY_CONSTRAINTS];
-    if (rules) {
-      for (const forbidden of rules.forbidden) {
-        if (ingredients.some(ing => ing?.toLowerCase().includes(forbidden))) {
-          return false;
+  try {
+    if (!Array.isArray(ingredients) || !Array.isArray(religiousRestrictions)) return true;
+    
+    for (const restriction of religiousRestrictions) {
+      const rules = safeObjectAccess(RELIGIOUS_DIETARY_CONSTRAINTS, restriction);
+      if (rules?.forbidden && Array.isArray(rules.forbidden)) {
+        for (const forbidden of rules.forbidden) {
+          if (ingredients.some((ing: any) => 
+            typeof ing === 'string' && ing.toLowerCase().includes(forbidden.toLowerCase())
+          )) {
+            return false;
+          }
         }
       }
     }
+    return true;
+  } catch (error) {
+    console.error('Error checking religious compliance:', error);
+    return true;
   }
-  return true;
 };
 
-// Meal timing function
-export const getMealTimingRecommendation = (
-  mealType: MealType,
-  cuisine: CulturalCuisine
-): {
-  idealTime: string;
-  acceptable: string;
-  cultural_note: string;
-} => {
-  const pattern = CULTURAL_MEAL_PATTERNS[cuisine]?.[mealType];
-  if (!pattern) {
-    return {
-      idealTime: '12:00',
-      acceptable: '11:00-14:00',
-      cultural_note: 'Standard timing'
-    };
-  }
-
-  const timingMap: any = {
-    turkish: {
-      breakfast: { ideal: '08:00', range: '07:00-10:00', note: 'Weekend kahvaltı can extend to noon' },
-      lunch: { ideal: '13:00', range: '12:00-14:00', note: 'Main hot meal of the day' },
-      dinner: { ideal: '20:00', range: '19:00-21:00', note: 'Family gathering time' },
-      snack: { ideal: '17:00', range: '16:00-18:00', note: 'Tea time tradition' }
-    },
-    japanese: {
-      breakfast: { ideal: '07:00', range: '06:00-08:00', note: 'Early, nutritious start' },
-      lunch: { ideal: '12:00', range: '12:00-13:00', note: 'Efficient lunch break' },
-      dinner: { ideal: '19:00', range: '18:00-20:00', note: 'Family dinner time' },
-      snack: { ideal: '15:00', range: '14:00-16:00', note: 'Afternoon tea and wagashi' }
-    }
-  };
-
-  const timing = timingMap[cuisine]?.[mealType];
-  return {
-    idealTime: timing?.ideal || pattern.timing,
-    acceptable: timing?.range || pattern.timing,
-    cultural_note: timing?.note || pattern.style
-  };
-};
-
-// Legacy functions for backward compatibility
-export const includesSeafood = (ingredients: string[]): boolean => {
+// Legacy functions
+export const includesSeafood = (ingredients: any): boolean => {
+  if (!Array.isArray(ingredients)) return false;
   const seafoodKeywords = ['fish', 'salmon', 'tuna', 'shrimp', 'seafood', 'anchovy', 'mackerel'];
-  return ingredients.some(ing => 
-    seafoodKeywords.some(keyword => ing?.toLowerCase().includes(keyword))
+  return ingredients.some((ing: any) => 
+    typeof ing === 'string' && seafoodKeywords.some(keyword => 
+      ing.toLowerCase().includes(keyword)
+    )
   );
 };
 
 export const breakfastSeafoodMode = (
   hasFish: boolean,
-  cuisine?: string,
-  region?: string
+  cuisine?: any,
+  region?: any
 ): 'avoid' | 'sometimes' | 'preferred' => {
   if (!hasFish) return 'avoid';
   
-  if (cuisine === 'japanese') return 'preferred';
-  if (cuisine === 'nordic') return 'sometimes';
-  if (region === 'coastal' && cuisine === 'mediterranean') return 'sometimes';
+  const cuisineStr = typeof cuisine === 'string' ? cuisine.toLowerCase() : '';
+  const regionStr = typeof region === 'string' ? region.toLowerCase() : '';
+  
+  if (cuisineStr === 'japanese') return 'preferred';
+  if (cuisineStr === 'nordic') return 'sometimes';
+  if (regionStr === 'coastal' && cuisineStr === 'mediterranean') return 'sometimes';
   
   return 'avoid';
+};
+
+// Export additional helper
+export const detectPrimaryCuisine = safeDetectCulturalCuisine;
+
+// Timing recommendation
+export const getMealTimingRecommendation = (
+  mealType: any,
+  cuisine: any
+): {
+  idealTime: string;
+  acceptable: string;
+  cultural_note: string;
+} => {
+  const defaultTiming = {
+    idealTime: '12:00',
+    acceptable: '11:00-14:00',
+    cultural_note: 'Standard timing'
+  };
+
+  if (!isValidMealType(mealType) || !isValidCuisine(cuisine)) {
+    return defaultTiming;
+  }
+
+  const pattern = getMealPattern(cuisine, mealType);
+  return {
+    idealTime: pattern?.timing || defaultTiming.idealTime,
+    acceptable: pattern?.timing || defaultTiming.acceptable,
+    cultural_note: pattern?.style || defaultTiming.cultural_note
+  };
 };
