@@ -1,4 +1,4 @@
-// app/ai-meal-plan.tsx - Sadece import kısmı düzeltildi
+// app/ai-meal-plan.tsx - AI Meal Planner (Coming Soon Version)
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -65,9 +65,6 @@ import {
 } from '@/lib/meal-plan/api-clients/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
-
-// ... Geri kalan kod aynı kalacak
-
 
 // ✅ GEÇİCİ MOCK COMPONENTS
 const MealDetailModal = ({ visible, onClose, meal, onViewRecipe, onAddToNutrition, onAddToShopping }: any) => {
@@ -904,8 +901,23 @@ export default function AIMealPlan() {
           </View>
         )}
 
-        {/* Meal Plan Content */}
-        {viewMode === 'daily' && renderDailyView()}
+        {/* Meal Plan Content - UPDATED WITH COMING SOON */}
+        {viewMode === 'daily' && (
+          <View style={styles.comingSoonContainer}>
+            <Sparkles size={48} color="#FFD700" />
+            <Text style={styles.comingSoonTitle}>AI Meal Planner</Text>
+            <Text style={styles.comingSoonTitle2}>Available on Next Update!</Text>
+            <Text style={styles.comingSoonSubtitle}>
+              Kişiselleştirilmiş menü önerileri, beslenme hedefleri ve akıllı pantry eşleştirmesi yakında geliyor
+            </Text>
+            <View style={styles.featuresList}>
+              <Text style={styles.featureItem}>🍽️ Günlük menü planlaması</Text>
+              <Text style={styles.featureItem}>🎯 Beslenme hedefi takibi</Text>
+              <Text style={styles.featureItem}>🤖 AI destekli öneriler</Text>
+              <Text style={styles.featureItem}>🛒 Otomatik alışveriş listesi</Text>
+            </View>
+          </View>
+        )}
         {viewMode === 'weekly' && (
           <View style={styles.comingSoonContainer}>
             <Calendar size={48} color={colors.neutral[400]} />
@@ -1237,11 +1249,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
+  comingSoonTitle2: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: '700',
+    color: colors.primary[600],
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
   comingSoonSubtitle: {
     fontSize: typography.fontSize.base,
     color: colors.neutral[500],
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: spacing.xl,
+  },
+  featuresList: {
+    alignItems: 'flex-start',
+    marginTop: spacing.lg,
+  },
+  featureItem: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[700],
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
   },
   bottomSpacer: {
     height: spacing.xl,
