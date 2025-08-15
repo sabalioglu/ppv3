@@ -1,3 +1,4 @@
+// 🚧 STUBBED: Cultural database moved to Supabase Edge Function
 // lib/cultural-intelligence/cultural-database.ts
 // Complete cultural knowledge database based on 8-region global food culture research
 
