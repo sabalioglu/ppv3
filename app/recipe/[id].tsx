@@ -49,35 +49,6 @@ interface Recipe {
   updated_at: string;
 }
 
-// Recipe interface (schema-compliant)
-interface Recipe {
-  id: string;
-  title: string;
-  description: string;
-  image_url?: string;
-  prep_time: number;
-  cook_time: number;
-  servings: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
-  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
-  nutrition?: {
-    calories?: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    fiber?: number;
-  };
-  tags: string[];
-  category: string;
-  is_favorite: boolean;
-  is_ai_generated: boolean;
-  source_url?: string;
-  ai_match_score?: number;
-  created_at: string;
-  updated_at: string;
-}
-
 interface PantryItem {
   id: string;
   name: string;
@@ -99,7 +70,11 @@ export default function RecipeDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // ✅ FIXED: Get meal plan state for AI meals with proper hooks
+  // ✅ FIXED: Added missing state variables
+  const [loadingPantry, setLoadingPantry] = useState(false);
+  const [pantryMatch, setPantryMatch] = useState<PantryMatchResult | null>(null);
+  
+  // ✅ Get meal plan state for AI meals with proper hooks
   const { getAIMeal, isLoaded, loadMealPlan, loadingError } = useMealPlanStore();
 
   // Check if this recipe is from meal plan
@@ -225,6 +200,59 @@ export default function RecipeDetail() {
     }
   };
 
+  // ✅ ADDED: Pantry analysis function
+  const analyzePantryMatch = async (recipe: Recipe | Meal) => {
+    if (!isFromMealPlan) return;
+    
+    try {
+      setLoadingPantry(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get user's pantry items
+      const { data: pantryItems, error } = await supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching pantry:', error);
+        return;
+      }
+
+      // Analyze ingredient matches
+      const recipeIngredients = recipe.ingredients.map(ing => ing.name.toLowerCase());
+      const pantryIngredientNames = (pantryItems || []).map(item => item.name.toLowerCase());
+      
+      const availableIngredients = recipeIngredients.filter(ingredient =>
+        pantryIngredientNames.some(pantryItem => 
+          pantryItem.includes(ingredient) || ingredient.includes(pantryItem)
+        )
+      );
+
+      const missingIngredients = recipeIngredients.filter(ingredient =>
+        !pantryIngredientNames.some(pantryItem => 
+          pantryItem.includes(ingredient) || ingredient.includes(pantryItem)
+        )
+      );
+
+      const matchPercentage = Math.round((availableIngredients.length / recipeIngredients.length) * 100);
+
+      setPantryMatch({
+        matchPercentage,
+        availableIngredients,
+        missingIngredients,
+        sufficientQuantity: availableIngredients.length >= recipeIngredients.length * 0.8
+      });
+
+    } catch (error) {
+      console.error('Error analyzing pantry match:', error);
+    } finally {
+      setLoadingPantry(false);
+    }
+  };
+
   // Main recipe loading function - Universal ID Handler
   const loadRecipe = async () => {
     try {
@@ -347,7 +375,6 @@ export default function RecipeDetail() {
   useEffect(() => {
     if (!isLoaded) {
       console.log('🔄 Auto-loading meal plan...');
-      console.log('🔄 Auto-loading meal plan...');
       loadMealPlan();
     }
   }, [isLoaded, loadMealPlan]);
@@ -367,6 +394,13 @@ export default function RecipeDetail() {
     // Load recipe when ready
     loadRecipe();
   }, [id, source, isLoaded]);
+
+  // ✅ ADDED: Recipe yüklendiğinde pantry analizi yap
+  useEffect(() => {
+    if (recipe && isFromMealPlan) {
+      analyzePantryMatch(recipe);
+    }
+  }, [recipe, isFromMealPlan]);
 
   // Toggle favorite (only for database recipes)
   const handleFavorite = async () => {
@@ -434,8 +468,11 @@ export default function RecipeDetail() {
   };
 
   const handleAddMissingToCart = async () => {
-    if (!recipe?.missingIngredients || recipe.missingIngredients.length === 0) {
-      Alert.alert('Info', 'No missing ingredients information available.');
+    if (!recipe) return;
+    
+    // ✅ FIXED: Check pantryMatch instead of recipe.missingIngredients
+    if (!pantryMatch || pantryMatch.missingIngredients.length === 0) {
+      Alert.alert('Info', 'No missing ingredients or pantry analysis not available.');
       return;
     }
 
@@ -446,7 +483,7 @@ export default function RecipeDetail() {
         return;
       }
 
-      const shoppingItems = recipe.missingIngredients.map(ingredient => ({
+      const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
         user_id: user.id,
         item_name: ingredient,
         category: 'general',
@@ -467,7 +504,7 @@ export default function RecipeDetail() {
 
       Alert.alert(
         'Success',
-        `Added ${recipe.missingIngredients.length} missing ingredients to your shopping list`,
+        `Added ${pantryMatch.missingIngredients.length} missing ingredients to your shopping list`,
         [
           { text: 'View List', onPress: () => router.push('/(tabs)/shopping-list') },
           { text: 'OK' }
