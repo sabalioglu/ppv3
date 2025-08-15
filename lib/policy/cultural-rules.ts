@@ -1,4 +1,4 @@
-// lib/policy/cultural-rules.ts - COMPLETE REWRITE
+// lib/policy/cultural-rules.ts - COMPLETE FIXED VERSION
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type CulturalCuisine = 'turkish' | 'japanese' | 'american' | 'mediterranean' | 'indian' | 'chinese' | 'middle_eastern' | 'european';
@@ -529,6 +529,78 @@ export const REGIONAL_FOOD_PREFERENCES = {
   }
 };
 
+// ⚡ CRITICAL FIX: Adding the missing detectCulturalCuisine function
+export const detectCulturalCuisine = (
+  meal: any,
+  userPreferences: string[] = []
+): CulturalCuisine => {
+  // If user has explicit preferences, prioritize them
+  if (userPreferences.length > 0) {
+    const cuisinePreference = userPreferences.find(pref => 
+      Object.keys(CULTURAL_MEAL_PATTERNS).includes(pref.toLowerCase())
+    );
+    if (cuisinePreference) {
+      return cuisinePreference.toLowerCase() as CulturalCuisine;
+    }
+  }
+
+  // Analyze meal ingredients and characteristics
+  const ingredients = meal.ingredients || [];
+  const spices = meal.spices || [];
+  const cookingMethod = meal.cookingMethod || '';
+  
+  let scores: Record<CulturalCuisine, number> = {
+    turkish: 0,
+    japanese: 0,
+    american: 0,
+    mediterranean: 0,
+    indian: 0,
+    chinese: 0,
+    middle_eastern: 0,
+    european: 0
+  };
+
+  // Check ingredient patterns
+  Object.entries(CULTURAL_SPICE_PATTERNS).forEach(([cuisine, pattern]) => {
+    pattern.essential.forEach(spice => {
+      if (spices.includes(spice) || ingredients.some((ing: string) => ing.includes(spice))) {
+        scores[cuisine as CulturalCuisine] += 3;
+      }
+    });
+    pattern.common.forEach(spice => {
+      if (spices.includes(spice) || ingredients.some((ing: string) => ing.includes(spice))) {
+        scores[cuisine as CulturalCuisine] += 1;
+      }
+    });
+  });
+
+  // Check cooking methods
+  Object.entries(CULTURAL_COOKING_METHODS).forEach(([cuisine, methods]) => {
+    if (methods.signature.includes(cookingMethod)) {
+      scores[cuisine as CulturalCuisine] += 5;
+    }
+    if (methods.preferred.includes(cookingMethod)) {
+      scores[cuisine as CulturalCuisine] += 2;
+    }
+  });
+
+  // Find cuisine with highest score
+  let maxScore = 0;
+  let detectedCuisine: CulturalCuisine = 'mediterranean'; // default
+  
+  Object.entries(scores).forEach(([cuisine, score]) => {
+    if (score > maxScore) {
+      maxScore = score;
+      detectedCuisine = cuisine as CulturalCuisine;
+    }
+  });
+
+  return detectedCuisine;
+};
+
+// Alternative name for backward compatibility
+export const identifyPrimaryCuisine = detectCulturalCuisine;
+
 // COMPREHENSIVE EVALUATION FUNCTION
 export const evaluateCulturalAppropriateness = (
   meal: any,
@@ -706,7 +778,7 @@ export const getMealTimingRecommendation = (
       dinner: { ideal: '19:00', range: '18:00-20:00', note: 'Family dinner time' },
       snack: { ideal: '15:00', range: '14:00-16:00', note: 'Afternoon tea and wagashi' }
     }
-    // ... more cuisines
+    // Additional cuisines can be added here
   };
 
   const timing = (timingMap as any)[cuisine]?.[mealType];
