@@ -1,4 +1,4 @@
-// app> (tabs) > pantry.tsx
+// app/(tabs)/pantry.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,7 +18,25 @@ import {
   ListRenderItem,
   Image,
 } from 'react-native';
-import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown, Trash2, Edit3, MoreVertical } from 'lucide-react-native';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  Package, 
+  Calendar, 
+  TriangleAlert as AlertTriangle, 
+  X, 
+  Camera, 
+  Barcode, 
+  Clock, 
+  MapPin, 
+  TrendingUp, 
+  ChevronDown, 
+  Trash2, 
+  Edit3, 
+  MoreVertical, 
+  ShoppingCart // 🆕 Added ShoppingCart icon
+} from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
@@ -339,6 +357,70 @@ export default function PantryScreen() {
     );
   };
 
+  // 🆕 Add to Shopping List function
+  const handleAddToShoppingList = async (item: PantryItem) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if item already exists in shopping list
+      const { data: existingItems, error: checkError } = await supabase
+        .from('shopping_list_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('item_name', item.name)
+        .eq('is_completed', false);
+
+      if (checkError) throw checkError;
+
+      if (existingItems && existingItems.length > 0) {
+        Alert.alert(
+          'Item Already Exists',
+          `${item.name} is already in your shopping list.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+        setShowActionsMenu(null);
+        return;
+      }
+
+      const shoppingItemData = {
+        user_id: user.id,
+        item_name: item.name,
+        brand: item.brand || null,
+        category: item.category,
+        quantity: 1, // Default quantity
+        unit: item.unit,
+        source: 'auto_pantry' as const,
+        pantry_item_id: item.id,
+        priority: 'medium' as const,
+        notes: `Added from pantry`,
+        is_completed: false,
+        organic_preference: false,
+        coupons_available: false,
+        seasonal_availability: true,
+      };
+
+      const { data, error } = await supabase
+        .from('shopping_list_items')
+        .insert([shoppingItemData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      Alert.alert(
+        'Success',
+        `${item.name} has been added to your shopping list!`,
+        [{ text: 'OK', style: 'default' }]
+      );
+      setShowActionsMenu(null);
+
+    } catch (error) {
+      console.error('Error adding to shopping list:', error);
+      Alert.alert('Error', 'Failed to add item to shopping list');
+    }
+  };
+
   // 🆕 Edit item function
   const handleEditItem = (item: PantryItem) => {
     setEditingItem(item);
@@ -538,19 +620,32 @@ export default function PantryScreen() {
           <MoreVertical size={18} color={theme.colors.textSecondary} />
         </TouchableOpacity>
 
-        {/* 🆕 Actions Dropdown Menu - Fixed position and styling */}
+        {/* 🆕 Actions Dropdown Menu - Updated with Shopping List option */}
         {showActionsMenu === item.id && (
           <View style={styles.actionsDropdown}>
-            <TouchableOpacity
-              style={styles.actionItem}
+            <TouchableOpacity 
+              style={styles.actionItem} 
               onPress={() => handleEditItem(item)}
             >
               <Edit3 size={16} color="#10b981" />
               <Text style={[styles.actionText, { color: '#10b981' }]}>Edit</Text>
             </TouchableOpacity>
+            
             <View style={styles.actionDivider} />
-            <TouchableOpacity
-              style={styles.actionItem}
+            
+            {/* 🆕 Add to Shopping List option */}
+            <TouchableOpacity 
+              style={styles.actionItem} 
+              onPress={() => handleAddToShoppingList(item)}
+            >
+              <ShoppingCart size={16} color="#3b82f6" />
+              <Text style={[styles.actionText, { color: '#3b82f6' }]}>Add to Shopping List</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.actionDivider} />
+            
+            <TouchableOpacity 
+              style={styles.actionItem} 
               onPress={() => handleDeleteItem(item.id)}
             >
               <Trash2 size={16} color="#ef4444" />
