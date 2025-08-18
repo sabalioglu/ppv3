@@ -383,26 +383,21 @@ export default function PantryScreen() {
         return;
       }
 
-      // ✅ FIXED: Sadece tabloda olan alanları gönder
+      // ✅ FIXED: Pantry'deki quantity ve unit değerlerini kullan
       const shoppingItemData = {
         user_id: user.id,
         item_name: item.name,
-        brand: item.brand || null,  // ✅ Brand var
+        brand: item.brand || null,
         category: item.category || 'general',
-        quantity: 1,
-        unit: item.unit || 'piece',
+        quantity: item.quantity || 1,  // ✅ Pantry'deki quantity değerini al
+        unit: item.unit || 'piece',     // ✅ Pantry'deki unit değerini al
         source: 'auto_pantry',
         priority: 'medium',
-        notes: 'Added from pantry',
+        notes: `Added from pantry (Original: ${item.quantity} ${item.unit})`, // ✅ Orijinal değerleri not olarak ekle
         is_completed: false,
-        // Tabloda olan opsiyonel alanlar (isteğe bağlı):
-        // estimated_cost: null,
-        // nutrition_goal: null,
-        // recipe_id: null,
-        // ingredient_name: item.name,
       };
 
-      console.log('Inserting shopping item:', shoppingItemData);
+      console.log('Inserting shopping item with correct quantity:', shoppingItemData);
 
       const { data, error } = await supabase
         .from('shopping_list_items')
@@ -417,9 +412,10 @@ export default function PantryScreen() {
 
       console.log('Successfully added to shopping list:', data);
 
+      // ✅ Başarı mesajında miktar ve birim bilgisini göster
       Alert.alert(
         'Success! ✅',
-        `${item.name}${item.brand ? ` (${item.brand})` : ''} has been added to your shopping list!`,
+        `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${item.quantity} ${item.unit} has been added to your shopping list!`,
         [{ text: 'OK', style: 'default' }]
       );
       setShowActionsMenu(null);
