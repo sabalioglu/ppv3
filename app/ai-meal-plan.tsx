@@ -908,7 +908,7 @@ export default function AIMealPlan() {
             <Text style={styles.comingSoonTitle}>AI Meal Planner</Text>
             <Text style={styles.comingSoonTitle2}>Available on Next Update!</Text>
             <Text style={styles.comingSoonSubtitle}>
-              Kişiselleştirilmiş menü önerileri, beslenme hedefleri ve akıllı pantry eşleştirmesi yakında geliyor
+              Personalized menu recommendations, nutrition goals, and smart pantry matching are coming soon
             </Text>
             <View style={styles.featuresList}>
               <Text style={styles.featureItem}>🍽️ Daily Meal Planning</Text>
