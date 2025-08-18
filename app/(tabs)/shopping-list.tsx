@@ -1,4 +1,4 @@
-// app/(tabs)/shopping-list.tsx - İmport düzeltmeleri
+// app/(tabs)/shopping-list.tsx - Complete with Dropdown Menu Implementation
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -17,7 +17,9 @@ import {
 import { 
   Plus, 
   Search, 
-  Filter, 
+  Filter,
+  ChevronDown,
+  ChevronUp,
   ShoppingCart,
   CheckCircle2,
   Circle,
@@ -32,12 +34,12 @@ import {
   TrendingUp
 } from 'lucide-react-native';
 
-// ✅ Theme import düzeltmesi - '@/' yerine '../../' kullan
+// ✅ Theme import düzeltmesi
 import { colors, spacing, typography, shadows } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { router } from 'expo-router';
 
-// ✅ Interface tanımları aynı kalıyor...
+// ✅ Interface tanımları
 interface ShoppingItem {
   id: string;
   user_id: string;
@@ -103,7 +105,7 @@ const PRIORITIES = [
 const UNITS = ['piece', 'kg', 'g', 'l', 'ml', 'pack', 'bottle', 'can', 'box'];
 
 export default function ShoppingList() {
-  // ✅ State Management - Aynı kalıyor
+  // ✅ State Management
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -113,6 +115,12 @@ export default function ShoppingList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [addingItem, setAddingItem] = useState(false);
+  
+  // ✅ NEW: Dropdown states
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [showPriorityFilter, setShowPriorityFilter] = useState(false);
+  const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
 
   // ✅ Add Item Form State
   const [addItemForm, setAddItemForm] = useState<AddItemForm>({
@@ -127,7 +135,7 @@ export default function ShoppingList() {
     organic_preference: false,
   });
 
-  // ✅ CRUD Operations - Aynı kalıyor, sadece error handling geliştirildi
+  // ✅ CRUD Operations
   const loadShoppingItems = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -152,7 +160,6 @@ export default function ShoppingList() {
       setItems(data || []);
     } catch (error) {
       console.error('Error loading shopping items:', error);
-      // Eğer tablo yoksa mock data ile çalış
       setItems([]);
     } finally {
       setLoading(false);
@@ -199,10 +206,8 @@ export default function ShoppingList() {
 
       if (error) throw error;
 
-      // Add to local state
       setItems(prev => [data, ...prev]);
       
-      // Reset form
       setAddItemForm({
         item_name: '',
         category: 'general',
@@ -243,7 +248,6 @@ export default function ShoppingList() {
 
       if (error) throw error;
 
-      // Update local state
       setItems(prev => prev.map(i => 
         i.id === itemId 
           ? { ...i, ...updateData }
@@ -274,7 +278,6 @@ export default function ShoppingList() {
 
               if (error) throw error;
 
-              // Remove from local state
               setItems(prev => prev.filter(i => i.id !== itemId));
               
             } catch (error) {
@@ -287,7 +290,97 @@ export default function ShoppingList() {
     );
   };
 
-  // ✅ Filtering ve Statistics
+  // ✅ NEW: Pantry Integration Function
+  const addMissingFromPantry = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: lowStockItems, error } = await supabase
+        .from('pantry_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .lt('quantity', 2);
+
+      if (error) throw error;
+      if (!lowStockItems || lowStockItems.length === 0) {
+        Alert.alert('Info', 'No low stock items found in pantry');
+        return;
+      }
+
+      const shoppingItems = lowStockItems.map(item => ({
+        user_id: user.id,
+        item_name: item.name,
+        category: item.category,
+        quantity: 1,
+        unit: item.unit,
+        source: 'auto_pantry' as const,
+        pantry_item_id: item.id,
+        priority: 'medium' as const,
+        notes: `Running low (${item.quantity} ${item.unit} left)`,
+        is_completed: false,
+        organic_preference: false,
+        coupons_available: false,
+        seasonal_availability: true,
+      }));
+
+      const { data, error: insertError } = await supabase
+        .from('shopping_list_items')
+        .insert(shoppingItems)
+        .select();
+
+      if (insertError) throw insertError;
+
+      setItems(prev => [...(data || []), ...prev]);
+      
+      Alert.alert('Success', `Added ${lowStockItems.length} low stock items`);
+      setShowQuickActions(false);
+
+    } catch (error) {
+      console.error('Error adding from pantry:', error);
+      Alert.alert('Error', 'Failed to add items from pantry');
+    }
+  };
+
+  // ✅ NEW: Clear Completed Function
+  const handleClearCompleted = async () => {
+    const completedItems = items.filter(item => item.is_completed);
+    
+    if (completedItems.length === 0) {
+      Alert.alert('Info', 'No completed items to clear');
+      return;
+    }
+
+    Alert.alert(
+      'Clear Completed Items',
+      `Delete ${completedItems.length} completed items?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('shopping_list_items')
+                .delete()
+                .in('id', completedItems.map(item => item.id));
+
+              if (error) throw error;
+              setItems(prev => prev.filter(item => !item.is_completed));
+              setShowQuickActions(false);
+              
+            } catch (error) {
+              console.error('Error clearing completed items:', error);
+              Alert.alert('Error', 'Failed to clear completed items');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ✅ Filtering with priority support
   const filteredItems = items.filter(item => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchText.toLowerCase()) ||
                          item.brand?.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -295,8 +388,10 @@ export default function ShoppingList() {
     
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesCompletion = showCompleted ? item.is_completed : !item.is_completed;
+    const matchesPriority = selectedPriorities.length === 0 || 
+                           (item.priority && selectedPriorities.includes(item.priority));
     
-    return matchesSearch && matchesCategory && matchesCompletion;
+    return matchesSearch && matchesCategory && matchesCompletion && matchesPriority;
   });
 
   const stats = {
@@ -419,7 +514,7 @@ export default function ShoppingList() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ✅ Header with Dropdown Toggle */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Shopping List</Text>
@@ -445,35 +540,48 @@ export default function ShoppingList() {
         </View>
       </View>
 
-      {/* Stats Card */}
-      <View style={styles.statsCard}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{stats.total}</Text>
-          <Text style={styles.statLabel}>Total Items</Text>
+      {/* ✅ Compact Stats Row */}
+      <View style={styles.compactStatsRow}>
+        <View style={styles.compactStat}>
+          <Text style={styles.compactStatValue}>{stats.total}</Text>
+          <Text style={styles.compactStatLabel}>Items</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>${stats.estimated_cost.toFixed(2)}</Text>
-          <Text style={styles.statLabel}>Est. Cost</Text>
+        <View style={styles.compactStat}>
+          <Text style={styles.compactStatValue}>${stats.estimated_cost.toFixed(2)}</Text>
+          <Text style={styles.compactStatLabel}>Cost</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{Math.round((stats.completed / (stats.total || 1)) * 100)}%</Text>
-          <Text style={styles.statLabel}>Complete</Text>
+        <View style={styles.compactStat}>
+          <Text style={styles.compactStatValue}>{Math.round((stats.completed / (stats.total || 1)) * 100)}%</Text>
+          <Text style={styles.compactStatLabel}>Done</Text>
         </View>
-      </View>
-
-      {/* Search and Toggle */}
-      <View style={styles.filtersContainer}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[400]} />
+        
+        <View style={styles.compactSearchContainer}>
+          <Search size={16} color={colors.neutral[400]} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search items..."
+            style={styles.compactSearchInput}
+            placeholder="Search..."
             value={searchText}
             onChangeText={setSearchText}
             placeholderTextColor={colors.neutral[400]}
           />
         </View>
-        
+      </View>
+
+      {/* ✅ Quick Actions Dropdown Button */}
+      <View style={styles.quickActionsContainer}>
+        <TouchableOpacity
+          style={styles.quickActionsButton}
+          onPress={() => setShowQuickActions(!showQuickActions)}
+        >
+          <Text style={styles.quickActionsButtonText}>Quick Actions</Text>
+          {showQuickActions ? (
+            <ChevronUp size={20} color={colors.neutral[600]} />
+          ) : (
+            <ChevronDown size={20} color={colors.neutral[600]} />
+          )}
+        </TouchableOpacity>
+
+        {/* Toggle Buttons */}
         <View style={styles.toggleContainer}>
           <TouchableOpacity
             style={[
@@ -501,52 +609,121 @@ export default function ShoppingList() {
               styles.toggleText,
               showCompleted && styles.toggleTextActive
             ]}>
-              Completed ({stats.completed})
+              Done ({stats.completed})
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Category Tabs */}
-      <FlatList
-        horizontal
-        data={CATEGORIES}
-        keyExtractor={item => item.id}
-        style={styles.categoryTabs}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              selectedCategory === item.id && { backgroundColor: item.color + '20' }
-            ]}
-            onPress={() => setSelectedCategory(item.id)}
-          >
-            <Text style={styles.categoryEmoji}>{item.icon}</Text>
-            <Text style={[
-              styles.categoryText,
-              selectedCategory === item.id && { color: item.color, fontWeight: '600' }
-            ]}>
-              {item.name}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
+      {/* ✅ Dropdown Menu Content */}
+      {showQuickActions && (
+        <View style={styles.dropdownContent}>
+          {/* Quick Actions */}
+          <View style={styles.dropdownSection}>
+            <Text style={styles.dropdownSectionTitle}>Quick Actions</Text>
+            <View style={styles.dropdownActions}>
+              <TouchableOpacity
+                style={styles.dropdownActionButton}
+                onPress={addMissingFromPantry}
+              >
+                <Package size={18} color={colors.primary[500]} />
+                <Text style={styles.dropdownActionText}>Add from Pantry</Text>
+              </TouchableOpacity>
+              
+              {stats.completed > 0 && (
+                <TouchableOpacity
+                  style={styles.dropdownActionButton}
+                  onPress={handleClearCompleted}
+                >
+                  <Trash2 size={18} color={colors.error[500]} />
+                  <Text style={[styles.dropdownActionText, { color: colors.error[500] }]}>
+                    Clear Completed ({stats.completed})
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
-      {/* Shopping Items List */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={item => item.id}
-        renderItem={renderShoppingItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={renderEmptyState}
-        style={styles.itemsList}
-        showsVerticalScrollIndicator={false}
-      />
+          {/* Category Filter */}
+          <View style={styles.dropdownSection}>
+            <Text style={styles.dropdownSectionTitle}>Categories</Text>
+            <View style={styles.dropdownCategoryGrid}>
+              {CATEGORIES.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.dropdownCategoryItem,
+                    selectedCategory === category.id && styles.dropdownCategoryItemActive
+                  ]}
+                  onPress={() => setSelectedCategory(category.id)}
+                >
+                  <Text style={styles.dropdownCategoryEmoji}>{category.icon}</Text>
+                  <Text style={[
+                    styles.dropdownCategoryText,
+                    selectedCategory === category.id && styles.dropdownCategoryTextActive
+                  ]}>
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-      {/* Add Item Modal - Basitleştirilmiş */}
+          {/* Priority Filter */}
+          <View style={styles.dropdownSection}>
+            <Text style={styles.dropdownSectionTitle}>Priority Filter</Text>
+            <View style={styles.dropdownPriorityGrid}>
+              {PRIORITIES.map((priority) => (
+                <TouchableOpacity
+                  key={priority.id}
+                  style={[
+                    styles.dropdownPriorityItem,
+                    selectedPriorities.includes(priority.id) && {
+                      backgroundColor: priority.color + '20',
+                      borderColor: priority.color,
+                    }
+                  ]}
+                  onPress={() => {
+                    if (selectedPriorities.includes(priority.id)) {
+                      setSelectedPriorities(prev => prev.filter(p => p !== priority.id));
+                    } else {
+                      setSelectedPriorities(prev => [...prev, priority.id]);
+                    }
+                  }}
+                >
+                  <View style={[
+                    styles.priorityDot,
+                    { backgroundColor: priority.color }
+                  ]} />
+                  <Text style={[
+                    styles.dropdownPriorityText,
+                    selectedPriorities.includes(priority.id) && { color: priority.color, fontWeight: '600' }
+                  ]}>
+                    {priority.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* ✅ Main Content List */}
+      <View style={styles.mainContent}>
+        <FlatList
+          data={filteredItems}
+          keyExtractor={item => item.id}
+          renderItem={renderShoppingItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={filteredItems.length === 0 ? styles.emptyListContent : undefined}
+        />
+      </View>
+
+      {/* Modal */}
       <Modal
         visible={showAddModal}
         animationType="slide"
@@ -627,7 +804,7 @@ export default function ShoppingList() {
   );
 }
 
-// ✅ Simplified Styles
+// ✅ Complete Styles with Dropdown
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -693,63 +870,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.sm,
   },
-  statsCard: {
+
+  // ✅ NEW: Compact Stats Row
+  compactStatsRow: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    padding: spacing.lg,
-    ...shadows.sm,
-    borderWidth: 1,
-    borderColor: colors.neutral[100],
-  },
-  statItem: {
-    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[50],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
   },
-  statValue: {
-    fontSize: typography.fontSize.xl,
+  compactStat: {
+    alignItems: 'center',
+    marginRight: spacing.lg,
+  },
+  compactStatValue: {
+    fontSize: typography.fontSize.lg,
     fontWeight: 'bold',
     color: colors.neutral[800],
-    marginBottom: spacing.xs,
   },
-  statLabel: {
-    fontSize: typography.fontSize.sm,
+  compactStatLabel: {
+    fontSize: typography.fontSize.xs,
     color: colors.neutral[500],
+    marginTop: 2,
   },
-  filtersContainer: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  searchContainer: {
+  compactSearchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
-    borderRadius: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderWidth: 1,
     borderColor: colors.neutral[200],
   },
-  searchInput: {
+  compactSearchInput: {
     flex: 1,
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.neutral[800],
-    marginLeft: spacing.sm,
+    marginLeft: spacing.xs,
+  },
+
+  // ✅ NEW: Quick Actions Container
+  quickActionsContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  quickActionsButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    marginBottom: spacing.sm,
+  },
+  quickActionsButtonText: {
+    fontSize: typography.fontSize.base,
+    fontWeight: '600',
+    color: colors.neutral[700],
   },
   toggleContainer: {
     flexDirection: 'row',
     backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 8,
+    padding: 2,
   },
   toggleButton: {
     flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 6,
     alignItems: 'center',
   },
   toggleButtonActive: {
@@ -765,34 +963,110 @@ const styles = StyleSheet.create({
     color: colors.neutral[800],
     fontWeight: '600',
   },
-  categoryTabs: {
-    paddingLeft: spacing.lg,
-    marginBottom: spacing.md,
+
+  // ✅ NEW: Dropdown Content
+  dropdownContent: {
+    backgroundColor: colors.neutral[0],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  categoryTab: {
+  dropdownSection: {
+    marginBottom: spacing.lg,
+  },
+  dropdownSectionTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.neutral[700],
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dropdownActions: {
+    gap: spacing.sm,
+  },
+  dropdownActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginRight: spacing.sm,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.neutral[50],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    gap: spacing.sm,
+  },
+  dropdownActionText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary[500],
+    fontWeight: '500',
+  },
+  dropdownCategoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  dropdownCategoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 16,
     backgroundColor: colors.neutral[50],
     borderWidth: 1,
     borderColor: colors.neutral[200],
+    gap: spacing.xs,
   },
-  categoryEmoji: {
-    fontSize: 16,
-    marginRight: spacing.xs,
+  dropdownCategoryItemActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
   },
-  categoryText: {
+  dropdownCategoryEmoji: {
+    fontSize: 14,
+  },
+  dropdownCategoryText: {
     fontSize: typography.fontSize.sm,
     color: colors.neutral[600],
     fontWeight: '500',
   },
-  itemsList: {
+  dropdownCategoryTextActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+  dropdownPriorityGrid: {
+    gap: spacing.sm,
+  },
+  dropdownPriorityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[50],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    gap: spacing.sm,
+  },
+  priorityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  dropdownPriorityText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    fontWeight: '500',
+  },
+  mainContent: {
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
+  emptyListContent: {
+    flex: 1,
+  },
+
+  // Item Card Styles
   itemCard: {
     backgroundColor: colors.neutral[0],
     borderRadius: 16,
@@ -871,6 +1145,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Empty State
   emptyState: {
     flex: 1,
     justifyContent: 'center',
