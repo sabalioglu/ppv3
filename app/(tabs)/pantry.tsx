@@ -336,13 +336,6 @@ export default function PantryScreen() {
   const handleAddToShoppingList = async (item: PantryItem) => {
     try {
       console.log('Adding to shopping list:', item.name);
-     console.log('Original pantry item data:', {
-       name: item.name,
-       quantity: item.quantity,
-       unit: item.unit,
-       quantityType: typeof item.quantity,
-       unitType: typeof item.unit
-     });
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -372,33 +365,21 @@ export default function PantryScreen() {
         return;
       }
 
-     // ✅ ENHANCED: Ensure proper type conversion and validation
-     const pantryQuantity = parseFloat(String(item.quantity)) || 1;
-     const pantryUnit = item.unit?.trim() || 'piece';
-     
+      // ✅ FIXED: Pantry'deki quantity ve unit değerlerini kullan
       const shoppingItemData = {
         user_id: user.id,
         item_name: item.name,
         brand: item.brand || null,
         category: item.category || 'general',
-       quantity: pantryQuantity,
-       unit: pantryUnit,
+        quantity: item.quantity || 1,  // ✅ Pantry'deki quantity değerini al
+        unit: item.unit || 'piece',     // ✅ Pantry'deki unit değerini al
         source: 'auto_pantry',
         priority: 'medium',
-       notes: `Added from pantry (Original: ${pantryQuantity} ${pantryUnit})`,
+        notes: `Added from pantry (Original: ${item.quantity} ${item.unit})`, // ✅ Orijinal değerleri not olarak ekle
         is_completed: false,
-       organic_preference: false,
-       coupons_available: false,
-       seasonal_availability: true,
       };
 
-     console.log('Final shopping item data before insert:', {
-       item_name: shoppingItemData.item_name,
-       quantity: shoppingItemData.quantity,
-       unit: shoppingItemData.unit,
-       quantityType: typeof shoppingItemData.quantity,
-       unitType: typeof shoppingItemData.unit
-     });
+      console.log('Inserting shopping item with correct quantity:', shoppingItemData);
 
       const { data, error } = await supabase
         .from('shopping_list_items')
@@ -408,22 +389,15 @@ export default function PantryScreen() {
 
       if (error) {
         console.error('Insert error:', error);
-       console.error('Failed data that caused error:', shoppingItemData);
         throw error;
       }
 
       console.log('Successfully added to shopping list:', data);
-     console.log('Inserted record verification:', {
-       saved_quantity: data.quantity,
-       saved_unit: data.unit,
-       saved_quantity_type: typeof data.quantity,
-       saved_unit_type: typeof data.unit
-     });
 
-     // ✅ Enhanced success message with verified values
+      // ✅ Başarı mesajında miktar ve birim bilgisini göster
       Alert.alert(
         'Success! ✅',
-       `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${pantryQuantity} ${pantryUnit} has been added to your shopping list!`,
+        `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${item.quantity} ${item.unit} has been added to your shopping list!`,
         [{ text: 'OK', style: 'default' }]
       );
       setShowActionsMenu(null);
