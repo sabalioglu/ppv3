@@ -18,25 +18,7 @@ import {
   ListRenderItem,
   Image,
 } from 'react-native';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Package, 
-  Calendar, 
-  TriangleAlert as AlertTriangle, 
-  X, 
-  Camera, 
-  Barcode, 
-  Clock, 
-  MapPin, 
-  TrendingUp, 
-  ChevronDown, 
-  Trash2, 
-  Edit3, 
-  MoreVertical, 
-  ShoppingCart
-} from 'lucide-react-native';
+import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown, Trash2, CreditCard as Edit3, MoveVertical as MoreVertical, ShoppingCart } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
 import { colors } from '@/lib/theme';
