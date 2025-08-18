@@ -84,6 +84,7 @@ const UNITS = [
   { value: 'tbsp', label: 'Tablespoons', category: 'Volume' },
   { value: 'tsp', label: 'Teaspoons', category: 'Volume' },
   { value: 'grams', label: 'Grams', category: 'Weight' },
+  { value: 'piece', label: 'Piece', category: 'Count' },
 ];
 
 const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
@@ -349,7 +350,7 @@ export default function PantryScreen() {
     );
   };
 
-  // ✅ FIXED: handleAddToShoppingList function
+  // ✅ FIXED: handleAddToShoppingList - Sadece tabloda olan alanları kullan
   const handleAddToShoppingList = async (item: PantryItem) => {
     try {
       console.log('Adding to shopping list:', item.name);
@@ -360,7 +361,7 @@ export default function PantryScreen() {
         return;
       }
 
-      // Check if table exists and item doesn't already exist
+      // Check if item already exists
       const { data: existingItems, error: checkError } = await supabase
         .from('shopping_list_items')
         .select('*')
@@ -369,11 +370,7 @@ export default function PantryScreen() {
         .eq('is_completed', false);
 
       if (checkError) {
-        console.error('Check error:', checkError);
-        // If table doesn't exist, create the item anyway
-        if (!checkError.message.includes('relation') && !checkError.message.includes('does not exist')) {
-          throw checkError;
-        }
+        console.log('Check existing error (non-critical):', checkError);
       }
 
       if (existingItems && existingItems.length > 0) {
@@ -386,23 +383,23 @@ export default function PantryScreen() {
         return;
       }
 
-      // Prepare shopping list item data
+      // ✅ FIXED: Sadece tabloda olan alanları gönder
       const shoppingItemData = {
         user_id: user.id,
         item_name: item.name,
-        brand: item.brand || null,
+        brand: item.brand || null,  // ✅ Brand var
         category: item.category || 'general',
         quantity: 1,
         unit: item.unit || 'piece',
         source: 'auto_pantry',
-        pantry_item_id: item.id,
         priority: 'medium',
-        notes: `Added from pantry`,
+        notes: 'Added from pantry',
         is_completed: false,
-        organic_preference: false,
-        coupons_available: false,
-        seasonal_availability: true,
-        created_at: new Date().toISOString(),
+        // Tabloda olan opsiyonel alanlar (isteğe bağlı):
+        // estimated_cost: null,
+        // nutrition_goal: null,
+        // recipe_id: null,
+        // ingredient_name: item.name,
       };
 
       console.log('Inserting shopping item:', shoppingItemData);
@@ -422,7 +419,7 @@ export default function PantryScreen() {
 
       Alert.alert(
         'Success! ✅',
-        `${item.name} has been added to your shopping list!`,
+        `${item.name}${item.brand ? ` (${item.brand})` : ''} has been added to your shopping list!`,
         [{ text: 'OK', style: 'default' }]
       );
       setShowActionsMenu(null);
@@ -603,7 +600,6 @@ export default function PantryScreen() {
     </View>
   );
 
-  // ✅ UPDATED: CellRendererComponent for proper z-index handling
   const CellRendererComponent = ({ children, index, style, ...props }: any) => {
     const itemData = filteredItems[index];
     const isMenuOpen = itemData && showActionsMenu === itemData.id;
@@ -623,7 +619,6 @@ export default function PantryScreen() {
     );
   };
 
-  // ✅ FIXED: Updated renderPantryItem
   const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
