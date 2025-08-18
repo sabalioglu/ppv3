@@ -200,6 +200,152 @@ export default function RecipeDetail() {
     }
   };
 
+  // ✅ UPDATED: Universal ingredient categorization function
+  const categorizeIngredient = (ingredient: string): string => {
+    const lowerIngredient = ingredient.toLowerCase();
+    
+    // Meat & Protein
+    if (lowerIngredient.includes('meat') || lowerIngredient.includes('chicken') || 
+        lowerIngredient.includes('beef') || lowerIngredient.includes('pork') || 
+        lowerIngredient.includes('fish') || lowerIngredient.includes('turkey') ||
+        lowerIngredient.includes('bacon') || lowerIngredient.includes('ham') ||
+        lowerIngredient.includes('salmon') || lowerIngredient.includes('tuna')) {
+      return 'meat';
+    }
+    // Vegetables
+    else if (lowerIngredient.includes('vegetable') || lowerIngredient.includes('onion') || 
+             lowerIngredient.includes('tomato') || lowerIngredient.includes('carrot') ||
+             lowerIngredient.includes('pepper') || lowerIngredient.includes('lettuce') ||
+             lowerIngredient.includes('spinach') || lowerIngredient.includes('garlic') ||
+             lowerIngredient.includes('potato') || lowerIngredient.includes('celery')) {
+      return 'vegetables';
+    }
+    // Dairy
+    else if (lowerIngredient.includes('milk') || lowerIngredient.includes('cheese') || 
+             lowerIngredient.includes('yogurt') || lowerIngredient.includes('butter') ||
+             lowerIngredient.includes('cream') || lowerIngredient.includes('egg')) {
+      return 'dairy';
+    }
+    // Grains
+    else if (lowerIngredient.includes('rice') || lowerIngredient.includes('pasta') || 
+             lowerIngredient.includes('bread') || lowerIngredient.includes('flour') ||
+             lowerIngredient.includes('wheat') || lowerIngredient.includes('oats') ||
+             lowerIngredient.includes('quinoa') || lowerIngredient.includes('barley')) {
+      return 'grains';
+    }
+    // Fruits
+    else if (lowerIngredient.includes('apple') || lowerIngredient.includes('banana') || 
+             lowerIngredient.includes('orange') || lowerIngredient.includes('berry') ||
+             lowerIngredient.includes('lemon') || lowerIngredient.includes('lime') ||
+             lowerIngredient.includes('grape') || lowerIngredient.includes('peach')) {
+      return 'fruits';
+    }
+    // Condiments & Spices
+    else if (lowerIngredient.includes('salt') || lowerIngredient.includes('pepper') || 
+             lowerIngredient.includes('oil') || lowerIngredient.includes('sauce') ||
+             lowerIngredient.includes('spice') || lowerIngredient.includes('herb') ||
+             lowerIngredient.includes('vinegar') || lowerIngredient.includes('mustard')) {
+      return 'condiments';
+    }
+    // Beverages
+    else if (lowerIngredient.includes('water') || lowerIngredient.includes('juice') || 
+             lowerIngredient.includes('coffee') || lowerIngredient.includes('tea') ||
+             lowerIngredient.includes('soda') || lowerIngredient.includes('wine')) {
+      return 'beverages';
+    }
+    else {
+      return 'general';
+    }
+  };
+
+  // ✅ UPDATED: Universal Add to Shopping List function
+  const handleAddMissingToCart = async () => {
+    if (!recipe) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Authentication Required', 'Please log in to add items to shopping list.');
+        return;
+      }
+
+      // Meal plan recipes için pantry analizi varsa missing ingredients kullan
+      if (isFromMealPlan && pantryMatch && pantryMatch.missingIngredients.length > 0) {
+        const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
+          user_id: user.id,
+          item_name: ingredient,
+          category: 'general',
+          quantity: 1,
+          unit: 'unit',
+          is_completed: false,
+          source: 'recipe' as const,
+          source_id: recipe.id,
+          priority: 'high' as const,
+          notes: `Missing from pantry - Recipe: ${recipe.name || (recipe as Recipe).title}`,
+          organic_preference: false,
+          coupons_available: false,
+          seasonal_availability: true,
+        }));
+
+        const { error } = await supabase
+          .from('shopping_list_items')
+          .insert(shoppingItems);
+
+        if (error) throw error;
+
+        Alert.alert(
+          'Success! 🛒',
+          `Added ${pantryMatch.missingIngredients.length} missing ingredients to your shopping list`,
+          [
+            { text: 'View Shopping List', onPress: () => router.push('/(tabs)/shopping-list') },
+            { text: 'OK' }
+          ]
+        );
+      } else {
+        // Normal recipes veya pantry analizi yoksa tüm ingredients'ları ekle
+        if (!recipe.ingredients || recipe.ingredients.length === 0) {
+          Alert.alert('Info', 'This recipe has no ingredients to add.');
+          return;
+        }
+
+        const shoppingItems = recipe.ingredients.map(ingredient => ({
+          user_id: user.id,
+          item_name: ingredient.name,
+          category: categorizeIngredient(ingredient.name),
+          quantity: ingredient.quantity ? parseFloat(ingredient.quantity) || 1 : 1,
+          unit: ingredient.unit || 'piece',
+          is_completed: false,
+          source: 'recipe' as const,
+          source_id: recipe.id,
+          priority: 'medium' as const,
+          notes: `From recipe: ${recipe.name || (recipe as Recipe).title}`,
+          organic_preference: false,
+          coupons_available: false,
+          seasonal_availability: true,
+        }));
+
+        const { error } = await supabase
+          .from('shopping_list_items')
+          .insert(shoppingItems);
+
+        if (error) throw error;
+
+        Alert.alert(
+          'Success! 🛒',
+          `Added ${recipe.ingredients.length} ingredients to your shopping list`,
+          [
+            { text: 'View Shopping List', onPress: () => router.push('/(tabs)/shopping-list') },
+            { text: 'OK' }
+          ]
+        );
+      }
+
+    } catch (error) {
+      console.error('Error adding to shopping list:', error);
+      Alert.alert('Error', 'Failed to add items to shopping list');
+    }
+  };
+
   // ✅ ADDED: Pantry analysis function
   const analyzePantryMatch = async (recipe: Recipe | Meal) => {
     if (!isFromMealPlan) return;
@@ -279,23 +425,6 @@ export default function RecipeDetail() {
       setError(err instanceof Error ? err.message : 'Failed to load recipe');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Helper function for ingredient categorization
-  const categorizeIngredient = (ingredient: string): string => {
-    const lowerIngredient = ingredient.toLowerCase();
-    
-    if (lowerIngredient.includes('meat') || lowerIngredient.includes('chicken') || lowerIngredient.includes('beef')) {
-      return 'Protein';
-    } else if (lowerIngredient.includes('vegetable') || lowerIngredient.includes('onion') || lowerIngredient.includes('tomato')) {
-      return 'Vegetables';
-    } else if (lowerIngredient.includes('milk') || lowerIngredient.includes('cheese') || lowerIngredient.includes('yogurt')) {
-      return 'Dairy';
-    } else if (lowerIngredient.includes('rice') || lowerIngredient.includes('pasta') || lowerIngredient.includes('bread')) {
-      return 'Grains';
-    } else {
-      return 'Other';
     }
   };
 
@@ -465,55 +594,6 @@ export default function RecipeDetail() {
     
     const mainIngredients = recipe.ingredients.slice(0, 3).map(ing => ing.name).join(',');
     router.push(`/(tabs)/recipes?search=${encodeURIComponent(mainIngredients)}`);
-  };
-
-  const handleAddMissingToCart = async () => {
-    if (!recipe) return;
-    
-    // ✅ FIXED: Check pantryMatch instead of recipe.missingIngredients
-    if (!pantryMatch || pantryMatch.missingIngredients.length === 0) {
-      Alert.alert('Info', 'No missing ingredients or pantry analysis not available.');
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to add items to shopping list.');
-        return;
-      }
-
-      const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
-        user_id: user.id,
-        item_name: ingredient,
-        category: 'general',
-        quantity: 1,
-        unit: 'unit',
-        is_completed: false,
-        source: 'recipe',
-        recipe_id: recipe.id,
-        ingredient_name: ingredient,
-        priority: 'high',
-      }));
-
-      const { error } = await supabase
-        .from('shopping_list_items')
-        .insert(shoppingItems);
-
-      if (error) throw error;
-
-      Alert.alert(
-        'Success',
-        `Added ${pantryMatch.missingIngredients.length} missing ingredients to your shopping list`,
-        [
-          { text: 'View List', onPress: () => router.push('/(tabs)/shopping-list') },
-          { text: 'OK' }
-        ]
-      );
-    } catch (error) {
-      console.error('Error adding to shopping list:', error);
-      Alert.alert('Error', 'Failed to add items to shopping list');
-    }
   };
 
   // Placeholder functions for non-meal-plan recipes
@@ -759,7 +839,7 @@ export default function RecipeDetail() {
           )}
         </View>
 
-        {/* Action Buttons - Different for meal plan vs regular recipes */}
+        {/* ✅ UPDATED: Action Buttons - Universal Shopping List Support */}
         <View style={styles.actionButtons}>
           {isFromMealPlan ? (
             <>
@@ -767,9 +847,11 @@ export default function RecipeDetail() {
                 <CheckCircle size={20} color={colors.neutral[0]} />
                 <Text style={styles.primaryButtonText}>I Made This</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleAddToTodaysNutrition}>
-                <Heart size={20} color={colors.primary[500]} />
-                <Text style={styles.secondaryButtonText}>Add to Nutrition</Text>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleAddMissingToCart}>
+                <ShoppingCart size={20} color={colors.primary[500]} />
+                <Text style={styles.secondaryButtonText}>
+                  {pantryMatch?.missingIngredients.length ? 'Add Missing to Cart' : 'Add All to Cart'}
+                </Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -780,7 +862,7 @@ export default function RecipeDetail() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryButton} onPress={handleAddMissingToCart}>
                 <ShoppingCart size={20} color={colors.primary[500]} />
-                <Text style={styles.secondaryButtonText}>Add to Cart</Text>
+                <Text style={styles.secondaryButtonText}>Add Ingredients to Cart</Text>
               </TouchableOpacity>
             </>
           )}
@@ -789,9 +871,9 @@ export default function RecipeDetail() {
         {/* Additional Actions for Meal Plan Recipes */}
         {isFromMealPlan && (
           <View style={styles.additionalActions}>
-            <TouchableOpacity style={styles.tertiaryButton} onPress={handleAddMissingToCart}>
-              <ShoppingCart size={18} color={colors.neutral[600]} />
-              <Text style={styles.tertiaryButtonText}>Add Missing to Shopping</Text>
+            <TouchableOpacity style={styles.tertiaryButton} onPress={handleAddToTodaysNutrition}>
+              <Heart size={18} color={colors.neutral[600]} />
+              <Text style={styles.tertiaryButtonText}>Add to Nutrition</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.tertiaryButton} onPress={handleFindSimilarRecipes}>
               <TrendingUp size={18} color={colors.neutral[600]} />
