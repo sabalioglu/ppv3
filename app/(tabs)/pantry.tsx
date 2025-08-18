@@ -575,26 +575,38 @@ export default function PantryScreen() {
     </View>
   );
 
-  // ✅ FIXED: Updated renderPantryItem with proper z-index handling
+  // ✅ CRITICAL FIX: CellRendererComponent for proper z-index handling
+  const CellRendererComponent = ({ children, index, style, ...props }: any) => {
+    const cellStyle = [
+      style,
+      {
+        zIndex: filteredItems[index] && showActionsMenu === filteredItems[index].id ? 999 : 1,
+        elevation: filteredItems[index] && showActionsMenu === filteredItems[index].id ? 999 : 1,
+      }
+    ];
+    
+    return (
+      <View style={cellStyle} {...props}>
+        {children}
+      </View>
+    );
+  };
+
+  // ✅ FIXED: Updated renderPantryItem
   const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
 
-    // ✅ Dynamic z-index for open dropdown
     const itemStyle = [
       styles.itemCard,
       {
         width: numColumns === 1 ? '100%' : itemWidth - 8,
         marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
-        zIndex: showActionsMenu === item.id ? 999 : 1,
       }
     ];
 
     return (
-      <TouchableOpacity
-        style={itemStyle}
-        activeOpacity={0.7}
-      >
+      <View style={itemStyle}>
         <TouchableOpacity
           style={styles.itemActionsButton}
           onPress={() => setShowActionsMenu(showActionsMenu === item.id ? null : item.id)}
@@ -685,7 +697,7 @@ export default function PantryScreen() {
         {daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry >= 0 && (
           <View style={[styles.expiryIndicator, { backgroundColor: expiryColor }]} />
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -956,6 +968,8 @@ export default function PantryScreen() {
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={renderCategoriesHeader}
+        CellRendererComponent={CellRendererComponent}  // ✅ CRITICAL: Add this line
+        removeClippedSubviews={false}  // ✅ IMPORTANT: Disable clipping
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1189,7 +1203,6 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     flexGrow: 1,
   },
-  // ✅ FIXED: Updated itemCard with proper z-index
   itemCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -1200,7 +1213,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'visible',
     minHeight: 120,
-    zIndex: 1,
   },
   itemActionsButton: {
     position: 'absolute',
@@ -1214,7 +1226,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // ✅ FIXED: Enhanced dropdown z-index and elevation
   actionsDropdown: {
     position: 'absolute',
     top: 36,
@@ -1227,7 +1238,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 100,
+    elevation: 999,
     zIndex: 9999,
     borderWidth: 1,
     borderColor: '#e5e7eb',
