@@ -1,4 +1,4 @@
-// app/recipe/[id].tsx - Complete Production-Ready Recipe Detail Page
+// app/recipe/[id].tsx - Complete Production-Ready Recipe Detail Page with Fixed Shopping List
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -258,7 +258,7 @@ export default function RecipeDetail() {
     }
   };
 
-  // ✅ UPDATED: Universal Add to Shopping List function
+  // ✅ FINAL: Database Schema Compatible Shopping List Function
   const handleAddMissingToCart = async () => {
     if (!recipe) return;
     
@@ -277,21 +277,34 @@ export default function RecipeDetail() {
           category: 'general',
           quantity: 1,
           unit: 'unit',
-          is_completed: false,
-          source: 'recipe' as const,
-          source_id: recipe.id,
+          estimated_cost: null,
           priority: 'high' as const,
+          source: 'recipe' as const,
+          nutrition_goal: null,
+          is_completed: false,
+          completed_at: null,
+          recipe_id: recipe.id, // ✅ Doğru kolon adı
+          ingredient_name: ingredient,
           notes: `Missing from pantry - Recipe: ${recipe.name || (recipe as Recipe).title}`,
-          organic_preference: false,
+          purchased_at: null,
+          brand: null,
           coupons_available: false,
           seasonal_availability: true,
         }));
 
-        const { error } = await supabase
-          .from('shopping_list_items')
-          .insert(shoppingItems);
+        console.log('🛒 Adding missing ingredients:', shoppingItems);
 
-        if (error) throw error;
+        const { data, error } = await supabase
+          .from('shopping_list_items')
+          .insert(shoppingItems)
+          .select();
+
+        if (error) {
+          console.error('❌ Database Error:', error);
+          throw error;
+        }
+
+        console.log('✅ Successfully added missing ingredients:', data);
 
         Alert.alert(
           'Success! 🛒',
@@ -314,21 +327,34 @@ export default function RecipeDetail() {
           category: categorizeIngredient(ingredient.name),
           quantity: ingredient.quantity ? parseFloat(ingredient.quantity) || 1 : 1,
           unit: ingredient.unit || 'piece',
-          is_completed: false,
-          source: 'recipe' as const,
-          source_id: recipe.id,
+          estimated_cost: null,
           priority: 'medium' as const,
+          source: 'recipe' as const,
+          nutrition_goal: null,
+          is_completed: false,
+          completed_at: null,
+          recipe_id: recipe.id, // ✅ Doğru kolon adı
+          ingredient_name: ingredient.name,
           notes: `From recipe: ${recipe.name || (recipe as Recipe).title}`,
-          organic_preference: false,
+          purchased_at: null,
+          brand: null, // Brand bilgisi ingredient'tan alınabilir
           coupons_available: false,
           seasonal_availability: true,
         }));
 
-        const { error } = await supabase
-          .from('shopping_list_items')
-          .insert(shoppingItems);
+        console.log('🛒 Adding all ingredients:', shoppingItems);
 
-        if (error) throw error;
+        const { data, error } = await supabase
+          .from('shopping_list_items')
+          .insert(shoppingItems)
+          .select();
+
+        if (error) {
+          console.error('❌ Database Error:', error);
+          throw error;
+        }
+
+        console.log('✅ Successfully added all ingredients:', data);
 
         Alert.alert(
           'Success! 🛒',
@@ -341,7 +367,7 @@ export default function RecipeDetail() {
       }
 
     } catch (error) {
-      console.error('Error adding to shopping list:', error);
+      console.error('❌ Error adding to shopping list:', error);
       Alert.alert('Error', 'Failed to add items to shopping list');
     }
   };
@@ -1471,7 +1497,7 @@ const styles = StyleSheet.create({
   tag: {
     backgroundColor: colors.primary[50],
     borderRadius: 20,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.md,  
     paddingVertical: spacing.sm,
   },
   tagText: {
