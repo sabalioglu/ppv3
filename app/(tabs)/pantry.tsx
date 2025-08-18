@@ -54,6 +54,7 @@ interface PantryItem {
   location?: string;
   image_url?: string;
   created_at: string;
+  user_id?: string;
 }
 
 const CATEGORIES = [
@@ -82,6 +83,7 @@ const UNITS = [
   { value: 'cups', label: 'Cups', category: 'Volume' },
   { value: 'tbsp', label: 'Tablespoons', category: 'Volume' },
   { value: 'tsp', label: 'Teaspoons', category: 'Volume' },
+  { value: 'grams', label: 'Grams', category: 'Weight' },
 ];
 
 const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
@@ -347,11 +349,18 @@ export default function PantryScreen() {
     );
   };
 
+  // ✅ FIXED: handleAddToShoppingList function
   const handleAddToShoppingList = async (item: PantryItem) => {
     try {
+      console.log('Adding to shopping list:', item.name);
+      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        Alert.alert('Error', 'Please log in to add items to shopping list');
+        return;
+      }
 
+      // Check if table exists and item doesn't already exist
       const { data: existingItems, error: checkError } = await supabase
         .from('shopping_list_items')
         .select('*')
@@ -359,7 +368,13 @@ export default function PantryScreen() {
         .eq('item_name', item.name)
         .eq('is_completed', false);
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error('Check error:', checkError);
+        // If table doesn't exist, create the item anyway
+        if (!checkError.message.includes('relation') && !checkError.message.includes('does not exist')) {
+          throw checkError;
+        }
+      }
 
       if (existingItems && existingItems.length > 0) {
         Alert.alert(
@@ -371,22 +386,26 @@ export default function PantryScreen() {
         return;
       }
 
+      // Prepare shopping list item data
       const shoppingItemData = {
         user_id: user.id,
         item_name: item.name,
         brand: item.brand || null,
-        category: item.category,
+        category: item.category || 'general',
         quantity: 1,
-        unit: item.unit,
-        source: 'auto_pantry' as const,
+        unit: item.unit || 'piece',
+        source: 'auto_pantry',
         pantry_item_id: item.id,
-        priority: 'medium' as const,
+        priority: 'medium',
         notes: `Added from pantry`,
         is_completed: false,
         organic_preference: false,
         coupons_available: false,
         seasonal_availability: true,
+        created_at: new Date().toISOString(),
       };
+
+      console.log('Inserting shopping item:', shoppingItemData);
 
       const { data, error } = await supabase
         .from('shopping_list_items')
@@ -394,18 +413,27 @@ export default function PantryScreen() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
+
+      console.log('Successfully added to shopping list:', data);
 
       Alert.alert(
-        'Success',
+        'Success! ✅',
         `${item.name} has been added to your shopping list!`,
         [{ text: 'OK', style: 'default' }]
       );
       setShowActionsMenu(null);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding to shopping list:', error);
-      Alert.alert('Error', 'Failed to add item to shopping list');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to add item to shopping list. Please try again.'
+      );
+      setShowActionsMenu(null);
     }
   };
 
@@ -575,13 +603,16 @@ export default function PantryScreen() {
     </View>
   );
 
-  // ✅ CRITICAL FIX: CellRendererComponent for proper z-index handling
+  // ✅ UPDATED: CellRendererComponent for proper z-index handling
   const CellRendererComponent = ({ children, index, style, ...props }: any) => {
+    const itemData = filteredItems[index];
+    const isMenuOpen = itemData && showActionsMenu === itemData.id;
+    
     const cellStyle = [
       style,
       {
-        zIndex: filteredItems[index] && showActionsMenu === filteredItems[index].id ? 999 : 1,
-        elevation: filteredItems[index] && showActionsMenu === filteredItems[index].id ? 999 : 1,
+        zIndex: isMenuOpen ? 9999 : 1,
+        elevation: isMenuOpen ? 9999 : 1,
       }
     ];
     
@@ -968,8 +999,8 @@ export default function PantryScreen() {
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={renderCategoriesHeader}
-        CellRendererComponent={CellRendererComponent}  // ✅ CRITICAL: Add this line
-        removeClippedSubviews={false}  // ✅ IMPORTANT: Disable clipping
+        CellRendererComponent={CellRendererComponent}
+        removeClippedSubviews={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1239,7 +1270,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 999,
-    zIndex: 9999,
+    zIndex: 99999,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
