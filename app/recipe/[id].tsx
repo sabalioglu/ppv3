@@ -1,4 +1,4 @@
-// app/recipe/[id].tsx - Complete Production-Ready Recipe Detail Page with Fixed Shopping List
+// app/recipe/[id].tsx - Complete Production-Ready Recipe Detail Page with Smart Ingredient Parsing
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -200,57 +200,120 @@ export default function RecipeDetail() {
     }
   };
 
-  // ✅ UPDATED: Universal ingredient categorization function
+  // ✅ IMPROVED: Smart Ingredient Parsing Function
+  const parseIngredient = (ingredient: { name: string; quantity?: string; unit?: string }) => {
+    let itemName = ingredient.name;
+    let quantity = 1;
+    let unit = 'piece';
+
+    // Eğer quantity ve unit zaten ayrıştırılmışsa
+    if (ingredient.quantity && ingredient.unit) {
+      quantity = parseFloat(ingredient.quantity) || 1;
+      unit = ingredient.unit;
+      return { itemName, quantity, unit };
+    }
+
+    // Ingredient name'den quantity ve unit çıkarmaya çalış
+    const ingredientText = ingredient.name.toLowerCase();
+    
+    // Quantity regex patterns
+    const quantityPatterns = [
+      /^(\d+(?:\.\d+)?|\d+\s*\d+\/\d+|\d+\/\d+)\s*(cups?|cup|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|kilograms?|ml|l|liters?|packages?|package|slices?|slice|pieces?|piece|pcs?)\s+(.+)/i,
+      /^(\d+(?:\.\d+)?|\d+\s*\d+\/\d+|\d+\/\d+)\s+(.+)/i
+    ];
+
+    for (const pattern of quantityPatterns) {
+      const match = ingredient.name.match(pattern);
+      if (match) {
+        // Parse quantity (handle fractions like "1 1/2")
+        let parsedQuantity = match[1];
+        if (parsedQuantity.includes('/')) {
+          // Handle fractions like "1/2" or "1 1/2"
+          const parts = parsedQuantity.split(' ');
+          if (parts.length === 2) {
+            // "1 1/2" format
+            const whole = parseFloat(parts[0]);
+            const [num, den] = parts[1].split('/').map(Number);
+            quantity = whole + (num / den);
+          } else {
+            // "1/2" format
+            const [num, den] = parsedQuantity.split('/').map(Number);
+            quantity = num / den;
+          }
+        } else {
+          quantity = parseFloat(parsedQuantity) || 1;
+        }
+
+        if (match[3]) {
+          // Unit was captured
+          unit = match[2];
+          itemName = match[3];
+        } else {
+          // No unit, just quantity and name
+          itemName = match[2];
+          unit = 'piece';
+        }
+        break;
+      }
+    }
+
+    // Clean up item name - remove extra descriptions
+    itemName = itemName
+      .replace(/,.*$/, '') // Remove everything after first comma
+      .replace(/\(.*?\)/g, '') // Remove parentheses content
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .trim();
+
+    // Capitalize first letter
+    itemName = itemName.charAt(0).toUpperCase() + itemName.slice(1);
+
+    return { itemName, quantity, unit };
+  };
+
+  // ✅ IMPROVED: Enhanced categorization
   const categorizeIngredient = (ingredient: string): string => {
     const lowerIngredient = ingredient.toLowerCase();
     
+    // Dairy
+    if (lowerIngredient.includes('cheese') || lowerIngredient.includes('mozzarella') || 
+        lowerIngredient.includes('milk') || lowerIngredient.includes('yogurt') || 
+        lowerIngredient.includes('butter') || lowerIngredient.includes('cream') || 
+        lowerIngredient.includes('egg')) {
+      return 'dairy';
+    }
     // Meat & Protein
-    if (lowerIngredient.includes('meat') || lowerIngredient.includes('chicken') || 
-        lowerIngredient.includes('beef') || lowerIngredient.includes('pork') || 
-        lowerIngredient.includes('fish') || lowerIngredient.includes('turkey') ||
-        lowerIngredient.includes('bacon') || lowerIngredient.includes('ham') ||
-        lowerIngredient.includes('salmon') || lowerIngredient.includes('tuna')) {
+    else if (lowerIngredient.includes('meat') || lowerIngredient.includes('chicken') || 
+             lowerIngredient.includes('beef') || lowerIngredient.includes('pork') || 
+             lowerIngredient.includes('fish') || lowerIngredient.includes('turkey') ||
+             lowerIngredient.includes('bacon') || lowerIngredient.includes('ham') ||
+             lowerIngredient.includes('salmon') || lowerIngredient.includes('tuna')) {
       return 'meat';
     }
     // Vegetables
-    else if (lowerIngredient.includes('vegetable') || lowerIngredient.includes('onion') || 
-             lowerIngredient.includes('tomato') || lowerIngredient.includes('carrot') ||
-             lowerIngredient.includes('pepper') || lowerIngredient.includes('lettuce') ||
-             lowerIngredient.includes('spinach') || lowerIngredient.includes('garlic') ||
-             lowerIngredient.includes('potato') || lowerIngredient.includes('celery')) {
+    else if (lowerIngredient.includes('onion') || lowerIngredient.includes('tomato') || 
+             lowerIngredient.includes('carrot') || lowerIngredient.includes('pepper') || 
+             lowerIngredient.includes('lettuce') || lowerIngredient.includes('spinach') || 
+             lowerIngredient.includes('garlic') || lowerIngredient.includes('potato') || 
+             lowerIngredient.includes('celery') || lowerIngredient.includes('vegetable')) {
       return 'vegetables';
     }
-    // Dairy
-    else if (lowerIngredient.includes('milk') || lowerIngredient.includes('cheese') || 
-             lowerIngredient.includes('yogurt') || lowerIngredient.includes('butter') ||
-             lowerIngredient.includes('cream') || lowerIngredient.includes('egg')) {
-      return 'dairy';
-    }
-    // Grains
-    else if (lowerIngredient.includes('rice') || lowerIngredient.includes('pasta') || 
-             lowerIngredient.includes('bread') || lowerIngredient.includes('flour') ||
-             lowerIngredient.includes('wheat') || lowerIngredient.includes('oats') ||
-             lowerIngredient.includes('quinoa') || lowerIngredient.includes('barley')) {
+    // Grains & Packaged
+    else if (lowerIngredient.includes('ramen') || lowerIngredient.includes('pasta') || 
+             lowerIngredient.includes('rice') || lowerIngredient.includes('bread') || 
+             lowerIngredient.includes('flour') || lowerIngredient.includes('wheat') || 
+             lowerIngredient.includes('oats') || lowerIngredient.includes('package')) {
       return 'grains';
     }
-    // Fruits
-    else if (lowerIngredient.includes('apple') || lowerIngredient.includes('banana') || 
-             lowerIngredient.includes('orange') || lowerIngredient.includes('berry') ||
-             lowerIngredient.includes('lemon') || lowerIngredient.includes('lime') ||
-             lowerIngredient.includes('grape') || lowerIngredient.includes('peach')) {
-      return 'fruits';
-    }
-    // Condiments & Spices
-    else if (lowerIngredient.includes('salt') || lowerIngredient.includes('pepper') || 
-             lowerIngredient.includes('oil') || lowerIngredient.includes('sauce') ||
-             lowerIngredient.includes('spice') || lowerIngredient.includes('herb') ||
-             lowerIngredient.includes('vinegar') || lowerIngredient.includes('mustard')) {
+    // Condiments & Seasonings
+    else if (lowerIngredient.includes('sauce') || lowerIngredient.includes('seasoning') || 
+             lowerIngredient.includes('salt') || lowerIngredient.includes('pepper') || 
+             lowerIngredient.includes('oil') || lowerIngredient.includes('spice') || 
+             lowerIngredient.includes('herb') || lowerIngredient.includes('vinegar')) {
       return 'condiments';
     }
     // Beverages
     else if (lowerIngredient.includes('water') || lowerIngredient.includes('juice') || 
-             lowerIngredient.includes('coffee') || lowerIngredient.includes('tea') ||
-             lowerIngredient.includes('soda') || lowerIngredient.includes('wine')) {
+             lowerIngredient.includes('coffee') || lowerIngredient.includes('tea')) {
       return 'beverages';
     }
     else {
@@ -258,7 +321,7 @@ export default function RecipeDetail() {
     }
   };
 
-  // ✅ FINAL: Database Schema Compatible Shopping List Function
+  // ✅ UPDATED: Smart Shopping List Function with Improved Parsing
   const handleAddMissingToCart = async () => {
     if (!recipe) return;
     
@@ -271,26 +334,31 @@ export default function RecipeDetail() {
 
       // Meal plan recipes için pantry analizi varsa missing ingredients kullan
       if (isFromMealPlan && pantryMatch && pantryMatch.missingIngredients.length > 0) {
-        const shoppingItems = pantryMatch.missingIngredients.map(ingredient => ({
-          user_id: user.id,
-          item_name: ingredient,
-          category: 'general',
-          quantity: 1,
-          unit: 'unit',
-          estimated_cost: null,
-          priority: 'high' as const,
-          source: 'recipe' as const,
-          nutrition_goal: null,
-          is_completed: false,
-          completed_at: null,
-          recipe_id: recipe.id, // ✅ Doğru kolon adı
-          ingredient_name: ingredient,
-          notes: `Missing from pantry - Recipe: ${recipe.name || (recipe as Recipe).title}`,
-          purchased_at: null,
-          brand: null,
-          coupons_available: false,
-          seasonal_availability: true,
-        }));
+        const shoppingItems = pantryMatch.missingIngredients.map(ingredientName => {
+          // Parse the missing ingredient name
+          const { itemName, quantity, unit } = parseIngredient({ name: ingredientName });
+          
+          return {
+            user_id: user.id,
+            item_name: itemName,
+            category: categorizeIngredient(itemName),
+            quantity: quantity,
+            unit: unit,
+            estimated_cost: null,
+            priority: 'high' as const,
+            source: 'recipe' as const,
+            nutrition_goal: null,
+            is_completed: false,
+            completed_at: null,
+            recipe_id: recipe.id,
+            ingredient_name: itemName,
+            notes: `Missing from pantry - Recipe: ${recipe.name || (recipe as Recipe).title}`,
+            purchased_at: null,
+            brand: null,
+            coupons_available: false,
+            seasonal_availability: true,
+          };
+        });
 
         console.log('🛒 Adding missing ingredients:', shoppingItems);
 
@@ -315,34 +383,38 @@ export default function RecipeDetail() {
           ]
         );
       } else {
-        // Normal recipes veya pantry analizi yoksa tüm ingredients'ları ekle
+        // Normal recipes veya pantry analizi yoksa tüm ingredients'ları smart parse ile ekle
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
           Alert.alert('Info', 'This recipe has no ingredients to add.');
           return;
         }
 
-        const shoppingItems = recipe.ingredients.map(ingredient => ({
-          user_id: user.id,
-          item_name: ingredient.name,
-          category: categorizeIngredient(ingredient.name),
-          quantity: ingredient.quantity ? parseFloat(ingredient.quantity) || 1 : 1,
-          unit: ingredient.unit || 'piece',
-          estimated_cost: null,
-          priority: 'medium' as const,
-          source: 'recipe' as const,
-          nutrition_goal: null,
-          is_completed: false,
-          completed_at: null,
-          recipe_id: recipe.id, // ✅ Doğru kolon adı
-          ingredient_name: ingredient.name,
-          notes: `From recipe: ${recipe.name || (recipe as Recipe).title}`,
-          purchased_at: null,
-          brand: null, // Brand bilgisi ingredient'tan alınabilir
-          coupons_available: false,
-          seasonal_availability: true,
-        }));
+        const shoppingItems = recipe.ingredients.map(ingredient => {
+          const { itemName, quantity, unit } = parseIngredient(ingredient);
+          
+          return {
+            user_id: user.id,
+            item_name: itemName,
+            category: categorizeIngredient(itemName),
+            quantity: quantity,
+            unit: unit,
+            estimated_cost: null,
+            priority: 'medium' as const,
+            source: 'recipe' as const,
+            nutrition_goal: null,
+            is_completed: false,
+            completed_at: null,
+            recipe_id: recipe.id,
+            ingredient_name: itemName,
+            notes: `From recipe: ${recipe.name || (recipe as Recipe).title}`,
+            purchased_at: null,
+            brand: null,
+            coupons_available: false,
+            seasonal_availability: true,
+          };
+        });
 
-        console.log('🛒 Adding all ingredients:', shoppingItems);
+        console.log('🛒 Adding smart parsed ingredients:', shoppingItems);
 
         const { data, error } = await supabase
           .from('shopping_list_items')
@@ -354,7 +426,7 @@ export default function RecipeDetail() {
           throw error;
         }
 
-        console.log('✅ Successfully added all ingredients:', data);
+        console.log('✅ Successfully added ingredients:', data);
 
         Alert.alert(
           'Success! 🛒',
