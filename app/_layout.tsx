@@ -1,4 +1,3 @@
-// app/_layout.tsx
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect, useState } from 'react';
@@ -6,7 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { mealPlanInitializer } from '../lib/meal-plan/initialize';
-import { useFonts } from 'expo-font'; // ✅ Ekleyin
+import { useFonts } from 'expo-font'; // ✅ Yeni eklendi
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -16,9 +15,22 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
 
+  // ✅ Font loading eklendi
+  const [fontsLoaded, fontError] = useFonts({
+    'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
+    'Inter-SemiBold': require('../assets/fonts/Inter-SemiBold.ttf'),
+    'Inter-Bold': require('../assets/fonts/Inter-Bold.ttf'),
+  });
+
   useEffect(() => {
     async function prepareApp() {
       try {
+        // ✅ Font yüklenene kadar bekle
+        if (!fontsLoaded && !fontError) {
+          return;
+        }
+
         // Initialize AI Meal Plan System
         const initResult = await mealPlanInitializer.initialize({
           enableLogging: __DEV__, // Use React Native's __DEV__ flag
@@ -50,7 +62,7 @@ export default function RootLayout() {
     }
 
     prepareApp();
-  }, []);
+  }, [fontsLoaded, fontError]); // ✅ Dependency eklendi
 
   useEffect(() => {
     async function hideSplash() {
@@ -65,6 +77,16 @@ export default function RootLayout() {
     
     hideSplash();
   }, [appIsReady]);
+
+  // ✅ Font hatası varsa hata göster
+  if (fontError) {
+    console.error('Font loading error:', fontError);
+  }
+
+  // ✅ Font yüklenmemişse bekle
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   // Show nothing while app is preparing
   if (!appIsReady) {
