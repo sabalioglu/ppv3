@@ -120,6 +120,7 @@ export default function ShoppingList() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [showPriorityFilter, setShowPriorityFilter] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
 
   // 🆕 Edit states
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
@@ -968,27 +969,43 @@ export default function ShoppingList() {
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.formLabel}>Unit</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.unitPicker}>
-                    {UNITS.map((unit) => (
-                      <TouchableOpacity
-                        key={unit}
-                        style={[
-                          styles.unitChip,
-                          editForm.unit === unit && styles.unitChipActive
-                        ]}
-                        onPress={() => setEditForm(prev => ({ ...prev, unit }))}
-                      >
-                        <Text style={[
-                          styles.unitChipText,
-                          editForm.unit === unit && styles.unitChipTextActive
-                        ]}>
-                          {unit}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                <TouchableOpacity
+                  style={styles.unitDropdownButton}
+                  onPress={() => setShowUnitDropdown(!showUnitDropdown)}
+                >
+                  <Text style={styles.unitDropdownButtonText}>{editForm.unit}</Text>
+                  <ChevronDown size={16} color={colors.neutral[500]} />
+                </TouchableOpacity>
+                
+                {showUnitDropdown && (
+                  <View style={styles.unitDropdownMenu}>
+                    <ScrollView style={styles.unitDropdownScroll} nestedScrollEnabled>
+                      {UNITS.map((unit) => (
+                        <TouchableOpacity
+                          key={unit}
+                          style={[
+                            styles.unitDropdownItem,
+                            editForm.unit === unit && styles.unitDropdownItemActive
+                          ]}
+                          onPress={() => {
+                            setEditForm(prev => ({ ...prev, unit }));
+                            setShowUnitDropdown(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.unitDropdownItemText,
+                            editForm.unit === unit && styles.unitDropdownItemTextActive
+                          ]}>
+                            {unit}
+                          </Text>
+                          {editForm.unit === unit && (
+                            <CheckCircle2 size={16} color={colors.primary[500]} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
-                </ScrollView>
+                )}
               </View>
             </View>
 
@@ -1634,6 +1651,60 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   unitChipTextActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+  
+  // Unit Dropdown Styles
+  unitDropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[0],
+  },
+  unitDropdownButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
+    fontWeight: '500',
+  },
+  unitDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: spacing.xs,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    ...shadows.md,
+    zIndex: 1000,
+  },
+  unitDropdownScroll: {
+    maxHeight: 200,
+  },
+  unitDropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  unitDropdownItemActive: {
+    backgroundColor: colors.primary[50],
+  },
+  unitDropdownItemText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[700],
+  },
+  unitDropdownItemTextActive: {
     color: colors.primary[600],
     fontWeight: '600',
   },
