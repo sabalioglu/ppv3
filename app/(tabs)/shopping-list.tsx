@@ -1,4 +1,4 @@
-// app/(tabs)/shopping-list.tsx - Complete with Dropdown Menu Implementation
+//app/(tabs)/shopping-list.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -124,6 +124,15 @@ export default function ShoppingList() {
   // 🆕 Edit states
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  
+  // 🆕 Add Modal Dropdown states
+  const [showAddUnitDropdown, setShowAddUnitDropdown] = useState(false);
+  const [showAddCategoryDropdown, setShowAddCategoryDropdown] = useState(false);
+  const [showAddPriorityDropdown, setShowAddPriorityDropdown] = useState(false);
+  
   const [editForm, setEditForm] = useState({
     item_name: '',
     category: 'general',
@@ -311,6 +320,9 @@ export default function ShoppingList() {
   const handleCancelEdit = () => {
     setShowEditModal(false);
     setEditingItem(null);
+    setShowUnitDropdown(false);
+    setShowCategoryDropdown(false);
+    setShowPriorityDropdown(false);
     setEditForm({
       item_name: '',
       category: 'general',
@@ -843,7 +855,12 @@ export default function ShoppingList() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
-              onPress={() => setShowAddModal(false)}
+              onPress={() => {
+                setShowAddModal(false);
+                setShowAddUnitDropdown(false);
+                setShowAddCategoryDropdown(false);
+                setShowAddPriorityDropdown(false);
+              }}
               style={styles.modalCloseButton}
             >
               <X size={24} color={colors.neutral[600]} />
@@ -865,7 +882,15 @@ export default function ShoppingList() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent} 
+            showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={() => {
+              setShowAddUnitDropdown(false);
+              setShowAddCategoryDropdown(false);
+              setShowAddPriorityDropdown(false);
+            }}
+          >
             {/* Item Name */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Item Name *</Text>
@@ -879,20 +904,171 @@ export default function ShoppingList() {
               />
             </View>
 
-            {/* Quantity */}
+            {/* Quantity & Unit */}
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.formLabel}>Quantity</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={addItemForm.quantity.toString()}
+                  onChangeText={(text) => {
+                    const num = parseFloat(text) || 1;
+                    setAddItemForm(prev => ({ ...prev, quantity: num }));
+                  }}
+                  keyboardType="numeric"
+                  placeholder="1"
+                  placeholderTextColor={colors.neutral[400]}
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.formLabel}>Unit</Text>
+                <TouchableOpacity
+                  style={styles.unitDropdownButton}
+                  onPress={() => setShowAddUnitDropdown(!showAddUnitDropdown)}
+                >
+                  <Text style={styles.unitDropdownButtonText}>{addItemForm.unit}</Text>
+                  <ChevronDown size={16} color={colors.neutral[500]} />
+                </TouchableOpacity>
+                
+                {showAddUnitDropdown && (
+                  <View style={styles.unitDropdownMenu}>
+                    <ScrollView style={styles.unitDropdownScroll} nestedScrollEnabled>
+                      {UNITS.map((unit) => (
+                        <TouchableOpacity
+                          key={unit}
+                          style={[
+                            styles.unitDropdownItem,
+                            addItemForm.unit === unit && styles.unitDropdownItemActive
+                          ]}
+                          onPress={() => {
+                            setAddItemForm(prev => ({ ...prev, unit }));
+                            setShowAddUnitDropdown(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.unitDropdownItemText,
+                            addItemForm.unit === unit && styles.unitDropdownItemTextActive
+                          ]}>
+                            {unit}
+                          </Text>
+                          {addItemForm.unit === unit && (
+                            <CheckCircle2 size={16} color={colors.primary[500]} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Category */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Quantity</Text>
-              <TextInput
-                style={styles.formInput}
-                value={addItemForm.quantity.toString()}
-                onChangeText={(text) => {
-                  const num = parseFloat(text) || 1;
-                  setAddItemForm(prev => ({ ...prev, quantity: num }));
-                }}
-                keyboardType="numeric"
-                placeholder="1"
-                placeholderTextColor={colors.neutral[400]}
-              />
+              <Text style={styles.formLabel}>Category</Text>
+              <TouchableOpacity
+                style={styles.categoryDropdownButton}
+                onPress={() => setShowAddCategoryDropdown(!showAddCategoryDropdown)}
+              >
+                <View style={styles.categoryDropdownSelected}>
+                  <Text style={styles.categoryDropdownEmoji}>
+                    {CATEGORIES.find(c => c.id === addItemForm.category)?.icon || '📦'}
+                  </Text>
+                  <Text style={styles.categoryDropdownButtonText}>
+                    {CATEGORIES.find(c => c.id === addItemForm.category)?.name || 'General'}
+                  </Text>
+                </View>
+                <ChevronDown size={16} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              
+              {showAddCategoryDropdown && (
+                <View style={styles.categoryDropdownMenu}>
+                  <ScrollView style={styles.categoryDropdownScroll} nestedScrollEnabled>
+                    {CATEGORIES.slice(1).map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[
+                          styles.categoryDropdownItem,
+                          addItemForm.category === category.id && styles.categoryDropdownItemActive
+                        ]}
+                        onPress={() => {
+                          setAddItemForm(prev => ({ ...prev, category: category.id }));
+                          setShowAddCategoryDropdown(false);
+                        }}
+                      >
+                        <View style={styles.categoryDropdownItemContent}>
+                          <Text style={styles.categoryDropdownItemEmoji}>
+                            {category.icon}
+                          </Text>
+                          <Text style={[
+                            styles.categoryDropdownItemText,
+                            addItemForm.category === category.id && styles.categoryDropdownItemTextActive
+                          ]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                        {addItemForm.category === category.id && (
+                          <CheckCircle2 size={16} color={colors.primary[500]} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {/* Priority */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Priority</Text>
+              <TouchableOpacity
+                style={styles.priorityDropdownButton}
+                onPress={() => setShowAddPriorityDropdown(!showAddPriorityDropdown)}
+              >
+                <View style={styles.priorityDropdownSelected}>
+                  <View style={[
+                    styles.priorityDropdownDot,
+                    { backgroundColor: PRIORITIES.find(p => p.id === addItemForm.priority)?.color }
+                  ]} />
+                  <Text style={styles.priorityDropdownButtonText}>
+                    {PRIORITIES.find(p => p.id === addItemForm.priority)?.name || 'Medium'}
+                  </Text>
+                </View>
+                <ChevronDown size={16} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              
+              {showAddPriorityDropdown && (
+                <View style={styles.priorityDropdownMenu}>
+                  {PRIORITIES.map((priority) => (
+                    <TouchableOpacity
+                      key={priority.id}
+                      style={[
+                        styles.priorityDropdownItem,
+                        addItemForm.priority === priority.id && styles.priorityDropdownItemActive
+                      ]}
+                      onPress={() => {
+                        setAddItemForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }));
+                        setShowAddPriorityDropdown(false);
+                      }}
+                    >
+                      <View style={styles.priorityDropdownItemContent}>
+                        <View style={[
+                          styles.priorityDropdownItemDot,
+                          { backgroundColor: priority.color }
+                        ]} />
+                        <Text style={[
+                          styles.priorityDropdownItemText,
+                          addItemForm.priority === priority.id && styles.priorityDropdownItemTextActive
+                        ]}>
+                          {priority.name}
+                        </Text>
+                      </View>
+                      {addItemForm.priority === priority.id && (
+                        <CheckCircle2 size={16} color={colors.primary[500]} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Notes */}
@@ -908,11 +1084,13 @@ export default function ShoppingList() {
                 numberOfLines={3}
               />
             </View>
-          </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
         </View>
       </Modal>
 
-      {/* 🆕 Edit Modal */}
+      {/* 🆕 Edit Modal with Dropdowns */}
       <Modal
         visible={showEditModal}
         animationType="slide"
@@ -936,7 +1114,15 @@ export default function ShoppingList() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+          <ScrollView 
+            style={styles.modalContent} 
+            showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={() => {
+              setShowUnitDropdown(false);
+              setShowCategoryDropdown(false);
+              setShowPriorityDropdown(false);
+            }}
+          >
             {/* Item Name */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Item Name *</Text>
@@ -949,7 +1135,7 @@ export default function ShoppingList() {
               />
             </View>
 
-            {/* Quantity & Unit */}
+            {/* Quantity & Unit with Dropdown */}
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.formLabel}>Quantity</Text>
@@ -968,84 +1154,152 @@ export default function ShoppingList() {
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.formLabel}>Unit</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.unitPicker}>
-                    {UNITS.map((unit) => (
-                      <TouchableOpacity
-                        key={unit}
-                        style={[
-                          styles.unitChip,
-                          editForm.unit === unit && styles.unitChipActive
-                        ]}
-                        onPress={() => setEditForm(prev => ({ ...prev, unit }))}
-                      >
-                        <Text style={[
-                          styles.unitChipText,
-                          editForm.unit === unit && styles.unitChipTextActive
-                        ]}>
-                          {unit}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                <TouchableOpacity
+                  style={styles.unitDropdownButton}
+                  onPress={() => setShowUnitDropdown(!showUnitDropdown)}
+                >
+                  <Text style={styles.unitDropdownButtonText}>{editForm.unit}</Text>
+                  <ChevronDown size={16} color={colors.neutral[500]} />
+                </TouchableOpacity>
+                
+                {showUnitDropdown && (
+                  <View style={styles.unitDropdownMenu}>
+                    <ScrollView style={styles.unitDropdownScroll} nestedScrollEnabled>
+                      {UNITS.map((unit) => (
+                        <TouchableOpacity
+                          key={unit}
+                          style={[
+                            styles.unitDropdownItem,
+                            editForm.unit === unit && styles.unitDropdownItemActive
+                          ]}
+                          onPress={() => {
+                            setEditForm(prev => ({ ...prev, unit }));
+                            setShowUnitDropdown(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.unitDropdownItemText,
+                            editForm.unit === unit && styles.unitDropdownItemTextActive
+                          ]}>
+                            {unit}
+                          </Text>
+                          {editForm.unit === unit && (
+                            <CheckCircle2 size={16} color={colors.primary[500]} />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
-                </ScrollView>
+                )}
               </View>
             </View>
 
-            {/* Category */}
+            {/* Category with Dropdown */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.categoryPicker}>
-                  {CATEGORIES.slice(1).map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        styles.categoryChip,
-                        editForm.category === cat.id && styles.categoryChipActive,
-                      ]}
-                      onPress={() => setEditForm(prev => ({ ...prev, category: cat.id }))}
-                    >
-                      <Text style={styles.categoryEmoji}>{cat.icon}</Text>
-                      <Text style={[
-                        styles.categoryLabel,
-                        editForm.category === cat.id && styles.categoryLabelActive,
-                      ]}>
-                        {cat.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              <TouchableOpacity
+                style={styles.categoryDropdownButton}
+                onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              >
+                <View style={styles.categoryDropdownSelected}>
+                  <Text style={styles.categoryDropdownEmoji}>
+                    {CATEGORIES.find(c => c.id === editForm.category)?.icon || '📦'}
+                  </Text>
+                  <Text style={styles.categoryDropdownButtonText}>
+                    {CATEGORIES.find(c => c.id === editForm.category)?.name || 'General'}
+                  </Text>
                 </View>
-              </ScrollView>
+                <ChevronDown size={16} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              
+              {showCategoryDropdown && (
+                <View style={styles.categoryDropdownMenu}>
+                  <ScrollView style={styles.categoryDropdownScroll} nestedScrollEnabled>
+                    {CATEGORIES.slice(1).map((category) => (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[
+                          styles.categoryDropdownItem,
+                          editForm.category === category.id && styles.categoryDropdownItemActive
+                        ]}
+                        onPress={() => {
+                          setEditForm(prev => ({ ...prev, category: category.id }));
+                          setShowCategoryDropdown(false);
+                        }}
+                      >
+                        <View style={styles.categoryDropdownItemContent}>
+                          <Text style={styles.categoryDropdownItemEmoji}>
+                            {category.icon}
+                          </Text>
+                          <Text style={[
+                            styles.categoryDropdownItemText,
+                            editForm.category === category.id && styles.categoryDropdownItemTextActive
+                          ]}>
+                            {category.name}
+                          </Text>
+                        </View>
+                        {editForm.category === category.id && (
+                          <CheckCircle2 size={16} color={colors.primary[500]} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
-            {/* Priority */}
+            {/* Priority with Dropdown */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Priority</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.priorityPicker}>
+              <TouchableOpacity
+                style={styles.priorityDropdownButton}
+                onPress={() => setShowPriorityDropdown(!showPriorityDropdown)}
+              >
+                <View style={styles.priorityDropdownSelected}>
+                  <View style={[
+                    styles.priorityDropdownDot,
+                    { backgroundColor: PRIORITIES.find(p => p.id === editForm.priority)?.color }
+                  ]} />
+                  <Text style={styles.priorityDropdownButtonText}>
+                    {PRIORITIES.find(p => p.id === editForm.priority)?.name || 'Medium'}
+                  </Text>
+                </View>
+                <ChevronDown size={16} color={colors.neutral[500]} />
+              </TouchableOpacity>
+              
+              {showPriorityDropdown && (
+                <View style={styles.priorityDropdownMenu}>
                   {PRIORITIES.map((priority) => (
                     <TouchableOpacity
                       key={priority.id}
                       style={[
-                        styles.priorityChip,
-                        editForm.priority === priority.id && {
-                          backgroundColor: priority.color + '20',
-                          borderColor: priority.color,
-                        }
+                        styles.priorityDropdownItem,
+                        editForm.priority === priority.id && styles.priorityDropdownItemActive
                       ]}
-                      onPress={() => setEditForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }))}
+                      onPress={() => {
+                        setEditForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }));
+                        setShowPriorityDropdown(false);
+                      }}
                     >
-                      <Text style={[
-                        styles.priorityChipText,
-                        editForm.priority === priority.id && { color: priority.color, fontWeight: '600' }
-                      ]}>
-                        {priority.name}
-                      </Text>
+                      <View style={styles.priorityDropdownItemContent}>
+                        <View style={[
+                          styles.priorityDropdownItemDot,
+                          { backgroundColor: priority.color }
+                        ]} />
+                        <Text style={[
+                          styles.priorityDropdownItemText,
+                          editForm.priority === priority.id && styles.priorityDropdownItemTextActive
+                        ]}>
+                          {priority.name}
+                        </Text>
+                      </View>
+                      {editForm.priority === priority.id && (
+                        <CheckCircle2 size={16} color={colors.primary[500]} />
+                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
-              </ScrollView>
+              )}
             </View>
 
             {/* Estimated Cost */}
@@ -1098,7 +1352,7 @@ export default function ShoppingList() {
   );
 }
 
-// ✅ Complete Styles with Dropdown and Edit
+// ✅ Complete Styles with Dropdowns
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1165,7 +1419,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
 
-  // ✅ NEW: Compact Stats Row
+  // ✅ Compact Stats Row
   compactStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1207,7 +1461,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
 
-  // ✅ NEW: Quick Actions Container
+  // ✅ Quick Actions Container
   quickActionsContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -1258,7 +1512,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ✅ NEW: Dropdown Content
+  // ✅ Dropdown Content
   dropdownContent: {
     backgroundColor: colors.neutral[0],
     borderBottomWidth: 1,
@@ -1558,82 +1812,202 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
 
-  // 🆕 Edit Form Styles
+  // 🆕 Form Row
   formRow: {
     flexDirection: 'row',
   },
-  categoryPicker: {
+
+  // 🆕 Unit Dropdown Styles
+  unitDropdownButton: {
     flexDirection: 'row',
-    paddingRight: 20,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[0],
   },
-  categoryChip: {
+  unitDropdownButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
+    fontWeight: '500',
+  },
+  unitDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: spacing.xs,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    ...shadows.md,
+    zIndex: 1000,
+  },
+  unitDropdownScroll: {
+    maxHeight: 200,
+  },
+  unitDropdownItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
-    marginRight: spacing.sm,
-    gap: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
   },
-  categoryChipActive: {
+  unitDropdownItemActive: {
     backgroundColor: colors.primary[50],
-    borderWidth: 1,
-    borderColor: colors.primary[200],
   },
-  categoryEmoji: {
-    fontSize: 16,
-  },
-  categoryLabel: {
+  unitDropdownItemText: {
     fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
+    color: colors.neutral[700],
   },
-  categoryLabelActive: {
+  unitDropdownItemTextActive: {
     color: colors.primary[600],
     fontWeight: '600',
   },
-  priorityPicker: {
+
+  // 🆕 Category Dropdown Styles
+  categoryDropdownButton: {
     flexDirection: 'row',
-    paddingRight: 20,
-  },
-  priorityChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
     borderRadius: 12,
-    backgroundColor: colors.neutral[100],
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[0],
   },
-  priorityChipText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
-  },
-  unitPicker: {
+  categoryDropdownSelected: {
     flexDirection: 'row',
-    paddingRight: 20,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  unitChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
-    backgroundColor: colors.neutral[100],
-    marginRight: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
+  categoryDropdownEmoji: {
+    fontSize: 18,
   },
-  unitChipActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
-  },
-  unitChipText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[600],
+  categoryDropdownButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
     fontWeight: '500',
   },
-  unitChipTextActive: {
+  categoryDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: spacing.xs,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    ...shadows.md,
+    zIndex: 1000,
+  },
+  categoryDropdownScroll: {
+    maxHeight: 250,
+  },
+  categoryDropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  categoryDropdownItemActive: {
+    backgroundColor: colors.primary[50],
+  },
+  categoryDropdownItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  categoryDropdownItemEmoji: {
+    fontSize: 18,
+  },
+  categoryDropdownItemText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[700],
+  },
+  categoryDropdownItemTextActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+
+  // 🆕 Priority Dropdown Styles
+  priorityDropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.neutral[0],
+  },
+  priorityDropdownSelected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  priorityDropdownDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  priorityDropdownButtonText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[800],
+    fontWeight: '500',
+  },
+  priorityDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: spacing.xs,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    ...shadows.md,
+    zIndex: 1000,
+  },
+  priorityDropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[100],
+  },
+  priorityDropdownItemActive: {
+    backgroundColor: colors.primary[50],
+  },
+  priorityDropdownItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  priorityDropdownItemDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  priorityDropdownItemText: {
+    fontSize: typography.fontSize.base,
+    color: colors.neutral[700],
+  },
+  priorityDropdownItemTextActive: {
     color: colors.primary[600],
     fontWeight: '600',
   },
