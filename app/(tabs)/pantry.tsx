@@ -1039,6 +1039,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
     letterSpacing: -0.5,
+    fontFamily: typography.fontFamily.bold, // ✅ Bunu ekleyin
   },
   headerAddButton: {
     backgroundColor: '#10b981',
