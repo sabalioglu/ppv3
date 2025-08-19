@@ -1,18 +1,18 @@
 // lib/theme.ts
 // Design system and theme configuration
 
-// Typography fallback definitions (import olmadan)
+// ✅ UPDATED: Typography with unified font system
 const textVariants = {
-  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
-  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
-  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32 },
-  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
-  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24 },
-  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22 },
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
-  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20 },
-  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
-  button: { fontSize: 16, fontWeight: '600', lineHeight: 20 },
+  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40, fontFamily: 'Inter' },
+  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36, fontFamily: 'Inter' },
+  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32, fontFamily: 'Inter' },
+  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28, fontFamily: 'Inter' },
+  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24, fontFamily: 'Inter' },
+  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22, fontFamily: 'Inter' },
+  body: { fontSize: 16, fontWeight: '400', lineHeight: 24, fontFamily: 'Inter' },
+  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20, fontFamily: 'Inter' },
+  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16, fontFamily: 'Inter' },
+  button: { fontSize: 16, fontWeight: '600', lineHeight: 20, fontFamily: 'Inter' },
 };
 
 const fontWeights = {
@@ -22,8 +22,19 @@ const fontWeights = {
   bold: '700',
 };
 
+// ✅ UPDATED: Unified font family function (no platform checks)
 const getFontFamily = (weight = '400') => {
-  return undefined;
+  // Return Inter font for all platforms
+  switch (weight) {
+    case '500':
+      return 'Inter-Medium';
+    case '600':
+      return 'Inter-SemiBold';
+    case '700':
+      return 'Inter-Bold';
+    default:
+      return 'Inter';
+  }
 };
 
 export const colors = {
@@ -127,10 +138,19 @@ export const borderRadius = {
   full: 9999,
 };
 
+// ✅ UPDATED: Enhanced typography with unified font system
 export const typography = {
   variants: textVariants,
   fontWeights,
   getFontFamily,
+  
+  // ✅ NEW: Font family definitions (no platform checks)
+  fontFamily: {
+    regular: 'Inter',
+    medium: 'Inter-Medium',
+    semiBold: 'Inter-SemiBold',
+    bold: 'Inter-Bold',
+  },
   
   // Font sizes
   fontSize: {
@@ -159,7 +179,33 @@ export const typography = {
     normal: 1.5,
     relaxed: 1.75,
   },
+  
+  // ✅ NEW: Letter spacing
+  letterSpacing: {
+    tighter: -0.05,
+    tight: -0.025,
+    normal: 0,
+    wide: 0.025,
+    wider: 0.05,
+    widest: 0.1,
+  },
 };
+
+// ✅ NEW: Helper functions for consistent text styling
+export const getTextStyle = (
+  size: keyof typeof typography.fontSize = 'base',
+  weight: keyof typeof typography.fontWeight = 'normal',
+  additionalProps?: object
+) => ({
+  fontSize: typography.fontSize[size],
+  fontFamily: typography.getFontFamily(typography.fontWeight[weight]),
+  fontWeight: typography.fontWeight[weight],
+  ...additionalProps,
+});
+
+export const getVariantStyle = (variant: keyof typeof textVariants) => ({
+  ...textVariants[variant],
+});
 
 export const shadows = {
   sm: {
@@ -241,7 +287,7 @@ export const gradients = {
   sunset: [colors.secondary[300], colors.error[400]],
 };
 
-// Theme interface
+// ✅ UPDATED: Enhanced Theme interface
 export interface Theme {
   colors: {
     // Base colors
