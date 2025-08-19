@@ -1,5 +1,4 @@
 // app/(tabs)/shopping-list.tsx - Complete with Dropdown Menu Implementation
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,6 +12,7 @@ import {
   Platform,
   Modal,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { 
   Plus, 
@@ -113,7 +113,6 @@ export default function ShoppingList() {
   const [searchText, setSearchText] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [addingItem, setAddingItem] = useState(false);
   
   // ✅ NEW: Dropdown states
@@ -121,6 +120,20 @@ export default function ShoppingList() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [showPriorityFilter, setShowPriorityFilter] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
+
+  // 🆕 Edit states
+  const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    item_name: '',
+    category: 'general',
+    quantity: 1,
+    unit: 'piece',
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
+    estimated_cost: 0,
+    brand: '',
+    notes: '',
+  });
 
   // ✅ Add Item Form State
   const [addItemForm, setAddItemForm] = useState<AddItemForm>({
@@ -228,6 +241,86 @@ export default function ShoppingList() {
     } finally {
       setAddingItem(false);
     }
+  };
+
+  // 🆕 Edit Item Function
+  const handleEditItem = (item: ShoppingItem) => {
+    setEditingItem(item);
+    setEditForm({
+      item_name: item.item_name,
+      category: item.category || 'general',
+      quantity: item.quantity,
+      unit: item.unit,
+      priority: item.priority || 'medium',
+      estimated_cost: item.estimated_cost || 0,
+      brand: item.brand || '',
+      notes: item.notes || '',
+    });
+    setShowEditModal(true);
+  };
+
+  // 🆕 Update Item Function
+  const handleUpdateItem = async () => {
+    if (!editingItem || !editForm.item_name.trim()) {
+      Alert.alert('Error', 'Please enter item name');
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Please log in to update items');
+        return;
+      }
+
+      const updateData = {
+        item_name: editForm.item_name.trim(),
+        category: editForm.category,
+        quantity: editForm.quantity,
+        unit: editForm.unit,
+        priority: editForm.priority,
+        estimated_cost: editForm.estimated_cost || null,
+        brand: editForm.brand?.trim() || null,
+        notes: editForm.notes?.trim() || null,
+      };
+
+      const { data, error } = await supabase
+        .from('shopping_list_items')
+        .update(updateData)
+        .eq('id', editingItem.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setItems(prev => prev.map(item => 
+        item.id === editingItem.id ? { ...item, ...updateData } : item
+      ));
+      
+      setShowEditModal(false);
+      setEditingItem(null);
+      Alert.alert('Success', 'Item updated successfully!');
+
+    } catch (error) {
+      console.error('Error updating item:', error);
+      Alert.alert('Error', 'Failed to update item');
+    }
+  };
+
+  // 🆕 Cancel Edit Function
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    setEditingItem(null);
+    setEditForm({
+      item_name: '',
+      category: 'general',
+      quantity: 1,
+      unit: 'piece',
+      priority: 'medium',
+      estimated_cost: 0,
+      brand: '',
+      notes: '',
+    });
   };
 
   const handleToggleComplete = async (itemId: string) => {
@@ -412,13 +505,21 @@ export default function ShoppingList() {
     loadShoppingItems();
   };
 
-  // ✅ Render Functions
+  // ✅ Updated Render Function with Edit
   const renderShoppingItem = ({ item }: { item: ShoppingItem }) => (
-    <View style={styles.itemCard}>
+    <TouchableOpacity 
+      style={styles.itemCard}
+      onPress={() => handleEditItem(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.itemHeader}>
         <TouchableOpacity
           style={styles.checkbox}
-          onPress={() => handleToggleComplete(item.id)}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleToggleComplete(item.id);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           {item.is_completed ? (
             <CheckCircle2 size={24} color={colors.success[500]} />
@@ -471,13 +572,23 @@ export default function ShoppingList() {
         <View style={styles.itemActions}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => handleDeleteItem(item.id)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteItem(item.id);
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Trash2 size={18} color={colors.error[500]} />
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+      
+      {/* 🆕 Edit Indicator */}
+      <View style={styles.editIndicator}>
+        <Edit3 size={14} color={colors.neutral[400]} />
+        <Text style={styles.editHint}>Tap to edit</Text>
+      </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
@@ -723,7 +834,7 @@ export default function ShoppingList() {
         />
       </View>
 
-      {/* Modal */}
+      {/* Add Modal */}
       <Modal
         visible={showAddModal}
         animationType="slide"
@@ -800,11 +911,194 @@ export default function ShoppingList() {
           </View>
         </View>
       </Modal>
+
+      {/* 🆕 Edit Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={handleCancelEdit} style={styles.modalCloseButton}>
+              <X size={24} color={colors.neutral[600]} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Edit Item</Text>
+            <TouchableOpacity 
+              onPress={handleUpdateItem} 
+              style={[
+                styles.modalSaveButton,
+                !editForm.item_name.trim() && styles.modalSaveButtonDisabled
+              ]}
+              disabled={!editForm.item_name.trim()}
+            >
+              <Save size={20} color={colors.neutral[0]} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Item Name */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Item Name *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.item_name}
+                onChangeText={(text) => setEditForm(prev => ({ ...prev, item_name: text }))}
+                placeholder="e.g., Bananas, Milk, Bread"
+                placeholderTextColor={colors.neutral[400]}
+              />
+            </View>
+
+            {/* Quantity & Unit */}
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.formLabel}>Quantity</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={editForm.quantity.toString()}
+                  onChangeText={(text) => {
+                    const num = parseFloat(text) || 1;
+                    setEditForm(prev => ({ ...prev, quantity: num }));
+                  }}
+                  keyboardType="numeric"
+                  placeholder="1"
+                  placeholderTextColor={colors.neutral[400]}
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.formLabel}>Unit</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.unitPicker}>
+                    {UNITS.map((unit) => (
+                      <TouchableOpacity
+                        key={unit}
+                        style={[
+                          styles.unitChip,
+                          editForm.unit === unit && styles.unitChipActive
+                        ]}
+                        onPress={() => setEditForm(prev => ({ ...prev, unit }))}
+                      >
+                        <Text style={[
+                          styles.unitChipText,
+                          editForm.unit === unit && styles.unitChipTextActive
+                        ]}>
+                          {unit}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Category */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.categoryPicker}>
+                  {CATEGORIES.slice(1).map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryChip,
+                        editForm.category === cat.id && styles.categoryChipActive,
+                      ]}
+                      onPress={() => setEditForm(prev => ({ ...prev, category: cat.id }))}
+                    >
+                      <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                      <Text style={[
+                        styles.categoryLabel,
+                        editForm.category === cat.id && styles.categoryLabelActive,
+                      ]}>
+                        {cat.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Priority */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Priority</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.priorityPicker}>
+                  {PRIORITIES.map((priority) => (
+                    <TouchableOpacity
+                      key={priority.id}
+                      style={[
+                        styles.priorityChip,
+                        editForm.priority === priority.id && {
+                          backgroundColor: priority.color + '20',
+                          borderColor: priority.color,
+                        }
+                      ]}
+                      onPress={() => setEditForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }))}
+                    >
+                      <Text style={[
+                        styles.priorityChipText,
+                        editForm.priority === priority.id && { color: priority.color, fontWeight: '600' }
+                      ]}>
+                        {priority.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* Estimated Cost */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Estimated Cost (Optional)</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.estimated_cost ? editForm.estimated_cost.toString() : ''}
+                onChangeText={(text) => {
+                  const num = parseFloat(text) || 0;
+                  setEditForm(prev => ({ ...prev, estimated_cost: num }));
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={colors.neutral[400]}
+              />
+            </View>
+
+            {/* Brand */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Brand (Optional)</Text>
+              <TextInput
+                style={styles.formInput}
+                value={editForm.brand}
+                onChangeText={(text) => setEditForm(prev => ({ ...prev, brand: text }))}
+                placeholder="e.g., Organic Valley"
+                placeholderTextColor={colors.neutral[400]}
+              />
+            </View>
+
+            {/* Notes */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Notes (Optional)</Text>
+              <TextInput
+                style={[styles.formInput, styles.notesInput]}
+                value={editForm.notes}
+                onChangeText={(text) => setEditForm(prev => ({ ...prev, notes: text }))}
+                placeholder="Any special notes..."
+                placeholderTextColor={colors.neutral[400]}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-// ✅ Complete Styles with Dropdown
+// ✅ Complete Styles with Dropdown and Edit
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1146,6 +1440,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  // 🆕 Edit Indicator
+  editIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[100],
+    gap: spacing.xs,
+  },
+  editHint: {
+    fontSize: 12,
+    color: colors.neutral[400],
+    fontStyle: 'italic',
+  },
+
   // Empty State
   emptyState: {
     flex: 1,
@@ -1246,5 +1556,85 @@ const styles = StyleSheet.create({
   notesInput: {
     height: 80,
     textAlignVertical: 'top',
+  },
+
+  // 🆕 Edit Form Styles
+  formRow: {
+    flexDirection: 'row',
+  },
+  categoryPicker: {
+    flexDirection: 'row',
+    paddingRight: 20,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[100],
+    marginRight: spacing.sm,
+    gap: spacing.xs,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary[50],
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  categoryEmoji: {
+    fontSize: 16,
+  },
+  categoryLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    fontWeight: '500',
+  },
+  categoryLabelActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
+  },
+  priorityPicker: {
+    flexDirection: 'row',
+    paddingRight: 20,
+  },
+  priorityChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[100],
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  priorityChipText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.neutral[600],
+    fontWeight: '500',
+  },
+  unitPicker: {
+    flexDirection: 'row',
+    paddingRight: 20,
+  },
+  unitChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    backgroundColor: colors.neutral[100],
+    marginRight: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  unitChipActive: {
+    backgroundColor: colors.primary[50],
+    borderColor: colors.primary[200],
+  },
+  unitChipText: {
+    fontSize: typography.fontSize.xs,
+    color: colors.neutral[600],
+    fontWeight: '500',
+  },
+  unitChipTextActive: {
+    color: colors.primary[600],
+    fontWeight: '600',
   },
 });
