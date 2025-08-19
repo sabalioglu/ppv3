@@ -21,7 +21,7 @@ import {
 import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown, Trash2, CreditCard as Edit3, MoveVertical as MoreVertical, ShoppingCart } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
-import { colors } from '@/lib/theme';
+import { colors, typography } from '@/lib/theme';
 import type { Theme } from '@/lib/theme';
 
 interface PantryItem {
@@ -1021,7 +1021,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#6b7280',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    fontFamily: typography.fontFamily.regular,
   },
   header: {
     flexDirection: 'row',
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     fontSize: 16,
     color: '#1f2937',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    fontFamily: typography.fontFamily.regular,
   },
   categoriesHeaderInList: {
     flexDirection: 'row',
