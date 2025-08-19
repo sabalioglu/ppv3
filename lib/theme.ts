@@ -1,18 +1,20 @@
 // lib/theme.ts
 // Design system and theme configuration
 
+import { Platform } from 'react-native';
+
 // ✅ UPDATED: Typography with unified font system
 const textVariants = {
-  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40, fontFamily: 'Inter' },
-  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36, fontFamily: 'Inter' },
-  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32, fontFamily: 'Inter' },
-  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28, fontFamily: 'Inter' },
-  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24, fontFamily: 'Inter' },
-  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22, fontFamily: 'Inter' },
-  body: { fontSize: 16, fontWeight: '400', lineHeight: 24, fontFamily: 'Inter' },
-  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20, fontFamily: 'Inter' },
-  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16, fontFamily: 'Inter' },
-  button: { fontSize: 16, fontWeight: '600', lineHeight: 20, fontFamily: 'Inter' },
+  h1: { fontSize: 32, fontWeight: '700', lineHeight: 40 },
+  h2: { fontSize: 28, fontWeight: '700', lineHeight: 36 },
+  h3: { fontSize: 24, fontWeight: '600', lineHeight: 32 },
+  h4: { fontSize: 20, fontWeight: '600', lineHeight: 28 },
+  h5: { fontSize: 18, fontWeight: '600', lineHeight: 24 },
+  h6: { fontSize: 16, fontWeight: '500', lineHeight: 22 },
+  body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
+  bodySmall: { fontSize: 14, fontWeight: '400', lineHeight: 20 },
+  caption: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
+  button: { fontSize: 16, fontWeight: '600', lineHeight: 20 },
 };
 
 const fontWeights = {
@@ -22,19 +24,14 @@ const fontWeights = {
   bold: '700',
 };
 
-// ✅ UPDATED: Unified font family function (no platform checks)
+// ✅ UPDATED: Platform-aware font family function
 const getFontFamily = (weight = '400') => {
-  // Return Inter font for all platforms
-  switch (weight) {
-    case '500':
-      return 'Inter-Medium';
-    case '600':
-      return 'Inter-SemiBold';
-    case '700':
-      return 'Inter-Bold';
-    default:
-      return 'Inter';
-  }
+  return Platform.select({
+    ios: 'System', // iOS system font (San Francisco)
+    android: 'Roboto', // Android system font
+    web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    default: 'System',
+  });
 };
 
 export const colors = {
@@ -144,12 +141,32 @@ export const typography = {
   fontWeights,
   getFontFamily,
   
-  // ✅ NEW: Font family definitions (no platform checks)
+  // ✅ UPDATED: Platform-aware font family definitions
   fontFamily: {
-    regular: 'Inter',
-    medium: 'Inter-Medium',
-    semiBold: 'Inter-SemiBold',
-    bold: 'Inter-Bold',
+    regular: Platform.select({
+      ios: 'System',
+      android: 'Roboto',
+      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      default: 'System',
+    }),
+    medium: Platform.select({
+      ios: 'System',
+      android: 'Roboto-Medium',
+      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      default: 'System',
+    }),
+    semiBold: Platform.select({
+      ios: 'System',
+      android: 'Roboto-Medium',
+      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      default: 'System',
+    }),
+    bold: Platform.select({
+      ios: 'System',
+      android: 'Roboto-Bold',
+      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      default: 'System',
+    }),
   },
   
   // Font sizes
@@ -191,7 +208,7 @@ export const typography = {
   },
 };
 
-// ✅ NEW: Helper functions for consistent text styling
+// ✅ UPDATED: Helper functions for consistent text styling
 export const getTextStyle = (
   size: keyof typeof typography.fontSize = 'base',
   weight: keyof typeof typography.fontWeight = 'normal',
@@ -205,6 +222,7 @@ export const getTextStyle = (
 
 export const getVariantStyle = (variant: keyof typeof textVariants) => ({
   ...textVariants[variant],
+  fontFamily: typography.getFontFamily(textVariants[variant].fontWeight),
 });
 
 export const shadows = {
