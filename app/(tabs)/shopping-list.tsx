@@ -14,7 +14,25 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { Plus, Search, Filter, ChevronDown, ChevronUp, ShoppingCart, CircleCheck as CheckCircle2, Circle, Trash2, CreditCard as Edit3, Package, X, Save, DollarSign, Tag, CircleAlert as AlertCircle, TrendingUp } from 'lucide-react-native';
+import { 
+  Plus, 
+  Search, 
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  ShoppingCart,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Edit3,
+  Package,
+  X,
+  Save,
+  DollarSign,
+  Tag,
+  AlertCircle,
+  TrendingUp
+} from 'lucide-react-native';
 
 // ✅ Theme import düzeltmesi
 import { colors, spacing, typography, shadows } from '../../lib/theme';
@@ -102,7 +120,6 @@ export default function ShoppingList() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [showPriorityFilter, setShowPriorityFilter] = useState(false);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
-  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
 
   // 🆕 Edit states
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
