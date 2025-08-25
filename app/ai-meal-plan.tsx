@@ -51,13 +51,26 @@ interface MealLoadingStates {
   initial: boolean;
 }
 
+// ✅ NEW: Enhanced meal plan interface
+interface EnhancedMealPlanSummary {
+  totalDiversityScore: number;
+  totalPersonalizationScore: number;
+  pantryUtilization: number;
+  generationMethods: string[];
+  insights?: {
+    diversityTips: string[];
+    personalizationAdaptations: string[];
+    nextSuggestions: string[];
+  };
+}
+
 // ✅ Utility imports düzeltildi
 import { 
   calculatePantryMetrics, 
   generatePantryInsights 
 } from '@/lib/meal-plan/pantry-analysis';
 
-// ✅ AI generation imports düzeltildi
+// ✅ Enhanced AI generation imports
 import { 
   generateAIMeal,
   generateAIMealWithQualityControl,
@@ -65,6 +78,117 @@ import {
 } from '@/lib/meal-plan/api-clients/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
+
+// ✅ NEW: Enhanced generation imports
+import { 
+  createEnhancedGenerator,
+  generateEnhancedMealPlan 
+} from '@/lib/meal-plan/enhanced-ai-generation';
+import { createDiversityManager } from '@/lib/meal-plan/enhanced-diversity';
+import { createPersonalizedGenerator } from '@/lib/meal-plan/personalized-generation';
+
+// ✅ Enhanced insights modal
+const EnhancedInsightsModal = ({ visible, onClose, insights }: any) => {
+  if (!visible || !insights) return null;
+  
+  return (
+    <View style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000
+    }}>
+      <View style={{
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 16,
+        margin: 20,
+        maxWidth: 340,
+        maxHeight: '80%'
+      }}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
+            🌟 Meal Plan Insights
+          </Text>
+          
+          {/* Diversity Tips */}
+          {insights.diversityTips && insights.diversityTips.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.primary[700], marginBottom: 8 }}>
+                🎯 Variety Tips
+              </Text>
+              {insights.diversityTips.map((tip: string, index: number) => (
+                <Text key={index} style={{ 
+                  fontSize: 14, 
+                  color: colors.neutral[700], 
+                  marginBottom: 4,
+                  paddingLeft: 8
+                }}>
+                  • {tip}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Personalization Adaptations */}
+          {insights.personalizationAdaptations && insights.personalizationAdaptations.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.success[700], marginBottom: 8 }}>
+                🎨 Personal Touches
+              </Text>
+              {insights.personalizationAdaptations.slice(0, 3).map((adaptation: string, index: number) => (
+                <Text key={index} style={{ 
+                  fontSize: 14, 
+                  color: colors.neutral[700], 
+                  marginBottom: 4,
+                  paddingLeft: 8
+                }}>
+                  • {adaptation}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Next Suggestions */}
+          {insights.nextSuggestions && insights.nextSuggestions.length > 0 && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.accent[700], marginBottom: 8 }}>
+                💡 What's Next
+              </Text>
+              {insights.nextSuggestions.slice(0, 2).map((suggestion: string, index: number) => (
+                <Text key={index} style={{ 
+                  fontSize: 14, 
+                  color: colors.neutral[700], 
+                  marginBottom: 4,
+                  paddingLeft: 8
+                }}>
+                  • {suggestion}
+                </Text>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+        
+        <TouchableOpacity 
+          style={{ 
+            backgroundColor: colors.primary[500], 
+            padding: 12, 
+            borderRadius: 8,
+            marginTop: 16
+          }}
+          onPress={onClose}
+        >
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>Got it!</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 // ✅ GEÇİCİ MOCK COMPONENTS
 const MealDetailModal = ({ visible, onClose, meal, onViewRecipe, onAddToNutrition, onAddToShopping }: any) => {
@@ -152,7 +276,7 @@ const MealCard = ({ meal, mealType, onPress, onRegenerate, isRegenerating, regen
   </TouchableOpacity>
 );
 
-const MealPlanSummary = ({ plan }: any) => (
+const MealPlanSummary = ({ plan, enhancedSummary }: any) => (
   <View style={{
     backgroundColor: 'white',
     padding: 16,
@@ -165,7 +289,9 @@ const MealPlanSummary = ({ plan }: any) => (
     elevation: 3
   }}>
     <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Today's Summary</Text>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+    
+    {/* ✅ Basic stats */}
+    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 }}>
       <View style={{ alignItems: 'center' }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.primary[500] }}>{plan.totalCalories}</Text>
         <Text style={{ color: colors.neutral[600] }}>Calories</Text>
@@ -179,6 +305,76 @@ const MealPlanSummary = ({ plan }: any) => (
         <Text style={{ color: colors.neutral[600] }}>Match %</Text>
       </View>
     </View>
+
+    {/* ✅ Enhanced stats if available */}
+    {enhancedSummary && (
+      <>
+        <View style={{ 
+          borderTopWidth: 1, 
+          borderTopColor: colors.neutral[200], 
+          paddingTop: 12,
+          marginTop: 4
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={{ 
+                fontSize: 16, 
+                fontWeight: 'bold', 
+                color: enhancedSummary.totalDiversityScore >= 80 ? colors.success[600] : 
+                       enhancedSummary.totalDiversityScore >= 60 ? colors.warning[600] : colors.error[600]
+              }}>
+                {enhancedSummary.totalDiversityScore}%
+              </Text>
+              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Diversity</Text>
+            </View>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={{ 
+                fontSize: 16, 
+                fontWeight: 'bold', 
+                color: enhancedSummary.totalPersonalizationScore >= 80 ? colors.success[600] : 
+                       enhancedSummary.totalPersonalizationScore >= 60 ? colors.warning[600] : colors.error[600]
+              }}>
+                {enhancedSummary.totalPersonalizationScore}%
+              </Text>
+              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Personal</Text>
+            </View>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <Text style={{ 
+                fontSize: 16, 
+                fontWeight: 'bold', 
+                color: enhancedSummary.pantryUtilization >= 70 ? colors.success[600] : 
+                       enhancedSummary.pantryUtilization >= 50 ? colors.warning[600] : colors.error[600]
+              }}>
+                {enhancedSummary.pantryUtilization}%
+              </Text>
+              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Pantry Use</Text>
+            </View>
+          </View>
+          
+          {/* Generation methods indicator */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8 }}>
+            <View style={{
+              backgroundColor: colors.accent[50],
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              flexDirection: 'row',
+              alignItems: 'center'
+            }}>
+              <Sparkles size={12} color={colors.accent[600]} />
+              <Text style={{
+                fontSize: 10,
+                color: colors.accent[700],
+                marginLeft: 4,
+                fontWeight: '500'
+              }}>
+                {enhancedSummary.generationMethods.includes('personalized') ? 'AI Personalized' : 'AI Enhanced'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </>
+    )}
   </View>
 );
 
@@ -243,6 +439,10 @@ export default function AIMealPlan() {
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  
+  // ✅ NEW: Enhanced meal plan state
+  const [enhancedPlanSummary, setEnhancedPlanSummary] = useState<EnhancedMealPlanSummary | null>(null);
+  const [showInsights, setShowInsights] = useState(false);
   
   // Modal states
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -383,63 +583,121 @@ export default function AIMealPlan() {
     }
   };
 
-  // ✅ Generate initial AI meal plan
+  // ✅ ENHANCED: Generate initial AI meal plan with diversity and personalization
   const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
     try {
       if (pantryItems.length < 3) {
+        console.log('⚠️ Insufficient pantry items, using fallback...');
         const fallbackPlan = generateFallbackPlan(pantryItems);
         await setCurrentMealPlan(fallbackPlan);
         setMealPlan(fallbackPlan);
         return;
       }
 
-      console.log('🚀 Generating enhanced AI meal plan...');
+      console.log('🌟 Generating enhanced AI meal plan with personalization and diversity...');
       
-      const breakfast = await generateAIMealWithQualityControl('breakfast', pantryItems, userProfile, []);
-      const lunch = await generateAIMealWithQualityControl('lunch', pantryItems, userProfile, [breakfast]);
-      const dinner = await generateAIMealWithQualityControl('dinner', pantryItems, userProfile, [breakfast, lunch]);
-      const snacks = await generateAIMealWithQualityControl('snack', pantryItems, userProfile, [breakfast, lunch, dinner]);
+      // ✅ Use enhanced generation system
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      const aiMeals = { 
-        breakfast: breakfast || null, 
-        lunch: lunch || null, 
-        dinner: dinner || null, 
-        snacks: [snacks].filter(Boolean) as Meal[] 
+      const enhancedResult = await generateEnhancedMealPlan(
+        user.id,
+        pantryItems,
+        userProfile
+      );
+
+      // Convert enhanced results to standard meal plan format
+      const aiMeals = {
+        breakfast: enhancedResult.breakfast?.meal || null,
+        lunch: enhancedResult.lunch?.meal || null,
+        dinner: enhancedResult.dinner?.meal || null,
+        snacks: enhancedResult.snacks.map(s => s.meal).filter(Boolean) as Meal[]
       };
-      
+
       const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
       const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
       const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
-
-      const averageMatchScore = calculateAverageMatchScore(mealsForTotals);
 
       const plan: MealPlan = {
         daily: {
           ...aiMeals,
           totalCalories,
           totalProtein,
-          optimizationScore: averageMatchScore,
+          optimizationScore: enhancedResult.summary.totalPersonalizationScore,
           generatedAt: new Date().toISOString(),
           regenerationHistory: {}
         }
       };
 
-      // ✅ CRITICAL: Use the hook function directly
+      // ✅ Store enhanced summary for insights
+      setEnhancedPlanSummary({
+        ...enhancedResult.summary,
+        insights: {
+          diversityTips: enhancedResult.breakfast?.insights.diversityTips || [],
+          personalizationAdaptations: [
+            ...(enhancedResult.breakfast?.insights.adaptations || []),
+            ...(enhancedResult.lunch?.insights.adaptations || []),
+            ...(enhancedResult.dinner?.insights.adaptations || [])
+          ],
+          nextSuggestions: enhancedResult.breakfast?.insights.nextSuggestions || []
+        }
+      });
+
+      // ✅ Save to store
       await setCurrentMealPlan(plan);
-      
       setMealPlan(plan);
-      console.log('✅ Enhanced AI meal plan generated successfully');
+      
+      console.log('✅ Enhanced AI meal plan generated successfully:', {
+        diversityScore: enhancedResult.summary.totalDiversityScore,
+        personalizationScore: enhancedResult.summary.totalPersonalizationScore,
+        pantryUtilization: enhancedResult.summary.pantryUtilization,
+        methods: enhancedResult.summary.generationMethods
+      });
       
     } catch (error) {
       console.error('Failed to generate enhanced AI meal plan:', error);
       console.log('🔄 Generating fallback meal plan...');
+      
+      // ✅ Enhanced fallback with basic diversity
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const generator = createEnhancedGenerator(user.id);
+          const fallbackResult = await generator.generateEnhancedMeal('lunch', pantryItems, userProfile, [], {
+            allowFallback: true,
+            maxAttempts: 1
+          });
+          
+          const plan: MealPlan = {
+            daily: {
+              breakfast: null,
+              lunch: fallbackResult.meal,
+              dinner: null,
+              snacks: [],
+              totalCalories: fallbackResult.meal.calories,
+              totalProtein: fallbackResult.meal.protein,
+              optimizationScore: fallbackResult.personalizationScore,
+              generatedAt: new Date().toISOString(),
+              regenerationHistory: {}
+            }
+          };
+          
+          await setCurrentMealPlan(plan);
+          setMealPlan(plan);
+          return;
+        }
+      } catch (fallbackError) {
+        console.error('Enhanced fallback also failed:', fallbackError);
+      }
+      
+      // Final fallback
       const fallbackPlan = generateFallbackPlan(pantryItems);
       await setCurrentMealPlan(fallbackPlan);
       setMealPlan(fallbackPlan);
     }
   };
 
-  // ✅ Regenerate individual meal
+  // ✅ ENHANCED: Regenerate individual meal with diversity and personalization
   const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
     if (!mealPlan || !userProfile) return;
 
@@ -447,16 +705,29 @@ export default function AIMealPlan() {
       // Set loading state for this specific meal
       setLoadingStates(prev => ({ ...prev, [mealType]: true }));
 
-      const currentMeal = mealPlan.daily[mealType as keyof typeof mealPlan.daily];
-      const previousMeal = Array.isArray(currentMeal) ? currentMeal[0] : currentMeal;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      // Generate new meal
-      const newMeal = await generateAIMealWithQualityControl(
+      // ✅ Use enhanced generator for better variety and personalization
+      const generator = createEnhancedGenerator(user.id);
+      const existingMeals = Object.values(mealPlan.daily)
+        .flat()
+        .filter(meal => meal && typeof meal === 'object') as Meal[];
+
+      const enhancedResult = await generator.generateEnhancedMeal(
         mealType === 'snacks' ? 'snack' : mealType,
         pantryItems,
         userProfile,
-        Object.values(mealPlan.daily).filter(Boolean) as Meal[]
+        existingMeals,
+        {
+          prioritizeDiversity: true, // Focus on diversity for regeneration
+          prioritizePersonalization: true,
+          diversityThreshold: 60, // Lower threshold for regeneration
+          maxAttempts: 2 // Faster regeneration
+        }
       );
+
+      const newMeal = enhancedResult.meal;
 
       // Update meal plan
       setMealPlan(prevPlan => {
@@ -483,7 +754,7 @@ export default function AIMealPlan() {
 
         updatedDaily.totalCalories = totalCalories;
         updatedDaily.totalProtein = totalProtein;
-        updatedDaily.optimizationScore = 85; // Mock score
+        updatedDaily.optimizationScore = enhancedResult.personalizationScore;
 
         const updatedPlan = {
           ...prevPlan,
@@ -502,11 +773,29 @@ export default function AIMealPlan() {
         [mealType]: prev[mealType] + 1
       }));
 
-      // Show success message
+      // ✅ Enhanced success message with insights
+      const diversityInfo = enhancedResult.diversityScore > 80 
+        ? '🌟 Great variety!' 
+        : enhancedResult.diversityScore > 60 
+          ? '✨ Good diversity!' 
+          : '🔄 More variety next time!';
+
+      const generationInfo = enhancedResult.generationMethod === 'personalized'
+        ? '🎯 Personalized for you!'
+        : '🌍 Culturally optimized!';
+
       Alert.alert(
         'Meal Updated! ✨',
-        `Your ${mealType} has been regenerated with a new recipe.`,
-        [{ text: 'Great!' }]
+        `Your ${mealType} has been regenerated.\n${diversityInfo}\n${generationInfo}`,
+        [
+          { 
+            text: 'See Insights', 
+            onPress: () => setShowInsights(true) 
+          },
+          { 
+            text: 'Great!' 
+          }
+        ]
       );
 
     } catch (error) {
@@ -694,18 +983,30 @@ export default function AIMealPlan() {
     return (
       <View style={styles.dailyContent}>
         {/* Today's Summary Card */}
-        <MealPlanSummary plan={plan} />
+        <MealPlanSummary plan={plan} enhancedSummary={enhancedPlanSummary} />
 
-        {/* ✅ Regenerate All Button */}
-        <TouchableOpacity 
-          style={styles.regenerateAllButton}
-          onPress={regenerateAllMeals}
-          disabled={loadingStates.initial || Object.values(loadingStates).some(Boolean)}
-        >
-          <Sparkles size={20} color={colors.accent[600]} />
-          <Text style={styles.regenerateAllText}>Regenerate All Meals</Text>
-          <RefreshCw size={16} color={colors.accent[600]} />
-        </TouchableOpacity>
+        {/* ✅ Action buttons row */}
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+          <TouchableOpacity 
+            style={[styles.regenerateAllButton, { flex: 1 }]}
+            onPress={regenerateAllMeals}
+            disabled={loadingStates.initial || Object.values(loadingStates).some(Boolean)}
+          >
+            <Sparkles size={18} color={colors.accent[600]} />
+            <Text style={[styles.regenerateAllText, { fontSize: 14 }]}>Regenerate All</Text>
+            <RefreshCw size={14} color={colors.accent[600]} />
+          </TouchableOpacity>
+          
+          {/* ✅ Show insights button */}
+          {enhancedPlanSummary?.insights && (
+            <TouchableOpacity 
+              style={[styles.insightsButton]}
+              onPress={() => setShowInsights(true)}
+            >
+              <Text style={styles.insightsButtonText}>💡 Insights</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Meals Section */}
         <View style={styles.mealsSection}>
@@ -814,6 +1115,13 @@ export default function AIMealPlan() {
 
   return (
     <View style={styles.container}>
+      {/* ✅ Enhanced insights modal */}
+      <EnhancedInsightsModal
+        visible={showInsights}
+        insights={enhancedPlanSummary?.insights}
+        onClose={() => setShowInsights(false)}
+      />
+      
       {/* ✅ ÇÖZÜM 3: Modal with proper onClose handler */}
       <MealDetailModal
         visible={modalVisible}
@@ -901,23 +1209,8 @@ export default function AIMealPlan() {
           </View>
         )}
 
-        {/* Meal Plan Content - UPDATED WITH COMING SOON */}
-        {viewMode === 'daily' && (
-          <View style={styles.comingSoonContainer}>
-            <Sparkles size={48} color="#FFD700" />
-            <Text style={styles.comingSoonTitle}>AI Meal Planner</Text>
-            <Text style={styles.comingSoonTitle2}>Available on Next Update!</Text>
-            <Text style={styles.comingSoonSubtitle}>
-              Personalized menu recommendations, nutrition goals, and smart pantry matching are coming soon
-            </Text>
-            <View style={styles.featuresList}>
-              <Text style={styles.featureItem}>🍽️ Daily Meal Planning</Text>
-              <Text style={styles.featureItem}>🎯 Nutrition Tracking</Text>
-              <Text style={styles.featureItem}>🤖 AI Based Meal - Recipe Suggestions</Text>
-              <Text style={styles.featureItem}>🛒 Automatic Shopping List</Text>
-            </View>
-          </View>
-        )}
+        {/* Meal Plan Content - ACTIVATED */}
+        {viewMode === 'daily' && renderDailyView()}
         {viewMode === 'weekly' && (
           <View style={styles.comingSoonContainer}>
             <Calendar size={48} color={colors.neutral[400]} />
@@ -1134,6 +1427,20 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: '600',
     color: colors.accent[700],
+  },
+  insightsButton: {
+    backgroundColor: colors.primary[50],
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  insightsButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: '600',
+    color: colors.primary[700],
   },
   mealsSection: {
     marginTop: spacing.xl,
