@@ -1,7 +1,6 @@
 // lib/supabase.ts - Fixed Environment Variables
 
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@/types/database';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -28,7 +27,7 @@ console.log('- Key prefix:', supabaseAnonKey.substring(0, 20) + '...');
 // Cross-platform storage
 const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
 
-export const supabase = createClient<Database>(
+export const supabase = createClient(
   supabaseUrl,
   supabaseAnonKey,
   {

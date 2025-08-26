@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart, Settings, BookOpen } from 'lucide-react-native';
+import { Chrome as Home, Package, Camera, Activity, ChefHat, ShoppingCart, Settings, BookOpen, CreditCard } from 'lucide-react-native';
 import { colors, components } from '@/lib/theme';
 
 export default function TabsLayout() {
@@ -135,6 +135,14 @@ export default function TabsLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ size, color }) => <Settings size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="subscription"
+        options={{
+          title: 'Subscription',
+          tabBarIcon: ({ size, color }) => <CreditCard size={size} color={color} />,
+          href: null, // Hide from tab bar but keep accessible via navigation
         }}
       />
     </Tabs>

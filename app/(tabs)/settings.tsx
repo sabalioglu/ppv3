@@ -42,9 +42,11 @@ export default function SettingsScreen() {
   const [notifications, setNotifications] = useState(true);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [subscription, setSubscription] = useState<any>(null);
 
   React.useEffect(() => {
     loadUserData();
+    loadSubscription();
   }, []);
 
   const loadUserData = async () => {
@@ -63,6 +65,31 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Error loading user data:', error);
     }
+  };
+
+  const loadSubscription = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stripe_user_subscriptions')
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading subscription:', error);
+        return;
+      }
+
+      setSubscription(data);
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+    }
+  };
+
+  const getSubscriptionName = (priceId: string): string => {
+    if (priceId === 'price_1S0JK3Emd2R9npIslZBvpCQK') {
+      return 'Pantry Pal';
+    }
+    return 'Unknown Plan';
   };
 
   // ✅ GÜNCELLENMIŞ: Post-logout navigation eklendi
@@ -196,6 +223,17 @@ export default function SettingsScreen() {
 
         {/* Account */}
         <SettingSection title="ACCOUNT">
+          {subscription && subscription.subscription_status === 'active' && (
+            <>
+              <SettingRow
+                icon={User}
+                title="Subscription"
+                subtitle={`${getSubscriptionName(subscription.price_id)} - Active`}
+                onPress={() => router.push('/subscription')}
+              />
+              <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+            </>
+          )}
           <SettingRow
             icon={User}
             title="Edit Profile"
@@ -211,6 +249,17 @@ export default function SettingsScreen() {
 
         {/* Support */}
         <SettingSection title="SUPPORT">
+          {(!subscription || subscription.subscription_status !== 'active') && (
+            <>
+              <SettingRow
+                icon={User}
+                title="Upgrade to Premium"
+                subtitle="Unlock all features with Pantry Pal"
+                onPress={() => router.push('/subscription')}
+              />
+              <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+            </>
+          )}
           <SettingRow
             icon={HelpCircle}
             title="Help & FAQ"
