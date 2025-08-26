@@ -9,18 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import {
-  User,
-  Bell,
-  Moon,
-  Globe,
-  Shield,
-  HelpCircle,
-  LogOut,
-  ChevronRight,
-  Heart,
-  Star,
-} from 'lucide-react-native';
+import { User, Bell, Moon, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Heart, Star } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { supabase } from '@/lib/supabase';
