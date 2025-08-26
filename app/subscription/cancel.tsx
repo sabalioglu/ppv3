@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { XCircle, ArrowLeft } from 'lucide-react-native';
+import { Circle as XCircle, ArrowLeft } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function SubscriptionCancel() {

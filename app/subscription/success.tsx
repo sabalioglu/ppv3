@@ -7,7 +7,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CheckCircle, ArrowRight } from 'lucide-react-native';
+import { CircleCheck as CheckCircle, ArrowRight } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/lib/theme';
 
 export default function SubscriptionSuccess() {

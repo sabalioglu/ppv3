@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { Crown, AlertCircle } from 'lucide-react-native';
+import { Crown, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { colors, spacing, typography } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
