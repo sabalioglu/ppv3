@@ -1,22 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { lightTheme, darkTheme, type Theme } from '@/lib/theme';
+import { lightColors, darkColors, type Colors } from '@/lib/theme/index';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
-  theme: Theme;
-  isDark: boolean;
-  toggleTheme: () => void;
-  setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
-  themeMode: 'light' | 'dark' | 'system';
+  colors: Colors;
+  setThemeMode: (mode: ThemeMode) => void;
+  themeMode: ThemeMode;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: lightTheme,
-  isDark: false,
-  toggleTheme: () => {},
+  colors: darkColors,
   setThemeMode: () => {},
-  themeMode: 'system',
+  themeMode: 'dark',
 });
 
 export const useTheme = () => {
@@ -35,8 +33,8 @@ const THEME_STORAGE_KEY = '@ai_food_pantry_theme';
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system');
-  const [isDark, setIsDark] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  const [colors, setColors] = useState<Colors>(darkColors);
 
   // Load saved theme preference
   useEffect(() => {
@@ -45,25 +43,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Update theme when mode or system theme changes
   useEffect(() => {
-    const shouldBeDark = 
-      themeMode === 'dark' || 
-      (themeMode === 'system' && systemColorScheme === 'dark');
-    
-    setIsDark(shouldBeDark);
+    const newTheme = themeMode === 'system' ? systemColorScheme : themeMode;
+    setColors(newTheme === 'dark' ? darkColors : lightColors);
   }, [themeMode, systemColorScheme]);
 
   const loadThemePreference = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
       if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
-        setThemeMode(savedTheme as 'light' | 'dark' | 'system');
+        setThemeMode(savedTheme as ThemeMode);
       }
     } catch (error) {
       console.error('Error loading theme preference:', error);
     }
   };
 
-  const saveThemePreference = async (mode: 'light' | 'dark' | 'system') => {
+  const saveThemePreference = async (mode: ThemeMode) => {
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch (error) {
@@ -71,25 +66,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
-  const toggleTheme = () => {
-    const newMode = isDark ? 'light' : 'dark';
-    setThemeMode(newMode);
-    saveThemePreference(newMode);
-  };
-
-  const handleSetThemeMode = (mode: 'light' | 'dark' | 'system') => {
+  const handleSetThemeMode = (mode: ThemeMode) => {
     setThemeMode(mode);
     saveThemePreference(mode);
   };
 
-  const theme = isDark ? darkTheme : lightTheme;
-
   return (
     <ThemeContext.Provider
       value={{
-        theme,
-        isDark,
-        toggleTheme,
+        colors,
         setThemeMode: handleSetThemeMode,
         themeMode,
       }}
