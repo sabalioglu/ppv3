@@ -1,168 +1,144 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { useRouter, Link } from 'expo-router';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
+import z from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 
-export default function ResetPasswordScreen() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+import { useTheme } from '@/contexts/ThemeContext';
+import { useCustomAlert } from '@/hooks/useCustomAlert';
+import CustomAlert from '@/components/UI/CustomAlert';
+import FormInput from '@/components/auth/FormInput';
+import { getCurrentUrl } from '@/utils/getCurrentUrl';
+import AuthLayout from '@/components/auth/AuthLayout';
+import ThemedText from '@/components/UI/ThemedText';
+import ThemedButton from '@/components/UI/ThemedButton';
+import { spacing } from '@/lib/theme';
+
+const schema = z.object({
+  email: z.string().email('Email required'),
+});
+
+type FormFields = z.infer<typeof schema>;
+
+const ResetPassword = () => {
   const router = useRouter();
-  const { theme } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
+  const { colors } = useTheme();
 
-  const handleResetPassword = async () => {
-    if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
-      return;
-    }
+  const { control, handleSubmit } = useForm<FormFields>({
+    defaultValues: { email: '' },
+    resolver: zodResolver(schema),
+  });
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
+  const { visible, title, message, buttons, showAlert, hideAlert } =
+    useCustomAlert();
 
+  const handleResetPassword = async (values: FormFields) => {
     try {
       setIsLoading(true);
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${Platform.OS === 'web' ? window.location.origin : 'aifoodpantry://'}/auth/reset-password-confirm`,
-      });
+      const currentUrl = getCurrentUrl();
+
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        values.email,
+        { redirectTo: `${currentUrl}/reset-confirm-password` }
+      );
 
       if (error) throw error;
 
-      Alert.alert(
+      showAlert(
         'Check your email! 📧',
-        'We have sent you a password reset link. Please check your email inbox.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(auth)/login')
-          }
-        ]
+        'We have sent you a password reset link. Please check your email inbox.'
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send reset email');
+      showAlert('Error', error.message || 'Failed to send reset email');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
+    <AuthLayout>
+      <View style={styles.content}>
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
+        </TouchableOpacity>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Ionicons name="lock-closed-outline" size={64} color={theme.colors.primary} />
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Reset Password
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Enter your email address and we'll send you a link to reset your password
-            </Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Ionicons
-                name="mail-outline"
-                size={20}
-                color={theme.colors.textSecondary}
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={[styles.input, { color: theme.colors.text }]}
-                placeholder="Email Address"
-                placeholderTextColor={theme.colors.textSecondary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.colors.primary }]}
-              onPress={handleResetPassword}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Send Reset Link</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Back to Login Link */}
-            <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
-                Remember your password?{' '}
-              </Text>
-              <Link href="/(auth)/login" asChild>
-                <TouchableOpacity>
-                  <Text style={[styles.linkText, { color: theme.colors.primary }]}>
-                    Sign In
-                  </Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <Ionicons
+            name="lock-closed-outline"
+            size={64}
+            color={colors.primary}
+          />
+          <ThemedText type="heading" bold style={[styles.title]}>
+            Reset Password
+          </ThemedText>
+          <ThemedText type="subheading" style={styles.subtitle}>
+            Enter your email address and we'll send you a link to reset your
+            password
+          </ThemedText>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        {/* Form */}
+        <View style={styles.form}>
+          <FormInput
+            control={control}
+            name="email"
+            placeholder="Email"
+            keyboardType="email-address"
+          />
+          <ThemedButton
+            text="Send Reset Link"
+            onPress={handleSubmit(handleResetPassword)}
+            disabled={isLoading}
+          />
+        </View>
+
+        {/* Back to Login Link */}
+        <View style={styles.footer}>
+          <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+            Remember your password?{' '}
+          </ThemedText>
+          <ThemedButton
+            variant="bold"
+            onPress={() => router.replace('/login')}
+            text="Sign In"
+            style={{ marginBottom: 0, marginLeft: spacing.xs }}
+          />
+        </View>
+        <CustomAlert
+          visible={visible}
+          title={title}
+          message={message}
+          buttons={buttons}
+          onClose={hideAlert}
+        />
+      </View>
+    </AuthLayout>
   );
-}
+};
+
+export default ResetPassword;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
   },
   backButton: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 30,
     left: 20,
     zIndex: 1,
-    padding: 8,
+    padding: spacing.sm,
   },
   header: {
     alignItems: 'center',
@@ -170,62 +146,22 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
     textAlign: 'center',
     paddingHorizontal: 20,
-    lineHeight: 24,
   },
   form: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    height: 56,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-  },
-  button: {
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-  },
-  footerText: {
-    fontSize: 14,
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: spacing.lg,
   },
 });
