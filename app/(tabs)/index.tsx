@@ -22,28 +22,34 @@ import {
   Coffee,
   Plus,
 } from 'lucide-react-native';
-import { colors, spacing, typography, shadows, gradients } from '@/lib/theme';
+import { spacing, shadows } from '@/lib/theme/index';
+import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 // Nutrition calculation helpers (AYNI KALIYOR)
-const calculateBMR = (age: number, gender: string, height: number, weight: number): number => {
+const calculateBMR = (
+  age: number,
+  gender: string,
+  height: number,
+  weight: number
+): number => {
   if (gender === 'male') {
-    return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+    return 88.362 + 13.397 * weight + 4.799 * height - 5.677 * age;
   } else {
-    return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+    return 447.593 + 9.247 * weight + 3.098 * height - 4.33 * age;
   }
 };
 
 const getActivityMultiplier = (activityLevel: string): number => {
   const multipliers: { [key: string]: number } = {
-    'sedentary': 1.2,
-    'lightly_active': 1.375,
-    'moderately_active': 1.55,
-    'very_active': 1.725,
-    'extra_active': 1.9,
+    sedentary: 1.2,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725,
+    extra_active: 1.9,
   };
   return multipliers[activityLevel] || 1.55;
 };
@@ -55,14 +61,14 @@ const calculateDailyCalories = (bmr: number, activityLevel: string): number => {
 const calculateMacros = (calories: number, goals: string[]) => {
   let proteinRatio = 0.25;
   let carbRatio = 0.45;
-  let fatRatio = 0.30;
+  let fatRatio = 0.3;
 
   if (goals.includes('muscle_gain')) {
-    proteinRatio = 0.30;
-    carbRatio = 0.40;
-    fatRatio = 0.30;
+    proteinRatio = 0.3;
+    carbRatio = 0.4;
+    fatRatio = 0.3;
   } else if (goals.includes('weight_loss')) {
-    proteinRatio = 0.30;
+    proteinRatio = 0.3;
     carbRatio = 0.35;
     fatRatio = 0.35;
   }
@@ -75,12 +81,12 @@ const calculateMacros = (calories: number, goals: string[]) => {
 };
 
 // YENİ: Empty State Component - Manifestoya Uygun
-const EmptyState = ({ 
-  icon: Icon, 
-  title, 
-  message, 
-  actionText, 
-  onAction 
+const EmptyState = ({
+  icon: Icon,
+  title,
+  message,
+  actionText,
+  onAction,
 }: {
   icon: any;
   title: string;
@@ -107,26 +113,28 @@ const EmptyState = ({
 // StatCard Component - Empty State Desteği Eklendi
 const StatCard = ({ title, current, target, color, unit }: any) => {
   const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
-  
+
   return (
     <View style={styles.statCard}>
       <View style={styles.statHeader}>
         <Text style={styles.statTitle}>{title}</Text>
         <TrendingUp size={16} color={color} />
       </View>
-      
+
       <View style={styles.statContent}>
         <Text style={styles.statValue}>{current}</Text>
-        <Text style={styles.statTarget}>/ {target} {unit}</Text>
+        <Text style={styles.statTarget}>
+          / {target} {unit}
+        </Text>
       </View>
-      
+
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, { backgroundColor: `${color}20` }]}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { width: `${percentage}%`, backgroundColor: color }
-            ]} 
+              styles.progressFill,
+              { width: `${percentage}%`, backgroundColor: color },
+            ]}
           />
         </View>
       </View>
@@ -137,22 +145,32 @@ const StatCard = ({ title, current, target, color, unit }: any) => {
 const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
   const getColor = () => {
     switch (type) {
-      case 'success': return colors.success;
-      case 'warning': return colors.warning;
-      case 'info': return colors.info;
-      default: return colors.primary;
+      case 'success':
+        return colors.success;
+      case 'warning':
+        return colors.warning;
+      case 'info':
+        return colors.info;
+      default:
+        return colors.primary;
     }
   };
 
   return (
     <TouchableOpacity style={styles.insightCard}>
-      <View style={[styles.insightIcon, { backgroundColor: `${getColor()}20` }]}>
+      <View
+        style={[styles.insightIcon, { backgroundColor: `${getColor()}20` }]}
+      >
         <Icon size={24} color={getColor()} />
       </View>
       <View style={styles.insightContent}>
         <Text style={styles.insightTitle}>{title}</Text>
         <Text style={styles.insightDescription}>{description}</Text>
-        {value && <Text style={[styles.insightValue, { color: getColor() }]}>{value}</Text>}
+        {value && (
+          <Text style={[styles.insightValue, { color: getColor() }]}>
+            {value}
+          </Text>
+        )}
       </View>
       <ChevronRight size={16} color={colors.textSecondary} />
     </TouchableOpacity>
@@ -160,16 +178,21 @@ const InsightCard = ({ icon: Icon, title, description, type, value }: any) => {
 };
 
 const ProfileSummaryCard = ({ profile }: any) => {
-  const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
+  const bmr = calculateBMR(
+    profile.age,
+    profile.gender,
+    profile.height_cm,
+    profile.weight_kg
+  );
   const tdee = calculateDailyCalories(bmr, profile.activity_level);
-  
+
   return (
     <View style={styles.profileCard}>
       <View style={styles.profileHeader}>
         <User size={20} color={colors.primary} />
         <Text style={styles.profileTitle}>Your Profile Summary</Text>
       </View>
-      
+
       <View style={styles.profileGrid}>
         <View style={styles.profileItem}>
           <Text style={styles.profileLabel}>Age</Text>
@@ -188,7 +211,7 @@ const ProfileSummaryCard = ({ profile }: any) => {
           <Text style={styles.profileValue}>{Math.round(bmr)} cal</Text>
         </View>
       </View>
-      
+
       <View style={styles.tdeeContainer}>
         <Text style={styles.tdeeLabel}>Daily Calorie Target (TDEE)</Text>
         <Text style={styles.tdeeValue}>{tdee} calories</Text>
@@ -208,7 +231,7 @@ export default function Dashboard() {
     carbs: 250,
     fat: 67,
   });
-  
+
   // TEMİZLENDİ: Mock data yerine gerçek veri tracking
   const [todaysIntake, setTodaysIntake] = useState({
     calories: 0,
@@ -231,8 +254,10 @@ export default function Dashboard() {
 
   const loadUserData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (user) {
         const { data: profile, error } = await supabase
           .from('user_profiles')
@@ -246,12 +271,29 @@ export default function Dashboard() {
         } else {
           setUserProfile(profile);
           setUserName(profile.full_name || user.email?.split('@')[0] || 'User');
-          
-          if (profile.age && profile.gender && profile.height_cm && profile.weight_kg && profile.activity_level) {
-            const bmr = calculateBMR(profile.age, profile.gender, profile.height_cm, profile.weight_kg);
-            const dailyCalories = calculateDailyCalories(bmr, profile.activity_level);
-            const macros = calculateMacros(dailyCalories, profile.health_goals || []);
-            
+
+          if (
+            profile.age &&
+            profile.gender &&
+            profile.height_cm &&
+            profile.weight_kg &&
+            profile.activity_level
+          ) {
+            const bmr = calculateBMR(
+              profile.age,
+              profile.gender,
+              profile.height_cm,
+              profile.weight_kg
+            );
+            const dailyCalories = calculateDailyCalories(
+              bmr,
+              profile.activity_level
+            );
+            const macros = calculateMacros(
+              dailyCalories,
+              profile.health_goals || []
+            );
+
             setNutritionTargets({
               calories: dailyCalories,
               protein: macros.protein,
@@ -259,11 +301,11 @@ export default function Dashboard() {
               fat: macros.fat,
             });
           }
-          
+
           await loadTodaysIntake(user.id);
         }
       }
-      
+
       setGreeting(getTimeBasedGreeting());
     } catch (error) {
       console.error('Error in loadUserData:', error);
@@ -278,7 +320,7 @@ export default function Dashboard() {
   const loadTodaysIntake = async (userId: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data: nutritionLogs, error } = await supabase
         .from('nutrition_logs')
         .select('*')
@@ -292,12 +334,15 @@ export default function Dashboard() {
       }
 
       if (nutritionLogs && nutritionLogs.length > 0) {
-        const totals = nutritionLogs.reduce((acc, log) => ({
-          calories: acc.calories + (log.calories || 0),
-          protein: acc.protein + (log.protein || 0),
-          carbs: acc.carbs + (log.carbs || 0),
-          fat: acc.fat + (log.fat || 0),
-        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+        const totals = nutritionLogs.reduce(
+          (acc, log) => ({
+            calories: acc.calories + (log.calories || 0),
+            protein: acc.protein + (log.protein || 0),
+            carbs: acc.carbs + (log.carbs || 0),
+            fat: acc.fat + (log.fat || 0),
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        );
 
         setTodaysIntake(totals);
         setHasNutritionData(true);
@@ -314,29 +359,33 @@ export default function Dashboard() {
   // TEMİZLENDİ: Sadece gerçek veri varsa insights göster
   const getHealthInsights = () => {
     if (!hasNutritionData) return [];
-    
+
     const insights = [];
-    
-    const caloriePercentage = (todaysIntake.calories / nutritionTargets.calories) * 100;
+
+    const caloriePercentage =
+      (todaysIntake.calories / nutritionTargets.calories) * 100;
     if (caloriePercentage < 50) {
       insights.push({
         icon: Target,
         title: 'Calorie Intake Low',
         description: `You've consumed ${todaysIntake.calories} calories today`,
         type: 'warning',
-        value: `${Math.round(nutritionTargets.calories - todaysIntake.calories)} cal remaining`,
+        value: `${Math.round(
+          nutritionTargets.calories - todaysIntake.calories
+        )} cal remaining`,
       });
     } else if (caloriePercentage > 90) {
       insights.push({
         icon: Award,
         title: 'Almost There!',
-        description: 'You\'re close to your daily calorie goal',
+        description: "You're close to your daily calorie goal",
         type: 'success',
         value: `${Math.round(caloriePercentage)}% complete`,
       });
     }
 
-    const proteinPercentage = (todaysIntake.protein / nutritionTargets.protein) * 100;
+    const proteinPercentage =
+      (todaysIntake.protein / nutritionTargets.protein) * 100;
     if (proteinPercentage < 60) {
       insights.push({
         icon: Activity,
@@ -372,7 +421,7 @@ export default function Dashboard() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header - LOGOUT BUTTON KALDIRILDI */}
       <LinearGradient
-        colors={gradients.primary}
+        colors={[colors.primary[400], colors.primary[600]]}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -383,10 +432,10 @@ export default function Dashboard() {
               {greeting}, {userName}!
             </Text>
             <Text style={styles.subtitle}>
-              {userProfile?.health_goals?.includes('weight_loss') 
+              {userProfile?.health_goals?.includes('weight_loss')
                 ? "Let's achieve your weight loss goals"
                 : userProfile?.health_goals?.includes('muscle_gain')
-                ? "Time to build those muscles"
+                ? 'Time to build those muscles'
                 : "Let's track your nutrition goals"}
             </Text>
           </View>
@@ -406,7 +455,7 @@ export default function Dashboard() {
           <Target size={20} color={colors.primary} />
           <Text style={styles.sectionTitle}>Today's Progress</Text>
         </View>
-        
+
         {hasNutritionData ? (
           <View style={styles.statsGrid}>
             <StatCard
@@ -456,7 +505,7 @@ export default function Dashboard() {
             <TrendingUp size={20} color={colors.primary} />
             <Text style={styles.sectionTitle}>Your Insights</Text>
           </View>
-          
+
           <View style={styles.insightsList}>
             {getHealthInsights().map((insight, index) => (
               <InsightCard key={index} {...insight} />
@@ -468,33 +517,39 @@ export default function Dashboard() {
       {/* Quick Actions - GERÇEK NAVİGATİON EKLENDİ */}
       <View style={[styles.section, { marginBottom: 100 }]}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
-        
+
         <View style={styles.quickActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/nutrition')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: '#10b98120' }]}
+            >
               <Target size={24} color="#10b981" />
             </View>
             <Text style={styles.quickActionText}>Log Food</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/pantry')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: '#f5931920' }]}
+            >
               <Plus size={24} color="#f59319" />
             </View>
             <Text style={styles.quickActionText}>Add Item</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.quickActionCard}
             onPress={() => router.push('/(tabs)/recipes')}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: '#6366f120' }]}
+            >
               <Award size={24} color="#6366f1" />
             </View>
             <Text style={styles.quickActionText}>Recipes</Text>
