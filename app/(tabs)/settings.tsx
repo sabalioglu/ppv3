@@ -9,11 +9,22 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { User, Bell, Moon, Globe, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Heart, Star } from 'lucide-react-native';
+import {
+  User,
+  Bell,
+  Moon,
+  Globe,
+  Shield,
+  CircleHelp as HelpCircle,
+  LogOut,
+  ChevronRight,
+  Heart,
+  Star,
+} from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { supabase } from '@/lib/supabase';
-import { spacing } from '@/lib/theme';
+import { spacing } from '@/lib/theme/index';
 import { router } from 'expo-router'; // ✅ YENİ: Navigation import
 
 interface SettingItem {
@@ -26,7 +37,7 @@ interface SettingItem {
 }
 
 export default function SettingsScreen() {
-  const { theme, isDark, themeMode } = useTheme();
+  const { colors, themeMode } = useTheme();
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [userName, setUserName] = useState('');
@@ -40,7 +51,9 @@ export default function SettingsScreen() {
 
   const loadUserData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
           .from('user_profiles')
@@ -83,89 +96,118 @@ export default function SettingsScreen() {
 
   // ✅ GÜNCELLENMIŞ: Post-logout navigation eklendi
   const handleLogout = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase.auth.signOut();
-              if (error) {
-                Alert.alert('Logout Error', error.message);
-              } else {
-                // ✅ YENİ: Başarılı logout sonrası login ekranına yönlendirme
-                router.replace('/(auth)/login');
-              }
-            } catch (error: any) {
-              Alert.alert('Logout Error', 'An unexpected error occurred during logout');
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+              Alert.alert('Logout Error', error.message);
+            } else {
+              // ✅ YENİ: Başarılı logout sonrası login ekranına yönlendirme
+              router.replace('/(auth)/login');
             }
-          },
+          } catch (error: any) {
+            Alert.alert(
+              'Logout Error',
+              'An unexpected error occurred during logout'
+            );
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const getThemeModeText = () => {
     switch (themeMode) {
-      case 'light': return 'Light';
-      case 'dark': return 'Dark';
-      case 'system': return 'System';
+      case 'light':
+        return 'Light';
+      case 'dark':
+        return 'Dark';
+      case 'system':
+        return 'System';
     }
   };
 
-  const SettingSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  const SettingSection: React.FC<{
+    title: string;
+    children: React.ReactNode;
+  }> = ({ title, children }) => (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
-      <View style={[styles.sectionContent, { backgroundColor: theme.surface }]}>
+      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+        {title}
+      </Text>
+      <View
+        style={[styles.sectionContent, { backgroundColor: colors.surface }]}
+      >
         {children}
       </View>
     </View>
   );
 
-  const SettingRow: React.FC<SettingItem> = ({ icon: Icon, title, subtitle, onPress, rightElement, dangerous }) => (
+  const SettingRow: React.FC<SettingItem> = ({
+    icon: Icon,
+    title,
+    subtitle,
+    onPress,
+    rightElement,
+    dangerous,
+  }) => (
     <TouchableOpacity
       style={styles.settingRow}
       onPress={onPress}
       disabled={!onPress}
     >
-      <View style={[styles.iconContainer, { backgroundColor: theme.surfaceVariant }]}>
-        <Icon size={20} color={dangerous ? theme.error : theme.primary} />
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: colors.surfaceVariant },
+        ]}
+      >
+        <Icon size={20} color={dangerous ? colors.error : colors.primary} />
       </View>
-      
+
       <View style={styles.textContainer}>
-        <Text style={[styles.settingTitle, { color: dangerous ? theme.error : theme.textPrimary }]}>
+        <Text
+          style={[
+            styles.settingTitle,
+            { color: dangerous ? colors.error : colors.textPrimary },
+          ]}
+        >
           {title}
         </Text>
         {subtitle && (
-          <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>
+          <Text
+            style={[styles.settingSubtitle, { color: colors.textSecondary }]}
+          >
             {subtitle}
           </Text>
         )}
       </View>
-      
-      {rightElement || (onPress && <ChevronRight size={20} color={theme.textSecondary} />)}
+
+      {rightElement ||
+        (onPress && <ChevronRight size={20} color={colors.textSecondary} />)}
     </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <View style={styles.profileSection}>
-          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
             <Text style={styles.avatarText}>
               {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={[styles.userName, { color: theme.textPrimary }]}>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>
               {userName}
             </Text>
-            <Text style={[styles.userEmail, { color: theme.textSecondary }]}>
+            <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
               {userEmail}
             </Text>
           </View>
@@ -196,17 +238,22 @@ export default function SettingsScreen() {
               <Switch
                 value={notifications}
                 onValueChange={setNotifications}
-                trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={Platform.OS === 'ios' ? undefined : theme.surface}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? undefined : colors.surface}
               />
             }
           />
-          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Globe}
             title="Language"
             subtitle="English"
-            onPress={() => Alert.alert('Coming Soon', 'Language selection will be available soon!')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Language selection will be available soon!'
+              )
+            }
           />
         </SettingSection>
 
@@ -217,22 +264,36 @@ export default function SettingsScreen() {
               <SettingRow
                 icon={User}
                 title="Subscription"
-                subtitle={`${getSubscriptionName(subscription.price_id)} - Active`}
+                subtitle={`${getSubscriptionName(
+                  subscription.price_id
+                )} - Active`}
                 onPress={() => router.push('/subscription')}
               />
-              <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+              <View
+                style={[styles.divider, { backgroundColor: colors.divider }]}
+              />
             </>
           )}
           <SettingRow
             icon={User}
             title="Edit Profile"
-            onPress={() => Alert.alert('Coming Soon', 'Profile editing will be available soon!')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Profile editing will be available soon!'
+              )
+            }
           />
-          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Shield}
             title="Privacy & Security"
-            onPress={() => Alert.alert('Coming Soon', 'Privacy settings will be available soon!')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Privacy settings will be available soon!'
+              )
+            }
           />
         </SettingSection>
 
@@ -246,25 +307,36 @@ export default function SettingsScreen() {
                 subtitle="Unlock all features with Pantry Pal"
                 onPress={() => router.push('/subscription')}
               />
-              <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+              <View
+                style={[styles.divider, { backgroundColor: colors.divider }]}
+              />
             </>
           )}
           <SettingRow
             icon={HelpCircle}
             title="Help & FAQ"
-            onPress={() => Alert.alert('Coming Soon', 'Help section will be available soon!')}
+            onPress={() =>
+              Alert.alert('Coming Soon', 'Help section will be available soon!')
+            }
           />
-          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Heart}
             title="Send Feedback"
-            onPress={() => Alert.alert('Coming Soon', 'Feedback feature will be available soon!')}
+            onPress={() =>
+              Alert.alert(
+                'Coming Soon',
+                'Feedback feature will be available soon!'
+              )
+            }
           />
-          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Star}
             title="Rate App"
-            onPress={() => Alert.alert('Coming Soon', 'App rating will be available soon!')}
+            onPress={() =>
+              Alert.alert('Coming Soon', 'App rating will be available soon!')
+            }
           />
         </SettingSection>
 
@@ -280,10 +352,10 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={[styles.appName, { color: theme.textSecondary }]}>
+          <Text style={[styles.appName, { color: colors.textSecondary }]}>
             AI Food Pantry
           </Text>
-          <Text style={[styles.appVersion, { color: theme.textDisabled }]}>
+          <Text style={[styles.appVersion, { color: colors.textSecondary }]}>
             Version 1.0.0
           </Text>
         </View>

@@ -8,7 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { spacing, shadows } from '@/lib/theme/index';
+import { typography, colors } from '@/lib/theme';
 import { Recipe } from '@/types/recipe';
 
 const { width } = Dimensions.get('window');
@@ -47,7 +48,14 @@ export function RecipeGrid({
     }
   };
 
-  const RecipeCard = ({ recipe, viewMode, onPress, isEditMode, isSelected, onSelect }) => {
+  const RecipeCard = ({
+    recipe,
+    viewMode,
+    onPress,
+    isEditMode,
+    isSelected,
+    onSelect,
+  }) => {
     const handlePress = () => {
       if (isEditMode && onSelect) {
         onSelect(recipe.id);
@@ -59,33 +67,46 @@ export function RecipeGrid({
     // List view
     if (viewMode === 'list') {
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={handlePress}
-          style={[styles.listCard, isEditMode && isSelected && styles.selectedCard]}
+          style={[
+            styles.listCard,
+            isEditMode && isSelected && styles.selectedCard,
+          ]}
         >
           <View style={styles.listCardContent}>
             {isEditMode && (
               <View style={styles.listCheckbox}>
-                <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                  {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                <View
+                  style={[
+                    styles.checkbox,
+                    isSelected && styles.checkboxSelected,
+                  ]}
+                >
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
                 </View>
               </View>
             )}
-            
-            <Image 
-              source={{ uri: recipe.image_url }} 
+
+            <Image
+              source={{ uri: recipe.image_url }}
               style={styles.listCardImage}
             />
-            
+
             <View style={styles.listCardInfo}>
               <Text style={styles.listCardTitle} numberOfLines={1}>
                 {recipe.title}
               </Text>
               <Text style={styles.listCardDescription} numberOfLines={2}>
-                Data sources: {recipe.source_url ? 'video visuals + metadata text' : 'manual entry'}. 
-                Nutrition is an estimate.
+                Data sources:{' '}
+                {recipe.source_url
+                  ? 'video visuals + metadata text'
+                  : 'manual entry'}
+                . Nutrition is an estimate.
               </Text>
-              
+
               <View style={styles.listCardMeta}>
                 <View style={styles.metaItem}>
                   <Ionicons name="time-outline" size={14} color="#666" />
@@ -97,7 +118,12 @@ export function RecipeGrid({
                   <Ionicons name="people-outline" size={14} color="#666" />
                   <Text style={styles.metaText}>{recipe.servings}</Text>
                 </View>
-                <View style={[styles.difficultyBadge, styles[`difficulty${recipe.difficulty}`]]}>
+                <View
+                  style={[
+                    styles.difficultyBadge,
+                    styles[`difficulty${recipe.difficulty}`],
+                  ]}
+                >
                   <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
                 </View>
                 {recipe.is_ai_generated && (
@@ -107,13 +133,13 @@ export function RecipeGrid({
                 )}
               </View>
             </View>
-            
+
             <View style={styles.listCardActions}>
               <TouchableOpacity onPress={() => handleFavorite(recipe.id)}>
-                <Ionicons 
-                  name={recipe.is_favorite ? "heart" : "heart-outline"} 
-                  size={20} 
-                  color={recipe.is_favorite ? "#FF5252" : "#666"} 
+                <Ionicons
+                  name={recipe.is_favorite ? 'heart' : 'heart-outline'}
+                  size={20}
+                  color={recipe.is_favorite ? '#FF5252' : '#666'}
                 />
               </TouchableOpacity>
               <TouchableOpacity>
@@ -129,21 +155,28 @@ export function RecipeGrid({
         </TouchableOpacity>
       );
     }
-    
+
     // Grid view
     return (
       <TouchableOpacity
-        style={[styles.gridCard, isEditMode && isSelected && styles.selectedCard]}
+        style={[
+          styles.gridCard,
+          isEditMode && isSelected && styles.selectedCard,
+        ]}
         onPress={handlePress}
       >
         {isEditMode && (
           <View style={styles.gridCheckbox}>
-            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-              {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+            <View
+              style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+            >
+              {isSelected && (
+                <Ionicons name="checkmark" size={16} color="white" />
+              )}
             </View>
           </View>
         )}
-        
+
         <View style={styles.gridImageContainer}>
           <Image
             source={{ uri: recipe.image_url }}
@@ -161,21 +194,34 @@ export function RecipeGrid({
           <Text style={styles.gridCardTitle} numberOfLines={2}>
             {recipe.title}
           </Text>
-          
+
           <View style={styles.gridCardMeta}>
             <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={12} color={colors.neutral[500]} />
+              <Ionicons
+                name="time-outline"
+                size={12}
+                color={colors.neutral[500]}
+              />
               <Text style={styles.metaText}>
                 {recipe.prep_time + recipe.cook_time}m
               </Text>
             </View>
             <View style={styles.metaItem}>
-              <Ionicons name="people-outline" size={12} color={colors.neutral[500]} />
+              <Ionicons
+                name="people-outline"
+                size={12}
+                color={colors.neutral[500]}
+              />
               <Text style={styles.metaText}>{recipe.servings}</Text>
             </View>
           </View>
 
-          <View style={[styles.difficultyBadge, styles[`difficulty${recipe.difficulty}`]]}>
+          <View
+            style={[
+              styles.difficultyBadge,
+              styles[`difficulty${recipe.difficulty}`],
+            ]}
+          >
             <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
           </View>
         </View>
@@ -183,14 +229,18 @@ export function RecipeGrid({
         {!isEditMode && (
           <View style={styles.gridCardActions}>
             <TouchableOpacity onPress={() => handleFavorite(recipe.id)}>
-              <Ionicons 
-                name={recipe.is_favorite ? "heart" : "heart-outline"} 
-                size={18} 
-                color={recipe.is_favorite ? "#FF5252" : colors.neutral[400]} 
+              <Ionicons
+                name={recipe.is_favorite ? 'heart' : 'heart-outline'}
+                size={18}
+                color={recipe.is_favorite ? '#FF5252' : colors.neutral[400]}
               />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => handleMore(recipe)}>
-              <Ionicons name="ellipsis-vertical" size={18} color={colors.neutral[400]} />
+              <Ionicons
+                name="ellipsis-vertical"
+                size={18}
+                color={colors.neutral[400]}
+              />
             </TouchableOpacity>
           </View>
         )}
