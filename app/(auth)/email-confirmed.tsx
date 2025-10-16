@@ -1,47 +1,55 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import ThemedText from '@/components/UI/ThemedText';
+import ThemedButton from '@/components/UI/ThemedButton';
+import { spacing } from '@/lib/theme';
 
 export default function EmailConfirmedScreen() {
   const router = useRouter();
-  const { theme } = useTheme();
+  const { colors } = useTheme();
 
   useEffect(() => {
-    // 5 saniye sonra otomatik login'e yönlendir
+    // Redirect to login in 5 seconds
     const timer = setTimeout(() => {
-      router.replace('/(auth)/login');
+      router.replace('/login');
     }, 5000);
-
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
-          <Ionicons name="checkmark-circle" size={80} color={theme.colors.primary} />
-        </View>
-        
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Email Verified! 🎉
-        </Text>
-        
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Your email has been successfully verified. You can now sign in to your account.
-        </Text>
-
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.colors.primary }]}
-          onPress={() => router.replace('/(auth)/login')}
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: colors.primary + '20' },
+          ]}
         >
-          <Text style={styles.buttonText}>Go to Login</Text>
-        </TouchableOpacity>
+          <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
+        </View>
 
-        <Text style={[styles.redirectText, { color: theme.colors.textSecondary }]}>
-          Redirecting to login in 5 seconds...
-        </Text>
+        <ThemedText type="heading" bold style={styles.title}>
+          Email Verified! 🎉
+        </ThemedText>
+
+        <ThemedText type="subheading" style={styles.subtitle}>
+          Your email has been successfully verified.
+        </ThemedText>
+
+        <ThemedButton
+          onPress={() => router.replace('/login')}
+          text="Go to Login"
+        />
+
+        <ThemedText
+          type="caption"
+          style={[styles.redirectText, { color: colors.textSecondary }]}
+        >
+          Redirecting to login in 5 seconds...?{' '}
+        </ThemedText>
       </View>
     </View>
   );
@@ -64,33 +72,16 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  button: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: spacing.xl,
   },
   redirectText: {
-    fontSize: 14,
-    fontStyle: 'italic',
+    marginTop: 20,
   },
 });

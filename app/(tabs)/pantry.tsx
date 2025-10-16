@@ -17,12 +17,30 @@ import {
   FlatList,
   ListRenderItem,
   Image,
+  ViewStyle,
 } from 'react-native';
-import { Plus, Search, Filter, Package, Calendar, TriangleAlert as AlertTriangle, X, Camera, Barcode, Clock, MapPin, TrendingUp, ChevronDown, Trash2, CreditCard as Edit3, MoveVertical as MoreVertical, ShoppingCart } from 'lucide-react-native';
+import {
+  Plus,
+  Search,
+  Filter,
+  Package,
+  Calendar,
+  TriangleAlert as AlertTriangle,
+  X,
+  Camera,
+  Barcode,
+  Clock,
+  MapPin,
+  TrendingUp,
+  ChevronDown,
+  Trash2,
+  CreditCard as Edit3,
+  MoveVertical as MoreVertical,
+  ShoppingCart,
+} from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
-import { colors, typography } from '@/lib/theme';
-import type { Theme } from '@/lib/theme';
+import { typography } from '@/lib/theme/index';
 
 interface PantryItem {
   id: string;
@@ -87,11 +105,14 @@ const categoryImages = {
 };
 
 const getItemImageSource = (category: string) => {
-  return categoryImages[category as keyof typeof categoryImages] || categoryImages.default;
+  return (
+    categoryImages[category as keyof typeof categoryImages] ||
+    categoryImages.default
+  );
 };
 
 export default function PantryScreen() {
-  const { theme, isDark } = useTheme();
+  const { colors } = useTheme();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,19 +122,21 @@ export default function PantryScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [categoryStats, setCategoryStats] = useState<{[key: string]: number}>({});
-  
+  const [categoryStats, setCategoryStats] = useState<{ [key: string]: number }>(
+    {}
+  );
+
   const [editMode, setEditMode] = useState(false);
   const [editingItem, setEditingItem] = useState<PantryItem | null>(null);
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
 
   const [screenData, setScreenData] = useState(Dimensions.get('window'));
-  
+
   useEffect(() => {
     const onChange = (result: any) => {
       setScreenData(result.window);
     };
-    
+
     const subscription = Dimensions.addEventListener('change', onChange);
     return () => subscription?.remove();
   }, []);
@@ -122,7 +145,7 @@ export default function PantryScreen() {
     const { width } = screenData;
     const isTablet = width >= 768;
     const isLargeScreen = width >= 1024;
-    
+
     if (isLargeScreen) {
       return { numColumns: 3, itemWidth: (width - 80) / 3 };
     } else if (isTablet) {
@@ -154,7 +177,9 @@ export default function PantryScreen() {
 
   const loadPantryItems = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -166,14 +191,13 @@ export default function PantryScreen() {
       if (error) throw error;
 
       setItems(data || []);
-      
-      const stats: {[key: string]: number} = {};
-      data?.forEach(item => {
+
+      const stats: { [key: string]: number } = {};
+      data?.forEach((item) => {
         stats[item.category] = (stats[item.category] || 0) + 1;
       });
       stats['all'] = data?.length || 0;
       setCategoryStats(stats);
-      
     } catch (error) {
       console.error('Error loading pantry items:', error);
       Alert.alert('Error', 'Could not load pantry items');
@@ -187,24 +211,27 @@ export default function PantryScreen() {
     let filtered = items;
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.category === selectedCategory);
+      filtered = filtered.filter((item) => item.category === selectedCategory);
     }
 
     if (searchQuery) {
-      filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (item) =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.brand?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     if (activeExpiryFilter !== 'all') {
       const today = new Date();
-      filtered = filtered.filter(item => {
+      filtered = filtered.filter((item) => {
         if (!item.expiry_date) return activeExpiryFilter === 'no_expiry';
-        
+
         const expiryDate = new Date(item.expiry_date);
-        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
+        const daysUntilExpiry = Math.ceil(
+          (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
         switch (activeExpiryFilter) {
           case 'expired':
             return daysUntilExpiry < 0;
@@ -228,7 +255,9 @@ export default function PantryScreen() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const itemData = {
@@ -268,7 +297,9 @@ export default function PantryScreen() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const itemData = {
@@ -290,7 +321,7 @@ export default function PantryScreen() {
 
       if (error) throw error;
 
-      setItems(items.map(item => item.id === editingItem.id ? data : item));
+      setItems(items.map((item) => (item.id === editingItem.id ? data : item)));
       setShowAddModal(false);
       setEditMode(false);
       setEditingItem(null);
@@ -303,41 +334,39 @@ export default function PantryScreen() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert(
-      'Delete Item',
-      'Are you sure you want to remove this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('pantry_items')
-                .delete()
-                .eq('id', itemId);
+    Alert.alert('Delete Item', 'Are you sure you want to remove this item?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('pantry_items')
+              .delete()
+              .eq('id', itemId);
 
-              if (error) throw error;
+            if (error) throw error;
 
-              setItems(items.filter(item => item.id !== itemId));
-              setShowActionsMenu(null);
-            } catch (error) {
-              console.error('Error deleting item:', error);
-              Alert.alert('Error', 'Could not delete item');
-            }
-          },
+            setItems(items.filter((item) => item.id !== itemId));
+            setShowActionsMenu(null);
+          } catch (error) {
+            console.error('Error deleting item:', error);
+            Alert.alert('Error', 'Could not delete item');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   // ✅ FIXED: handleAddToShoppingList - Sadece tabloda olan alanları kullan
   const handleAddToShoppingList = async (item: PantryItem) => {
     try {
       console.log('Adding to shopping list:', item.name);
-      
-      const { data: { user } } = await supabase.auth.getUser();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'Please log in to add items to shopping list');
         return;
@@ -371,15 +400,18 @@ export default function PantryScreen() {
         item_name: item.name,
         brand: item.brand || null,
         category: item.category || 'general',
-        quantity: item.quantity || 1,  // ✅ Pantry'deki quantity değerini al
-        unit: item.unit || 'piece',     // ✅ Pantry'deki unit değerini al
+        quantity: item.quantity || 1, // ✅ Pantry'deki quantity değerini al
+        unit: item.unit || 'piece', // ✅ Pantry'deki unit değerini al
         source: 'auto_pantry',
         priority: 'medium',
         notes: `Added from pantry (Original: ${item.quantity} ${item.unit})`, // ✅ Orijinal değerleri not olarak ekle
         is_completed: false,
       };
 
-      console.log('Inserting shopping item with correct quantity:', shoppingItemData);
+      console.log(
+        'Inserting shopping item with correct quantity:',
+        shoppingItemData
+      );
 
       const { data, error } = await supabase
         .from('shopping_list_items')
@@ -397,16 +429,18 @@ export default function PantryScreen() {
       // ✅ Başarı mesajında miktar ve birim bilgisini göster
       Alert.alert(
         'Success! ✅',
-        `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${item.quantity} ${item.unit} has been added to your shopping list!`,
+        `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${
+          item.quantity
+        } ${item.unit} has been added to your shopping list!`,
         [{ text: 'OK', style: 'default' }]
       );
       setShowActionsMenu(null);
-
     } catch (error: any) {
       console.error('Error adding to shopping list:', error);
       Alert.alert(
         'Error',
-        error.message || 'Failed to add item to shopping list. Please try again.'
+        error.message ||
+          'Failed to add item to shopping list. Please try again.'
       );
       setShowActionsMenu(null);
     }
@@ -453,11 +487,11 @@ export default function PantryScreen() {
   };
 
   const getExpiryColor = (days: number | null) => {
-    if (days === null) return theme.colors.expiryNeutral;
-    if (days <= 0) return theme.colors.expiryUrgent;
-    if (days <= 3) return theme.colors.expirySoon;
-    if (days <= 7) return theme.colors.info;
-    return theme.colors.expiryOk;
+    if (days === null) return colors.expiryNeutral;
+    if (days <= 0) return colors.expiryUrgent;
+    if (days <= 3) return colors.expirySoon;
+    if (days <= 7) return colors.info;
+    return colors.expiryOk;
   };
 
   const handleExpiryFilterChange = (filter: 'all' | 'expiring' | 'expired') => {
@@ -472,10 +506,12 @@ export default function PantryScreen() {
       <View style={styles.categoriesHeaderInList}>
         <Text style={styles.categoriesTitle}>Categories</Text>
         {(selectedCategory !== 'all' || activeExpiryFilter !== 'all') && (
-          <TouchableOpacity onPress={() => {
-            setSelectedCategory('all');
-            setActiveExpiryFilter('all');
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedCategory('all');
+              setActiveExpiryFilter('all');
+            }}
+          >
             <Text style={styles.clearFilter}>Clear Filters</Text>
           </TouchableOpacity>
         )}
@@ -490,14 +526,11 @@ export default function PantryScreen() {
         {CATEGORIES.map((category) => {
           const count = categoryStats[category.key] || 0;
           const isActive = selectedCategory === category.key;
-          
+
           return (
             <TouchableOpacity
               key={category.key}
-              style={[
-                styles.categoryTab,
-                isActive && styles.categoryTabActive,
-              ]}
+              style={[styles.categoryTab, isActive && styles.categoryTabActive]}
               onPress={() => setSelectedCategory(category.key)}
               activeOpacity={0.7}
             >
@@ -512,14 +545,18 @@ export default function PantryScreen() {
                   {category.label}
                 </Text>
                 {count > 0 && (
-                  <View style={[
-                    styles.categoryBadge,
-                    isActive && styles.categoryBadgeActive
-                  ]}>
-                    <Text style={[
-                      styles.categoryBadgeText,
-                      isActive && styles.categoryBadgeTextActive
-                    ]}>
+                  <View
+                    style={[
+                      styles.categoryBadge,
+                      isActive && styles.categoryBadgeActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryBadgeText,
+                        isActive && styles.categoryBadgeTextActive,
+                      ]}
+                    >
                       {count}
                     </Text>
                   </View>
@@ -532,45 +569,87 @@ export default function PantryScreen() {
 
       <View style={styles.statsBar}>
         <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'all' && styles.statItemActive]}
+          style={[
+            styles.statItem,
+            activeExpiryFilter === 'all' && styles.statItemActive,
+          ]}
           onPress={() => handleExpiryFilterChange('all')}
           activeOpacity={0.7}
         >
-          <Package size={14} color={activeExpiryFilter === 'all' ? theme.colors.primary : theme.colors.textSecondary} />
+          <Package
+            size={14}
+            color={
+              activeExpiryFilter === 'all'
+                ? colors.primary
+                : colors.textSecondary
+            }
+          />
           <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
           <Text style={styles.statLabel}>TOTAL</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.statDivider} />
-        
+
         <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'expiring' && styles.statItemActive]}
-          onPress={() => handleExpiryFilterChange(activeExpiryFilter === 'expiring' ? 'all' : 'expiring')}
+          style={[
+            styles.statItem,
+            activeExpiryFilter === 'expiring' && styles.statItemActive,
+          ]}
+          onPress={() =>
+            handleExpiryFilterChange(
+              activeExpiryFilter === 'expiring' ? 'all' : 'expiring'
+            )
+          }
           activeOpacity={0.7}
         >
-          <AlertTriangle size={14} color={activeExpiryFilter === 'expiring' ? theme.colors.warning : theme.colors.textSecondary} />
+          <AlertTriangle
+            size={14}
+            color={
+              activeExpiryFilter === 'expiring'
+                ? colors.warning
+                : colors.textSecondary
+            }
+          />
           <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days <= 3 && days >= 0;
-            }).length}
+            {
+              items.filter((item) => {
+                const days = getDaysUntilExpiry(item.expiry_date || '');
+                return days !== null && days <= 3 && days >= 0;
+              }).length
+            }
           </Text>
           <Text style={styles.statLabel}>EXPIRING</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.statDivider} />
-        
+
         <TouchableOpacity
-          style={[styles.statItem, activeExpiryFilter === 'expired' && styles.statItemActive]}
-          onPress={() => handleExpiryFilterChange(activeExpiryFilter === 'expired' ? 'all' : 'expired')}
+          style={[
+            styles.statItem,
+            activeExpiryFilter === 'expired' && styles.statItemActive,
+          ]}
+          onPress={() =>
+            handleExpiryFilterChange(
+              activeExpiryFilter === 'expired' ? 'all' : 'expired'
+            )
+          }
           activeOpacity={0.7}
         >
-          <Clock size={14} color={activeExpiryFilter === 'expired' ? theme.colors.error : theme.colors.textSecondary} />
+          <Clock
+            size={14}
+            color={
+              activeExpiryFilter === 'expired'
+                ? colors.error
+                : colors.textSecondary
+            }
+          />
           <Text style={styles.statValue}>
-            {items.filter(item => {
-              const days = getDaysUntilExpiry(item.expiry_date || '');
-              return days !== null && days < 0;
-            }).length}
+            {
+              items.filter((item) => {
+                const days = getDaysUntilExpiry(item.expiry_date || '');
+                return days !== null && days < 0;
+              }).length
+            }
           </Text>
           <Text style={styles.statLabel}>EXPIRED</Text>
         </TouchableOpacity>
@@ -581,15 +660,15 @@ export default function PantryScreen() {
   const CellRendererComponent = ({ children, index, style, ...props }: any) => {
     const itemData = filteredItems[index];
     const isMenuOpen = itemData && showActionsMenu === itemData.id;
-    
+
     const cellStyle = [
       style,
       {
         zIndex: isMenuOpen ? 9999 : 1,
         elevation: isMenuOpen ? 9999 : 1,
-      }
+      },
     ];
-    
+
     return (
       <View style={cellStyle} {...props}>
         {children}
@@ -606,47 +685,55 @@ export default function PantryScreen() {
       {
         width: numColumns === 1 ? '100%' : itemWidth - 8,
         marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
-      }
+      },
     ];
 
     return (
       <View style={itemStyle}>
         <TouchableOpacity
           style={styles.itemActionsButton}
-          onPress={() => setShowActionsMenu(showActionsMenu === item.id ? null : item.id)}
+          onPress={() =>
+            setShowActionsMenu(showActionsMenu === item.id ? null : item.id)
+          }
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <MoreVertical size={18} color={theme.colors.textSecondary} />
+          <MoreVertical size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
         {showActionsMenu === item.id && (
           <View style={styles.actionsDropdown}>
-            <TouchableOpacity 
-              style={styles.actionItem} 
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={() => handleEditItem(item)}
             >
               <Edit3 size={16} color="#10b981" />
-              <Text style={[styles.actionText, { color: '#10b981' }]}>Edit</Text>
+              <Text style={[styles.actionText, { color: '#10b981' }]}>
+                Edit
+              </Text>
             </TouchableOpacity>
-            
+
             <View style={styles.actionDivider} />
-            
-            <TouchableOpacity 
-              style={styles.actionItem} 
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={() => handleAddToShoppingList(item)}
             >
               <ShoppingCart size={16} color="#3b82f6" />
-              <Text style={[styles.actionText, { color: '#3b82f6' }]}>Add to Shopping List</Text>
+              <Text style={[styles.actionText, { color: '#3b82f6' }]}>
+                Add to Shopping List
+              </Text>
             </TouchableOpacity>
-            
+
             <View style={styles.actionDivider} />
-            
-            <TouchableOpacity 
-              style={styles.actionItem} 
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={() => handleDeleteItem(item.id)}
             >
               <Trash2 size={16} color="#ef4444" />
-              <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
+              <Text style={[styles.actionText, { color: '#ef4444' }]}>
+                Delete
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -657,7 +744,10 @@ export default function PantryScreen() {
             style={styles.itemImage}
           />
           <View style={styles.itemInfo}>
-            <Text style={styles.itemName} numberOfLines={numColumns > 1 ? 2 : 1}>
+            <Text
+              style={styles.itemName}
+              numberOfLines={numColumns > 1 ? 2 : 1}
+            >
               {item.name}
             </Text>
             {item.brand && (
@@ -676,7 +766,7 @@ export default function PantryScreen() {
 
         <View style={styles.itemDetails}>
           <View style={styles.itemMeta}>
-            <MapPin size={12} color={theme.colors.textSecondary} />
+            <MapPin size={12} color={colors.textSecondary} />
             <Text style={styles.metaText} numberOfLines={1}>
               {item.location}
             </Text>
@@ -685,7 +775,10 @@ export default function PantryScreen() {
           {item.expiry_date && (
             <View style={[styles.itemMeta, styles.expiryMeta]}>
               <Calendar size={12} color={expiryColor} />
-              <Text style={[styles.metaText, { color: expiryColor }]} numberOfLines={1}>
+              <Text
+                style={[styles.metaText, { color: expiryColor }]}
+                numberOfLines={1}
+              >
                 {daysUntilExpiry === 0
                   ? 'Today'
                   : daysUntilExpiry === 1
@@ -698,9 +791,13 @@ export default function PantryScreen() {
           )}
         </View>
 
-        {daysUntilExpiry !== null && daysUntilExpiry <= 3 && daysUntilExpiry >= 0 && (
-          <View style={[styles.expiryIndicator, { backgroundColor: expiryColor }]} />
-        )}
+        {daysUntilExpiry !== null &&
+          daysUntilExpiry <= 3 &&
+          daysUntilExpiry >= 0 && (
+            <View
+              style={[styles.expiryIndicator, { backgroundColor: expiryColor }]}
+            />
+          )}
       </View>
     );
   };
@@ -724,14 +821,14 @@ export default function PantryScreen() {
             <Text style={styles.modalTitle}>
               {editMode ? 'Edit Item' : 'Add New Item'}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => {
                 setShowAddModal(false);
                 resetNewItem();
               }}
               style={styles.modalCloseButton}
             >
-              <X size={24} color={theme.colors.textSecondary} />
+              <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -741,7 +838,7 @@ export default function PantryScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., Milk, Chicken Breast"
-                placeholderTextColor={theme.colors.inputPlaceholder}
+                placeholderTextColor={colors.inputPlaceholder}
                 value={newItem.name}
                 onChangeText={(text) => setNewItem({ ...newItem, name: text })}
               />
@@ -752,7 +849,7 @@ export default function PantryScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="e.g., Organic Valley"
-                placeholderTextColor={theme.colors.inputPlaceholder}
+                placeholderTextColor={colors.inputPlaceholder}
                 value={newItem.brand}
                 onChangeText={(text) => setNewItem({ ...newItem, brand: text })}
               />
@@ -764,10 +861,12 @@ export default function PantryScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="1"
-                  placeholderTextColor={theme.colors.inputPlaceholder}
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="numeric"
                   value={newItem.quantity}
-                  onChangeText={(text) => setNewItem({ ...newItem, quantity: text })}
+                  onChangeText={(text) =>
+                    setNewItem({ ...newItem, quantity: text })
+                  }
                 />
               </View>
 
@@ -778,9 +877,10 @@ export default function PantryScreen() {
                   onPress={() => setShowUnitDropdown(true)}
                 >
                   <Text style={styles.unitDropdownText}>
-                    {UNITS.find(u => u.value === newItem.unit)?.label || newItem.unit}
+                    {UNITS.find((u) => u.value === newItem.unit)?.label ||
+                      newItem.unit}
                   </Text>
-                  <ChevronDown size={20} color={theme.colors.textSecondary} />
+                  <ChevronDown size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -794,15 +894,19 @@ export default function PantryScreen() {
                       key={cat.key}
                       style={[
                         styles.categoryChip,
-                        newItem.category === cat.key && styles.categoryChipActive,
+                        newItem.category === cat.key &&
+                          styles.categoryChipActive,
                       ]}
-                      onPress={() => setNewItem({ ...newItem, category: cat.key })}
+                      onPress={() =>
+                        setNewItem({ ...newItem, category: cat.key })
+                      }
                     >
                       <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
                       <Text
                         style={[
                           styles.categoryLabel,
-                          newItem.category === cat.key && styles.categoryLabelActive,
+                          newItem.category === cat.key &&
+                            styles.categoryLabelActive,
                         ]}
                       >
                         {cat.label}
@@ -845,9 +949,11 @@ export default function PantryScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.colors.inputPlaceholder}
+                placeholderTextColor={colors.inputPlaceholder}
                 value={newItem.expiry_date}
-                onChangeText={(text) => setNewItem({ ...newItem, expiry_date: text })}
+                onChangeText={(text) =>
+                  setNewItem({ ...newItem, expiry_date: text })
+                }
               />
             </View>
 
@@ -862,8 +968,8 @@ export default function PantryScreen() {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.addButton} 
+              <TouchableOpacity
+                style={styles.addButton}
                 onPress={editMode ? handleUpdateItem : handleAddItem}
               >
                 <Text style={styles.addButtonText}>
@@ -896,31 +1002,35 @@ export default function PantryScreen() {
               onPress={() => setShowUnitDropdown(false)}
               style={styles.dropdownCloseButton}
             >
-              <X size={20} color={theme.colors.textSecondary} />
+              <X size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.dropdownList}
+            showsVerticalScrollIndicator={false}
+          >
             {UNITS.map((unit) => (
               <TouchableOpacity
                 key={unit.value}
                 style={[
                   styles.dropdownItem,
-                  newItem.unit === unit.value && styles.dropdownItemSelected
+                  newItem.unit === unit.value && styles.dropdownItemSelected,
                 ]}
                 onPress={() => {
                   setNewItem({ ...newItem, unit: unit.value });
                   setShowUnitDropdown(false);
                 }}
               >
-                <Text style={[
-                  styles.dropdownItemText,
-                  newItem.unit === unit.value && styles.dropdownItemTextSelected
-                ]}>
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    newItem.unit === unit.value &&
+                      styles.dropdownItemTextSelected,
+                  ]}
+                >
                   {unit.label} ({unit.value})
                 </Text>
-                <Text style={styles.dropdownItemCategory}>
-                  {unit.category}
-                </Text>
+                <Text style={styles.dropdownItemCategory}>{unit.category}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -932,7 +1042,7 @@ export default function PantryScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading your pantry...</Text>
       </View>
     );
@@ -952,11 +1062,11 @@ export default function PantryScreen() {
       </View>
 
       <View style={styles.searchContainer}>
-        <Search size={20} color={theme.colors.textSecondary} />
+        <Search size={20} color={colors.textSecondary} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search items..."
-          placeholderTextColor={theme.colors.inputPlaceholder}
+          placeholderTextColor={colors.inputPlaceholder}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -978,26 +1088,32 @@ export default function PantryScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={loadPantryItems}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
-            <Package size={56} color={theme.colors.textSecondary} strokeWidth={1.5} />
+            <Package size={56} color={colors.textSecondary} strokeWidth={1.5} />
             <Text style={styles.emptyText}>
-              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
+              {searchQuery ||
+              selectedCategory !== 'all' ||
+              activeExpiryFilter !== 'all'
                 ? 'No items found'
                 : 'Your pantry is empty'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {searchQuery || selectedCategory !== 'all' || activeExpiryFilter !== 'all'
+              {searchQuery ||
+              selectedCategory !== 'all' ||
+              activeExpiryFilter !== 'all'
                 ? 'Try adjusting your filters'
                 : 'Tap the + button to add items'}
             </Text>
           </View>
         )}
-        columnWrapperStyle={numColumns > 1 ? styles.columnWrapperStyle : undefined}
+        columnWrapperStyle={
+          numColumns > 1 ? styles.columnWrapperStyle : undefined
+        }
       />
 
       {renderAddItemModal()}
@@ -1021,7 +1137,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#6b7280',
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.bodyText.fontFamily,
   },
   header: {
     flexDirection: 'row',
@@ -1039,7 +1155,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
     letterSpacing: -0.5,
-    fontFamily: typography.fontFamily.bold, // ✅ Bunu ekleyin
+    fontFamily: typography.headingTextBold.fontFamily, // ✅ Bunu ekleyin
   },
   headerAddButton: {
     backgroundColor: '#10b981',
@@ -1072,7 +1188,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     fontSize: 16,
     color: '#1f2937',
-    fontFamily: typography.fontFamily.regular,
+    fontFamily: typography.bodyText.fontFamily,
   },
   categoriesHeaderInList: {
     flexDirection: 'row',

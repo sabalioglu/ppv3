@@ -9,35 +9,44 @@ import {
 } from 'react-native';
 import { Sun, Moon, Smartphone } from 'lucide-react-native';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
+import { spacing, radius } from '../lib/theme/index';
 
 interface ThemeSwitcherProps {
   visible: boolean;
   onClose: () => void;
 }
 
-export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ visible, onClose }) => {
-  const { theme, themeMode, setThemeMode } = useTheme();
+const options: {
+  mode: ThemeMode;
+  icon: any;
+  label: string;
+  description: string;
+}[] = [
+  {
+    mode: 'light',
+    icon: Sun,
+    label: 'Light',
+    description: 'Always use light theme',
+  },
+  {
+    mode: 'dark',
+    icon: Moon,
+    label: 'Dark',
+    description: 'Always use dark theme',
+  },
+  {
+    mode: 'system',
+    icon: Smartphone,
+    label: 'System',
+    description: 'Follow system settings',
+  },
+];
 
-  const options: { mode: ThemeMode; icon: any; label: string; description: string }[] = [
-    {
-      mode: 'light',
-      icon: Sun,
-      label: 'Light',
-      description: 'Always use light theme',
-    },
-    {
-      mode: 'dark',
-      icon: Moon,
-      label: 'Dark',
-      description: 'Always use dark theme',
-    },
-    {
-      mode: 'system',
-      icon: Smartphone,
-      label: 'System',
-      description: 'Follow system settings',
-    },
-  ];
+export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({
+  visible,
+  onClose,
+}) => {
+  const { colors, themeMode, setThemeMode } = useTheme();
 
   return (
     <Modal
@@ -51,21 +60,22 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ visible, onClose }
         activeOpacity={1}
         onPress={onClose}
       >
-        <View style={[styles.container, { backgroundColor: theme.surface }]}>
-          <View style={[styles.handle, { backgroundColor: theme.border }]} />
-          
-          <Text style={[styles.title, { color: theme.textPrimary }]}>
+        <View style={[styles.container, { backgroundColor: colors.surface }]}>
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
+
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
             Choose Theme
           </Text>
-          
+
           {options.map(({ mode, icon: Icon, label, description }) => (
             <TouchableOpacity
               key={mode}
               style={[
                 styles.option,
-                { 
-                  backgroundColor: theme.surfaceVariant,
-                  borderColor: themeMode === mode ? theme.primary : theme.border,
+                {
+                  backgroundColor: colors.surfaceVariant,
+                  borderColor:
+                    themeMode === mode ? colors.primary : colors.border,
                   borderWidth: themeMode === mode ? 2 : 1,
                 },
               ]}
@@ -74,36 +84,48 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ visible, onClose }
                 onClose();
               }}
             >
-              <View style={[
-                styles.iconContainer,
-                { backgroundColor: themeMode === mode ? theme.primary + '20' : theme.background }
-              ]}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  {
+                    backgroundColor:
+                      themeMode === mode
+                        ? colors.primary + '20'
+                        : colors.background,
+                  },
+                ]}
+              >
                 <Icon
                   size={24}
-                  color={themeMode === mode ? theme.primary : theme.textSecondary}
+                  color={
+                    themeMode === mode ? colors.primary : colors.textSecondary
+                  }
                 />
               </View>
-              
+
               <View style={styles.textContainer}>
-                <Text style={[
-                  styles.optionLabel,
-                  { color: theme.textPrimary }
-                ]}>
+                <Text
+                  style={[styles.optionLabel, { color: colors.textPrimary }]}
+                >
                   {label}
                 </Text>
-                <Text style={[
-                  styles.optionDescription,
-                  { color: theme.textSecondary }
-                ]}>
+                <Text
+                  style={[
+                    styles.optionDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
                   {description}
                 </Text>
               </View>
-              
+
               {themeMode === mode && (
-                <View style={[
-                  styles.checkmark,
-                  { backgroundColor: theme.primary }
-                ]}>
+                <View
+                  style={[
+                    styles.checkmark,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
                   <Text style={styles.checkmarkText}>✓</Text>
                 </View>
               )}
@@ -115,24 +137,6 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ visible, onClose }
   );
 };
 
-// Compact version for settings
-export const ThemeSwitcherButton: React.FC = () => {
-  const { theme, isDark, toggleTheme } = useTheme();
-  
-  return (
-    <TouchableOpacity
-      style={[styles.button, { backgroundColor: theme.surfaceVariant }]}
-      onPress={toggleTheme}
-    >
-      {isDark ? (
-        <Moon size={20} color={theme.textPrimary} />
-      ) : (
-        <Sun size={20} color={theme.textPrimary} />
-      )}
-    </TouchableOpacity>
-  );
-};
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -140,9 +144,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   handle: {
@@ -150,7 +154,7 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   title: {
     fontSize: 20,
@@ -160,17 +164,17 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: radius.md,
   },
   iconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 12,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: spacing.md,
   },
   textContainer: {
     flex: 1,
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
   checkmark: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },

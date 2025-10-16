@@ -2,46 +2,58 @@ import { Stack } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function AuthLayout() {
-  const { theme } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: theme.colors.background,
+          backgroundColor: colors.background,
         },
         animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen 
-        name="login" 
+      <Stack.Screen
+        name="signup"
+        options={{
+          title: 'Sign Up',
+        }}
+      />
+      <Stack.Screen
+        name="login"
         options={{
           title: 'Login',
         }}
       />
-      <Stack.Screen 
-        name="onboarding" 
+      <Stack.Screen
+        name="onboarding"
         options={{
           title: 'Get Started',
           gestureEnabled: false,
         }}
       />
-      <Stack.Screen 
-        name="callback" 
+      <Stack.Screen
+        name="callback"
         options={{
           title: 'Authenticating...',
           gestureEnabled: false,
         }}
       />
-      <Stack.Screen 
-        name="reset-password" 
+      <Stack.Screen
+        name="reset-password"
         options={{
           title: 'Reset Password',
         }}
       />
-      <Stack.Screen 
-        name="email-confirmed" 
+      <Stack.Screen
+        name="reset-confirm-password"
+        options={{
+          title: 'Reset Confirm Password',
+        }}
+      />
+      <Stack.Screen
+        name="email-confirmed"
         options={{
           title: 'Email Confirmed',
         }}

@@ -4,91 +4,74 @@ import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '../../lib/supabase';
 
-import FormInput from '@/components/auth/FormInput';
-import ThemedButton from '@/components/UI/ThemedButton';
+import { supabase } from '../../lib/supabase';
+import { getCurrentUrl } from '../../utils/getCurrentUrl';
+import { useCustomAlert } from '@/hooks/useCustomAlert';
+
+import FormInput from '../../components/auth/FormInput';
 import Divider from '@/components/auth/Divider';
 import ErrorCard from '@/components/UI/ErrorCard';
-import AuthLayout from '@/components/auth/AuthLayout';
-import ThemedText from '@/components/UI/ThemedText';
 import CustomAlert from '@/components/UI/CustomAlert';
-
-import { useCustomAlert } from '@/hooks/useCustomAlert';
-import { getCurrentUrl } from '../../utils/getCurrentUrl';
+import ThemedButton from '@/components/UI/ThemedButton';
+import ThemedText from '@/components/UI/ThemedText';
+import AuthLayout from '@/components/auth/AuthLayout';
 import { spacing } from '@/lib/theme';
 
-const schema = z.object({
-  email: z.string().email('Email required'),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(30),
-});
+const schema = z
+  .object({
+    email: z.string().email('Email required'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(30),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Password must be match',
+    path: ['confirmPassword'],
+  });
 
 type FormFields = z.infer<typeof schema>;
 
-const LoginPage = () => {
+const SignUpPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { control, handleSubmit } = useForm<FormFields>({
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', confirmPassword: '' },
     resolver: zodResolver(schema),
   });
 
   const { visible, title, message, buttons, showAlert, hideAlert } =
     useCustomAlert();
 
-  const handleAuth = async (values: FormFields) => {
+  const handleSignUp = async (values: FormFields) => {
     setErrorMessage(null);
+
     try {
       setLoading(true);
+      const currentUrl = getCurrentUrl();
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
+        options: {
+          emailRedirectTo: `${currentUrl}/callback`,
+        },
       });
 
-      if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          showAlert(
-            'Email Not Confirmed',
-            'Please check your email and click the confirmation link before signing in.',
-            [
-              {
-                text: 'Resend Email',
-                onPress: async () => {
-                  const { error: resendError } = await supabase.auth.resend({
-                    type: 'signup',
-                    email: values.email,
-                  });
-                  if (!resendError) {
-                    showAlert(
-                      'Email Sent',
-                      'Confirmation email has been resent.'
-                    );
-                  }
-                },
-              },
-              { text: 'Cancel', onPress: hideAlert },
-            ]
-          );
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('age, gender, height_cm, weight_kg, full_name')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        if (!profile || !profile.age || !profile.gender) {
-          router.replace('/onboarding');
-        } else {
-          router.replace('/');
-        }
+      // Email confirmation check
+      if (data?.user && !data.session) {
+        showAlert(
+          'Check Your Email! 📧',
+          'We sent you a confirmation link. Please check your email to activate your account.'
+        );
+      } else if (data?.user && data.session) {
+        router.replace('/onboarding');
       }
     } catch (error: any) {
       setErrorMessage(error.message);
@@ -97,7 +80,7 @@ const LoginPage = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     setErrorMessage(null);
     try {
       setLoading(true);
@@ -116,12 +99,8 @@ const LoginPage = () => {
     }
   };
 
-  const handleRedirectToSignUp = () => {
-    router.replace('/signup');
-  };
-
-  const handleForgotPassword = () => {
-    router.replace('/reset-password');
+  const handleRedirectToSignIn = () => {
+    router.push('/login');
   };
 
   return (
@@ -131,7 +110,7 @@ const LoginPage = () => {
           🍽️ AI Food Pantry
         </ThemedText>
         <ThemedText type="subheading" style={styles.subtitle}>
-          Welcome Back
+          Create Account
         </ThemedText>
         <FormInput
           control={control}
@@ -145,28 +124,29 @@ const LoginPage = () => {
           placeholder="Password"
           secureTextEntry
         />
-        <ThemedButton
-          variant="bold"
-          onPress={handleForgotPassword}
-          text="Forgot Password?"
+        <FormInput
+          control={control}
+          name="confirmPassword"
+          placeholder="Confirm Password"
+          secureTextEntry
         />
         <ThemedButton
-          onPress={handleSubmit(handleAuth)}
+          onPress={handleSubmit(handleSignUp)}
           disabled={loading}
-          text="Sign In"
+          text="Sign Up"
         />
         <Divider />
         <ThemedButton
           variant="google"
-          onPress={handleGoogleSignIn}
+          onPress={handleGoogleSignUp}
           disabled={loading}
           text="Continue with Google"
         />
         {errorMessage && <ErrorCard message={errorMessage} />}
         <ThemedButton
           variant="switch"
-          onPress={handleRedirectToSignUp}
-          text="Need an account? Sign Up"
+          onPress={handleRedirectToSignIn}
+          text="Already have an account? Sign In"
         />
         <CustomAlert
           visible={visible}
@@ -179,8 +159,7 @@ const LoginPage = () => {
     </AuthLayout>
   );
 };
-
-export default LoginPage;
+export default SignUpPage;
 
 const styles = StyleSheet.create({
   content: {
