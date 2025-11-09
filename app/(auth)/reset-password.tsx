@@ -6,12 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { makeRedirectUri } from 'expo-auth-session';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCustomAlert } from '@/hooks/useCustomAlert';
 import CustomAlert from '@/components/UI/CustomAlert';
 import FormInput from '@/components/auth/FormInput';
-import { getCurrentUrl } from '@/utils/getCurrentUrl';
 import AuthLayout from '@/components/auth/AuthLayout';
 import ThemedText from '@/components/UI/ThemedText';
 import ThemedButton from '@/components/UI/ThemedButton';
@@ -39,11 +39,14 @@ const ResetPassword = () => {
   const handleResetPassword = async (values: FormFields) => {
     try {
       setIsLoading(true);
-      const currentUrl = getCurrentUrl();
 
       const { error } = await supabase.auth.resetPasswordForEmail(
         values.email,
-        { redirectTo: `${currentUrl}/reset-confirm-password` }
+        {
+          redirectTo: makeRedirectUri({
+            path: 'reset-confirm-password',
+          }),
+        }
       );
 
       if (error) throw error;
