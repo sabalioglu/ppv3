@@ -5,6 +5,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { mealPlanInitializer } from '../lib/meal-plan/initialize';
+import { AuthProvider } from '@/contexts/AuthContext';
+import SplashController from '@/components/SplashController';
 // ❌ useFonts import'u kaldırıldı
 
 // Prevent the splash screen from auto-hiding
@@ -39,8 +41,7 @@ export default function RootLayout() {
         }
 
         // Small delay to ensure smooth transition
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
+        await new Promise((resolve) => setTimeout(resolve, 200));
       } catch (error) {
         console.error('💥 App initialization error:', error);
         // Don't block app loading on errors
@@ -63,7 +64,7 @@ export default function RootLayout() {
         }
       }
     }
-    
+
     hideSplash();
   }, [appIsReady]);
 
@@ -76,57 +77,30 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <Stack 
-            screenOptions={{ 
-              headerShown: false,
-              animation: 'fade', // Smooth screen transitions
-              animationDuration: 200,
-            }}
-          >
-            <Stack.Screen 
-              name="(tabs)" 
-              options={{ 
+          <AuthProvider>
+            <SplashController />
+            <Stack
+              screenOptions={{
                 headerShown: false,
-                animation: 'none' // No animation for tab navigator
-              }} 
-            />
-            <Stack.Screen 
-              name="(auth)" 
-              options={{ 
-                headerShown: false,
-                animation: 'slide_from_bottom' // Auth screens slide up
-              }} 
-            />
-            <Stack.Screen 
-              name="ai-meal-plan" 
-              options={{ 
-                headerShown: false,
-                animation: 'slide_from_right' // Meal plan slides from right
-              }} 
-            />
-            <Stack.Screen 
-              name="recipe/[id]" 
-              options={{ 
-                headerShown: false,
-                animation: 'slide_from_right',
-                presentation: 'card' // Card-style presentation for recipes
-              }} 
-            />
-            <Stack.Screen 
-              name="settings" 
-              options={{ 
-                headerShown: false,
-                animation: 'slide_from_right'
-              }} 
-            />
-            <Stack.Screen 
-              name="profile" 
-              options={{ 
-                headerShown: false,
-                animation: 'slide_from_right'
-              }} 
-            />
-          </Stack>
+                animation: 'fade', // Smooth screen transitions
+                animationDuration: 200,
+              }}
+            >
+              <Stack.Screen
+                name="(auth)"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_bottom', // Auth screens slide up
+                }}
+              />
+              <Stack.Screen
+                name="(protected)"
+                options={{
+                  headerShown: false,
+                }}
+              />
+            </Stack>
+          </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
