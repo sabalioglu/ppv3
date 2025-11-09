@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { makeRedirectUri } from 'expo-auth-session';
 
 import FormInput from '@/components/auth/FormInput';
 import ThemedButton from '@/components/UI/ThemedButton';
@@ -15,7 +16,6 @@ import ThemedText from '@/components/UI/ThemedText';
 import CustomAlert from '@/components/UI/CustomAlert';
 
 import { useCustomAlert } from '@/hooks/useCustomAlert';
-import { getCurrentUrl } from '../../utils/getCurrentUrl';
 import { spacing } from '@/lib/theme';
 
 const schema = z.object({
@@ -76,20 +76,6 @@ const LoginPage = () => {
         }
         throw error;
       }
-
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('age, gender, height_cm, weight_kg, full_name')
-          .eq('id', data.user.id)
-          .maybeSingle();
-
-        if (!profile || !profile.age || !profile.gender) {
-          router.replace('/onboarding');
-        } else {
-          router.replace('/');
-        }
-      }
     } catch (error: any) {
       setErrorMessage(error.message);
     } finally {
@@ -101,11 +87,9 @@ const LoginPage = () => {
     setErrorMessage(null);
     try {
       setLoading(true);
-      const currentUrl = getCurrentUrl();
-
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${currentUrl}/callback` },
+        options: { redirectTo: makeRedirectUri() },
       });
 
       if (error) throw error;
