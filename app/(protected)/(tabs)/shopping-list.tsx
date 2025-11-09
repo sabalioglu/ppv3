@@ -14,9 +14,9 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   Filter,
   ChevronDown,
   ChevronUp,
@@ -31,12 +31,12 @@ import {
   DollarSign,
   Tag,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
 } from 'lucide-react-native';
 
 // ✅ Theme import düzeltmesi
-import { colors, spacing, typography, shadows } from '../../lib/theme';
-import { supabase } from '../../lib/supabase';
+import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 
 // ✅ Interface tanımları
@@ -86,7 +86,12 @@ interface AddItemForm {
 const CATEGORIES = [
   { id: 'all', name: 'All', icon: '🛒', color: colors.neutral[500] },
   { id: 'fruits', name: 'Fruits', icon: '🍎', color: colors.success[500] },
-  { id: 'vegetables', name: 'Vegetables', icon: '🥕', color: colors.success[600] },
+  {
+    id: 'vegetables',
+    name: 'Vegetables',
+    icon: '🥕',
+    color: colors.success[600],
+  },
   { id: 'dairy', name: 'Dairy', icon: '🥛', color: colors.primary[500] },
   { id: 'meat', name: 'Meat', icon: '🥩', color: colors.error[500] },
   { id: 'grains', name: 'Grains', icon: '🌾', color: colors.warning[500] },
@@ -114,7 +119,7 @@ export default function ShoppingList() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addingItem, setAddingItem] = useState(false);
-  
+
   // ✅ NEW: Dropdown states
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
@@ -127,12 +132,12 @@ export default function ShoppingList() {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
-  
+
   // 🆕 Add Modal Dropdown states
   const [showAddUnitDropdown, setShowAddUnitDropdown] = useState(false);
   const [showAddCategoryDropdown, setShowAddCategoryDropdown] = useState(false);
   const [showAddPriorityDropdown, setShowAddPriorityDropdown] = useState(false);
-  
+
   const [editForm, setEditForm] = useState({
     item_name: '',
     category: 'general',
@@ -160,7 +165,9 @@ export default function ShoppingList() {
   // ✅ CRUD Operations
   const loadShoppingItems = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         console.log('No user found');
         setLoading(false);
@@ -197,7 +204,9 @@ export default function ShoppingList() {
 
     try {
       setAddingItem(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'Please log in to add items');
         return;
@@ -228,8 +237,8 @@ export default function ShoppingList() {
 
       if (error) throw error;
 
-      setItems(prev => [data, ...prev]);
-      
+      setItems((prev) => [data, ...prev]);
+
       setAddItemForm({
         item_name: '',
         category: 'general',
@@ -241,9 +250,8 @@ export default function ShoppingList() {
         notes: '',
         organic_preference: false,
       });
-      
+
       setShowAddModal(false);
-      
     } catch (error) {
       console.error('Error adding item:', error);
       Alert.alert('Error', 'Failed to add item to shopping list');
@@ -276,7 +284,9 @@ export default function ShoppingList() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'Please log in to update items');
         return;
@@ -302,14 +312,15 @@ export default function ShoppingList() {
 
       if (error) throw error;
 
-      setItems(prev => prev.map(item => 
-        item.id === editingItem.id ? { ...item, ...updateData } : item
-      ));
-      
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === editingItem.id ? { ...item, ...updateData } : item
+        )
+      );
+
       setShowEditModal(false);
       setEditingItem(null);
       Alert.alert('Success', 'Item updated successfully!');
-
     } catch (error) {
       console.error('Error updating item:', error);
       Alert.alert('Error', 'Failed to update item');
@@ -337,13 +348,13 @@ export default function ShoppingList() {
 
   const handleToggleComplete = async (itemId: string) => {
     try {
-      const item = items.find(i => i.id === itemId);
+      const item = items.find((i) => i.id === itemId);
       if (!item) return;
 
       const newCompletedState = !item.is_completed;
       const updateData = {
         is_completed: newCompletedState,
-        completed_at: newCompletedState ? new Date().toISOString() : null
+        completed_at: newCompletedState ? new Date().toISOString() : null,
       };
 
       const { error } = await supabase
@@ -353,12 +364,9 @@ export default function ShoppingList() {
 
       if (error) throw error;
 
-      setItems(prev => prev.map(i => 
-        i.id === itemId 
-          ? { ...i, ...updateData }
-          : i
-      ));
-
+      setItems((prev) =>
+        prev.map((i) => (i.id === itemId ? { ...i, ...updateData } : i))
+      );
     } catch (error) {
       console.error('Error toggling completion:', error);
       Alert.alert('Error', 'Failed to update item');
@@ -366,39 +374,36 @@ export default function ShoppingList() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert(
-      'Delete Item',
-      'Are you sure you want to delete this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('shopping_list_items')
-                .delete()
-                .eq('id', itemId);
+    Alert.alert('Delete Item', 'Are you sure you want to delete this item?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('shopping_list_items')
+              .delete()
+              .eq('id', itemId);
 
-              if (error) throw error;
+            if (error) throw error;
 
-              setItems(prev => prev.filter(i => i.id !== itemId));
-              
-            } catch (error) {
-              console.error('Error deleting item:', error);
-              Alert.alert('Error', 'Failed to delete item');
-            }
+            setItems((prev) => prev.filter((i) => i.id !== itemId));
+          } catch (error) {
+            console.error('Error deleting item:', error);
+            Alert.alert('Error', 'Failed to delete item');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   // ✅ NEW: Pantry Integration Function
   const addMissingFromPantry = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: lowStockItems, error } = await supabase
@@ -413,7 +418,7 @@ export default function ShoppingList() {
         return;
       }
 
-      const shoppingItems = lowStockItems.map(item => ({
+      const shoppingItems = lowStockItems.map((item) => ({
         user_id: user.id,
         item_name: item.name,
         category: item.category,
@@ -436,11 +441,10 @@ export default function ShoppingList() {
 
       if (insertError) throw insertError;
 
-      setItems(prev => [...(data || []), ...prev]);
-      
+      setItems((prev) => [...(data || []), ...prev]);
+
       Alert.alert('Success', `Added ${lowStockItems.length} low stock items`);
       setShowQuickActions(false);
-
     } catch (error) {
       console.error('Error adding from pantry:', error);
       Alert.alert('Error', 'Failed to add items from pantry');
@@ -449,8 +453,8 @@ export default function ShoppingList() {
 
   // ✅ NEW: Clear Completed Function
   const handleClearCompleted = async () => {
-    const completedItems = items.filter(item => item.is_completed);
-    
+    const completedItems = items.filter((item) => item.is_completed);
+
     if (completedItems.length === 0) {
       Alert.alert('Info', 'No completed items to clear');
       return;
@@ -469,42 +473,56 @@ export default function ShoppingList() {
               const { error } = await supabase
                 .from('shopping_list_items')
                 .delete()
-                .in('id', completedItems.map(item => item.id));
+                .in(
+                  'id',
+                  completedItems.map((item) => item.id)
+                );
 
               if (error) throw error;
-              setItems(prev => prev.filter(item => !item.is_completed));
+              setItems((prev) => prev.filter((item) => !item.is_completed));
               setShowQuickActions(false);
-              
             } catch (error) {
               console.error('Error clearing completed items:', error);
               Alert.alert('Error', 'Failed to clear completed items');
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   // ✅ Filtering with priority support
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.item_name.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.brand?.toLowerCase().includes(searchText.toLowerCase()) ||
-                         item.notes?.toLowerCase().includes(searchText.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
-    const matchesCompletion = showCompleted ? item.is_completed : !item.is_completed;
-    const matchesPriority = selectedPriorities.length === 0 || 
-                           (item.priority && selectedPriorities.includes(item.priority));
-    
-    return matchesSearch && matchesCategory && matchesCompletion && matchesPriority;
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
+      item.item_name.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.brand?.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.notes?.toLowerCase().includes(searchText.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === 'all' || item.category === selectedCategory;
+    const matchesCompletion = showCompleted
+      ? item.is_completed
+      : !item.is_completed;
+    const matchesPriority =
+      selectedPriorities.length === 0 ||
+      (item.priority && selectedPriorities.includes(item.priority));
+
+    return (
+      matchesSearch && matchesCategory && matchesCompletion && matchesPriority
+    );
   });
 
   const stats = {
     total: items.length,
-    completed: items.filter(item => item.is_completed).length,
-    pending: items.filter(item => !item.is_completed).length,
-    estimated_cost: items.reduce((sum, item) => sum + (item.estimated_cost || 0), 0),
-    urgent: items.filter(item => item.priority === 'urgent' && !item.is_completed).length,
+    completed: items.filter((item) => item.is_completed).length,
+    pending: items.filter((item) => !item.is_completed).length,
+    estimated_cost: items.reduce(
+      (sum, item) => sum + (item.estimated_cost || 0),
+      0
+    ),
+    urgent: items.filter(
+      (item) => item.priority === 'urgent' && !item.is_completed
+    ).length,
   };
 
   // ✅ Effects
@@ -519,7 +537,7 @@ export default function ShoppingList() {
 
   // ✅ Updated Render Function with Edit
   const renderShoppingItem = ({ item }: { item: ShoppingItem }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.itemCard}
       onPress={() => handleEditItem(item)}
       activeOpacity={0.7}
@@ -539,48 +557,54 @@ export default function ShoppingList() {
             <Circle size={24} color={colors.neutral[400]} />
           )}
         </TouchableOpacity>
-        
+
         <View style={styles.itemContent}>
-          <Text style={[
-            styles.itemName,
-            item.is_completed && styles.completedText
-          ]}>
+          <Text
+            style={[styles.itemName, item.is_completed && styles.completedText]}
+          >
             {item.item_name}
           </Text>
-          
-          {item.brand && (
-            <Text style={styles.itemBrand}>{item.brand}</Text>
-          )}
-          
+
+          {item.brand && <Text style={styles.itemBrand}>{item.brand}</Text>}
+
           <View style={styles.itemMeta}>
             <Text style={styles.itemQuantity}>
               {item.quantity} {item.unit}
             </Text>
-            
+
             {item.estimated_cost && (
               <Text style={styles.itemCost}>
                 ${item.estimated_cost.toFixed(2)}
               </Text>
             )}
-            
-            <View style={[
-              styles.priorityBadge,
-              { backgroundColor: PRIORITIES.find(p => p.id === item.priority)?.color + '20' }
-            ]}>
-              <Text style={[
-                styles.priorityText,
-                { color: PRIORITIES.find(p => p.id === item.priority)?.color }
-              ]}>
+
+            <View
+              style={[
+                styles.priorityBadge,
+                {
+                  backgroundColor:
+                    PRIORITIES.find((p) => p.id === item.priority)?.color +
+                    '20',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.priorityText,
+                  {
+                    color: PRIORITIES.find((p) => p.id === item.priority)
+                      ?.color,
+                  },
+                ]}
+              >
                 {item.priority}
               </Text>
             </View>
           </View>
-          
-          {item.notes && (
-            <Text style={styles.itemNotes}>{item.notes}</Text>
-          )}
+
+          {item.notes && <Text style={styles.itemNotes}>{item.notes}</Text>}
         </View>
-        
+
         <View style={styles.itemActions}>
           <TouchableOpacity
             style={styles.actionButton}
@@ -594,7 +618,7 @@ export default function ShoppingList() {
           </TouchableOpacity>
         </View>
       </View>
-      
+
       {/* 🆕 Edit Indicator */}
       <View style={styles.editIndicator}>
         <Edit3 size={14} color={colors.neutral[400]} />
@@ -610,10 +634,9 @@ export default function ShoppingList() {
         {showCompleted ? 'No completed items' : 'Your shopping list is empty'}
       </Text>
       <Text style={styles.emptySubtitle}>
-        {showCompleted 
+        {showCompleted
           ? 'Complete some items to see them here'
-          : 'Add items to get started with your shopping list'
-        }
+          : 'Add items to get started with your shopping list'}
       </Text>
       {!showCompleted && (
         <TouchableOpacity
@@ -645,7 +668,7 @@ export default function ShoppingList() {
             {stats.pending} pending • {stats.completed} completed
           </Text>
         </View>
-        
+
         <View style={styles.headerActions}>
           {stats.urgent > 0 && (
             <View style={styles.urgentBadge}>
@@ -653,7 +676,7 @@ export default function ShoppingList() {
               <Text style={styles.urgentText}>{stats.urgent}</Text>
             </View>
           )}
-          
+
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setShowAddModal(true)}
@@ -670,14 +693,18 @@ export default function ShoppingList() {
           <Text style={styles.compactStatLabel}>Items</Text>
         </View>
         <View style={styles.compactStat}>
-          <Text style={styles.compactStatValue}>${stats.estimated_cost.toFixed(2)}</Text>
+          <Text style={styles.compactStatValue}>
+            ${stats.estimated_cost.toFixed(2)}
+          </Text>
           <Text style={styles.compactStatLabel}>Cost</Text>
         </View>
         <View style={styles.compactStat}>
-          <Text style={styles.compactStatValue}>{Math.round((stats.completed / (stats.total || 1)) * 100)}%</Text>
+          <Text style={styles.compactStatValue}>
+            {Math.round((stats.completed / (stats.total || 1)) * 100)}%
+          </Text>
           <Text style={styles.compactStatLabel}>Done</Text>
         </View>
-        
+
         <View style={styles.compactSearchContainer}>
           <Search size={16} color={colors.neutral[400]} />
           <TextInput
@@ -709,29 +736,33 @@ export default function ShoppingList() {
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              !showCompleted && styles.toggleButtonActive
+              !showCompleted && styles.toggleButtonActive,
             ]}
             onPress={() => setShowCompleted(false)}
           >
-            <Text style={[
-              styles.toggleText,
-              !showCompleted && styles.toggleTextActive
-            ]}>
+            <Text
+              style={[
+                styles.toggleText,
+                !showCompleted && styles.toggleTextActive,
+              ]}
+            >
               Pending ({stats.pending})
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              showCompleted && styles.toggleButtonActive
+              showCompleted && styles.toggleButtonActive,
             ]}
             onPress={() => setShowCompleted(true)}
           >
-            <Text style={[
-              styles.toggleText,
-              showCompleted && styles.toggleTextActive
-            ]}>
+            <Text
+              style={[
+                styles.toggleText,
+                showCompleted && styles.toggleTextActive,
+              ]}
+            >
               Done ({stats.completed})
             </Text>
           </TouchableOpacity>
@@ -752,14 +783,19 @@ export default function ShoppingList() {
                 <Package size={18} color={colors.primary[500]} />
                 <Text style={styles.dropdownActionText}>Add from Pantry</Text>
               </TouchableOpacity>
-              
+
               {stats.completed > 0 && (
                 <TouchableOpacity
                   style={styles.dropdownActionButton}
                   onPress={handleClearCompleted}
                 >
                   <Trash2 size={18} color={colors.error[500]} />
-                  <Text style={[styles.dropdownActionText, { color: colors.error[500] }]}>
+                  <Text
+                    style={[
+                      styles.dropdownActionText,
+                      { color: colors.error[500] },
+                    ]}
+                  >
                     Clear Completed ({stats.completed})
                   </Text>
                 </TouchableOpacity>
@@ -776,15 +812,21 @@ export default function ShoppingList() {
                   key={category.id}
                   style={[
                     styles.dropdownCategoryItem,
-                    selectedCategory === category.id && styles.dropdownCategoryItemActive
+                    selectedCategory === category.id &&
+                      styles.dropdownCategoryItemActive,
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
-                  <Text style={styles.dropdownCategoryEmoji}>{category.icon}</Text>
-                  <Text style={[
-                    styles.dropdownCategoryText,
-                    selectedCategory === category.id && styles.dropdownCategoryTextActive
-                  ]}>
+                  <Text style={styles.dropdownCategoryEmoji}>
+                    {category.icon}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dropdownCategoryText,
+                      selectedCategory === category.id &&
+                        styles.dropdownCategoryTextActive,
+                    ]}
+                  >
                     {category.name}
                   </Text>
                 </TouchableOpacity>
@@ -804,24 +846,33 @@ export default function ShoppingList() {
                     selectedPriorities.includes(priority.id) && {
                       backgroundColor: priority.color + '20',
                       borderColor: priority.color,
-                    }
+                    },
                   ]}
                   onPress={() => {
                     if (selectedPriorities.includes(priority.id)) {
-                      setSelectedPriorities(prev => prev.filter(p => p !== priority.id));
+                      setSelectedPriorities((prev) =>
+                        prev.filter((p) => p !== priority.id)
+                      );
                     } else {
-                      setSelectedPriorities(prev => [...prev, priority.id]);
+                      setSelectedPriorities((prev) => [...prev, priority.id]);
                     }
                   }}
                 >
-                  <View style={[
-                    styles.priorityDot,
-                    { backgroundColor: priority.color }
-                  ]} />
-                  <Text style={[
-                    styles.dropdownPriorityText,
-                    selectedPriorities.includes(priority.id) && { color: priority.color, fontWeight: '600' }
-                  ]}>
+                  <View
+                    style={[
+                      styles.priorityDot,
+                      { backgroundColor: priority.color },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.dropdownPriorityText,
+                      selectedPriorities.includes(priority.id) && {
+                        color: priority.color,
+                        fontWeight: '600',
+                      },
+                    ]}
+                  >
                     {priority.name}
                   </Text>
                 </TouchableOpacity>
@@ -835,14 +886,16 @@ export default function ShoppingList() {
       <View style={styles.mainContent}>
         <FlatList
           data={filteredItems}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={renderShoppingItem}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={filteredItems.length === 0 ? styles.emptyListContent : undefined}
+          contentContainerStyle={
+            filteredItems.length === 0 ? styles.emptyListContent : undefined
+          }
         />
       </View>
 
@@ -870,7 +923,8 @@ export default function ShoppingList() {
               onPress={handleAddItem}
               style={[
                 styles.modalSaveButton,
-                (!addItemForm.item_name.trim() || addingItem) && styles.modalSaveButtonDisabled
+                (!addItemForm.item_name.trim() || addingItem) &&
+                  styles.modalSaveButtonDisabled,
               ]}
               disabled={!addItemForm.item_name.trim() || addingItem}
             >
@@ -882,8 +936,8 @@ export default function ShoppingList() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            style={styles.modalContent} 
+          <ScrollView
+            style={styles.modalContent}
             showsVerticalScrollIndicator={false}
             onScrollBeginDrag={() => {
               setShowAddUnitDropdown(false);
@@ -897,7 +951,9 @@ export default function ShoppingList() {
               <TextInput
                 style={styles.formInput}
                 value={addItemForm.item_name}
-                onChangeText={(text) => setAddItemForm(prev => ({ ...prev, item_name: text }))}
+                onChangeText={(text) =>
+                  setAddItemForm((prev) => ({ ...prev, item_name: text }))
+                }
                 placeholder="e.g., Bananas, Milk, Bread"
                 placeholderTextColor={colors.neutral[400]}
                 autoFocus
@@ -913,47 +969,59 @@ export default function ShoppingList() {
                   value={addItemForm.quantity.toString()}
                   onChangeText={(text) => {
                     const num = parseFloat(text) || 1;
-                    setAddItemForm(prev => ({ ...prev, quantity: num }));
+                    setAddItemForm((prev) => ({ ...prev, quantity: num }));
                   }}
                   keyboardType="numeric"
                   placeholder="1"
                   placeholderTextColor={colors.neutral[400]}
                 />
               </View>
-              
+
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.formLabel}>Unit</Text>
                 <TouchableOpacity
                   style={styles.unitDropdownButton}
                   onPress={() => setShowAddUnitDropdown(!showAddUnitDropdown)}
                 >
-                  <Text style={styles.unitDropdownButtonText}>{addItemForm.unit}</Text>
+                  <Text style={styles.unitDropdownButtonText}>
+                    {addItemForm.unit}
+                  </Text>
                   <ChevronDown size={16} color={colors.neutral[500]} />
                 </TouchableOpacity>
-                
+
                 {showAddUnitDropdown && (
                   <View style={styles.unitDropdownMenu}>
-                    <ScrollView style={styles.unitDropdownScroll} nestedScrollEnabled>
+                    <ScrollView
+                      style={styles.unitDropdownScroll}
+                      nestedScrollEnabled
+                    >
                       {UNITS.map((unit) => (
                         <TouchableOpacity
                           key={unit}
                           style={[
                             styles.unitDropdownItem,
-                            addItemForm.unit === unit && styles.unitDropdownItemActive
+                            addItemForm.unit === unit &&
+                              styles.unitDropdownItemActive,
                           ]}
                           onPress={() => {
-                            setAddItemForm(prev => ({ ...prev, unit }));
+                            setAddItemForm((prev) => ({ ...prev, unit }));
                             setShowAddUnitDropdown(false);
                           }}
                         >
-                          <Text style={[
-                            styles.unitDropdownItemText,
-                            addItemForm.unit === unit && styles.unitDropdownItemTextActive
-                          ]}>
+                          <Text
+                            style={[
+                              styles.unitDropdownItemText,
+                              addItemForm.unit === unit &&
+                                styles.unitDropdownItemTextActive,
+                            ]}
+                          >
                             {unit}
                           </Text>
                           {addItemForm.unit === unit && (
-                            <CheckCircle2 size={16} color={colors.primary[500]} />
+                            <CheckCircle2
+                              size={16}
+                              color={colors.primary[500]}
+                            />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -968,31 +1036,42 @@ export default function ShoppingList() {
               <Text style={styles.formLabel}>Category</Text>
               <TouchableOpacity
                 style={styles.categoryDropdownButton}
-                onPress={() => setShowAddCategoryDropdown(!showAddCategoryDropdown)}
+                onPress={() =>
+                  setShowAddCategoryDropdown(!showAddCategoryDropdown)
+                }
               >
                 <View style={styles.categoryDropdownSelected}>
                   <Text style={styles.categoryDropdownEmoji}>
-                    {CATEGORIES.find(c => c.id === addItemForm.category)?.icon || '📦'}
+                    {CATEGORIES.find((c) => c.id === addItemForm.category)
+                      ?.icon || '📦'}
                   </Text>
                   <Text style={styles.categoryDropdownButtonText}>
-                    {CATEGORIES.find(c => c.id === addItemForm.category)?.name || 'General'}
+                    {CATEGORIES.find((c) => c.id === addItemForm.category)
+                      ?.name || 'General'}
                   </Text>
                 </View>
                 <ChevronDown size={16} color={colors.neutral[500]} />
               </TouchableOpacity>
-              
+
               {showAddCategoryDropdown && (
                 <View style={styles.categoryDropdownMenu}>
-                  <ScrollView style={styles.categoryDropdownScroll} nestedScrollEnabled>
+                  <ScrollView
+                    style={styles.categoryDropdownScroll}
+                    nestedScrollEnabled
+                  >
                     {CATEGORIES.slice(1).map((category) => (
                       <TouchableOpacity
                         key={category.id}
                         style={[
                           styles.categoryDropdownItem,
-                          addItemForm.category === category.id && styles.categoryDropdownItemActive
+                          addItemForm.category === category.id &&
+                            styles.categoryDropdownItemActive,
                         ]}
                         onPress={() => {
-                          setAddItemForm(prev => ({ ...prev, category: category.id }));
+                          setAddItemForm((prev) => ({
+                            ...prev,
+                            category: category.id,
+                          }));
                           setShowAddCategoryDropdown(false);
                         }}
                       >
@@ -1000,10 +1079,13 @@ export default function ShoppingList() {
                           <Text style={styles.categoryDropdownItemEmoji}>
                             {category.icon}
                           </Text>
-                          <Text style={[
-                            styles.categoryDropdownItemText,
-                            addItemForm.category === category.id && styles.categoryDropdownItemTextActive
-                          ]}>
+                          <Text
+                            style={[
+                              styles.categoryDropdownItemText,
+                              addItemForm.category === category.id &&
+                                styles.categoryDropdownItemTextActive,
+                            ]}
+                          >
                             {category.name}
                           </Text>
                         </View>
@@ -1022,20 +1104,29 @@ export default function ShoppingList() {
               <Text style={styles.formLabel}>Priority</Text>
               <TouchableOpacity
                 style={styles.priorityDropdownButton}
-                onPress={() => setShowAddPriorityDropdown(!showAddPriorityDropdown)}
+                onPress={() =>
+                  setShowAddPriorityDropdown(!showAddPriorityDropdown)
+                }
               >
                 <View style={styles.priorityDropdownSelected}>
-                  <View style={[
-                    styles.priorityDropdownDot,
-                    { backgroundColor: PRIORITIES.find(p => p.id === addItemForm.priority)?.color }
-                  ]} />
+                  <View
+                    style={[
+                      styles.priorityDropdownDot,
+                      {
+                        backgroundColor: PRIORITIES.find(
+                          (p) => p.id === addItemForm.priority
+                        )?.color,
+                      },
+                    ]}
+                  />
                   <Text style={styles.priorityDropdownButtonText}>
-                    {PRIORITIES.find(p => p.id === addItemForm.priority)?.name || 'Medium'}
+                    {PRIORITIES.find((p) => p.id === addItemForm.priority)
+                      ?.name || 'Medium'}
                   </Text>
                 </View>
                 <ChevronDown size={16} color={colors.neutral[500]} />
               </TouchableOpacity>
-              
+
               {showAddPriorityDropdown && (
                 <View style={styles.priorityDropdownMenu}>
                   {PRIORITIES.map((priority) => (
@@ -1043,22 +1134,35 @@ export default function ShoppingList() {
                       key={priority.id}
                       style={[
                         styles.priorityDropdownItem,
-                        addItemForm.priority === priority.id && styles.priorityDropdownItemActive
+                        addItemForm.priority === priority.id &&
+                          styles.priorityDropdownItemActive,
                       ]}
                       onPress={() => {
-                        setAddItemForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }));
+                        setAddItemForm((prev) => ({
+                          ...prev,
+                          priority: priority.id as
+                            | 'low'
+                            | 'medium'
+                            | 'high'
+                            | 'urgent',
+                        }));
                         setShowAddPriorityDropdown(false);
                       }}
                     >
                       <View style={styles.priorityDropdownItemContent}>
-                        <View style={[
-                          styles.priorityDropdownItemDot,
-                          { backgroundColor: priority.color }
-                        ]} />
-                        <Text style={[
-                          styles.priorityDropdownItemText,
-                          addItemForm.priority === priority.id && styles.priorityDropdownItemTextActive
-                        ]}>
+                        <View
+                          style={[
+                            styles.priorityDropdownItemDot,
+                            { backgroundColor: priority.color },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.priorityDropdownItemText,
+                            addItemForm.priority === priority.id &&
+                              styles.priorityDropdownItemTextActive,
+                          ]}
+                        >
                           {priority.name}
                         </Text>
                       </View>
@@ -1077,7 +1181,9 @@ export default function ShoppingList() {
               <TextInput
                 style={[styles.formInput, styles.notesInput]}
                 value={addItemForm.notes}
-                onChangeText={(text) => setAddItemForm(prev => ({ ...prev, notes: text }))}
+                onChangeText={(text) =>
+                  setAddItemForm((prev) => ({ ...prev, notes: text }))
+                }
                 placeholder="Any special notes..."
                 placeholderTextColor={colors.neutral[400]}
                 multiline
@@ -1098,15 +1204,18 @@ export default function ShoppingList() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={handleCancelEdit} style={styles.modalCloseButton}>
+            <TouchableOpacity
+              onPress={handleCancelEdit}
+              style={styles.modalCloseButton}
+            >
               <X size={24} color={colors.neutral[600]} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Item</Text>
-            <TouchableOpacity 
-              onPress={handleUpdateItem} 
+            <TouchableOpacity
+              onPress={handleUpdateItem}
               style={[
                 styles.modalSaveButton,
-                !editForm.item_name.trim() && styles.modalSaveButtonDisabled
+                !editForm.item_name.trim() && styles.modalSaveButtonDisabled,
               ]}
               disabled={!editForm.item_name.trim()}
             >
@@ -1114,8 +1223,8 @@ export default function ShoppingList() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            style={styles.modalContent} 
+          <ScrollView
+            style={styles.modalContent}
             showsVerticalScrollIndicator={false}
             onScrollBeginDrag={() => {
               setShowUnitDropdown(false);
@@ -1129,7 +1238,9 @@ export default function ShoppingList() {
               <TextInput
                 style={styles.formInput}
                 value={editForm.item_name}
-                onChangeText={(text) => setEditForm(prev => ({ ...prev, item_name: text }))}
+                onChangeText={(text) =>
+                  setEditForm((prev) => ({ ...prev, item_name: text }))
+                }
                 placeholder="e.g., Bananas, Milk, Bread"
                 placeholderTextColor={colors.neutral[400]}
               />
@@ -1144,47 +1255,59 @@ export default function ShoppingList() {
                   value={editForm.quantity.toString()}
                   onChangeText={(text) => {
                     const num = parseFloat(text) || 1;
-                    setEditForm(prev => ({ ...prev, quantity: num }));
+                    setEditForm((prev) => ({ ...prev, quantity: num }));
                   }}
                   keyboardType="numeric"
                   placeholder="1"
                   placeholderTextColor={colors.neutral[400]}
                 />
               </View>
-              
+
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.formLabel}>Unit</Text>
                 <TouchableOpacity
                   style={styles.unitDropdownButton}
                   onPress={() => setShowUnitDropdown(!showUnitDropdown)}
                 >
-                  <Text style={styles.unitDropdownButtonText}>{editForm.unit}</Text>
+                  <Text style={styles.unitDropdownButtonText}>
+                    {editForm.unit}
+                  </Text>
                   <ChevronDown size={16} color={colors.neutral[500]} />
                 </TouchableOpacity>
-                
+
                 {showUnitDropdown && (
                   <View style={styles.unitDropdownMenu}>
-                    <ScrollView style={styles.unitDropdownScroll} nestedScrollEnabled>
+                    <ScrollView
+                      style={styles.unitDropdownScroll}
+                      nestedScrollEnabled
+                    >
                       {UNITS.map((unit) => (
                         <TouchableOpacity
                           key={unit}
                           style={[
                             styles.unitDropdownItem,
-                            editForm.unit === unit && styles.unitDropdownItemActive
+                            editForm.unit === unit &&
+                              styles.unitDropdownItemActive,
                           ]}
                           onPress={() => {
-                            setEditForm(prev => ({ ...prev, unit }));
+                            setEditForm((prev) => ({ ...prev, unit }));
                             setShowUnitDropdown(false);
                           }}
                         >
-                          <Text style={[
-                            styles.unitDropdownItemText,
-                            editForm.unit === unit && styles.unitDropdownItemTextActive
-                          ]}>
+                          <Text
+                            style={[
+                              styles.unitDropdownItemText,
+                              editForm.unit === unit &&
+                                styles.unitDropdownItemTextActive,
+                            ]}
+                          >
                             {unit}
                           </Text>
                           {editForm.unit === unit && (
-                            <CheckCircle2 size={16} color={colors.primary[500]} />
+                            <CheckCircle2
+                              size={16}
+                              color={colors.primary[500]}
+                            />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1203,27 +1326,36 @@ export default function ShoppingList() {
               >
                 <View style={styles.categoryDropdownSelected}>
                   <Text style={styles.categoryDropdownEmoji}>
-                    {CATEGORIES.find(c => c.id === editForm.category)?.icon || '📦'}
+                    {CATEGORIES.find((c) => c.id === editForm.category)?.icon ||
+                      '📦'}
                   </Text>
                   <Text style={styles.categoryDropdownButtonText}>
-                    {CATEGORIES.find(c => c.id === editForm.category)?.name || 'General'}
+                    {CATEGORIES.find((c) => c.id === editForm.category)?.name ||
+                      'General'}
                   </Text>
                 </View>
                 <ChevronDown size={16} color={colors.neutral[500]} />
               </TouchableOpacity>
-              
+
               {showCategoryDropdown && (
                 <View style={styles.categoryDropdownMenu}>
-                  <ScrollView style={styles.categoryDropdownScroll} nestedScrollEnabled>
+                  <ScrollView
+                    style={styles.categoryDropdownScroll}
+                    nestedScrollEnabled
+                  >
                     {CATEGORIES.slice(1).map((category) => (
                       <TouchableOpacity
                         key={category.id}
                         style={[
                           styles.categoryDropdownItem,
-                          editForm.category === category.id && styles.categoryDropdownItemActive
+                          editForm.category === category.id &&
+                            styles.categoryDropdownItemActive,
                         ]}
                         onPress={() => {
-                          setEditForm(prev => ({ ...prev, category: category.id }));
+                          setEditForm((prev) => ({
+                            ...prev,
+                            category: category.id,
+                          }));
                           setShowCategoryDropdown(false);
                         }}
                       >
@@ -1231,10 +1363,13 @@ export default function ShoppingList() {
                           <Text style={styles.categoryDropdownItemEmoji}>
                             {category.icon}
                           </Text>
-                          <Text style={[
-                            styles.categoryDropdownItemText,
-                            editForm.category === category.id && styles.categoryDropdownItemTextActive
-                          ]}>
+                          <Text
+                            style={[
+                              styles.categoryDropdownItemText,
+                              editForm.category === category.id &&
+                                styles.categoryDropdownItemTextActive,
+                            ]}
+                          >
                             {category.name}
                           </Text>
                         </View>
@@ -1256,17 +1391,24 @@ export default function ShoppingList() {
                 onPress={() => setShowPriorityDropdown(!showPriorityDropdown)}
               >
                 <View style={styles.priorityDropdownSelected}>
-                  <View style={[
-                    styles.priorityDropdownDot,
-                    { backgroundColor: PRIORITIES.find(p => p.id === editForm.priority)?.color }
-                  ]} />
+                  <View
+                    style={[
+                      styles.priorityDropdownDot,
+                      {
+                        backgroundColor: PRIORITIES.find(
+                          (p) => p.id === editForm.priority
+                        )?.color,
+                      },
+                    ]}
+                  />
                   <Text style={styles.priorityDropdownButtonText}>
-                    {PRIORITIES.find(p => p.id === editForm.priority)?.name || 'Medium'}
+                    {PRIORITIES.find((p) => p.id === editForm.priority)?.name ||
+                      'Medium'}
                   </Text>
                 </View>
                 <ChevronDown size={16} color={colors.neutral[500]} />
               </TouchableOpacity>
-              
+
               {showPriorityDropdown && (
                 <View style={styles.priorityDropdownMenu}>
                   {PRIORITIES.map((priority) => (
@@ -1274,22 +1416,35 @@ export default function ShoppingList() {
                       key={priority.id}
                       style={[
                         styles.priorityDropdownItem,
-                        editForm.priority === priority.id && styles.priorityDropdownItemActive
+                        editForm.priority === priority.id &&
+                          styles.priorityDropdownItemActive,
                       ]}
                       onPress={() => {
-                        setEditForm(prev => ({ ...prev, priority: priority.id as 'low' | 'medium' | 'high' | 'urgent' }));
+                        setEditForm((prev) => ({
+                          ...prev,
+                          priority: priority.id as
+                            | 'low'
+                            | 'medium'
+                            | 'high'
+                            | 'urgent',
+                        }));
                         setShowPriorityDropdown(false);
                       }}
                     >
                       <View style={styles.priorityDropdownItemContent}>
-                        <View style={[
-                          styles.priorityDropdownItemDot,
-                          { backgroundColor: priority.color }
-                        ]} />
-                        <Text style={[
-                          styles.priorityDropdownItemText,
-                          editForm.priority === priority.id && styles.priorityDropdownItemTextActive
-                        ]}>
+                        <View
+                          style={[
+                            styles.priorityDropdownItemDot,
+                            { backgroundColor: priority.color },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.priorityDropdownItemText,
+                            editForm.priority === priority.id &&
+                              styles.priorityDropdownItemTextActive,
+                          ]}
+                        >
                           {priority.name}
                         </Text>
                       </View>
@@ -1307,10 +1462,14 @@ export default function ShoppingList() {
               <Text style={styles.formLabel}>Estimated Cost (Optional)</Text>
               <TextInput
                 style={styles.formInput}
-                value={editForm.estimated_cost ? editForm.estimated_cost.toString() : ''}
+                value={
+                  editForm.estimated_cost
+                    ? editForm.estimated_cost.toString()
+                    : ''
+                }
                 onChangeText={(text) => {
                   const num = parseFloat(text) || 0;
-                  setEditForm(prev => ({ ...prev, estimated_cost: num }));
+                  setEditForm((prev) => ({ ...prev, estimated_cost: num }));
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
@@ -1324,7 +1483,9 @@ export default function ShoppingList() {
               <TextInput
                 style={styles.formInput}
                 value={editForm.brand}
-                onChangeText={(text) => setEditForm(prev => ({ ...prev, brand: text }))}
+                onChangeText={(text) =>
+                  setEditForm((prev) => ({ ...prev, brand: text }))
+                }
                 placeholder="e.g., Organic Valley"
                 placeholderTextColor={colors.neutral[400]}
               />
@@ -1336,7 +1497,9 @@ export default function ShoppingList() {
               <TextInput
                 style={[styles.formInput, styles.notesInput]}
                 value={editForm.notes}
-                onChangeText={(text) => setEditForm(prev => ({ ...prev, notes: text }))}
+                onChangeText={(text) =>
+                  setEditForm((prev) => ({ ...prev, notes: text }))
+                }
                 placeholder="Any special notes..."
                 placeholderTextColor={colors.neutral[400]}
                 multiline
@@ -1744,7 +1907,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-  
+
   // Modal Styles
   modalContainer: {
     flex: 1,
