@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { TextInput, StyleSheet, View, TextStyle } from 'react-native';
 import { Controller, Control } from 'react-hook-form';
+import { Picker } from '@react-native-picker/picker';
 import { radius, spacing } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
 import ThemedText from '../UI/ThemedText';
+
+type PickerOption = {
+  label: string;
+  value: string;
+};
 
 type Props = {
   control: Control<any>;
@@ -12,6 +18,7 @@ type Props = {
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'email-address';
   style?: TextStyle;
+  pickerOptions?: PickerOption[];
 };
 
 const FormInput = ({
@@ -21,33 +28,60 @@ const FormInput = ({
   secureTextEntry = false,
   keyboardType = 'default',
   style,
+  pickerOptions,
 }: Props) => {
   const { colors } = useTheme();
+  const isPicker = pickerOptions && pickerOptions.length > 0;
+
   return (
     <Controller
       control={control}
       name={name}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <View style={{ marginBottom: spacing.md }}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBackground,
-                borderColor: colors.inputBorder,
-                color: colors.textPrimary,
-              },
-              error && { borderColor: colors.error },
-              style,
-            ]}
-            placeholder={placeholder}
-            value={value}
-            onChangeText={onChange}
-            secureTextEntry={secureTextEntry}
-            keyboardType={keyboardType}
-            autoCapitalize="none"
-            placeholderTextColor={colors.inputPlaceholder}
-          />
+          {isPicker ? (
+            <Picker
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.inputBackground,
+                  borderColor: error ? colors.error : colors.inputBorder,
+                  color: colors.textPrimary,
+                },
+                style,
+              ]}
+              selectedValue={value}
+              onValueChange={onChange}
+            >
+              <Picker.Item label={placeholder ?? 'Select...'} value="" />
+              {pickerOptions?.map((opt) => (
+                <Picker.Item
+                  key={opt.value}
+                  label={opt.label}
+                  value={opt.value}
+                />
+              ))}
+            </Picker>
+          ) : (
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.inputBackground,
+                  borderColor: error ? colors.error : colors.inputBorder,
+                  color: colors.textPrimary,
+                },
+                style,
+              ]}
+              placeholder={placeholder}
+              value={value}
+              onChangeText={onChange}
+              secureTextEntry={secureTextEntry}
+              keyboardType={keyboardType}
+              autoCapitalize="none"
+              placeholderTextColor={colors.inputPlaceholder}
+            />
+          )}
           {error && (
             <ThemedText
               type="caption"

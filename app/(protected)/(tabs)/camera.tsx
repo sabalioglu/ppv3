@@ -13,15 +13,35 @@ import {
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { Camera, Brain, Receipt, Image, FlipHorizontal, TriangleAlert as AlertTriangle, Images, Calculator, X, Scan, Check, Plus, CreditCard as Edit } from 'lucide-react-native';
-import { theme } from '../../lib/theme';
-import { OpenAIVisionService } from '../../lib/openaiVisionService';
-import { convertImageToBase64, validateImageSize } from '../../lib/imageUtils';
-import { ReceiptLearningService } from '../../lib/learningService';
-import { ReceiptLearning, UserFeedback, ParsedItem } from '../../types/learning';
-import { showPrompt } from '../../lib/crossPlatformUtils';
+import {
+  Camera,
+  Brain,
+  Receipt,
+  Image,
+  FlipHorizontal,
+  TriangleAlert as AlertTriangle,
+  Images,
+  Calculator,
+  X,
+  Scan,
+  Check,
+  Plus,
+  CreditCard as Edit,
+} from 'lucide-react-native';
+import { theme } from '@/lib/theme';
+import { OpenAIVisionService } from '@/lib/openaiVisionService';
+import { convertImageToBase64, validateImageSize } from '@/lib/imageUtils';
+import { ReceiptLearningService } from '@/lib/learningService';
+import { ReceiptLearning, UserFeedback, ParsedItem } from '@/types/learning';
+import { showPrompt } from '@/lib/crossPlatformUtils';
 
-type ScanMode = 'food-recognition' | 'receipt-scanner' | 'single-photo' | 'multiple-images' | 'calorie-counter' | 'barcode-scanner';
+type ScanMode =
+  | 'food-recognition'
+  | 'receipt-scanner'
+  | 'single-photo'
+  | 'multiple-images'
+  | 'calorie-counter'
+  | 'barcode-scanner';
 
 interface ScanResult {
   type: ScanMode;
@@ -59,22 +79,24 @@ export default function CameraScreen() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [showTutorial, setShowTutorial] = useState(true);
   const [multipleImages, setMultipleImages] = useState<string[]>([]);
-  
+
   // Enhanced Receipt Parser States
   const [showAddToInventoryModal, setShowAddToInventoryModal] = useState(false);
   const [parsedItems, setParsedItems] = useState<EnhancedParsedItem[]>([]);
   const [learningStartTime, setLearningStartTime] = useState<number>(0);
-  const [currentReceiptLearningId, setCurrentReceiptLearningId] = useState<string | null>(null);
+  const [currentReceiptLearningId, setCurrentReceiptLearningId] = useState<
+    string | null
+  >(null);
   const [originalReceiptText, setOriginalReceiptText] = useState<string>('');
   const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
-  
+
   // ✅ STATES CLEANED - NO OCR
   const [lastScanImageUri, setLastScanImageUri] = useState<string | null>(null);
-  
+
   // ✅ NEW SMART LOADING STATES
   const [loadingStep, setLoadingStep] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
-  
+
   const cameraRef = useRef<CameraView>(null);
   const tutorialOpacity = useRef(new Animated.Value(1)).current;
 
@@ -83,37 +105,37 @@ export default function CameraScreen() {
       title: 'SINGLE',
       icon: Camera,
       color: '#FFD700',
-      description: 'Quick food analysis'
+      description: 'Quick food analysis',
     },
     'food-recognition': {
-      title: 'AI FOOD', 
+      title: 'AI FOOD',
       icon: Brain,
       color: '#32CD32',
-      description: 'Identify ingredients'
+      description: 'Identify ingredients',
     },
     'barcode-scanner': {
       title: 'BARCODE',
       icon: Scan,
       color: '#9C27B0',
-      description: 'Scan product codes'
+      description: 'Scan product codes',
     },
     'multiple-images': {
       title: 'MULTIPLE',
       icon: Images,
       color: '#FF69B4',
-      description: 'Batch analysis'
+      description: 'Batch analysis',
     },
     'calorie-counter': {
       title: 'CALORIES',
       icon: Calculator,
       color: '#FF4500',
-      description: 'Nutrition info'
+      description: 'Nutrition info',
     },
     'receipt-scanner': {
       title: 'RECEIPT',
       icon: Receipt,
       color: '#1E90FF',
-      description: 'Smart inventory'
+      description: 'Smart inventory',
     },
   };
 
@@ -130,9 +152,9 @@ export default function CameraScreen() {
     if (isLoading && scanMode === 'receipt-scanner') {
       setLoadingStep(0);
       setLoadingMessage(LOADING_STEPS[0].message);
-      
+
       const interval = setInterval(() => {
-        setLoadingStep(prev => {
+        setLoadingStep((prev) => {
           const nextStep = prev + 1;
           if (nextStep < LOADING_STEPS.length) {
             setLoadingMessage(LOADING_STEPS[nextStep].message);
@@ -143,7 +165,7 @@ export default function CameraScreen() {
           }
         });
       }, 1500);
-      
+
       return () => clearInterval(interval);
     }
   }, [isLoading, scanMode]);
@@ -164,32 +186,48 @@ export default function CameraScreen() {
   }, [showTutorial, tutorialOpacity]);
 
   // Handle Item Action
-  const handleItemAction = (itemId: string, action: 'confirm' | 'reject' | 'edit', newName?: string) => {
+  const handleItemAction = (
+    itemId: string,
+    action: 'confirm' | 'reject' | 'edit',
+    newName?: string
+  ) => {
     console.log('Item action:', action, 'for item:', itemId);
-    
-    setParsedItems(prev => prev.map(item => {
-      if (item.id === itemId) {
-        const feedback: UserFeedback = {
-          item_id: itemId,
-          action,
-          original_name: item.name,
-          corrected_name: newName,
-          is_food: action === 'confirm' ? true : action === 'reject' ? false : item.is_food,
-          confidence: item.confidence
-        };
-        
-        setUserFeedback(prev => [...prev, feedback]);
-        
-        return {
-          ...item,
-          user_action: action === 'confirm' ? 'confirmed' : action === 'reject' ? 'rejected' : 'edited',
 
-          name: newName || item.name
-        };
-      }
-      return item;
-    }));
-    
+    setParsedItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          const feedback: UserFeedback = {
+            item_id: itemId,
+            action,
+            original_name: item.name,
+            corrected_name: newName,
+            is_food:
+              action === 'confirm'
+                ? true
+                : action === 'reject'
+                ? false
+                : item.is_food,
+            confidence: item.confidence,
+          };
+
+          setUserFeedback((prev) => [...prev, feedback]);
+
+          return {
+            ...item,
+            user_action:
+              action === 'confirm'
+                ? 'confirmed'
+                : action === 'reject'
+                ? 'rejected'
+                : 'edited',
+
+            name: newName || item.name,
+          };
+        }
+        return item;
+      })
+    );
+
     // Haptic feedback
     if (Haptics.impactAsync) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -200,28 +238,40 @@ export default function CameraScreen() {
   const addToInventory = async (items: EnhancedParsedItem[]) => {
     try {
       console.log('Adding items to inventory:', items);
-      
-      const confirmedFoodItems = items.filter(item => 
-        item.user_action === 'confirmed' && item.is_food
+
+      const confirmedFoodItems = items.filter(
+        (item) => item.user_action === 'confirmed' && item.is_food
       );
 
       if (confirmedFoodItems.length === 0) {
-        Alert.alert('No Items Selected', 'Please confirm some food items first');
+        Alert.alert(
+          'No Items Selected',
+          'Please confirm some food items first'
+        );
         return;
       }
 
       // Add to pantry
-      const success = await ReceiptLearningService.addItemsToPantry(confirmedFoodItems);
-      
+      const success = await ReceiptLearningService.addItemsToPantry(
+        confirmedFoodItems
+      );
+
       if (!success) {
         throw new Error('Failed to add items to pantry');
       }
 
       // ✅ SIMPLIFIED LEARNING DATA - NO OCR
       if (lastScanImageUri) {
-        const confirmedItems = items.filter(item => item.user_action === 'confirmed');
-        const rejectedItems = items.filter(item => item.user_action === 'rejected').map(item => item.name);
-        const accuracy = confirmedItems.length > 0 ? (confirmedItems.length / items.length) * 100 : 0;
+        const confirmedItems = items.filter(
+          (item) => item.user_action === 'confirmed'
+        );
+        const rejectedItems = items
+          .filter((item) => item.user_action === 'rejected')
+          .map((item) => item.name);
+        const accuracy =
+          confirmedItems.length > 0
+            ? (confirmedItems.length / items.length) * 100
+            : 0;
 
         const learningData: ReceiptLearning = {
           original_text: originalReceiptText,
@@ -233,22 +283,26 @@ export default function CameraScreen() {
           accuracy_score: accuracy,
           processing_time: Math.round((Date.now() - learningStartTime) / 1000),
           items_count: items.length,
-          parsing_method: 'pure_ai'
+          parsing_method: 'pure_ai',
         };
 
         // Save learning data
-        const receiptLearningId = await ReceiptLearningService.saveReceiptLearning(learningData);
-        
+        const receiptLearningId =
+          await ReceiptLearningService.saveReceiptLearning(learningData);
+
         if (receiptLearningId && userFeedback.length > 0) {
           const sessionStats = {
             duration: Math.round((Date.now() - learningStartTime) / 1000),
-            confirmed: items.filter(item => item.user_action === 'confirmed').length,
-            rejected: items.filter(item => item.user_action === 'rejected').length,
-            edited: items.filter(item => item.user_action === 'edited').length,
+            confirmed: items.filter((item) => item.user_action === 'confirmed')
+              .length,
+            rejected: items.filter((item) => item.user_action === 'rejected')
+              .length,
+            edited: items.filter((item) => item.user_action === 'edited')
+              .length,
             added: 0,
-            completed: true
+            completed: true,
           };
-          
+
           await ReceiptLearningService.saveFeedbackSession(
             receiptLearningId,
             userFeedback,
@@ -256,20 +310,24 @@ export default function CameraScreen() {
           );
         }
       }
-      
+
       if (Haptics.notificationAsync) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
       }
-      
+
       Alert.alert(
         'Success! 🎉',
         `Added ${confirmedFoodItems.length} food items to your pantry!\n\nThanks for using our smart scanner! 🤖`,
         [{ text: 'Great!', style: 'default' }]
       );
-      
     } catch (error) {
       console.error('Error adding to inventory:', error);
-      Alert.alert('Error', 'Failed to add items to inventory. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to add items to inventory. Please try again.'
+      );
     }
   };
 
@@ -278,50 +336,65 @@ export default function CameraScreen() {
     try {
       setIsLoading(true);
       setScanResult(null);
-      
+
       console.log('Starting AI Vision processing...');
-      
+
       // Set scan image URI at the beginning
       setLastScanImageUri(Array.isArray(imageUri) ? imageUri[0] : imageUri);
-      
+
       let result;
-      
+
       if (scanMode === 'multiple-images' && Array.isArray(imageUri)) {
         // Multiple images processing
         const allResults = [];
-        
+
         for (const uri of imageUri) {
           const base64 = await convertImageToBase64(uri);
           if (!validateImageSize(base64, 15000)) {
             throw new Error('One or more images are too large.');
           }
-          
-          const analysisResult = await OpenAIVisionService.analyzeImage(base64, scanMode);
+
+          const analysisResult = await OpenAIVisionService.analyzeImage(
+            base64,
+            scanMode
+          );
           allResults.push(analysisResult);
         }
-        
-        const combinedItems = allResults.flatMap(r => r.detectedItems);
-        
+
+        const combinedItems = allResults.flatMap((r) => r.detectedItems);
+
         result = {
           type: scanMode,
           data: {
             name: `${imageUri.length} Images Analyzed`,
-            confidence: Math.round(combinedItems.reduce((acc, item) => acc + item.confidence, 0) / combinedItems.length),
+            confidence: Math.round(
+              combinedItems.reduce((acc, item) => acc + item.confidence, 0) /
+                combinedItems.length
+            ),
             items: combinedItems,
-            suggestions: [`Found ${combinedItems.length} items`, 'Add all to pantry', 'Create meal plan'],
+            suggestions: [
+              `Found ${combinedItems.length} items`,
+              'Add all to pantry',
+              'Create meal plan',
+            ],
             imageType: 'ai-multiple-analysis',
-          }
+          },
         };
       } else {
         // Single image processing
-        const base64 = await convertImageToBase64(Array.isArray(imageUri) ? imageUri[0] : imageUri);
-        
+        const base64 = await convertImageToBase64(
+          Array.isArray(imageUri) ? imageUri[0] : imageUri
+        );
+
         if (!validateImageSize(base64, 15000)) {
           throw new Error('Image too large. Please use a smaller image.');
         }
-        
-        const analysisResult = await OpenAIVisionService.analyzeImage(base64, scanMode);
-        
+
+        const analysisResult = await OpenAIVisionService.analyzeImage(
+          base64,
+          scanMode
+        );
+
         result = {
           type: scanMode,
           data: {
@@ -333,54 +406,61 @@ export default function CameraScreen() {
             text: analysisResult.text,
             calories: analysisResult.calories,
             nutrition: analysisResult.nutrition,
-          }
+          },
         };
-        
+
         // ✅ PURE AI RECEIPT SCANNER - NO OCR
-        if (scanMode === 'receipt-scanner' && analysisResult.detectedItems && analysisResult.detectedItems.length > 0) {
+        if (
+          scanMode === 'receipt-scanner' &&
+          analysisResult.detectedItems &&
+          analysisResult.detectedItems.length > 0
+        ) {
           setLearningStartTime(Date.now());
           setOriginalReceiptText(analysisResult.text || 'AI Receipt Analysis');
-          
+
           // Convert AI results to EnhancedParsedItem format
-          const aiItems: EnhancedParsedItem[] = analysisResult.detectedItems.map((item: any, index: number) => ({
-            id: `ai_${Date.now()}_${index}`,
-            name: item.name || item.item || 'Unknown Item',
-            price: item.price || 0,
-            quantity: item.quantity || 1,
-            category: 'food',
-            confidence: item.confidence || 70,
-            is_food: true,
-            user_action: 'pending'
-          }));
-          
+          const aiItems: EnhancedParsedItem[] =
+            analysisResult.detectedItems.map((item: any, index: number) => ({
+              id: `ai_${Date.now()}_${index}`,
+              name: item.name || item.item || 'Unknown Item',
+              price: item.price || 0,
+              quantity: item.quantity || 1,
+              category: 'food',
+              confidence: item.confidence || 70,
+              is_food: true,
+              user_action: 'pending',
+            }));
+
           setParsedItems(aiItems);
-          
+
           setTimeout(() => {
             setShowAddToInventoryModal(true);
           }, 1000);
           return; // ✅ Go directly to AddToInventoryModal
         }
       }
-      
+
       console.log('AI Vision processing successful:', result);
       setScanResult(result);
-      
+
       if (Haptics.notificationAsync) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
       }
-      
     } catch (error) {
       console.error('AI Vision processing failed:', error);
-      
+
       setScanResult({
         type: scanMode,
         data: {
           name: 'Processing Failed',
           confidence: 0,
-          error: error instanceof Error ? error.message : 'Unknown error occurred',
-        }
+          error:
+            error instanceof Error ? error.message : 'Unknown error occurred',
+        },
       });
-      
+
       if (Haptics.notificationAsync) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
@@ -394,19 +474,19 @@ export default function CameraScreen() {
   // Take photo with camera
   const takePicture = async () => {
     if (!cameraRef.current) return;
-    
+
     try {
       console.log('Taking picture...');
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         base64: false,
       });
-      
+
       if (photo?.uri) {
         console.log('Picture taken:', photo.uri);
-        
+
         if (scanMode === 'multiple-images') {
-          setMultipleImages(prev => [...prev, photo.uri]);
+          setMultipleImages((prev) => [...prev, photo.uri]);
           if (Haptics.impactAsync) {
             await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }
@@ -432,7 +512,7 @@ export default function CameraScreen() {
         });
 
         if (!result.canceled && result.assets.length > 0) {
-          const imageUris = result.assets.map(asset => asset.uri);
+          const imageUris = result.assets.map((asset) => asset.uri);
           console.log('Multiple images picked:', imageUris.length);
           await processImageWithVision(imageUris);
         }
@@ -462,7 +542,7 @@ export default function CameraScreen() {
       Alert.alert('No Images', 'Please take some photos first');
       return;
     }
-    
+
     await processImageWithVision(multipleImages);
     setMultipleImages([]);
   };
@@ -492,21 +572,25 @@ export default function CameraScreen() {
   // ✅ ENHANCED PROGRESS INDICATOR
   const renderProgressIndicator = () => {
     const progress = ((loadingStep + 1) / LOADING_STEPS.length) * 100;
-    
+
     return (
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
-        <Text style={styles.progressText}>{Math.round(progress)}% complete</Text>
+        <Text style={styles.progressText}>
+          {Math.round(progress)}% complete
+        </Text>
       </View>
     );
   };
 
   // ✅ CLEANED ADD TO INVENTORY MODAL - NO OCR REFERENCES
   const AddToInventoryModal = () => {
-    const confirmedCount = parsedItems.filter(item => item.user_action === 'confirmed').length;
-    
+    const confirmedCount = parsedItems.filter(
+      (item) => item.user_action === 'confirmed'
+    ).length;
+
     return (
       <Modal
         visible={showAddToInventoryModal}
@@ -518,58 +602,83 @@ export default function CameraScreen() {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🤖 Smart Receipt Review</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setShowAddToInventoryModal(false)}
               >
                 <X size={20} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <Text style={styles.modalMessage}>
               Found {parsedItems.length} food items. Please review and confirm:
             </Text>
-            
-            <ScrollView style={styles.itemsList} showsVerticalScrollIndicator={false}>
+
+            <ScrollView
+              style={styles.itemsList}
+              showsVerticalScrollIndicator={false}
+            >
               {parsedItems.map((item) => (
-                <View key={item.id} style={[
-                  styles.modalItem,
-                  item.user_action === 'confirmed' && styles.modalItemConfirmed,
-                  item.user_action === 'rejected' && styles.modalItemRejected
-                ]}>
+                <View
+                  key={item.id}
+                  style={[
+                    styles.modalItem,
+                    item.user_action === 'confirmed' &&
+                      styles.modalItemConfirmed,
+                    item.user_action === 'rejected' && styles.modalItemRejected,
+                  ]}
+                >
                   <View style={styles.modalItemInfo}>
                     <Text style={styles.modalItemName}>{item.name}</Text>
                     {item.price && item.price > 0 && (
-                      <Text style={styles.modalItemPrice}>${item.price.toFixed(2)}</Text>
+                      <Text style={styles.modalItemPrice}>
+                        ${item.price.toFixed(2)}
+                      </Text>
                     )}
                   </View>
-                  
+
                   <View style={styles.modalItemActions}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={[
-                        styles.actionButton, 
+                        styles.actionButton,
                         styles.confirmButton,
-                        item.user_action === 'confirmed' && styles.actionButtonActive
+                        item.user_action === 'confirmed' &&
+                          styles.actionButtonActive,
                       ]}
                       onPress={() => handleItemAction(item.id, 'confirm')}
                       activeOpacity={0.7}
                     >
-                      <Check size={14} color={item.user_action === 'confirmed' ? '#FFFFFF' : theme.colors.primary} />
+                      <Check
+                        size={14}
+                        color={
+                          item.user_action === 'confirmed'
+                            ? '#FFFFFF'
+                            : theme.colors.primary
+                        }
+                      />
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                       style={[
-                        styles.actionButton, 
+                        styles.actionButton,
                         styles.rejectButton,
-                        item.user_action === 'rejected' && styles.actionButtonActive
+                        item.user_action === 'rejected' &&
+                          styles.actionButtonActive,
                       ]}
                       onPress={() => handleItemAction(item.id, 'reject')}
                       activeOpacity={0.7}
                     >
-                      <X size={14} color={item.user_action === 'rejected' ? '#FFFFFF' : theme.colors.error} />
+                      <X
+                        size={14}
+                        color={
+                          item.user_action === 'rejected'
+                            ? '#FFFFFF'
+                            : theme.colors.error
+                        }
+                      />
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                       style={[styles.actionButton, styles.editButton]}
                       onPress={() => {
                         showPrompt(
@@ -577,7 +686,11 @@ export default function CameraScreen() {
                           `Current: ${item.name}`,
                           (newName) => {
                             if (newName && newName.trim()) {
-                              handleItemAction(item.id, 'edit', newName.trim().toUpperCase());
+                              handleItemAction(
+                                item.id,
+                                'edit',
+                                newName.trim().toUpperCase()
+                              );
                             }
                           }
                         );
@@ -590,28 +703,41 @@ export default function CameraScreen() {
                 </View>
               ))}
             </ScrollView>
-            
+
             <View style={styles.modalStats}>
               <Text style={styles.modalStatsText}>
-                ✅ {parsedItems.filter(item => item.user_action === 'confirmed').length} confirmed  
-                ❌ {parsedItems.filter(item => item.user_action === 'rejected').length} rejected  
-                ✏️ {parsedItems.filter(item => item.user_action === 'edited').length} edited
+                ✅{' '}
+                {
+                  parsedItems.filter((item) => item.user_action === 'confirmed')
+                    .length
+                }{' '}
+                confirmed ❌{' '}
+                {
+                  parsedItems.filter((item) => item.user_action === 'rejected')
+                    .length
+                }{' '}
+                rejected ✏️{' '}
+                {
+                  parsedItems.filter((item) => item.user_action === 'edited')
+                    .length
+                }{' '}
+                edited
               </Text>
             </View>
-            
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={() => setShowAddToInventoryModal(false)}
               >
                 <Text style={styles.modalCancelText}>Not Now</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.modalButton, 
+                  styles.modalButton,
                   styles.modalConfirmButton,
-                  confirmedCount === 0 && styles.modalButtonDisabled
+                  confirmedCount === 0 && styles.modalButtonDisabled,
                 ]}
                 onPress={async () => {
                   if (confirmedCount > 0) {
@@ -629,7 +755,7 @@ export default function CameraScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <Text style={styles.modalFooterText}>
                 🧠 Your feedback helps improve our AI
@@ -648,8 +774,13 @@ export default function CameraScreen() {
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>We need camera permission to continue</Text>
-        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+        <Text style={styles.permissionText}>
+          We need camera permission to continue
+        </Text>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={requestPermission}
+        >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </TouchableOpacity>
       </View>
@@ -660,25 +791,31 @@ export default function CameraScreen() {
     <View style={styles.container}>
       {/* Camera Full Screen */}
       <View style={styles.cameraContainer}>
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing={facing}
-        >
+        <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
           {/* Tutorial Overlay */}
           {showTutorial && (
-            <Animated.View style={[styles.tutorialOverlay, { opacity: tutorialOpacity }]}>
+            <Animated.View
+              style={[styles.tutorialOverlay, { opacity: tutorialOpacity }]}
+            >
               <View style={styles.tutorialContent}>
-                <TouchableOpacity style={styles.tutorialClose} onPress={hideTutorial}>
+                <TouchableOpacity
+                  style={styles.tutorialClose}
+                  onPress={hideTutorial}
+                >
                   <X size={16} color="#FFFFFF" />
                 </TouchableOpacity>
                 <Text style={styles.tutorialTitle}>AI Camera Modes 🤖</Text>
                 <Text style={styles.tutorialText}>
-                  <Text style={styles.tutorialHighlight}>AI FOOD:</Text> Smart ingredient recognition{'\n'}
-                  <Text style={styles.tutorialHighlight}>CALORIES:</Text> Accurate nutrition analysis{'\n'}
-                  <Text style={styles.tutorialHighlight}>BARCODE:</Text> Product code scanning{'\n'}
-                  <Text style={styles.tutorialHighlight}>MULTIPLE:</Text> Batch processing{'\n'}
-                  <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart AI parsing
+                  <Text style={styles.tutorialHighlight}>AI FOOD:</Text> Smart
+                  ingredient recognition{'\n'}
+                  <Text style={styles.tutorialHighlight}>CALORIES:</Text>{' '}
+                  Accurate nutrition analysis{'\n'}
+                  <Text style={styles.tutorialHighlight}>BARCODE:</Text> Product
+                  code scanning{'\n'}
+                  <Text style={styles.tutorialHighlight}>MULTIPLE:</Text> Batch
+                  processing{'\n'}
+                  <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart
+                  AI parsing
                 </Text>
               </View>
             </Animated.View>
@@ -690,14 +827,19 @@ export default function CameraScreen() {
               <View style={styles.loadingContent}>
                 <ActivityIndicator size="large" color="#FFFFFF" />
                 <Text style={styles.loadingText}>
-                  {scanMode === 'receipt-scanner' ? loadingMessage : 
-                   scanMode === 'food-recognition' ? 'Analyzing food...' :
-                   scanMode === 'calorie-counter' ? 'Calculating nutrition...' :
-                   scanMode === 'multiple-images' ? 'Processing images...' :
-                   scanMode === 'barcode-scanner' ? 'Scanning barcode...' : 
-                   'AI processing...'}
+                  {scanMode === 'receipt-scanner'
+                    ? loadingMessage
+                    : scanMode === 'food-recognition'
+                    ? 'Analyzing food...'
+                    : scanMode === 'calorie-counter'
+                    ? 'Calculating nutrition...'
+                    : scanMode === 'multiple-images'
+                    ? 'Processing images...'
+                    : scanMode === 'barcode-scanner'
+                    ? 'Scanning barcode...'
+                    : 'AI processing...'}
                 </Text>
-                
+
                 {/* ✅ PROGRESS INDICATOR FOR RECEIPT SCANNING */}
                 {scanMode === 'receipt-scanner' && renderProgressIndicator()}
               </View>
@@ -706,8 +848,8 @@ export default function CameraScreen() {
 
           {/* Apple-style Mode Selector - RESPONSIVE FIXED */}
           <View style={styles.appleModeContainer}>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.appleModeScroll}
               style={styles.appleModeSelector}
@@ -724,10 +866,12 @@ export default function CameraScreen() {
                       setShowTutorial(false);
                     }}
                   >
-                    <Text style={[
-                      styles.appleModeText,
-                      isActive && { color: mode.color, fontWeight: '700' }
-                    ]}>
+                    <Text
+                      style={[
+                        styles.appleModeText,
+                        isActive && { color: mode.color, fontWeight: '700' },
+                      ]}
+                    >
                       {mode.title}
                     </Text>
                   </TouchableOpacity>
@@ -742,7 +886,7 @@ export default function CameraScreen() {
               <Text style={styles.multipleCounterText}>
                 📸 {multipleImages.length} photos
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.processButton}
                 onPress={processMultipleImages}
               >
@@ -750,34 +894,41 @@ export default function CameraScreen() {
               </TouchableOpacity>
             </View>
           )}
-          
+
           {/* Apple-style Controls - RESPONSIVE FIXED */}
           <View style={styles.appleControls}>
             {/* Gallery Button */}
-            <TouchableOpacity style={styles.appleGalleryButton} onPress={pickImages}>
+            <TouchableOpacity
+              style={styles.appleGalleryButton}
+              onPress={pickImages}
+            >
               {scanMode === 'multiple-images' ? (
                 <Images size={22} color="#FFFFFF" />
               ) : (
                 <Image size={22} color="#FFFFFF" />
               )}
             </TouchableOpacity>
-            
+
             {/* Capture Button */}
-            <TouchableOpacity 
-              style={styles.appleCaptureButton} 
+            <TouchableOpacity
+              style={styles.appleCaptureButton}
               onPress={takePicture}
               disabled={isLoading}
             >
-              <View style={[
-                styles.appleCaptureInner,
-                isLoading && styles.captureButtonDisabled
-              ]} />
+              <View
+                style={[
+                  styles.appleCaptureInner,
+                  isLoading && styles.captureButtonDisabled,
+                ]}
+              />
             </TouchableOpacity>
-            
+
             {/* Flip Button */}
-            <TouchableOpacity 
-              style={styles.appleFlipButton} 
-              onPress={() => setFacing(current => current === 'back' ? 'front' : 'back')}
+            <TouchableOpacity
+              style={styles.appleFlipButton}
+              onPress={() =>
+                setFacing((current) => (current === 'back' ? 'front' : 'back'))
+              }
             >
               <FlipHorizontal size={22} color="#FFFFFF" />
             </TouchableOpacity>
@@ -794,39 +945,52 @@ export default function CameraScreen() {
           onRequestClose={clearResults}
         >
           <View style={styles.resultsModalOverlay}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.resultsModalBackground}
               onPress={clearResults}
               activeOpacity={1}
             />
             <View style={styles.resultsModalContainer}>
               <View style={styles.resultsDragHandle} />
-              <ScrollView style={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.resultsScroll}
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={styles.resultHeader}>
                   <Text style={styles.resultTitle}>{scanResult.data.name}</Text>
                 </View>
 
-                               {/* Calorie & Nutrition Info */}
+                {/* Calorie & Nutrition Info */}
                 {scanResult.data.calories && (
                   <View style={styles.calorieContainer}>
-                    <Text style={styles.calorieTitle}>🔥 Nutrition Analysis</Text>
+                    <Text style={styles.calorieTitle}>
+                      🔥 Nutrition Analysis
+                    </Text>
                     <View style={styles.calorieGrid}>
                       <View style={styles.calorieItem}>
-                        <Text style={styles.calorieNumber}>{scanResult.data.calories}</Text>
+                        <Text style={styles.calorieNumber}>
+                          {scanResult.data.calories}
+                        </Text>
                         <Text style={styles.calorieLabel}>Calories</Text>
                       </View>
                       {scanResult.data.nutrition && (
                         <>
                           <View style={styles.calorieItem}>
-                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.protein}g</Text>
+                            <Text style={styles.calorieNumber}>
+                              {scanResult.data.nutrition.protein}g
+                            </Text>
                             <Text style={styles.calorieLabel}>Protein</Text>
                           </View>
                           <View style={styles.calorieItem}>
-                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.carbs}g</Text>
+                            <Text style={styles.calorieNumber}>
+                              {scanResult.data.nutrition.carbs}g
+                            </Text>
                             <Text style={styles.calorieLabel}>Carbs</Text>
                           </View>
                           <View style={styles.calorieItem}>
-                            <Text style={styles.calorieNumber}>{scanResult.data.nutrition.fat}g</Text>
+                            <Text style={styles.calorieNumber}>
+                              {scanResult.data.nutrition.fat}g
+                            </Text>
                             <Text style={styles.calorieLabel}>Fat</Text>
                           </View>
                         </>
@@ -838,41 +1002,65 @@ export default function CameraScreen() {
                 {scanResult.data.error ? (
                   <View style={styles.errorContainer}>
                     <AlertTriangle size={24} color={theme.colors.error} />
-                    <Text style={styles.errorText}>{scanResult.data.error}</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={clearResults}>
+                    <Text style={styles.errorText}>
+                      {scanResult.data.error}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={clearResults}
+                    >
                       <Text style={styles.retryButtonText}>Try Again</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
                   <>
                     {/* ✅ DETECTED ITEMS - NO CONFIDENCE SCORES */}
-                    {scanResult.data.items && scanResult.data.items.length > 0 && (
-                      <View style={styles.itemsContainer}>
-                        <Text style={styles.itemsTitle}>🔍 Detected Items</Text>
-                        {scanResult.data.items.map((item: any, index: number) => (
-                          <View key={index} style={styles.detectedItem}>
-                            <Text style={styles.itemName}>{item.name || item.item}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
+                    {scanResult.data.items &&
+                      scanResult.data.items.length > 0 && (
+                        <View style={styles.itemsContainer}>
+                          <Text style={styles.itemsTitle}>
+                            🔍 Detected Items
+                          </Text>
+                          {scanResult.data.items.map(
+                            (item: any, index: number) => (
+                              <View key={index} style={styles.detectedItem}>
+                                <Text style={styles.itemName}>
+                                  {item.name || item.item}
+                                </Text>
+                              </View>
+                            )
+                          )}
+                        </View>
+                      )}
 
                     {/* Suggestions */}
-                    {scanResult.data.suggestions && scanResult.data.suggestions.length > 0 && (
-                      <View style={styles.suggestionsContainer}>
-                        <Text style={styles.suggestionsTitle}>💡 Suggestions</Text>
-                        {scanResult.data.suggestions.map((suggestion: string, index: number) => (
-                          <Text key={index} style={styles.suggestionText}>• {suggestion}</Text>
-                        ))}
-                      </View>
-                    )}
+                    {scanResult.data.suggestions &&
+                      scanResult.data.suggestions.length > 0 && (
+                        <View style={styles.suggestionsContainer}>
+                          <Text style={styles.suggestionsTitle}>
+                            💡 Suggestions
+                          </Text>
+                          {scanResult.data.suggestions.map(
+                            (suggestion: string, index: number) => (
+                              <Text key={index} style={styles.suggestionText}>
+                                • {suggestion}
+                              </Text>
+                            )
+                          )}
+                        </View>
+                      )}
 
                     {/* Raw Text (for receipt scanner) */}
                     {scanResult.data.text && scanMode === 'receipt-scanner' && (
                       <View style={styles.textContainer}>
                         <Text style={styles.textTitle}>📄 Extracted Text</Text>
-                        <ScrollView style={styles.textScroll} nestedScrollEnabled={true}>
-                          <Text style={styles.extractedText}>{scanResult.data.text}</Text>
+                        <ScrollView
+                          style={styles.textScroll}
+                          nestedScrollEnabled={true}
+                        >
+                          <Text style={styles.extractedText}>
+                            {scanResult.data.text}
+                          </Text>
                         </ScrollView>
                       </View>
                     )}
@@ -881,48 +1069,58 @@ export default function CameraScreen() {
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={clearResults}
+                  >
                     <X size={18} color={theme.colors.text} />
                     <Text style={styles.clearButtonText}>Clear</Text>
                   </TouchableOpacity>
-                  
-                  {scanResult.data.items && scanResult.data.items.length > 0 && (
-                    <TouchableOpacity 
-                      style={styles.addAllButton}
-                      onPress={() => {
-                        // Add all detected items to pantry
-                        Alert.alert(
-                          'Add All Items',
-                          `Add ${scanResult.data.items.length} items to your pantry?`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { 
-                              text: 'Add All', 
-                              onPress: () => {
-                                // Convert to EnhancedParsedItem format
-                                const items: EnhancedParsedItem[] = scanResult.data.items.map((item: any, index: number) => ({
-                                  id: `scan_${Date.now()}_${index}`,
-                                  name: item.name || item.item || 'Unknown Item',
-                                  price: item.price || 0,
-                                  quantity: item.quantity || 1,
-                                  category: 'food',
-                                  confidence: item.confidence || 70,
-                                  is_food: true,
-                                  user_action: 'confirmed'
-                                }));
-                                
-                                addToInventory(items);
-                                clearResults();
-                              }
-                            }
-                          ]
-                        );
-                      }}
-                    >
-                      <Plus size={18} color="#FFFFFF" />
-                      <Text style={styles.addAllButtonText}>Add All</Text>
-                    </TouchableOpacity>
-                  )}
+
+                  {scanResult.data.items &&
+                    scanResult.data.items.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.addAllButton}
+                        onPress={() => {
+                          // Add all detected items to pantry
+                          Alert.alert(
+                            'Add All Items',
+                            `Add ${scanResult.data.items.length} items to your pantry?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Add All',
+                                onPress: () => {
+                                  // Convert to EnhancedParsedItem format
+                                  const items: EnhancedParsedItem[] =
+                                    scanResult.data.items.map(
+                                      (item: any, index: number) => ({
+                                        id: `scan_${Date.now()}_${index}`,
+                                        name:
+                                          item.name ||
+                                          item.item ||
+                                          'Unknown Item',
+                                        price: item.price || 0,
+                                        quantity: item.quantity || 1,
+                                        category: 'food',
+                                        confidence: item.confidence || 70,
+                                        is_food: true,
+                                        user_action: 'confirmed',
+                                      })
+                                    );
+
+                                  addToInventory(items);
+                                  clearResults();
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                      >
+                        <Plus size={18} color="#FFFFFF" />
+                        <Text style={styles.addAllButtonText}>Add All</Text>
+                      </TouchableOpacity>
+                    )}
                 </View>
               </ScrollView>
             </View>
@@ -971,7 +1169,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  
+
   // Tutorial Styles
   tutorialOverlay: {
     ...StyleSheet.absoluteFillObject,

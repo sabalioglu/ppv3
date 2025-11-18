@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -10,11 +10,12 @@ import { spacing } from '@/lib/theme';
 export default function EmailConfirmedScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const isWeb = Platform.OS === 'web';
 
   useEffect(() => {
     // Redirect to login in 5 seconds
     const timer = setTimeout(() => {
-      router.replace('/login');
+      router.replace(isWeb ? '/' : '/login');
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
@@ -40,15 +41,12 @@ export default function EmailConfirmedScreen() {
         </ThemedText>
 
         <ThemedButton
-          onPress={() => router.replace('/login')}
-          text="Go to Login"
+          onPress={() => router.replace(isWeb ? '/' : '/login')}
+          text={`Go to ${isWeb ? 'App' : 'Login'}`}
         />
 
-        <ThemedText
-          type="caption"
-          style={[styles.redirectText, { color: colors.textSecondary }]}
-        >
-          Redirecting to login in 5 seconds...?{' '}
+        <ThemedText type="muted" style={styles.redirectText}>
+          Redirecting to App in 5 seconds...?{' '}
         </ThemedText>
       </View>
     </View>

@@ -1,8 +1,4 @@
-//app>(tabs)>_layout.tsx
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import {
@@ -13,71 +9,11 @@ import {
   ChefHat,
   ShoppingCart,
   Settings,
-  BookOpen,
   CreditCard,
 } from 'lucide-react-native';
 import { colors, spacing } from '@/lib/theme';
 
 export default function TabsLayout() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      console.log('🔍 Checking authentication status...');
-
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error || !user) {
-        console.log('❌ No authenticated user, redirecting to login');
-        router.replace('/(auth)/login');
-        return;
-      }
-
-      console.log('✅ User authenticated, checking profile...');
-
-      // Check if profile exists and is complete
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, age, gender, height_cm, weight_kg')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError || !profile || !profile.full_name || !profile.age) {
-        console.log('❌ Profile incomplete, redirecting to onboarding');
-        router.replace('/(auth)/onboarding');
-        return;
-      }
-
-      console.log('✅ Profile complete, allowing access to app');
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('❌ Auth check failed:', error);
-      router.replace('/(auth)/login');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) return null;
-
   return (
     <Tabs
       screenOptions={{

@@ -8,8 +8,15 @@ const SUB_HEADING = 'subheading';
 const BODY = 'body';
 const LABEL = 'label';
 const CAPTION = 'caption';
+const MUTED = 'muted';
 
-type TextType = 'heading' | 'subheading' | 'body' | 'label' | 'caption';
+type TextType =
+  | 'heading'
+  | 'subheading'
+  | 'body'
+  | 'label'
+  | 'caption'
+  | 'muted';
 
 export interface ThemedTextProps extends TextProps {
   /**
@@ -64,6 +71,10 @@ const getTextStyle = (type: TextType, bold: boolean, colors: Colors) => {
     case CAPTION:
       style = 'captionText';
       color = colors.textPrimary;
+      break;
+    case MUTED:
+      style = 'captionText';
+      color = colors.textSecondary;
       break;
     default:
       style = 'bodyText';

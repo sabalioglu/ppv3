@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { makeRedirectUri } from 'expo-auth-session';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { supabase } from '../../lib/supabase';
-import { getCurrentUrl } from '../../utils/getCurrentUrl';
 import { useCustomAlert } from '@/hooks/useCustomAlert';
 
 import FormInput from '../../components/auth/FormInput';
@@ -52,13 +52,14 @@ const SignUpPage = () => {
 
     try {
       setLoading(true);
-      const currentUrl = getCurrentUrl();
 
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: `${currentUrl}/callback`,
+          emailRedirectTo: makeRedirectUri({
+            path: 'email-confirmed',
+          }),
         },
       });
 
@@ -70,8 +71,6 @@ const SignUpPage = () => {
           'Check Your Email! 📧',
           'We sent you a confirmation link. Please check your email to activate your account.'
         );
-      } else if (data?.user && data.session) {
-        router.replace('/onboarding');
       }
     } catch (error: any) {
       setErrorMessage(error.message);
@@ -84,13 +83,11 @@ const SignUpPage = () => {
     setErrorMessage(null);
     try {
       setLoading(true);
-      const currentUrl = getCurrentUrl();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${currentUrl}/callback` },
+        options: { redirectTo: makeRedirectUri() },
       });
-
       if (error) throw error;
     } catch (error: any) {
       setErrorMessage(error.message);

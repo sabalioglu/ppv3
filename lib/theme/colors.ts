@@ -140,7 +140,7 @@ const lightColors: Colors = {
   surface: colors.neutral[0],
   error: colors.error[500],
   warning: colors.warning[500],
-  success: colors.success[500],
+  success: colors.primary[50],
   info: colors.accent[500],
 
   // Text colors
@@ -190,7 +190,7 @@ const darkColors: Colors = {
   surface: colors.neutral[900],
   error: colors.error[600],
   warning: colors.warning[500],
-  success: colors.success[500],
+  success: colors.primary[300],
   info: colors.accent[400],
 
   // Text colors

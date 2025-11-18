@@ -1,814 +1,347 @@
-//app> (auth) > onboarding.tsx
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Alert, 
-  ActivityIndicator, 
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform 
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { useForm, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-console.log('🔥 YENİ ONBOARDING AKTIF - v2.1 ALLERGENS SYSTEM');
+import AuthLayout from '@/components/auth/AuthLayout';
+import CustomAlert from '@/components/UI/CustomAlert';
+import { spacing, radius } from '@/lib/theme/index';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCustomAlert } from '@/hooks/useCustomAlert';
 
-interface FormData {
-  fullName: string;
-  age: string;
-  gender: string;
-  height: string;
-  weight: string;
-  activityLevel: string;
-  healthGoals: string[];
-  dietaryRestrictions: string[]; // This will store selected allergens
-  dietaryPreferences: string[];
-  cuisinePreferences: string[];
-  cookingSkillLevel: string;
-}
+import Step1, { genderValues } from '@/components/onboarding/BasicInfo';
+import Step2, {
+  activityLevelValues,
+} from '@/components/onboarding/PhysicalStats';
+import {
+  HealthGoals as Step3,
+  Allergens as Step4,
+  DietaryPreferences as Step5,
+  CuisinePreferences as Step6,
+} from '@/components/onboarding/OnboardingLists';
+import Step7, {
+  cookingSkillValues,
+} from '@/components/onboarding/CookingSkill';
 
-interface User {
-  id: string;
-  email: string;
-}
+import ThemedText from '@/components/UI/ThemedText';
+import { useTheme } from '@/contexts/ThemeContext';
 
-// Static data arrays
-const HEALTH_GOALS = [
-  { key: 'weight_loss', label: '🏃‍♀️ Weight Loss' },
-  { key: 'muscle_gain', label: '💪 Muscle Gain' },
-  { key: 'maintain_weight', label: '⚖️ Maintain Weight' },
-  { key: 'improve_health', label: '❤️ Improve Health' },
-  { key: 'energy_boost', label: '⚡ Energy Boost' },
-  { key: 'digestive_health', label: '🌿 Digestive Health' },
-  { key: 'skin_health', label: '✨ Skin Health' },
-  { key: 'hormonal_balance', label: '🔄 Hormonal Balance' },
-  { key: 'heart_health', label: '❤️‍🩹 Heart Health' },
-  { key: 'immune_support', label: '🛡️ Immune Support' },
-  { key: 'bone_strength', label: '🦴 Bone Strength' },
-  { key: 'anti_aging', label: '⏳ Anti-Aging' },
-  { key: 'blood_sugar_control', label: '🍭 Blood Sugar Control' },
-  { key: 'cholesterol_control', label: '🩸 Cholesterol Control' }
-];
+export const formSchema = z.object({
+  fullName: z.string().min(1, 'Please enter your full name'),
+  age: z
+    .string()
+    .min(1, 'Please enter your age')
+    .refine((val) => !isNaN(parseInt(val)), {
+      message: 'Age must be a number',
+    }),
+  gender: z.enum(genderValues, 'Please select your gender'),
+  height: z
+    .string()
+    .min(1, 'Please enter your height')
+    .refine((val) => !isNaN(parseInt(val)), {
+      message: 'Height must be a number',
+    }),
+  weight: z
+    .string()
+    .min(1, 'Please enter your weight')
+    .refine((val) => !isNaN(parseFloat(val)), {
+      message: 'Weight must be a number',
+    }),
+  activityLevel: z.enum(
+    activityLevelValues,
+    'Please select your activity level'
+  ),
+  healthGoals: z
+    .array(z.string())
+    .min(1, 'Please select at least one health goal'),
+  dietaryRestrictions: z.array(z.string()).optional(), // This will store selected allergens
+  dietaryPreferences: z.array(z.string()).optional(),
+  cuisinePreferences: z.array(z.string()).optional(),
+  cookingSkillLevel: z.enum(cookingSkillValues).optional(),
+});
 
-// ✅ Common allergens for Step 4
-const COMMON_ALLERGENS = [
-  { key: 'nuts', label: 'Tree Nuts', emoji: '🥜' },
-  { key: 'peanuts', label: 'Peanuts', emoji: '🥜' },
-  { key: 'dairy', label: 'Dairy/Lactose', emoji: '🥛' },
-  { key: 'eggs', label: 'Eggs', emoji: '🥚' },
-  { key: 'soy', label: 'Soy', emoji: '🫘' },
-  { key: 'wheat', label: 'Wheat/Gluten', emoji: '🌾' },
-  { key: 'fish', label: 'Fish', emoji: '🐟' },
-  { key: 'shellfish', label: 'Shellfish', emoji: '🦐' },
-  { key: 'sesame', label: 'Sesame', emoji: '🌰' },
-  { key: 'sulfites', label: 'Sulfites', emoji: '🍷' },
-];
+const defaultFormValues: z.infer<typeof formSchema> = {
+  fullName: '',
+  age: '',
+  gender: '',
+  height: '',
+  weight: '',
+  activityLevel: '',
+  healthGoals: [],
+  dietaryRestrictions: [],
+  dietaryPreferences: [],
+  cuisinePreferences: [],
+  cookingSkillLevel: '',
+};
 
-const DIETARY_PREFERENCES = [
-  { key: 'vegan', label: '🌱 Vegan' },
-  { key: 'vegetarian', label: '🥬 Vegetarian' },
-  { key: 'pescatarian', label: '🐟 Pescatarian' },
-  { key: 'keto', label: '🥑 Ketogenic' },
-  { key: 'paleo', label: '🦴 Paleo' },
-  { key: 'mediterranean', label: '🫒 Mediterranean' },
-  { key: 'low_carb', label: '🥩 Low Carb' },
-  { key: 'gluten_free', label: '🌾 Gluten Free' },
-  { key: 'dairy_free', label: '🥛 Dairy Free' },
-  { key: 'low_fat', label: '🍃 Low Fat' },
-  { key: 'raw_food', label: '🥗 Raw Food' },
-  { key: 'flexitarian', label: '🍽️ Flexitarian' },
-  { key: 'whole30', label: '🧘 Whole30' },
-  { key: 'dash', label: '💓 DASH' },
-  { key: 'fodmap', label: '🚫 FODMAP' },
-  { key: 'carnivore', label: '🥓 Carnivore' },
-  { key: 'halal', label: '🕌 Halal' },
-  { key: 'kosher', label: '✡️ Kosher' },
-  { key: 'intermittent_fasting', label: '⏱️ Intermittent Fasting' },
-  { key: 'diabetic_friendly', label: '🩸 Diabetic-Friendly' }
-];
+const TOTAL_STEPS = 7;
 
-const CUISINE_PREFERENCES = [
-  { key: 'italian', label: '🇮🇹 Italian' },
-  { key: 'chinese', label: '🇨🇳 Chinese' },
-  { key: 'japanese', label: '🇯🇵 Japanese' },
-  { key: 'turkish', label: '🇹🇷 Turkish' },
-  { key: 'mexican', label: '🇲🇽 Mexican' },
-  { key: 'indian', label: '🇮🇳 Indian' },
-  { key: 'french', label: '🇫🇷 French' },
-  { key: 'thai', label: '🇹🇭 Thai' },
-  { key: 'greek', label: '🇬🇷 Greek' },
-  { key: 'korean', label: '🇰🇷 Korean' },
-  { key: 'spanish', label: '🇪🇸 Spanish' },
-  { key: 'vietnamese', label: '🇻🇳 Vietnamese' },
-  { key: 'lebanese', label: '🇱🇧 Lebanese' },
-  { key: 'german', label: '🇩🇪 German' },
-  { key: 'brazilian', label: '🇧🇷 Brazilian' },
-  { key: 'moroccan', label: '🇲🇦 Moroccan' },
-  { key: 'ethiopian', label: '🇪🇹 Ethiopian' },
-  { key: 'russian', label: '🇷🇺 Russian' },
-  { key: 'american', label: '🇺🇸 American' },
-  { key: 'peruvian', label: '🇵🇪 Peruvian' }
-];
+const steps: Record<
+  number,
+  { component: React.FC; fields: (keyof z.infer<typeof formSchema>)[] }
+> = {
+  1: { component: Step1, fields: ['fullName', 'age', 'gender'] },
+  2: { component: Step2, fields: ['height', 'weight', 'activityLevel'] },
+  3: { component: Step3, fields: ['healthGoals'] },
+  4: { component: Step4, fields: ['dietaryRestrictions'] },
+  5: { component: Step5, fields: ['dietaryPreferences'] },
+  6: { component: Step6, fields: ['cuisinePreferences'] },
+  7: { component: Step7, fields: ['cookingSkillLevel'] },
+};
 
-export default function OnboardingPage() {
-  const [user, setUser] = useState<User | null>(null);
+export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    age: '',
-    gender: '',
-    height: '',
-    weight: '',
-    activityLevel: '',
-    healthGoals: [], 
-    dietaryRestrictions: [], // ✅ This will store allergens directly
-    dietaryPreferences: [],
-    cuisinePreferences: [],
-    cookingSkillLevel: '',
-  });
-  
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  const StepComponent = steps[currentStep].component;
 
-  const checkUser = async () => {
-    try {
-      console.log('🔍 Getting current user for onboarding...');
-      const { data: { user }, error } = await supabase.auth.getUser();
+  const { session, checkProfileCompletion } = useAuth();
+  const { colors } = useTheme();
+  const { visible, title, message, buttons, showAlert, hideAlert } =
+    useCustomAlert();
 
-      if (error || !user) {
-        console.log('⚠️ User not found in onboarding, redirecting...');
-        setTimeout(() => {
-          router.replace('/(auth)/login');
-        }, 1000);
-        return;
-      }
+  const formMethods = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: defaultFormValues,
+    mode: 'onChange',
+  });
+  const { handleSubmit, trigger } = formMethods;
 
-      console.log('✅ User found in onboarding:', user.id);
-      setUser(user);
-    } catch (error) {
-      console.error('❌ Auth check failed:', error);
-      setTimeout(() => {
-        router.replace('/(auth)/login');
-      }, 1000);
-    }
-  };
+  const progress = useMemo(
+    () => (currentStep / TOTAL_STEPS) * 100,
+    [currentStep]
+  );
 
-  // ✅ UPDATED: Validation for 7 steps
-  const validateStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        if (!formData.fullName.trim()) {
-          Alert.alert('Error', 'Please enter your full name');
-          return false;
-        }
-        if (!formData.age || isNaN(parseInt(formData.age))) {
-          Alert.alert('Error', 'Please enter a valid age');
-          return false;
-        }
-        if (!formData.gender) {
-          Alert.alert('Error', 'Please select your gender');
-          return false;
-        }
-        return true;
-      case 2:
-        if (!formData.height || isNaN(parseInt(formData.height))) {
-          Alert.alert('Error', 'Please enter a valid height');
-          return false;
-        }
-        if (!formData.weight || isNaN(parseFloat(formData.weight))) {
-          Alert.alert('Error', 'Please enter a valid weight');
-          return false;
-        }
-        if (!formData.activityLevel) {
-          Alert.alert('Error', 'Please select your activity level');
-          return false;
-        }
-        return true;
-      case 7: // Updated from 6 to 7
-        if (!formData.cookingSkillLevel) {
-          Alert.alert('Error', 'Please select your cooking skill level');
-          return false;
-        }
-        return true;
-      default:
-        return true;
-    }
-  };
+  const handleNext = async () => {
+    const fieldsToValidate = steps[currentStep].fields;
+    const isValid = await trigger(fieldsToValidate);
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(currentStep + 1);
+    if (isValid && currentStep < TOTAL_STEPS) {
+      setCurrentStep((prev) => prev + 1);
     }
   };
 
   const handleBack = () => {
-    setCurrentStep(currentStep - 1);
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const toggleSelection = (array: string[], value: string, setter: (arr: string[]) => void) => {
-    if (array.includes(value)) {
-      setter(array.filter(item => item !== value));
-    } else {
-      setter([...array, value]);
-    }
-  };
-
-  // ✅ Clean allergen toggle function
-  const toggleAllergen = (allergenKey: string) => {
-    const newAllergens = formData.dietaryRestrictions.includes(allergenKey)
-      ? formData.dietaryRestrictions.filter(a => a !== allergenKey)
-      : [...formData.dietaryRestrictions, allergenKey];
-    
-    setFormData({ ...formData, dietaryRestrictions: newAllergens });
-  };
-
-  const clearAllAllergens = () => {
-    setFormData({ ...formData, dietaryRestrictions: [] });
-  };
-
-  // ✅ UPDATED: Save allergens to dietary_restrictions field
-  const handleComplete = async () => {
-    if (!user) {
-      Alert.alert('Error', 'Please sign in again');
-      router.replace('/(auth)/login');
-      return;
-    }
-
-    setLoading(true);
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    const isValid = await trigger();
+    if (!isValid) return;
     try {
-      console.log('📝 Saving enhanced user profile with allergens...');
-
+      setLoading(true);
+      if (!session?.user?.id) {
+        throw new Error('User not authenticated');
+      }
       const profileData = {
-        id: user.id,
-        email: user.email,
-        full_name: formData.fullName.trim(),
-        age: parseInt(formData.age),
-        gender: formData.gender,
-        height_cm: parseInt(formData.height),
-        weight_kg: parseFloat(formData.weight),
-        activity_level: formData.activityLevel,
-        health_goals: formData.healthGoals,
-        dietary_restrictions: formData.dietaryRestrictions, // ✅ Allergens saved here
-        dietary_preferences: formData.dietaryPreferences,
-        cuisine_preferences: formData.cuisinePreferences,
-        cooking_skill_level: formData.cookingSkillLevel
+        id: session?.user.id,
+        email: session?.user.email,
+        full_name: data.fullName.trim(),
+        age: parseInt(data.age),
+        gender: data.gender,
+        height_cm: parseInt(data.height),
+        weight_kg: parseFloat(data.weight),
+        activity_level: data.activityLevel,
+        health_goals: data.healthGoals,
+        dietary_restrictions: data.dietaryRestrictions,
+        dietary_preferences: data.dietaryPreferences,
+        cuisine_preferences: data.cuisinePreferences,
+        cooking_skill_level: data.cookingSkillLevel,
       };
-
-      const { error } = await supabase.from('user_profiles').upsert(profileData);
+      const { data: result, error } = await supabase
+        .from('user_profiles')
+        .upsert(profileData)
+        .select();
 
       if (error) throw error;
 
-      console.log('✅ Enhanced profile with allergens saved successfully');
-      console.log('🚀 Navigating to dashboard...');
-
-      router.replace('/(tabs)');
-
+      await checkProfileCompletion();
+      router.replace('/');
     } catch (error: any) {
-      console.error('❌ Profile save failed:', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      showAlert('❌ Profile save failed', error.message || 'Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderStep1 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>👋 Basic Information</Text>
-      
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Full Name *</Text>
-        <TextInput
-          placeholder="Enter your full name"
-          value={formData.fullName}
-          onChangeText={(text) => setFormData({...formData, fullName: text})}
-          style={styles.input}
-          autoCapitalize="words"
-        />
-      </View>
-
-      <View style={styles.row}>
-        <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.label}>Age *</Text>
-          <TextInput
-            placeholder="Your Age"
-            value={formData.age}
-            onChangeText={(text) => setFormData({...formData, age: text})}
-            style={styles.input}
-            keyboardType="numeric"
-            maxLength={3}
-          />
-        </View>
-
-        <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.label}>Gender *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={formData.gender}
-              style={styles.picker}
-              onValueChange={(value) => setFormData({...formData, gender: value})}
-            >
-              <Picker.Item label="Select" value="" />
-              <Picker.Item label="Male" value="male" />
-              <Picker.Item label="Female" value="female" />
-              <Picker.Item label="Other" value="other" />
-            </Picker>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>📏 Physical Stats</Text>
-      
-      <View style={styles.row}>
-        <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.label}>Height (cm) *</Text>
-          <TextInput
-            placeholder="Height in cm"
-            value={formData.height}
-            onChangeText={(text) => setFormData({...formData, height: text})}
-            style={styles.input}
-            keyboardType="numeric"
-            maxLength={3}
-          />
-        </View>
-
-        <View style={[styles.inputGroup, styles.halfWidth]}>
-          <Text style={styles.label}>Weight (kg) *</Text>
-          <TextInput
-            placeholder="Weight in kg"
-            value={formData.weight}
-            onChangeText={(text) => setFormData({...formData, weight: text})}
-            style={styles.input}
-            keyboardType="decimal-pad"
-            maxLength={5}
-          />
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Activity Level</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={formData.activityLevel}
-            style={styles.picker}
-            onValueChange={(value) => setFormData({...formData, activityLevel: value})}
-          >
-            <Picker.Item label="Select activity level" value="" />
-            <Picker.Item label="Sedentary (little exercise)" value="sedentary" />
-            <Picker.Item label="Lightly Active (1-3 days/week)" value="lightly_active" />
-            <Picker.Item label="Moderately Active (3-5 days/week)" value="moderately_active" />
-            <Picker.Item label="Very Active (6-7 days/week)" value="very_active" />
-            <Picker.Item label="Extra Active (very intense)" value="extra_active" />
-          </Picker>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderStep3 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>🎯 Health Goals</Text>
-      <Text style={styles.stepSubtitle}>What are your main goals?</Text>
-      
-      <View style={styles.optionsGrid}>
-        {HEALTH_GOALS.map((goal) => (
-          <TouchableOpacity
-            key={goal.key}
-            style={[
-              styles.optionCard,
-              formData.healthGoals.includes(goal.key) && styles.optionCardSelected
-            ]}
-            onPress={() => toggleSelection(
-              formData.healthGoals, 
-              goal.key, 
-              (arr) => setFormData({...formData, healthGoals: arr})
-            )}
-          >
-            <Text style={styles.optionText}>{goal.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  // ✅ NEW: Step 4 - Food Allergies
-  const renderStep4 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>🛡️ Food Allergies & Intolerances</Text>
-      <Text style={styles.stepSubtitle}>Help us keep you safe by selecting any allergens you have</Text>
-      
-      <View style={styles.optionsGrid}>
-        {COMMON_ALLERGENS.map((allergen) => (
-          <TouchableOpacity
-            key={allergen.key}
-            style={[
-              styles.optionCard,
-              formData.dietaryRestrictions.includes(allergen.key) && styles.optionCardSelected
-            ]}
-            onPress={() => toggleAllergen(allergen.key)}
-          >
-            <Text style={styles.optionEmoji}>{allergen.emoji}</Text>
-            <Text style={[
-              styles.optionLabel,
-              formData.dietaryRestrictions.includes(allergen.key) && styles.optionLabelSelected,
-            ]}>
-              {allergen.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.noAllergiesOption,
-          formData.dietaryRestrictions.length === 0 && styles.noAllergiesOptionSelected,
-        ]}
-        onPress={clearAllAllergens}
-      >
-        <Text style={[
-          styles.noAllergiesText,
-          formData.dietaryRestrictions.length === 0 && styles.noAllergiesTextSelected,
-        ]}>
-          ✅ I don't have any food allergies or intolerances
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  // ✅ MOVED: Step 5 - Dietary Preferences (was Step 4)
-  const renderStep5 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>🥗 Dietary Preferences</Text>
-      <Text style={styles.stepSubtitle}>Select any that apply (optional)</Text>
-      
-      <View style={styles.optionsGrid}>
-        {DIETARY_PREFERENCES.map((pref) => (
-          <TouchableOpacity
-            key={pref.key}
-            style={[
-              styles.optionCard,
-              formData.dietaryPreferences.includes(pref.key) && styles.optionCardSelected
-            ]}
-            onPress={() => toggleSelection(
-              formData.dietaryPreferences, 
-              pref.key, 
-              (arr) => setFormData({...formData, dietaryPreferences: arr})
-            )}
-          >
-            <Text style={styles.optionText}>{pref.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  // ✅ MOVED: Step 6 - Cuisine Preferences (was Step 5)
-  const renderStep6 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>🍽 Favorite Cuisines</Text>
-      <Text style={styles.stepSubtitle}>What cuisines do you enjoy?</Text>
-      
-      <View style={styles.optionsGrid}>
-        {CUISINE_PREFERENCES.map((cuisine) => (
-          <TouchableOpacity
-            key={cuisine.key}
-            style={[
-              styles.optionCard,
-              formData.cuisinePreferences.includes(cuisine.key) && styles.optionCardSelected
-            ]}
-            onPress={() => toggleSelection(
-              formData.cuisinePreferences, 
-              cuisine.key, 
-              (arr) => setFormData({...formData, cuisinePreferences: arr})
-            )}
-          >
-            <Text style={styles.optionText}>{cuisine.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  // ✅ MOVED: Step 7 - Cooking Experience (was Step 6)
-  const renderStep7 = () => (
-    <View style={styles.form}>
-      <Text style={styles.stepTitle}>👨‍🍳 Cooking Experience</Text>
-      
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Your Cooking Skill Level</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={formData.cookingSkillLevel}
-            style={styles.picker}
-            onValueChange={(value) => setFormData({...formData, cookingSkillLevel: value})}
-          >
-            <Picker.Item label="Select your skill level" value="" />
-            <Picker.Item label="🌱 Beginner" value="beginner" />
-            <Picker.Item label="🍳 Intermediate" value="intermediate" />
-            <Picker.Item label="👨‍🍳 Advanced" value="advanced" />
-            <Picker.Item label="⭐ Expert" value="expert" />
-          </Picker>
-        </View>
-      </View>
-
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>🎉 Almost Done!</Text>
-        <Text style={styles.summaryText}>
-          We'll calculate your daily nutrition goals automatically based on your information and keep you safe from allergens.
-        </Text>
-      </View>
-    </View>
-  );
-
-  if (!user) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color="#10b981" />
-        <Text style={{ textAlign: 'center', marginTop: 10 }}>Loading...</Text>
-      </View>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>🍽 Complete Your Profile</Text>
-          <Text style={styles.subtitle}>Step {currentStep} of 7</Text>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${(currentStep / 7) * 100}%` }]} />
-          </View>
-        </View>
-
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()} {/* NEW: Allergens */}
-        {currentStep === 5 && renderStep5()} {/* MOVED: Dietary Preferences */}
-        {currentStep === 6 && renderStep6()} {/* MOVED: Cuisine Preferences */}
-        {currentStep === 7 && renderStep7()} {/* MOVED: Cooking Experience */}
-
-        <View style={styles.buttonContainer}>
-          {currentStep > 1 && (
-            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-          )}
-          
-          {currentStep < 7 ? (
-            <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
-              <Text style={styles.nextButtonText}>Next →</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={handleComplete}
-              style={[styles.completeButton, loading && styles.buttonDisabled]}
-              disabled={loading}
+    <FormProvider {...formMethods}>
+      <AuthLayout>
+        <SafeAreaView style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <ThemedText bold type="heading" style={styles.title}>
+              🍽 Complete Your Profile
+            </ThemedText>
+            <ThemedText type="subheading" style={styles.subtitle}>
+              Step {currentStep} of {TOTAL_STEPS}
+            </ThemedText>
+            {/* Progress Bar */}
+            <View
+              style={[styles.progressBar, { backgroundColor: colors.border }]}
             >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.completeButtonText}>Complete Profile 🚀</Text>
-              )}
-            </TouchableOpacity>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${progress}%`, backgroundColor: colors.primary },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Steps Content */}
+          <View style={{ marginVertical: spacing.sm }}>
+            <StepComponent />
+          </View>
+
+          {currentStep === TOTAL_STEPS && (
+            <View
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: colors.success,
+                  borderColor: colors.primary,
+                },
+              ]}
+            >
+              <ThemedText bold style={styles.summaryTitle}>
+                🎉 Almost Done!
+              </ThemedText>
+              <ThemedText type="muted" style={styles.summaryText}>
+                We'll calculate your daily nutrition goals automatically based
+                on your information and keep you safe from allergens.
+              </ThemedText>
+            </View>
           )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          {/* Buttons */}
+          <View style={styles.buttonContainer}>
+            {currentStep > 1 && (
+              <TouchableOpacity
+                onPress={handleBack}
+                style={[styles.backButton, { backgroundColor: colors.border }]}
+              >
+                <ThemedText bold type="label">
+                  ← Back
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+            {currentStep < TOTAL_STEPS ? (
+              <TouchableOpacity
+                onPress={handleNext}
+                style={[
+                  styles.nextButton,
+                  { backgroundColor: colors.buttonPrimary },
+                ]}
+              >
+                <ThemedText bold type="label">
+                  {' '}
+                  Next →
+                </ThemedText>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSubmit(onSubmit)}
+                style={[
+                  styles.completeButton,
+                  { backgroundColor: colors.buttonPrimary },
+                  loading && { backgroundColor: colors.border },
+                ]}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.surface} />
+                ) : (
+                  <ThemedText type="label" bold>
+                    Complete Profile 🚀
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+          <CustomAlert
+            visible={visible}
+            title={title}
+            message={message}
+            buttons={buttons}
+            onClose={hideAlert}
+          />
+        </SafeAreaView>
+      </AuthLayout>
+    </FormProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc'
-  },
   content: {
-    padding: 20,
-    paddingBottom: 40
+    padding: spacing.md,
   },
   header: {
-    marginBottom: 30,
-    marginTop: 20
+    marginBottom: spacing.xl,
+    marginTop: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
-    color: '#1f2937'
+    marginBottom: spacing.sm,
+    fontSize: 24,
   },
   subtitle: {
-    fontSize: 16,
     textAlign: 'center',
-    marginBottom: 15,
-    color: '#6b7280'
+    marginBottom: spacing.md,
   },
   progressBar: {
-    height: 4,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 2,
-    overflow: 'hidden'
+    height: spacing.xs,
+    borderRadius: radius.xs,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10b981',
-    borderRadius: 2
-  },
-  form: {
-    marginBottom: 30
-  },
-  stepTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
-    textAlign: 'center'
-  },
-  stepSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 20
-  },
-  inputGroup: {
-    marginBottom: 20
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 8
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'white',
-    fontSize: 16,
-    minHeight: 44
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    backgroundColor: 'white',
-    overflow: 'hidden'
-  },
-  picker: {
-    height: 50
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 15
-  },
-  halfWidth: {
-    flex: 1
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12
-  },
-  optionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    minWidth: '45%',
-    borderWidth: 2,
-    borderColor: '#e5e7eb'
-  },
-  optionCardSelected: {
-    borderColor: '#10b981',
-    backgroundColor: '#f0fdf4'
-  },
-  optionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1f2937',
-    textAlign: 'center'
-  },
-  // ✅ FIXED: Critical missing styles for Step 4 allergens
-  optionEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  optionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1f2937',
-    textAlign: 'center'
-  },
-  optionLabelSelected: {
-    color: '#10b981',
-    fontWeight: '600'
-  },
-  noAllergiesOption: {
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    alignItems: 'center',
-    width: '100%'
-  },
-  noAllergiesOptionSelected: {
-    borderColor: '#10b981',
-    backgroundColor: '#f0fdf4',
-  },
-  noAllergiesText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  noAllergiesTextSelected: {
-    color: '#10b981',
-    fontWeight: '600',
+    borderRadius: radius.xs,
   },
   summaryCard: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 20,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginVertical: spacing.lg,
     borderWidth: 1,
-    borderColor: '#10b981'
   },
   summaryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
-    textAlign: 'center'
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   summaryText: {
-    fontSize: 14,
-    color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 20
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: spacing.md,
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center'
-  },
-  backButtonText: {
-    color: '#6b7280',
-    fontSize: 16,
-    fontWeight: '600'
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#10b981',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center'
-  },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold'
+    padding: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
   },
   completeButton: {
     flex: 1,
-    backgroundColor: '#10b981',
-    padding: 16,
-    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 50,
-    justifyContent: 'center'
+    padding: spacing.md,
+    borderRadius: radius.md,
   },
-  completeButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold'
-  },
-  buttonDisabled: {
-    backgroundColor: '#9ca3af'
-  }
 });
