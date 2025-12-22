@@ -14,7 +14,7 @@ interface SelectableListProps {
   name: string; // RHF field name
   title: string;
   subtitle?: string;
-  options: Option[];
+  options: readonly Option[];
   noSelectionLabel?: string;
 }
 

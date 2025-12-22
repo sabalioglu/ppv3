@@ -11,7 +11,7 @@ const activityLevelOptions = [
   { label: 'Moderately Active (3-5 days/week)', value: 'moderately_active' },
   { label: 'Very Active (6-7 days/week)', value: 'very_active' },
   { label: 'Extra Active (very intense)', value: 'extra_active' },
-];
+] as const;
 
 export const activityLevelValues = activityLevelOptions.map((opt) => opt.value);
 
