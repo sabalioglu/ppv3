@@ -70,15 +70,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="nutrition_old"
-        options={{
-          title: 'NutritionOld',
-          tabBarIcon: ({ size, color }) => (
-            <Activity size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="recipes"
         options={{
           title: 'Recipes',
