@@ -1,10 +1,13 @@
 import SelectableList from '@/components/onboarding/SelectableList';
 
-// Static data arrays
-const HEALTH_GOALS = [
+const HEALTH_GOALS_MACROS = [
   { key: 'weight_loss', label: '🏃‍♀️ Weight Loss' },
   { key: 'muscle_gain', label: '💪 Muscle Gain' },
   { key: 'maintain_weight', label: '⚖️ Maintain Weight' },
+] as const;
+
+// Static data arrays
+const HEALTH_GOALS_MICROS = [
   { key: 'improve_health', label: '❤️ Improve Health' },
   { key: 'energy_boost', label: '⚡ Energy Boost' },
   { key: 'digestive_health', label: '🌿 Digestive Health' },
@@ -16,7 +19,10 @@ const HEALTH_GOALS = [
   { key: 'anti_aging', label: '⏳ Anti-Aging' },
   { key: 'blood_sugar_control', label: '🍭 Blood Sugar Control' },
   { key: 'cholesterol_control', label: '🩸 Cholesterol Control' },
-];
+] as const;
+
+export const HealthGoalsMicrosKeys = HEALTH_GOALS_MICROS.map((opt) => opt.key);
+export const HealthGoalsMacrosKeys = HEALTH_GOALS_MACROS.map((opt) => opt.key);
 
 const COMMON_ALLERGENS = [
   { key: 'nuts', label: '🥜 Tree Nuts' },
@@ -78,12 +84,22 @@ const DIETARY_PREFERENCES = [
 ];
 
 // 🧩 Export individual screens using the shared component
-export const HealthGoals = () => (
+export const HealthGoalsMicros = () => (
   <SelectableList
-    name="healthGoals"
-    title="🎯 Health Goals"
-    subtitle="Select your primary wellness goals"
-    options={HEALTH_GOALS}
+    name="healthGoalsMicros"
+    title="🎯 Health Goals Micros"
+    subtitle="Select your micro wellness goals"
+    options={HEALTH_GOALS_MICROS}
+    noSelectionLabel="✅ No specific micro health goals needed"
+  />
+);
+
+export const HealthGoalsMacros = () => (
+  <SelectableList
+    name="healthGoalsMacros"
+    title="🎯 Health Goals Macros"
+    subtitle="Select your macro wellness goals"
+    options={HEALTH_GOALS_MACROS}
   />
 );
 

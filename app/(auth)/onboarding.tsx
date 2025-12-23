@@ -23,12 +23,15 @@ import Step2, {
   activityLevelValues,
 } from '@/components/onboarding/PhysicalStats';
 import {
-  HealthGoals as Step3,
-  Allergens as Step4,
-  DietaryPreferences as Step5,
-  CuisinePreferences as Step6,
+  HealthGoalsMacrosKeys,
+  HealthGoalsMicrosKeys,
+  HealthGoalsMacros as Step3,
+  HealthGoalsMicros as Step4,
+  Allergens as Step5,
+  DietaryPreferences as Step6,
+  CuisinePreferences as Step7,
 } from '@/components/onboarding/OnboardingLists';
-import Step7, {
+import Step8, {
   cookingSkillValues,
 } from '@/components/onboarding/CookingSkill';
 
@@ -60,9 +63,10 @@ export const formSchema = z.object({
     activityLevelValues,
     'Please select your activity level'
   ),
-  healthGoals: z
-    .array(z.string())
-    .min(1, 'Please select at least one health goal'),
+  healthGoalsMacros: z
+    .array(z.enum(HealthGoalsMacrosKeys))
+    .length(1, 'Please select exactly one health goal'),
+  healthGoalsMicros: z.array(z.enum(HealthGoalsMicrosKeys)).optional(),
   dietaryRestrictions: z.array(z.string()).optional(), // This will store selected allergens
   dietaryPreferences: z.array(z.string()).optional(),
   cuisinePreferences: z.array(z.string()).optional(),
@@ -75,15 +79,14 @@ const defaultFormValues: z.infer<typeof formSchema> = {
   gender: '',
   height: '',
   weight: '',
-  activityLevel: '',
-  healthGoals: [],
+  activityLevel: 'moderately_active',
+  healthGoalsMacros: [],
+  healthGoalsMicros: [],
   dietaryRestrictions: [],
   dietaryPreferences: [],
   cuisinePreferences: [],
   cookingSkillLevel: '',
 };
-
-const TOTAL_STEPS = 7;
 
 const steps: Record<
   number,
@@ -91,12 +94,15 @@ const steps: Record<
 > = {
   1: { component: Step1, fields: ['fullName', 'age', 'gender'] },
   2: { component: Step2, fields: ['height', 'weight', 'activityLevel'] },
-  3: { component: Step3, fields: ['healthGoals'] },
-  4: { component: Step4, fields: ['dietaryRestrictions'] },
-  5: { component: Step5, fields: ['dietaryPreferences'] },
-  6: { component: Step6, fields: ['cuisinePreferences'] },
-  7: { component: Step7, fields: ['cookingSkillLevel'] },
+  3: { component: Step3, fields: ['healthGoalsMacros'] },
+  4: { component: Step4, fields: ['healthGoalsMicros'] },
+  5: { component: Step5, fields: ['dietaryRestrictions'] },
+  6: { component: Step6, fields: ['dietaryPreferences'] },
+  7: { component: Step7, fields: ['cuisinePreferences'] },
+  8: { component: Step8, fields: ['cookingSkillLevel'] },
 };
+
+const TOTAL_STEPS = Object.keys(steps).length;
 
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -151,7 +157,8 @@ export default function Onboarding() {
         height_cm: parseInt(data.height),
         weight_kg: parseFloat(data.weight),
         activity_level: data.activityLevel,
-        health_goals: data.healthGoals,
+        health_goals_macros: data.healthGoalsMacros,
+        health_goals_micros: data.healthGoalsMicros,
         dietary_restrictions: data.dietaryRestrictions,
         dietary_preferences: data.dietaryPreferences,
         cuisine_preferences: data.cuisinePreferences,

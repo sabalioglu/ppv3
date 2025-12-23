@@ -11,27 +11,28 @@ import {
   Settings,
   CreditCard,
 } from 'lucide-react-native';
-import { colors, spacing } from '@/lib/theme';
+import { spacing } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TabsLayout() {
+  const { colors } = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary[500],
-        tabBarInactiveTintColor: colors.neutral[500],
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
           ...styles.tabBar,
+          borderTopColor: colors.borderLight,
+          backgroundColor: colors.surface,
           ...(Platform.OS === 'web' && {
             position: 'relative',
-            borderTopWidth: 1,
-            borderTopColor: colors.neutral[200],
           }),
         },
         tabBarLabelStyle: {
           fontFamily: 'Inter-Medium',
           fontSize: 12,
-          marginBottom: 4,
         },
         tabBarHideOnKeyboard: true,
       }}
@@ -110,22 +111,9 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#1f2937',
-  },
   tabBar: {
-    height: 80,
-    paddingBottom: spacing.sm,
-    backgroundColor: colors.neutral[0],
+    height: 70,
+    paddingBottom: spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
   },
 });

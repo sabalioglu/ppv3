@@ -18,7 +18,7 @@ type Props = {
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'email-address';
   style?: TextStyle;
-  pickerOptions?: PickerOption[];
+  pickerOptions?: readonly PickerOption[];
 };
 
 const FormInput = ({
