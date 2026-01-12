@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { TrendingUp } from 'lucide-react-native';
-import { spacing, shadows } from '@/lib/theme';
+import { spacing, shadows, radius } from '@/lib/theme/index';
 import ThemedText from '../UI/ThemedText';
 import { useTheme } from '@/contexts/ThemeContext';
-import { radius } from '@/lib/theme/constants';
 
 interface StatCardProps {
   title: string;
@@ -12,6 +11,7 @@ interface StatCardProps {
   target: number;
   color: string;
   unit: string;
+  percentage: number;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -20,9 +20,9 @@ const StatCard: React.FC<StatCardProps> = ({
   target,
   color,
   unit,
+  percentage,
 }) => {
   const { colors } = useTheme();
-  const percentage = target > 0 ? Math.min((current / target) * 100, 100) : 0;
 
   return (
     <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
