@@ -10,7 +10,44 @@ export type NutritionValues = {
   protein: number;
   carbs: number;
   fat: number;
+  water: number;
 };
+
+export type MacroKey = keyof NutritionValues;
+
+export type MacroDefinitionProps = {
+  title: string;
+  unit: string;
+  low: number;
+};
+
+export const MACRO_DEFINITIONS = {
+  calories: {
+    title: 'Calories',
+    unit: 'kcal',
+    low: 80,
+  },
+  protein: {
+    title: 'Protein',
+    unit: 'g',
+    low: 70,
+  },
+  carbs: {
+    title: 'Carbohydrates',
+    unit: 'g',
+    low: 60,
+  },
+  fat: {
+    title: 'Fat',
+    unit: 'g',
+    low: 50,
+  },
+  water: {
+    title: 'Water',
+    unit: 'ml',
+    low: 70,
+  },
+} satisfies Record<MacroKey, MacroDefinitionProps>;
 
 export const getMacroNutritionInsights = (
   intake: NutritionValues,
@@ -18,61 +55,62 @@ export const getMacroNutritionInsights = (
 ): NutritionInsight[] => {
   const insights: NutritionInsight[] = [];
 
-  const caloriePercent = (intake.calories / targets.calories) * 100;
-  const proteinPercent = (intake.protein / targets.protein) * 100;
-  const carbPercent = (intake.carbs / targets.carbs) * 100;
-  const fatPercent = (intake.fat / targets.fat) * 100;
+  (Object.keys(MACRO_DEFINITIONS) as MacroKey[]).forEach((key) => {
+    const config = MACRO_DEFINITIONS[key];
+    const value = intake[key];
+    const target = targets[key];
 
-  // Calorie Insights
-  if (caloriePercent < 80) {
-    insights.push({
-      title: 'Calorie Intake Low',
-      description: `You've consumed ${intake.calories} calories today`,
-      type: 'warning',
-      value: `${Math.round(targets.calories - intake.calories)} cal needed`,
-    });
-  } else if (caloriePercent > 110) {
-    insights.push({
-      title: 'Calorie Goal Exceeded',
-      description: `You've consumed ${intake.calories} calories today`,
-      type: 'warning',
-      value: `${Math.round(caloriePercent)}% of target`,
-    });
-  } else {
-    insights.push({
-      title: 'Calorie Intake on Track',
-      description: 'You are within your daily calorie target',
-      type: 'success',
-      value: `${Math.round(caloriePercent)}% of target`,
-    });
-  }
-  // Protein Insights
-  if (proteinPercent < 70) {
-    insights.push({
-      title: 'Protein Intake Low',
-      description: 'Consider adding protein-rich foods',
-      type: 'warning',
-      value: `${Math.round(targets.protein - intake.protein)}g needed`,
-    });
-  }
+    if (!target) return;
 
-  if (carbPercent < 60) {
-    insights.push({
-      title: 'Carbohydrate Intake Low',
-      description: 'Include whole grains, fruits, or starchy vegetables',
-      type: 'warning',
-      value: `${Math.round(targets.carbs - intake.carbs)}g needed`,
-    });
-  }
+    const p = rawPercentage(value, target);
 
-  if (fatPercent < 50) {
-    insights.push({
-      title: 'Fat Intake Low',
-      description: 'Add healthy fats like olive oil, nuts, or avocado',
-      type: 'warning',
-      value: `${Math.round(targets.fat - intake.fat)}g needed`,
-    });
-  }
+    // --- CALORIES (SPECIAL CASE) ---
+    if (key === 'calories') {
+      if (p < config.low) {
+        insights.push({
+          type: 'warning',
+          title: 'Calorie Intake Low',
+          description: `You've consumed ${value} calories `,
+          value: `${Math.round(target - value)} cal needed`,
+        });
+      } else if (p > 110) {
+        insights.push({
+          type: 'warning',
+          title: 'Calorie Goal Exceeded',
+          description: `You've consumed ${value} calories `,
+          value: `${Math.round(p)}% of target`,
+        });
+      } else if (p >= 90 && p <= 110) {
+        insights.push({
+          type: 'success',
+          title: 'Calorie Intake On Track 🎯',
+          description: 'You are within your daily calorie target',
+          value: `${Math.round(p)}% of target`,
+        });
+      }
+      return;
+    }
 
+    // --- OTHER MACROS (LOW ONLY) ---
+    if (p < config.low) {
+      insights.push({
+        type: key === 'water' ? 'info' : 'warning',
+        title: `${capitalize(key)} Intake Low`,
+        description:
+          key === 'water'
+            ? 'Drink more water to stay hydrated'
+            : `Consider adding more ${key}`,
+        value: `${Math.round(target - value)}${config.unit} needed`,
+      });
+    }
+  });
   return insights;
 };
+
+export const rawPercentage = (value: number, target: number) =>
+  target > 0 ? (value / target) * 100 : 0;
+
+export const safePercentage = (value: number, target: number) =>
+  target > 0 ? Math.min(Math.round((value / target) * 100), 100) : 0;
+
+export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
