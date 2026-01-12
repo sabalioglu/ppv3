@@ -55,20 +55,6 @@ import { MacroKey } from '@/lib/nutrition/insights';
 
 const macroKeys: MacroKey[] = ['protein', 'carbs', 'fat'];
 
-export const fakeMeals: Meal[] = [
-  {
-    id: 'meal_001',
-    mealType: 'breakfast',
-    time: '08:15 AM',
-    foodName: 'Avocado Toast & Eggs',
-    calories: 430,
-    protein: 22,
-    carbs: 38,
-    fat: 24,
-    source: 'manual',
-  },
-];
-
 export default function Nutrition() {
   const [showTdeeTooltip, setShowTdeeTooltip] = useState(false);
   const { colors } = useTheme();
@@ -337,8 +323,8 @@ export default function Nutrition() {
           </View>
 
           <View>
-            {fakeMeals.length > 0 ? (
-              fakeMeals.map((meal) => (
+            {meals.length > 0 ? (
+              meals.map((meal) => (
                 <MealCard
                   key={meal.id}
                   meal={meal}
