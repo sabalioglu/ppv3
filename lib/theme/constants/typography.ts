@@ -17,6 +17,12 @@ export type Typography = {
   bodyText: textprops;
   bodyTextBold: textprops;
 
+  title: textprops;
+  titleBold: textprops;
+
+  subtitle: textprops;
+  subtitleBold: textprops;
+
   labelText: textprops;
   labelTextBold: textprops;
 
@@ -55,6 +61,30 @@ export const typography: Typography = {
   subheadingTextBold: {
     fontFamily,
     fontSize: 18,
+    fontStyle: 'normal',
+    fontWeight: fontWeightBold,
+  },
+  title: {
+    fontFamily,
+    fontSize: 24,
+    fontStyle: 'normal',
+    fontWeight: fontWeightRegular,
+  },
+  titleBold: {
+    fontFamily,
+    fontSize: 24,
+    fontStyle: 'normal',
+    fontWeight: fontWeightBold,
+  },
+  subtitle: {
+    fontFamily,
+    fontSize: 20,
+    fontStyle: 'normal',
+    fontWeight: fontWeightRegular,
+  },
+  subtitleBold: {
+    fontFamily,
+    fontSize: 20,
     fontStyle: 'normal',
     fontWeight: fontWeightBold,
   },

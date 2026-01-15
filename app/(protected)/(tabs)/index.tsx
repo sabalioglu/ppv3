@@ -22,9 +22,11 @@ import { spacing, shadows, radius } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
 
 import { useUserProfile } from '@/hooks/dashboard/useUserProfile';
-import { useMacroNutritionTargets } from '@/hooks/dashboard/useNutritionTargets';
-import { useMacroNutritionInsights } from '@/hooks/dashboard/useNutritionInsights';
-import { useTodaysMacroIntake } from '@/hooks/dashboard/useTodaysIntake';
+import { useMacroNutritionTargets } from '@/hooks/nutrition/useNutritionTargets';
+import { useMacroNutritionInsights } from '@/hooks/nutrition/useNutritionInsights';
+import { useDailyMacroIntake } from '@/hooks/nutrition/useDailyMacroIntake';
+import { useNutritionStats } from '@/hooks/nutrition/useNutritionStats';
+import { MacroKey } from '@/lib/nutrition/insights';
 
 import LoadingCard from '@/components/UI/LoadingCard';
 import ThemedText from '@/components/UI/ThemedText';
@@ -57,22 +59,26 @@ const QUICK_ACTIONS = [
   },
 ] as const;
 
+const DASHBOARD_MACROS: MacroKey[] = ['calories', 'protein', 'carbs', 'fat'];
+
 export default function Dashboard() {
   const { colors } = useTheme();
   const [greeting, setGreeting] = useState('');
+  const [today] = useState(() => new Date());
 
   const { userProfile, loading: profileLoading } = useUserProfile();
 
-  const { intake, loading: intakeLoading } = useTodaysMacroIntake(
+  const { intake, loading: intakeLoading } = useDailyMacroIntake(
+    today,
     userProfile?.id
   );
 
   const macroNutritionTargets = useMacroNutritionTargets(userProfile);
+  const nutritionStats = useNutritionStats(intake, macroNutritionTargets);
   const macroInsights = useMacroNutritionInsights(
     intake,
     macroNutritionTargets
   );
-  const isLoading = profileLoading && intakeLoading;
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -81,7 +87,7 @@ export default function Dashboard() {
     else setGreeting('Good Evening');
   }, []);
 
-  if (isLoading) {
+  if (profileLoading || intakeLoading) {
     return <LoadingCard statusText="Loading your dashboard..." />;
   }
 
@@ -96,7 +102,7 @@ export default function Dashboard() {
           colors={[colors.primary, colors.buttonPrimary]}
           style={styles.header}
         >
-          <ThemedText type="label" bold style={styles.greeting}>
+          <ThemedText type="title" bold style={styles.greeting}>
             {greeting}, {userProfile?.full_name}!
           </ThemedText>
 
@@ -112,7 +118,7 @@ export default function Dashboard() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <User size={20} color={colors.primary} />
-              <ThemedText type="body" bold style={styles.sectionTitle}>
+              <ThemedText type="subtitle" bold style={styles.sectionTitle}>
                 Your Profile Summary
               </ThemedText>
             </View>
@@ -128,41 +134,27 @@ export default function Dashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Target size={20} color={colors.primary} />
-            <ThemedText type="body" bold style={styles.sectionTitle}>
+            <ThemedText type="subtitle" bold style={styles.sectionTitle}>
               Today's Progress
             </ThemedText>
           </View>
 
           {intake?.calories > 0 ? (
             <View style={styles.statsGrid}>
-              <StatCard
-                title="Calories"
-                current={intake.calories}
-                target={macroNutritionTargets.calories}
-                color={colors.primary}
-                unit="kcal"
-              />
-              <StatCard
-                title="Protein"
-                current={intake.protein}
-                target={macroNutritionTargets.protein}
-                color={colors.warning}
-                unit="g"
-              />
-              <StatCard
-                title="Carbs"
-                current={intake.carbs}
-                target={macroNutritionTargets.carbs}
-                color={colors.info}
-                unit="g"
-              />
-              <StatCard
-                title="Fat"
-                current={intake.fat}
-                target={macroNutritionTargets.fat}
-                color={colors.error}
-                unit="g"
-              />
+              {DASHBOARD_MACROS.map((key) => {
+                const stat = nutritionStats[key];
+                return (
+                  <StatCard
+                    key={stat.key}
+                    title={stat.title}
+                    current={stat.current}
+                    target={stat.target}
+                    color={stat.color}
+                    unit={stat.unit}
+                    percentage={stat.safePercent}
+                  />
+                );
+              })}
             </View>
           ) : (
             <EmptyState
@@ -180,7 +172,7 @@ export default function Dashboard() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <TrendingUp size={20} color={colors.primary} />
-              <ThemedText type="body" bold style={styles.sectionTitle}>
+              <ThemedText type="subtitle" bold style={styles.sectionTitle}>
                 Your Insights
               </ThemedText>
             </View>
@@ -196,7 +188,7 @@ export default function Dashboard() {
         {/* ------------------------------ Quick Actions --------------------------- */}
         <View style={[styles.section, { marginBottom: 100 }]}>
           <ThemedText
-            type="body"
+            type="subtitle"
             bold
             style={[styles.sectionTitle, styles.sectionHeader]}
           >
@@ -246,7 +238,6 @@ const styles = StyleSheet.create({
   },
   greeting: {
     marginBottom: spacing.sm,
-    fontSize: 24,
   },
   section: {
     padding: spacing.lg,
@@ -259,7 +250,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     alignSelf: 'center',
-    fontSize: 18,
     marginLeft: spacing.sm,
   },
   statsGrid: {

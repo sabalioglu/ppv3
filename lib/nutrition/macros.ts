@@ -15,7 +15,7 @@ export type ActivityLevel =
   | 'very_active'
   | 'extra_active';
 
-const multipliers: Record<ActivityLevel, number> = {
+export const multipliers: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   lightly_active: 1.375,
   moderately_active: 1.55,

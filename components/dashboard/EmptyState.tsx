@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { JSX } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { spacing, shadows, radius } from '@/lib/theme/index';
 import ThemedText from '../UI/ThemedText';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface EmptyStateProps {
-  icon: any;
+  icon: JSX.ElementType;
+  color?: string;
   title: string;
   message: string;
   actionText?: string;
@@ -13,6 +14,7 @@ interface EmptyStateProps {
 }
 const EmptyState: React.FC<EmptyStateProps> = ({
   icon: Icon,
+  color,
   title,
   message,
   actionText,
@@ -23,7 +25,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
       <View style={styles.emptyIcon}>
-        <Icon size={48} color={colors.primary} />
+        <Icon size={48} color={color || colors.primary} />
       </View>
       <ThemedText bold style={styles.emptyTitle}>
         {title}

@@ -146,7 +146,7 @@ const lightColors: Colors = {
   // Text colors
   text: colors.neutral[0],
   textPrimary: colors.neutral[900],
-  textSecondary: colors.neutral[600],
+  textSecondary: colors.neutral[500],
   textOnPrimary: colors.neutral[0],
 
   // UI elements

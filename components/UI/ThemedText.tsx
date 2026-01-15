@@ -9,6 +9,8 @@ const BODY = 'body';
 const LABEL = 'label';
 const CAPTION = 'caption';
 const MUTED = 'muted';
+const TITLE = 'title';
+const SUBTITLE = 'subtitle';
 
 type TextType =
   | 'heading'
@@ -16,17 +18,21 @@ type TextType =
   | 'body'
   | 'label'
   | 'caption'
-  | 'muted';
+  | 'muted'
+  | 'title'
+  | 'subtitle';
 
 export interface ThemedTextProps extends TextProps {
   /**
    * @type prop helps style Text with pre-defined styling defined in
    * typography.js. Possible value of type can be:
-   * 1. 'heading'
-   * 2. 'subheading'
-   * 3. 'body'
-   * 4. 'label'
-   * 5. 'caption'
+   * 1. 'heading' // uses auths page heading style
+   * 2. 'subheading' // uses auths page subheading style
+   * 3. 'title' // uses tabs page title style
+   * 4. 'subtitle' // uses tabs page subtitle style
+   * 5. 'body'
+   * 6. 'label'
+   * 7. 'caption'
    *
    * default value: 'body'
    */
@@ -63,6 +69,14 @@ const getTextStyle = (type: TextType, bold: boolean, colors: Colors) => {
     case SUB_HEADING:
       style = 'subheadingText';
       color = colors.textSecondary;
+      break;
+    case TITLE:
+      style = 'title';
+      color = colors.textPrimary;
+      break;
+    case SUBTITLE:
+      style = 'subtitle';
+      color = colors.textPrimary;
       break;
     case LABEL:
       style = 'labelText';
