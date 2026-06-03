@@ -28,7 +28,6 @@ import {
   TriangleAlert as AlertTriangle,
   X,
   Camera,
-  Barcode,
   Clock,
   MapPin,
   TrendingUp,
@@ -123,7 +122,7 @@ export default function PantryScreen() {
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [categoryStats, setCategoryStats] = useState<{ [key: string]: number }>(
-    {}
+    {},
   );
 
   const [editMode, setEditMode] = useState(false);
@@ -218,7 +217,7 @@ export default function PantryScreen() {
       filtered = filtered.filter(
         (item) =>
           item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+          item.brand?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -229,7 +228,7 @@ export default function PantryScreen() {
 
         const expiryDate = new Date(item.expiry_date);
         const daysUntilExpiry = Math.ceil(
-          (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+          (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
         );
 
         switch (activeExpiryFilter) {
@@ -388,7 +387,7 @@ export default function PantryScreen() {
         Alert.alert(
           'Item Already Exists',
           `${item.name} is already in your shopping list.`,
-          [{ text: 'OK', style: 'default' }]
+          [{ text: 'OK', style: 'default' }],
         );
         setShowActionsMenu(null);
         return;
@@ -410,7 +409,7 @@ export default function PantryScreen() {
 
       console.log(
         'Inserting shopping item with correct quantity:',
-        shoppingItemData
+        shoppingItemData,
       );
 
       const { data, error } = await supabase
@@ -432,7 +431,7 @@ export default function PantryScreen() {
         `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${
           item.quantity
         } ${item.unit} has been added to your shopping list!`,
-        [{ text: 'OK', style: 'default' }]
+        [{ text: 'OK', style: 'default' }],
       );
       setShowActionsMenu(null);
     } catch (error: any) {
@@ -440,7 +439,7 @@ export default function PantryScreen() {
       Alert.alert(
         'Error',
         error.message ||
-          'Failed to add item to shopping list. Please try again.'
+          'Failed to add item to shopping list. Please try again.',
       );
       setShowActionsMenu(null);
     }
@@ -597,7 +596,7 @@ export default function PantryScreen() {
           ]}
           onPress={() =>
             handleExpiryFilterChange(
-              activeExpiryFilter === 'expiring' ? 'all' : 'expiring'
+              activeExpiryFilter === 'expiring' ? 'all' : 'expiring',
             )
           }
           activeOpacity={0.7}
@@ -630,7 +629,7 @@ export default function PantryScreen() {
           ]}
           onPress={() =>
             handleExpiryFilterChange(
-              activeExpiryFilter === 'expired' ? 'all' : 'expired'
+              activeExpiryFilter === 'expired' ? 'all' : 'expired',
             )
           }
           activeOpacity={0.7}
@@ -782,10 +781,10 @@ export default function PantryScreen() {
                 {daysUntilExpiry === 0
                   ? 'Today'
                   : daysUntilExpiry === 1
-                  ? 'Tomorrow'
-                  : daysUntilExpiry && daysUntilExpiry > 0
-                  ? `${daysUntilExpiry}d`
-                  : 'Expired'}
+                    ? 'Tomorrow'
+                    : daysUntilExpiry && daysUntilExpiry > 0
+                      ? `${daysUntilExpiry}d`
+                      : 'Expired'}
               </Text>
             </View>
           )}

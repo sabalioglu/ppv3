@@ -1,39 +1,59 @@
-// app.config.js - COMPLETE FIXED VERSION WITH SCHEME
+// app.config.js — single source of truth for Expo config (supersedes app.json).
+// Brand: Stovd. Bundle/package: com.stovd.app. Scheme: stovd.
 export default {
   expo: {
-    name: "Smart Pantry",
-    slug: "smart-pantry",
-    version: "1.0.0",
-    orientation: "portrait",
-    scheme: "pantrypal", // ✅ ADDED SCHEME
-    userInterfaceStyle: "light",
-    assetBundlePatterns: [
-      "**/*"
-    ],
+    name: 'Stovd',
+    slug: 'stovd',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/images/icon.png',
+    scheme: 'stovd',
+    userInterfaceStyle: 'automatic',
+    newArchEnabled: true,
+    assetBundlePatterns: ['**/*'],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.pantrypal.app"
+      bundleIdentifier: 'com.stovd.app',
+      infoPlist: {
+        CFBundleURLTypes: [
+          {
+            CFBundleURLName: 'stovd',
+            CFBundleURLSchemes: ['stovd'],
+          },
+        ],
+      },
     },
     android: {
+      package: 'com.stovd.app',
       adaptiveIcon: {
-        backgroundColor: "#ffffff"
+        backgroundColor: '#ffffff',
       },
-      package: "com.pantrypal.app"
+      intentFilters: [
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          data: [
+            {
+              scheme: 'stovd',
+              host: 'auth',
+              pathPrefix: '/callback',
+            },
+          ],
+          category: ['BROWSABLE', 'DEFAULT'],
+        },
+      ],
     },
     web: {
-      bundler: "metro",
-      output: "static"
+      bundler: 'metro',
+      output: 'static',
+      favicon: './assets/images/favicon.png',
     },
-    plugins: [
-      "expo-router",
-      "expo-font",
-      "expo-web-browser"
-    ],
+    plugins: ['expo-router', 'expo-font', 'expo-web-browser'],
     experiments: {
-      typedRoutes: true
+      typedRoutes: true,
     },
     extra: {
-      rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY
-    }
-  }
+      rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
+    },
+  },
 };

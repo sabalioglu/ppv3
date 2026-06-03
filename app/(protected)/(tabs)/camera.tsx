@@ -23,7 +23,6 @@ import {
   Images,
   Calculator,
   X,
-  Scan,
   Check,
   Plus,
   CreditCard as Edit,
@@ -40,8 +39,7 @@ type ScanMode =
   | 'receipt-scanner'
   | 'single-photo'
   | 'multiple-images'
-  | 'calorie-counter'
-  | 'barcode-scanner';
+  | 'calorie-counter';
 
 interface ScanResult {
   type: ScanMode;
@@ -113,12 +111,6 @@ export default function CameraScreen() {
       color: '#32CD32',
       description: 'Identify ingredients',
     },
-    'barcode-scanner': {
-      title: 'BARCODE',
-      icon: Scan,
-      color: '#9C27B0',
-      description: 'Scan product codes',
-    },
     'multiple-images': {
       title: 'MULTIPLE',
       icon: Images,
@@ -189,7 +181,7 @@ export default function CameraScreen() {
   const handleItemAction = (
     itemId: string,
     action: 'confirm' | 'reject' | 'edit',
-    newName?: string
+    newName?: string,
   ) => {
     console.log('Item action:', action, 'for item:', itemId);
 
@@ -205,8 +197,8 @@ export default function CameraScreen() {
               action === 'confirm'
                 ? true
                 : action === 'reject'
-                ? false
-                : item.is_food,
+                  ? false
+                  : item.is_food,
             confidence: item.confidence,
           };
 
@@ -218,14 +210,14 @@ export default function CameraScreen() {
               action === 'confirm'
                 ? 'confirmed'
                 : action === 'reject'
-                ? 'rejected'
-                : 'edited',
+                  ? 'rejected'
+                  : 'edited',
 
             name: newName || item.name,
           };
         }
         return item;
-      })
+      }),
     );
 
     // Haptic feedback
@@ -240,21 +232,20 @@ export default function CameraScreen() {
       console.log('Adding items to inventory:', items);
 
       const confirmedFoodItems = items.filter(
-        (item) => item.user_action === 'confirmed' && item.is_food
+        (item) => item.user_action === 'confirmed' && item.is_food,
       );
 
       if (confirmedFoodItems.length === 0) {
         Alert.alert(
           'No Items Selected',
-          'Please confirm some food items first'
+          'Please confirm some food items first',
         );
         return;
       }
 
       // Add to pantry
-      const success = await ReceiptLearningService.addItemsToPantry(
-        confirmedFoodItems
-      );
+      const success =
+        await ReceiptLearningService.addItemsToPantry(confirmedFoodItems);
 
       if (!success) {
         throw new Error('Failed to add items to pantry');
@@ -263,7 +254,7 @@ export default function CameraScreen() {
       // ✅ SIMPLIFIED LEARNING DATA - NO OCR
       if (lastScanImageUri) {
         const confirmedItems = items.filter(
-          (item) => item.user_action === 'confirmed'
+          (item) => item.user_action === 'confirmed',
         );
         const rejectedItems = items
           .filter((item) => item.user_action === 'rejected')
@@ -306,27 +297,27 @@ export default function CameraScreen() {
           await ReceiptLearningService.saveFeedbackSession(
             receiptLearningId,
             userFeedback,
-            sessionStats
+            sessionStats,
           );
         }
       }
 
       if (Haptics.notificationAsync) {
         await Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
+          Haptics.NotificationFeedbackType.Success,
         );
       }
 
       Alert.alert(
         'Success! 🎉',
         `Added ${confirmedFoodItems.length} food items to your pantry!\n\nThanks for using our smart scanner! 🤖`,
-        [{ text: 'Great!', style: 'default' }]
+        [{ text: 'Great!', style: 'default' }],
       );
     } catch (error) {
       console.error('Error adding to inventory:', error);
       Alert.alert(
         'Error',
-        'Failed to add items to inventory. Please try again.'
+        'Failed to add items to inventory. Please try again.',
       );
     }
   };
@@ -356,7 +347,7 @@ export default function CameraScreen() {
 
           const analysisResult = await OpenAIVisionService.analyzeImage(
             base64,
-            scanMode
+            scanMode,
           );
           allResults.push(analysisResult);
         }
@@ -369,7 +360,7 @@ export default function CameraScreen() {
             name: `${imageUri.length} Images Analyzed`,
             confidence: Math.round(
               combinedItems.reduce((acc, item) => acc + item.confidence, 0) /
-                combinedItems.length
+                combinedItems.length,
             ),
             items: combinedItems,
             suggestions: [
@@ -383,7 +374,7 @@ export default function CameraScreen() {
       } else {
         // Single image processing
         const base64 = await convertImageToBase64(
-          Array.isArray(imageUri) ? imageUri[0] : imageUri
+          Array.isArray(imageUri) ? imageUri[0] : imageUri,
         );
 
         if (!validateImageSize(base64, 15000)) {
@@ -392,7 +383,7 @@ export default function CameraScreen() {
 
         const analysisResult = await OpenAIVisionService.analyzeImage(
           base64,
-          scanMode
+          scanMode,
         );
 
         result = {
@@ -445,7 +436,7 @@ export default function CameraScreen() {
 
       if (Haptics.notificationAsync) {
         await Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
+          Haptics.NotificationFeedbackType.Success,
         );
       }
     } catch (error) {
@@ -588,7 +579,7 @@ export default function CameraScreen() {
   // ✅ CLEANED ADD TO INVENTORY MODAL - NO OCR REFERENCES
   const AddToInventoryModal = () => {
     const confirmedCount = parsedItems.filter(
-      (item) => item.user_action === 'confirmed'
+      (item) => item.user_action === 'confirmed',
     ).length;
 
     return (
@@ -689,10 +680,10 @@ export default function CameraScreen() {
                               handleItemAction(
                                 item.id,
                                 'edit',
-                                newName.trim().toUpperCase()
+                                newName.trim().toUpperCase(),
                               );
                             }
-                          }
+                          },
                         );
                       }}
                       activeOpacity={0.7}
@@ -810,8 +801,6 @@ export default function CameraScreen() {
                   ingredient recognition{'\n'}
                   <Text style={styles.tutorialHighlight}>CALORIES:</Text>{' '}
                   Accurate nutrition analysis{'\n'}
-                  <Text style={styles.tutorialHighlight}>BARCODE:</Text> Product
-                  code scanning{'\n'}
                   <Text style={styles.tutorialHighlight}>MULTIPLE:</Text> Batch
                   processing{'\n'}
                   <Text style={styles.tutorialHighlight}>RECEIPT:</Text> Smart
@@ -830,14 +819,12 @@ export default function CameraScreen() {
                   {scanMode === 'receipt-scanner'
                     ? loadingMessage
                     : scanMode === 'food-recognition'
-                    ? 'Analyzing food...'
-                    : scanMode === 'calorie-counter'
-                    ? 'Calculating nutrition...'
-                    : scanMode === 'multiple-images'
-                    ? 'Processing images...'
-                    : scanMode === 'barcode-scanner'
-                    ? 'Scanning barcode...'
-                    : 'AI processing...'}
+                      ? 'Analyzing food...'
+                      : scanMode === 'calorie-counter'
+                        ? 'Calculating nutrition...'
+                        : scanMode === 'multiple-images'
+                          ? 'Processing images...'
+                          : 'AI processing...'}
                 </Text>
 
                 {/* ✅ PROGRESS INDICATOR FOR RECEIPT SCANNING */}
@@ -1028,7 +1015,7 @@ export default function CameraScreen() {
                                   {item.name || item.item}
                                 </Text>
                               </View>
-                            )
+                            ),
                           )}
                         </View>
                       )}
@@ -1045,7 +1032,7 @@ export default function CameraScreen() {
                               <Text key={index} style={styles.suggestionText}>
                                 • {suggestion}
                               </Text>
-                            )
+                            ),
                           )}
                         </View>
                       )}
@@ -1106,14 +1093,14 @@ export default function CameraScreen() {
                                         confidence: item.confidence || 70,
                                         is_food: true,
                                         user_action: 'confirmed',
-                                      })
+                                      }),
                                     );
 
                                   addToInventory(items);
                                   clearResults();
                                 },
                               },
-                            ]
+                            ],
                           );
                         }}
                       >
