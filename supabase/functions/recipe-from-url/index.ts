@@ -5,13 +5,17 @@
 //   3. Gemini 2.5 Flash on the clean markdown -> structured recipe (fallback).
 // Auth: requires a valid user JWT. Output: { recipe: ExtractedRecipeData, method }.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
 const MODEL = Deno.env.get('RECIPE_LLM_MODEL') ?? 'gemini-2.5-flash';
 const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY')!;
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
+
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -107,9 +111,7 @@ function extractJsonLd(html: string): Record<string, unknown> | null {
   return null;
 }
 
-async function firecrawlScrape(
-  url: string,
-): Promise<{
+async function firecrawlScrape(url: string): Promise<{
   markdown: string;
   rawHtml: string;
   ogImage: string | null;
@@ -212,6 +214,10 @@ Deno.serve(async (req) => {
     return json({ error: 'invalid url' }, 400);
   }
 
+  // ---- freemium gate: imports are limited per month on the free tier ----
+  const meter = await checkQuota(admin, user.id, 'recipe_import');
+  if (!meter.allowed) return json(quotaBody(meter), 402);
+
   // 1) scrape (clean markdown + rawHtml)
   let scraped;
   try {
@@ -224,6 +230,7 @@ Deno.serve(async (req) => {
   const ld = extractJsonLd(scraped.rawHtml);
   if (ld && (ld.ingredients as unknown[])?.length) {
     if (!ld.image_url) ld.image_url = scraped.ogImage;
+    await recordUsage(admin, user.id, 'recipe_import');
     return json({ recipe: ld, method: 'jsonld' });
   }
 
@@ -261,5 +268,6 @@ Deno.serve(async (req) => {
     is_ai_generated: true,
     ai_match_score: conf || null,
   };
+  await recordUsage(admin, user.id, 'recipe_import');
   return json({ recipe, method: 'gemini' });
 });

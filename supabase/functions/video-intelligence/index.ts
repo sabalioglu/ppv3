@@ -8,6 +8,7 @@
 //   3. Store into user_recipes with the source thumbnail as image_url.
 // (Frames+transcript are sent as images+text, so the LLM is swappable to local Gemma later.)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -118,6 +119,11 @@ Deno.serve(async (req) => {
   const url: string | undefined = body?.url;
   if (!url) return json({ error: 'url required' }, 400);
 
+  // ---- freemium gate: imports are limited per month on the free tier
+  // (shares the 'recipe_import' counter with URL imports) ----
+  const meter = await checkQuota(admin, userId, 'recipe_import');
+  if (!meter.allowed) return json(quotaBody(meter), 402);
+
   // ---- 1) holistic analyze on the VPS (frames + transcript + caption) ----
   let bundle: AnalyzeBundle;
   try {
@@ -190,6 +196,8 @@ Deno.serve(async (req) => {
       { error: 'store failed', detail: error.message, recipe: row },
       500,
     );
+
+  await recordUsage(admin, userId, 'recipe_import');
 
   return json({
     success: true,

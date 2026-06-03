@@ -4,6 +4,7 @@
 //       -> Gemini adapts top candidates to available ingredients + skill -> recommendations.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { embed, normalizeIngredientNames, json } from '../_shared/embed.ts';
+import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -66,6 +67,10 @@ Deno.serve(async (req) => {
   );
   if (!pantry.length)
     return json({ error: 'empty pantry', recommendations: [] }, 200);
+
+  // ---- freemium gate: AI recipe generation is limited per month ----
+  const meter = await checkQuota(admin, userId, 'ai_meal_plan');
+  if (!meter.allowed) return json(quotaBody(meter), 402);
 
   // ---- taste profile (derive on the fly if missing) ----
   const { data: taste } = await admin
@@ -182,6 +187,8 @@ Return JSON: { "recommendations": [ { "candidate_id": "<id or null if freshly ge
       ),
     };
   });
+
+  await recordUsage(admin, userId, 'ai_meal_plan');
 
   return json({
     recommendations,

@@ -5,12 +5,16 @@
 // Input:  { image: "<base64 jpeg, no data: prefix>", mode: string }
 // Output: { text: "<model JSON string>", model }   <- the client parses/validates this.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
+const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!;
 const MODEL = Deno.env.get('VISION_LLM_MODEL') ?? 'gemini-2.5-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com';
+
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -106,6 +110,10 @@ Deno.serve(async (req) => {
   if (!image || typeof image !== 'string')
     return json({ error: 'image (base64) required' }, 400);
 
+  // ---- freemium gate: free tier is limited per month ----
+  const meter = await checkQuota(admin, user.id, 'photo_scan');
+  if (!meter.allowed) return json(quotaBody(meter), 402);
+
   const res = await fetch(
     `${GEMINI_BASE}/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -135,5 +143,6 @@ Deno.serve(async (req) => {
     );
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
+  await recordUsage(admin, user.id, 'photo_scan');
   return json({ text, model: MODEL });
 });
