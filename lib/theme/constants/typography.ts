@@ -1,5 +1,18 @@
 import { Platform } from 'react-native';
 
+// ── Stovd brand font families (loaded in app/_layout.tsx) ──────────────
+// Fraunces = editorial display serif (headings); Inter = body / UI.
+// Fall back to platform system fonts if a face fails to load.
+export const fonts = {
+  display: 'Fraunces-SemiBold',
+  displayMedium: 'Fraunces-Medium',
+  displayBold: 'Fraunces-Bold',
+  body: 'Inter-Regular',
+  bodyMedium: 'Inter-Medium',
+  bodySemibold: 'Inter-SemiBold',
+  bodyBold: 'Inter-Bold',
+};
+
 type textprops = {
   fontFamily: string;
   fontSize: number;

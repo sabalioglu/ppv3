@@ -1,21 +1,44 @@
+// app/cookbook/[id].tsx — Cookbook detail (Warm Kitchen restyle).
+// Visual restyle only: all data loading, mutations, modals, long-press management
+// and navigation are preserved exactly.
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
   Image,
+  Pressable,
 } from 'react-native';
-import { ArrowLeft, Plus, Edit3, Trash2, Clock, Users, Flame, ChefHat, Info } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  ArrowLeft,
+  Plus,
+  Edit3,
+  Trash2,
+  Clock,
+  Users,
+  Flame,
+  ChefHat,
+  Info,
+  ChevronRight,
+} from 'lucide-react-native';
+import { spacing, radius, colors as palette, fonts } from '@/lib/theme/index';
+import { useTheme } from '@/contexts/ThemeContext';
+import ThemedText from '@/components/UI/ThemedText';
+import { Display, Eyebrow } from '@/components/UI/Display';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';
 import { RecipeSelectionBottomSheet } from '@/components/library/modals/RecipeSelectionBottomSheet';
+import { t, i18n } from '@/lib/i18n';
+
+// Locale is fixed at startup (device-driven), so compute label formats once.
+const TR = i18n.locale === 'tr';
+const minLabel = (m: number) => (TR ? `${m} dk` : `${m} min`);
 
 interface CookbookRecipe {
   id: string;
@@ -46,7 +69,16 @@ interface Cookbook {
   created_at: string;
 }
 
+const DIFFICULTY_KEY: Record<string, string> = {
+  Easy: 'cookbook.difficultyEasy',
+  Medium: 'cookbook.difficultyMedium',
+  Hard: 'cookbook.difficultyHard',
+};
+const difficultyLabel = (level: string) =>
+  DIFFICULTY_KEY[level] ? t(DIFFICULTY_KEY[level]) : level;
+
 export default function CookbookDetail() {
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams();
   const [cookbook, setCookbook] = useState<Cookbook | null>(null);
   const [recipes, setRecipes] = useState<CookbookRecipe[]>([]);
@@ -57,10 +89,15 @@ export default function CookbookDetail() {
   const loadCookbookDetails = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view cookbook details.');
+        Alert.alert(
+          t('cookbook.authRequiredTitle'),
+          t('cookbook.authRequiredMessage'),
+        );
         router.back();
         return;
       }
@@ -75,7 +112,7 @@ export default function CookbookDetail() {
 
       if (cookbookError) {
         console.error('Error loading cookbook:', cookbookError);
-        Alert.alert('Error', 'Failed to load cookbook details');
+        Alert.alert(t('common.error'), t('cookbook.loadError'));
         router.back();
         return;
       }
@@ -83,7 +120,8 @@ export default function CookbookDetail() {
       // Load cookbook recipes
       const { data: recipesData, error: recipesError } = await supabase
         .from('recipe_cookbooks')
-        .select(`
+        .select(
+          `
           recipe_id,
           user_recipes (
             id,
@@ -101,16 +139,18 @@ export default function CookbookDetail() {
             nutrition,
             created_at
           )
-        `)
+        `,
+        )
         .eq('cookbook_id', id);
 
       if (recipesError) {
         console.error('Error loading cookbook recipes:', recipesError);
         setRecipes([]);
       } else {
-        const formattedRecipes = recipesData
-          ?.filter(item => item.user_recipes)
-          .map(item => item.user_recipes as any) || [];
+        const formattedRecipes =
+          recipesData
+            ?.filter((item) => item.user_recipes)
+            .map((item) => item.user_recipes as any) || [];
         setRecipes(formattedRecipes);
       }
 
@@ -122,9 +162,8 @@ export default function CookbookDetail() {
 
       setCookbook({
         ...cookbookData,
-        recipe_count: count || 0
+        recipe_count: count || 0,
       });
-
     } catch (error) {
       console.error('Error loading cookbook:', error);
       Alert.alert('Error', 'Failed to load cookbook details');
@@ -140,12 +179,12 @@ export default function CookbookDetail() {
 
   const handleDeleteCookbook = async () => {
     Alert.alert(
-      'Delete Cookbook',
-      `Are you sure you want to delete "${cookbook?.name}"? This action cannot be undone.`,
+      t('cookbook.deleteTitle'),
+      t('cookbook.deleteMessage', { name: cookbook?.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -156,16 +195,16 @@ export default function CookbookDetail() {
 
               if (error) throw error;
 
-              Alert.alert('Success', 'Cookbook deleted successfully', [
-                { text: 'OK', onPress: () => router.back() }
+              Alert.alert(t('common.success'), t('cookbook.deletedMessage'), [
+                { text: t('common.ok'), onPress: () => router.back() },
               ]);
             } catch (error) {
               console.error('Error deleting cookbook:', error);
-              Alert.alert('Error', 'Failed to delete cookbook');
+              Alert.alert(t('common.error'), t('cookbook.deleteError'));
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -184,202 +223,337 @@ export default function CookbookDetail() {
       if (error) throw error;
 
       // Update local state
-      setRecipes(prev => prev.filter(r => r.id !== recipeId));
-      
+      setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
+
       // Update cookbook recipe count
-      setCookbook(prev => prev ? { ...prev, recipe_count: prev.recipe_count - 1 } : null);
-      
-      Alert.alert('Success', 'Recipe removed from cookbook');
+      setCookbook((prev) =>
+        prev ? { ...prev, recipe_count: prev.recipe_count - 1 } : null,
+      );
+
+      Alert.alert(t('common.success'), t('cookbook.recipeRemovedMessage'));
     } catch (error) {
       console.error('Error removing recipe:', error);
-      Alert.alert('Error', 'Failed to remove recipe');
+      Alert.alert(t('common.error'), t('cookbook.removeRecipeError'));
     }
   };
 
   const handleRecipeLongPress = (recipe: CookbookRecipe) => {
-    Alert.alert(
-      recipe.title,
-      'What would you like to do?',
-      [
-        { 
-          text: 'View Recipe', 
-          onPress: () => router.push(`/recipe/${recipe.id}`) 
+    Alert.alert(recipe.title, t('cookbook.longPressMessage'), [
+      {
+        text: t('cookbook.viewRecipe'),
+        onPress: () => router.push(`/recipe/${recipe.id}`),
+      },
+      {
+        text: t('cookbook.removeFromCookbook'),
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            t('cookbook.removeRecipeTitle'),
+            t('cookbook.removeRecipeConfirm'),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('cookbook.remove'),
+                style: 'destructive',
+                onPress: () => handleRemoveRecipe(recipe.id),
+              },
+            ],
+          );
         },
-        { 
-          text: 'Remove from Cookbook', 
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Remove Recipe',
-              'Are you sure you want to remove this recipe from the cookbook?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Remove',
-                  style: 'destructive',
-                  onPress: () => handleRemoveRecipe(recipe.id)
-                }
-              ]
-            );
-          }
-        },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return colors.success[500];
-      case 'Medium': return colors.warning[500];
-      case 'Hard': return colors.error[500];
-      default: return colors.neutral[500];
+      case 'Easy':
+        return colors.success;
+      case 'Medium':
+        return colors.warning;
+      case 'Hard':
+        return colors.error;
+      default:
+        return colors.textSecondary;
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading cookbook...</Text>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <ThemedText
+          style={[styles.loadingText, { color: colors.textSecondary }]}
+        >
+          {t('cookbook.loading')}
+        </ThemedText>
       </View>
     );
   }
 
   if (!cookbook) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Cookbook not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+      <View
+        style={[styles.errorContainer, { backgroundColor: colors.background }]}
+      >
+        <ThemedText style={[styles.errorText, { color: colors.textSecondary }]}>
+          {t('cookbook.notFound')}
+        </ThemedText>
+        <TouchableOpacity
+          style={[styles.backCta, { backgroundColor: colors.primary }]}
+          onPress={() => router.back()}
+        >
+          <ThemedText style={styles.backCtaText}>
+            {t('cookbook.goBack')}
+          </ThemedText>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-          <ArrowLeft size={24} color={colors.neutral[800]} />
-        </TouchableOpacity>
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerActionButton}
-            onPress={() => setShowEditModal(true)}
-          >
-            <Edit3 size={20} color={colors.neutral[600]} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerActionButton}
-            onPress={handleDeleteCookbook}
-          >
-            <Trash2 size={20} color={colors.error[500]} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Cookbook Header */}
-        <View style={styles.cookbookHeader}>
-          <View style={[styles.cookbookIcon, { backgroundColor: `${cookbook.color}15` }]}>
-            <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-          </View>
-          <Text style={styles.cookbookName}>{cookbook.name}</Text>
-          {cookbook.description && (
-            <Text style={styles.cookbookDescription}>{cookbook.description}</Text>
-          )}
-          <Text style={styles.recipeCount}>
-            {cookbook.recipe_count} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
-          </Text>
-        </View>
-
-        {/* Add Recipe Button */}
-        <View style={styles.addRecipeSection}>
-          <TouchableOpacity 
-            style={styles.addRecipeButton}
-            onPress={handleAddRecipes}
+        {/* Cover hero */}
+        <View style={styles.hero}>
+          <LinearGradient
+            colors={[`${cookbook.color}E6`, `${cookbook.color}99`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
           >
-            <Plus size={20} color={colors.primary[500]} />
-            <Text style={styles.addRecipeButtonText}>Add Recipes</Text>
+            <ThemedText style={styles.heroEmoji}>{cookbook.emoji}</ThemedText>
+          </LinearGradient>
+          <LinearGradient
+            colors={['rgba(18,11,7,0)', 'rgba(18,11,7,0.20)']}
+            style={styles.heroScrim}
+          />
+
+          {/* circular controls */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.heroBtn}
+            hitSlop={8}
+          >
+            <ArrowLeft size={20} color="#fff" />
           </TouchableOpacity>
+          <View style={styles.heroRightBtns}>
+            <TouchableOpacity
+              onPress={() => setShowEditModal(true)}
+              style={styles.heroBtnRight}
+              hitSlop={8}
+            >
+              <Edit3 size={18} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDeleteCookbook}
+              style={styles.heroBtnRight}
+              hitSlop={8}
+            >
+              <Trash2 size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Recipes List */}
-        <View style={styles.recipesSection}>
+        {/* Overlapping cream sheet */}
+        <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+          <Eyebrow style={styles.kicker}>
+            {t('cookbook.recipeCount', { count: cookbook.recipe_count })}
+          </Eyebrow>
+          <Display size="xl" style={styles.title}>
+            {cookbook.name}
+          </Display>
+          {cookbook.description ? (
+            <ThemedText
+              style={[styles.description, { color: colors.textSecondary }]}
+            >
+              {cookbook.description}
+            </ThemedText>
+          ) : null}
+
+          {/* Add Recipe Button */}
+          <TouchableOpacity
+            style={[styles.addRecipeButton, { borderColor: colors.primary }]}
+            onPress={handleAddRecipes}
+            activeOpacity={0.85}
+          >
+            <Plus size={18} color={colors.primary} />
+            <ThemedText
+              style={[styles.addRecipeButtonText, { color: colors.primary }]}
+            >
+              {t('cookbook.addRecipe')}
+            </ThemedText>
+          </TouchableOpacity>
+
+          {/* Recipes List */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recipes</Text>
-            {recipes.length > 0 && (
-              <View style={styles.infoContainer}>
-                <Info size={14} color={colors.neutral[400]} />
-                <Text style={styles.infoText}>Hold recipe to manage</Text>
+            <Display size="md" color={colors.textPrimary}>
+              {t('cookbook.recipesTitle')}
+            </Display>
+            {recipes.length > 0 ? (
+              <View
+                style={[
+                  styles.infoContainer,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.borderLight,
+                  },
+                ]}
+              >
+                <Info size={13} color={colors.textSecondary} />
+                <ThemedText
+                  style={[styles.infoText, { color: colors.textSecondary }]}
+                >
+                  {t('cookbook.longPressHint')}
+                </ThemedText>
               </View>
-            )}
+            ) : null}
           </View>
-          
+
           {recipes.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No recipes yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Add some recipes to this cookbook to get started
-              </Text>
+              <View
+                style={[
+                  styles.emptyMark,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.borderLight,
+                  },
+                ]}
+              >
+                <ChefHat size={28} color={colors.textSecondary} />
+              </View>
+              <Display
+                size="sm"
+                color={colors.textPrimary}
+                style={styles.emptyTitle}
+              >
+                {t('cookbook.emptyTitle')}
+              </Display>
+              <ThemedText
+                style={[styles.emptySubtitle, { color: colors.textSecondary }]}
+              >
+                {t('cookbook.emptySubtitle')}
+              </ThemedText>
             </View>
           ) : (
-            recipes.map((recipe) => (
-              <TouchableOpacity
-                key={recipe.id}
-                style={styles.recipeCard}
-                onPress={() => router.push(`/recipe/${recipe.id}`)}
-                onLongPress={() => handleRecipeLongPress(recipe)}
-                delayLongPress={500}
-              >
-                {/* Recipe Image */}
-                <View style={styles.recipeImageContainer}>
-                  {recipe.image_url ? (
-                    <Image
-                      source={{ uri: recipe.image_url }}
-                      style={styles.recipeImage}
-                      onError={(error) => console.log('Recipe image load error:', error)}
-                    />
-                  ) : (
-                    <View style={styles.recipeImagePlaceholder}>
-                      <ChefHat size={24} color={colors.neutral[400]} />
-                    </View>
-                  )}
-                </View>
-
-                {/* Recipe Info */}
-                <View style={styles.recipeInfoContainer}>
-                  <Text style={styles.recipeTitle}>{recipe.title}</Text>
-                  <Text style={styles.recipeDescription} numberOfLines={2}>
-                    {recipe.description}
-                  </Text>
-                  
-                  <View style={styles.recipeMeta}>
-                    <View style={styles.metaItem}>
-                      <Clock size={12} color={colors.neutral[500]} />
-                      <Text style={styles.metaText}>
-                        {recipe.prep_time + recipe.cook_time}m
-                      </Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                      <Users size={12} color={colors.neutral[500]} />
-                      <Text style={styles.metaText}>{recipe.servings}</Text>
-                    </View>
-                    {recipe.nutrition?.calories && (
-                      <View style={styles.metaItem}>
-                        <Flame size={12} color={colors.neutral[500]} />
-                        <Text style={styles.metaText}>{recipe.nutrition.calories} cal</Text>
-                      </View>
+            recipes.map((recipe) => {
+              const totalTime =
+                (recipe.prep_time || 0) + (recipe.cook_time || 0);
+              const difficultyTr = difficultyLabel(recipe.difficulty);
+              return (
+                <Pressable
+                  key={recipe.id}
+                  style={[
+                    styles.recipeCard,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.borderLight,
+                    },
+                  ]}
+                  onPress={() => router.push(`/recipe/${recipe.id}`)}
+                  onLongPress={() => handleRecipeLongPress(recipe)}
+                  delayLongPress={500}
+                >
+                  {/* Recipe Image */}
+                  <View style={styles.recipeImageContainer}>
+                    {recipe.image_url ? (
+                      <Image
+                        source={{ uri: recipe.image_url }}
+                        style={styles.recipeImage}
+                        resizeMode="cover"
+                        onError={(error) =>
+                          console.log('Recipe image load error:', error)
+                        }
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={['#D56A4F', '#C8472B']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.recipeImagePlaceholder}
+                      >
+                        <ChefHat size={26} color="rgba(255,255,255,0.55)" />
+                      </LinearGradient>
                     )}
-                    <View style={[styles.difficultyChip, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
-                      <Text style={styles.difficultyChipText}>{recipe.difficulty}</Text>
+                  </View>
+
+                  {/* Recipe Info */}
+                  <View style={styles.recipeInfoContainer}>
+                    {recipe.category && recipe.category !== 'General' ? (
+                      <Eyebrow
+                        color={colors.textSecondary}
+                        style={styles.recipeKicker}
+                      >
+                        {recipe.category.toUpperCase()}
+                      </Eyebrow>
+                    ) : null}
+                    <Display
+                      size="sm"
+                      color={colors.textPrimary}
+                      numberOfLines={2}
+                    >
+                      {recipe.title}
+                    </Display>
+
+                    <View style={styles.recipeMeta}>
+                      {totalTime > 0 ? (
+                        <View style={styles.metaItem}>
+                          <Clock size={12} color={colors.textSecondary} />
+                          <ThemedText
+                            style={[
+                              styles.metaText,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
+                            {minLabel(totalTime)}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+                      <View style={styles.metaItem}>
+                        <Users size={12} color={colors.textSecondary} />
+                        <ThemedText
+                          style={[
+                            styles.metaText,
+                            { color: colors.textSecondary },
+                          ]}
+                        >
+                          {recipe.servings}
+                        </ThemedText>
+                      </View>
+                      {recipe.nutrition?.calories ? (
+                        <View style={styles.metaItem}>
+                          <Flame size={12} color={colors.textSecondary} />
+                          <ThemedText
+                            style={[
+                              styles.metaText,
+                              { color: colors.textSecondary },
+                            ]}
+                          >
+                            {recipe.nutrition.calories} kcal
+                          </ThemedText>
+                        </View>
+                      ) : null}
+                      <ThemedText
+                        style={[
+                          styles.difficultyText,
+                          { color: getDifficultyColor(recipe.difficulty) },
+                        ]}
+                      >
+                        {difficultyTr}
+                      </ThemedText>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
+
+                  <ChevronRight size={18} color={colors.textSecondary} />
+                </Pressable>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -411,242 +585,192 @@ export default function CookbookDetail() {
   );
 }
 
+const WARM_SHADOW = {
+  shadowColor: '#3C2814',
+  shadowOpacity: 0.05,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 2,
+};
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-  },
+  container: { flex: 1 },
+  content: { flex: 1 },
+
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
+    fontFamily: fonts.bodyMedium,
+    fontSize: 15,
     marginTop: spacing.md,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
     padding: spacing.lg,
   },
   errorText: {
-    fontSize: typography.fontSize.lg,
-    color: colors.neutral[600],
+    fontFamily: fonts.bodyMedium,
+    fontSize: 16,
     marginBottom: spacing.lg,
+    textAlign: 'center',
   },
-  backButton: {
-    backgroundColor: colors.primary[500],
+  backCta: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 18,
   },
-  backButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[0],
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  backCtaText: { fontFamily: fonts.bodyBold, fontSize: 15, color: '#fff' },
+
+  // Hero
+  hero: { position: 'relative', height: 220, width: '100%' },
+  heroGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    justifyContent: 'center',
   },
-  headerBackButton: {
+  heroEmoji: { fontSize: 64 },
+  heroScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 100,
+  },
+  heroBtn: {
+    position: 'absolute',
+    top: 56,
+    left: spacing.lg,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
+    backgroundColor: 'rgba(18,11,7,0.40)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerActions: {
+  heroRightBtns: {
+    position: 'absolute',
+    top: 56,
+    right: spacing.lg,
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 10,
   },
-  headerActionButton: {
+  heroBtnRight: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(18,11,7,0.40)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  content: {
-    flex: 1,
+
+  // Sheet
+  sheet: {
+    marginTop: -28,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: 110,
   },
-  cookbookHeader: {
-    alignItems: 'center',
-    padding: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+  kicker: { marginBottom: 8 },
+  title: { marginBottom: 10 },
+  description: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 4,
   },
-  cookbookIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  cookbookEmoji: {
-    fontSize: 40,
-  },
-  cookbookName: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  cookbookDescription: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  recipeCount: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    fontWeight: '500',
-  },
-  addRecipeSection: {
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
+
+  // Add recipe
   addRecipeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.primary[200],
+    gap: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
+    paddingVertical: 14,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  addRecipeButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  recipesSection: {
-    padding: spacing.lg,
-  },
+  addRecipeButtonText: { fontFamily: fonts.bodySemibold, fontSize: 14 },
+
+  // Section header
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
+    marginBottom: spacing.md,
   },
   infoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.neutral[100],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
+    gap: 5,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
   },
-  infoText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-  },
-  emptyState: {
+  infoText: { fontFamily: fonts.bodyMedium, fontSize: 11 },
+
+  // Empty state
+  emptyState: { alignItems: 'center', paddingVertical: spacing.xl * 1.5 },
+  emptyMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
     alignItems: 'center',
-    paddingVertical: spacing.xl * 2,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
-  emptyTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[600],
-    marginBottom: spacing.sm,
-  },
+  emptyTitle: { marginBottom: 6 },
   emptySubtitle: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
+    fontFamily: fonts.body,
+    fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
   },
+
+  // Recipe row
   recipeCard: {
     flexDirection: 'row',
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    ...shadows.sm,
+    alignItems: 'center',
+    gap: 13,
+    padding: 8,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: 11,
+    ...WARM_SHADOW,
   },
   recipeImageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: 74,
+    height: 74,
+    borderRadius: 14,
     overflow: 'hidden',
-    marginRight: spacing.md,
   },
-  recipeImage: {
-    width: '100%',
-    height: '100%',
-  },
+  recipeImage: { width: '100%', height: '100%' },
   recipeImagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.neutral[200],
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  recipeInfoContainer: {
-    flex: 1,
-  },
-  recipeTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  recipeDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    marginBottom: spacing.md,
-    lineHeight: 20,
-  },
+  recipeInfoContainer: { flex: 1, minWidth: 0, gap: 5 },
+  recipeKicker: { fontSize: 9, letterSpacing: 1 },
   recipeMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 10,
+    marginTop: 1,
+    flexWrap: 'wrap',
   },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  metaText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-    fontWeight: '500',
-  },
-  difficultyChip: {
-    borderRadius: 8,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  difficultyChipText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
-  },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontFamily: fonts.bodyMedium, fontSize: 11.5 },
+  difficultyText: { fontFamily: fonts.bodySemibold, fontSize: 11.5 },
 });
+
+void palette;

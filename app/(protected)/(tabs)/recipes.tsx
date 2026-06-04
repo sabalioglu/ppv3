@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+// app/(protected)/(tabs)/recipes.tsx — Stovd recipe library (Warm Kitchen).
+// AI-generated recipe collection presented in the editorial cookbook language:
+// cream paper, serif titles, FeatureCard hero + RecipeListCard rows. All data
+// hooks, filters, cookbook logic and navigation are preserved from the original.
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,41 +10,34 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
-  Dimensions,
   ActivityIndicator,
   Alert,
-  Platform,
   Modal,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Search,
-  Filter,
-  Clock,
-  Users,
-  Star,
-  ChefHat,
-  Flame,
+  SlidersHorizontal,
+  Sparkles,
   Heart,
   Plus,
   Share2,
-  Calendar,
-  X,
   ChevronDown,
   ChevronUp,
   ChevronRight,
   Check,
-  Grid3X3,
-  List,
   BookOpen,
+  X,
 } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
 import { router } from 'expo-router';
+import { spacing, radius, fonts } from '@/lib/theme/index';
+import { useTheme } from '@/contexts/ThemeContext';
+import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { RecipeGrid } from '@/components/recipe/RecipeGrid';
-
-const { width } = Dimensions.get('window');
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { SectionHeader } from '@/components/UI/SectionHeader';
+import { FeatureCard, RecipeListCard } from '@/components/UI/RecipeCard';
 
 // Recipe interface (aligned with Supabase schema)
 interface Recipe {
@@ -52,8 +49,17 @@ interface Recipe {
   cook_time: number;
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
-  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
+  ingredients: Array<{
+    name: string;
+    quantity?: string;
+    unit?: string;
+    notes?: string;
+  }>;
+  instructions: Array<{
+    step: number;
+    instruction: string;
+    duration_mins?: number;
+  }>;
   nutrition?: {
     calories?: number;
     protein?: number;
@@ -78,81 +84,122 @@ interface FilterCategory {
   options: Array<{ id: string; label: string }>;
 }
 
-const filterCategories: FilterCategory[] = [
-  {
-    id: 'meal_type',
-    title: 'Meal Type',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'breakfast', label: 'Breakfast' },
-      { id: 'lunch', label: 'Lunch' },
-      { id: 'dinner', label: 'Dinner' },
-      { id: 'snacks', label: 'Snacks' },
-      { id: 'desserts', label: 'Desserts' },
-    ]
-  },
-  {
-    id: 'diet',
-    title: 'Diet',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'vegetarian', label: 'Vegetarian' },
-      { id: 'vegan', label: 'Vegan' },
-      { id: 'keto', label: 'Keto' },
-      { id: 'low-carb', label: 'Low Carb' },
-      { id: 'high-protein', label: 'High Protein' },
-      { id: 'gluten-free', label: 'Gluten Free' },
-    ]
-  },
-  {
-    id: 'difficulty',
-    title: 'Difficulty',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'easy', label: 'Easy' },
-      { id: 'medium', label: 'Medium' },
-      { id: 'hard', label: 'Hard' },
-    ]
-  },
-  {
-    id: 'cook_time',
-    title: 'Cook Time',
-    options: [
-      { id: 'all', label: 'All' },
-      { id: 'under_15', label: 'Under 15 min' },
-      { id: 'under_30', label: 'Under 30 min' },
-      { id: 'under_60', label: 'Under 60 min' },
-      { id: 'over_60', label: 'Over 60 min' },
-    ]
-  }
-];
+// Built per-render so labels follow the active locale.
+function buildFilterCategories(): FilterCategory[] {
+  return [
+    {
+      id: 'meal_type',
+      title: t('recipes.filterMealType'),
+      options: [
+        { id: 'all', label: t('common.all') },
+        { id: 'breakfast', label: t('recipes.mealBreakfast') },
+        { id: 'lunch', label: t('recipes.mealLunch') },
+        { id: 'dinner', label: t('recipes.mealDinner') },
+        { id: 'snacks', label: t('recipes.mealSnacks') },
+        { id: 'desserts', label: t('recipes.mealDesserts') },
+      ],
+    },
+    {
+      id: 'diet',
+      title: t('recipes.filterDiet'),
+      options: [
+        { id: 'all', label: t('common.all') },
+        { id: 'vegetarian', label: t('recipes.dietVegetarian') },
+        { id: 'vegan', label: t('recipes.dietVegan') },
+        { id: 'keto', label: t('recipes.dietKeto') },
+        { id: 'low-carb', label: t('recipes.dietLowCarb') },
+        { id: 'high-protein', label: t('recipes.dietHighProtein') },
+        { id: 'gluten-free', label: t('recipes.dietGlutenFree') },
+      ],
+    },
+    {
+      id: 'difficulty',
+      title: t('recipes.filterDifficulty'),
+      options: [
+        { id: 'all', label: t('common.all') },
+        { id: 'easy', label: t('recipes.difficultyEasy') },
+        { id: 'medium', label: t('recipes.difficultyMedium') },
+        { id: 'hard', label: t('recipes.difficultyHard') },
+      ],
+    },
+    {
+      id: 'cook_time',
+      title: t('recipes.filterCookTime'),
+      options: [
+        { id: 'all', label: t('common.all') },
+        { id: 'under_15', label: t('recipes.timeUnder15') },
+        { id: 'under_30', label: t('recipes.timeUnder30') },
+        { id: 'under_60', label: t('recipes.timeUnder60') },
+        { id: 'over_60', label: t('recipes.timeOver60') },
+      ],
+    },
+  ];
+}
 
-// Quick Actions Dropdown Component
+function difficultyLabel(difficulty: string): string {
+  switch (difficulty) {
+    case 'Easy':
+      return t('recipes.difficultyEasy');
+    case 'Medium':
+      return t('recipes.difficultyMedium');
+    case 'Hard':
+      return t('recipes.difficultyHard');
+    default:
+      return difficulty;
+  }
+}
+
+// Build the editorial kicker (category · difficulty) shown above a recipe title.
+function kickerFor(recipe: Recipe) {
+  return [recipe.category, difficultyLabel(recipe.difficulty)]
+    .filter(Boolean)
+    .join(' · ');
+}
+// Total cook time in minutes (undefined when we have no data).
+function timeFor(recipe: Recipe) {
+  const t = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+  return t > 0 ? t : undefined;
+}
+// AI match score → whole percentage badge (undefined when unscored).
+function matchFor(recipe: Recipe) {
+  if (typeof recipe.ai_match_score !== 'number') return undefined;
+  const pct =
+    recipe.ai_match_score <= 1
+      ? recipe.ai_match_score * 100
+      : recipe.ai_match_score;
+  return Math.round(pct);
+}
+
+// Quick Actions Dropdown Component (Warm Kitchen card)
 const QuickActionsDropdown: React.FC<{
   onSocialPress: () => void;
   onAIRecipesPress: () => void;
   onLibraryPress: () => void;
   onFavoritesPress: () => void;
-}> = ({ onSocialPress, onAIRecipesPress, onLibraryPress, onFavoritesPress }) => {
+}> = ({
+  onSocialPress,
+  onAIRecipesPress,
+  onLibraryPress,
+  onFavoritesPress,
+}) => {
+  const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const animatedHeight = useRef(new Animated.Value(0)).current;
 
   const toggleDropdown = () => {
     const toValue = isOpen ? 0 : 1;
-    
     Animated.timing(animatedHeight, {
       toValue,
       duration: 300,
       useNativeDriver: false,
     }).start();
-    
     setIsOpen(!isOpen);
   };
 
   const animatedStyle = {
     maxHeight: animatedHeight.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, 300], // Max height for dropdown content
+      outputRange: [0, 320],
     }),
     opacity: animatedHeight.interpolate({
       inputRange: [0, 1],
@@ -160,82 +207,97 @@ const QuickActionsDropdown: React.FC<{
     }),
   };
 
+  const rows: Array<{
+    icon: React.ReactNode;
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+  }> = [
+    {
+      icon: <Share2 size={18} color={colors.secondary} />,
+      title: t('recipes.socialTitle'),
+      subtitle: t('recipes.socialSubtitle'),
+      onPress: onSocialPress,
+    },
+    {
+      icon: <Sparkles size={18} color={colors.primary} />,
+      title: t('recipes.aiRecipesTitle'),
+      subtitle: t('recipes.aiRecipesSubtitle'),
+      onPress: onAIRecipesPress,
+    },
+    {
+      icon: <BookOpen size={18} color={colors.accent} />,
+      title: t('recipes.libraryTitle'),
+      subtitle: t('recipes.librarySubtitle'),
+      onPress: onLibraryPress,
+    },
+    {
+      icon: <Heart size={18} color={colors.error} />,
+      title: t('recipes.favoritesTitle'),
+      subtitle: t('recipes.favoritesSubtitle'),
+      onPress: onFavoritesPress,
+    },
+  ];
+
   return (
-    <View style={styles.quickActionsDropdown}>
-      <TouchableOpacity 
-        style={styles.dropdownHeader}
+    <View
+      style={[
+        styles.quickActions,
+        { backgroundColor: colors.surface, borderColor: colors.borderLight },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.quickHeader}
         onPress={toggleDropdown}
         activeOpacity={0.7}
       >
-        <View style={styles.dropdownHeaderLeft}>
-          {isOpen ? (
-            <ChevronUp size={20} color={colors.neutral[600]} />
-          ) : (
-            <ChevronDown size={20} color={colors.neutral[600]} />
-          )}
-          <Text style={styles.dropdownTitle}>Quick Actions</Text>
+        <View style={styles.quickHeaderLeft}>
+          <Eyebrow>{t('recipes.quickHeader')}</Eyebrow>
+          <Text style={[styles.quickSubtitle, { color: colors.textSecondary }]}>
+            {t('recipes.quickSubtitle')}
+          </Text>
         </View>
-        <Text style={styles.dropdownSubtitle}>
-          Ai Recipes • Import • Save • Social
-        </Text>
+        {isOpen ? (
+          <ChevronUp size={20} color={colors.textSecondary} />
+        ) : (
+          <ChevronDown size={20} color={colors.textSecondary} />
+        )}
       </TouchableOpacity>
 
-      <Animated.View style={[styles.dropdownContent, animatedStyle]}>
-        {/* GÜNCELLENMIŞ: Social Media Import */}
-        <TouchableOpacity style={styles.dropdownItem} onPress={onSocialPress}>
-          <View style={[styles.dropdownIcon, { backgroundColor: '#E8F5E9' }]}>
-            <Share2 size={20} color="#4CAF50" />
-          </View>
-          <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>Social Network</Text>
-            <Text style={styles.dropdownItemSubtitle}>
-              Connect with people who has similar taste
-            </Text>
-          </View>
-          <ChevronRight size={20} color={colors.neutral[300]} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dropdownItem} onPress={onAIRecipesPress}>
-          <View style={[styles.dropdownIcon, { backgroundColor: '#FFF3E0' }]}>
-            <ChefHat size={20} color="#FF9800" />
-          </View>
-          <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>AI Recipe Ideas</Text>
-            <Text style={styles.dropdownItemSubtitle}>
-              Get personalized suggestions
-            </Text>
-          </View>
-          <ChevronRight size={20} color={colors.neutral[300]} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dropdownItem} onPress={onLibraryPress}>
-          <View style={[styles.dropdownIcon, { backgroundColor: '#E3F2FD' }]}>
-            <BookOpen size={20} color="#2196F3" />
-          </View>
-          <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>My Recipe Library</Text>
-            <Text style={styles.dropdownItemSubtitle}>
-              Import recipes from web and socials
-            </Text>
-          </View>
-          <ChevronRight size={20} color={colors.neutral[300]} />
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.dropdownItem, styles.dropdownItemLast]} 
-          onPress={onFavoritesPress}
-        >
-          <View style={[styles.dropdownIcon, { backgroundColor: '#FFEBEE' }]}>
-            <Heart size={20} color="#F44336" />
-          </View>
-          <View style={styles.dropdownItemText}>
-            <Text style={styles.dropdownItemTitle}>Favorite Recipes</Text>
-            <Text style={styles.dropdownItemSubtitle}>
-              Quick access to your favorites
-            </Text>
-          </View>
-          <ChevronRight size={20} color={colors.neutral[300]} />
-        </TouchableOpacity>
+      <Animated.View style={[styles.quickContent, animatedStyle]}>
+        {rows.map((row, i) => (
+          <TouchableOpacity
+            key={row.title}
+            style={[
+              styles.quickRow,
+              { borderTopColor: colors.borderLight },
+              i === 0 && { borderTopWidth: 0 },
+            ]}
+            onPress={row.onPress}
+          >
+            <View
+              style={[styles.quickIcon, { backgroundColor: colors.background }]}
+            >
+              {row.icon}
+            </View>
+            <View style={styles.quickRowText}>
+              <Text
+                style={[styles.quickRowTitle, { color: colors.textPrimary }]}
+              >
+                {row.title}
+              </Text>
+              <Text
+                style={[
+                  styles.quickRowSubtitle,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                {row.subtitle}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ))}
       </Animated.View>
     </View>
   );
@@ -251,24 +313,36 @@ const FilterModal: React.FC<{
   userCookbooks: any[];
   selectedCookbook: string;
   onCookbookChange: (cookbookId: string) => void;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
+}> = ({
+  visible,
+  onClose,
+  filters,
+  onFiltersChange,
+  recipeCount,
+  userCookbooks,
+  selectedCookbook,
+  onCookbookChange,
+}) => {
+  const { colors } = useTheme();
   const [localFilters, setLocalFilters] = React.useState(filters);
-  const [expandedCategories, setExpandedCategories] = React.useState<{ [key: string]: boolean }>({
+  const [expandedCategories, setExpandedCategories] = React.useState<{
+    [key: string]: boolean;
+  }>({
     cookbook: true,
     meal_type: true,
   });
 
   const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev => ({
+    setExpandedCategories((prev) => ({
       ...prev,
-      [categoryId]: !prev[categoryId]
+      [categoryId]: !prev[categoryId],
     }));
   };
 
   const updateFilter = (categoryId: string, optionId: string) => {
-    setLocalFilters(prev => ({
+    setLocalFilters((prev) => ({
       ...prev,
-      [categoryId]: optionId
+      [categoryId]: optionId,
     }));
   };
 
@@ -278,152 +352,189 @@ const FilterModal: React.FC<{
   };
 
   const clearAllFilters = () => {
-    const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
-      acc[key] = 'all';
-      return acc;
-    }, {} as { [key: string]: string });
+    const clearedFilters = Object.keys(localFilters).reduce(
+      (acc, key) => {
+        acc[key] = 'all';
+        return acc;
+      },
+      {} as { [key: string]: string },
+    );
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
     onCookbookChange('all');
     onClose();
   };
 
+  const renderOption = (
+    label: string,
+    selected: boolean,
+    onPress: () => void,
+    key: string,
+    emoji?: string,
+  ) => (
+    <TouchableOpacity
+      key={key}
+      style={[
+        styles.filterOption,
+        selected && { backgroundColor: colors.background },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.filterOptionRow}>
+        {emoji ? <Text style={styles.cookbookEmoji}>{emoji}</Text> : null}
+        <Text
+          style={[
+            styles.filterOptionText,
+            { color: selected ? colors.primary : colors.textSecondary },
+            selected && { fontFamily: fonts.bodySemibold },
+          ]}
+        >
+          {label}
+        </Text>
+      </View>
+      {selected && <Check size={16} color={colors.primary} />}
+    </TouchableOpacity>
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.filterModalContainer}>
-        <View style={styles.filterModalHeader}>
-          <TouchableOpacity onPress={onClose}>
-            <X size={24} color={colors.neutral[600]} />
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <SafeAreaView
+        style={[
+          styles.filterModalContainer,
+          { backgroundColor: colors.background },
+        ]}
+        edges={['top']}
+      >
+        <View
+          style={[
+            styles.filterModalHeader,
+            { borderBottomColor: colors.borderLight },
+          ]}
+        >
+          <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
-          <TouchableOpacity onPress={clearAllFilters}>
-            <Text style={styles.clearAllText}>Clear All</Text>
+          <Display size="sm" color={colors.textPrimary}>
+            {t('recipes.filterTitle')}
+          </Display>
+          <TouchableOpacity onPress={clearAllFilters} hitSlop={8}>
+            <Eyebrow color={colors.primary} style={styles.clearAllText}>
+              {t('common.clear')}
+            </Eyebrow>
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
+
+        <ScrollView
+          style={styles.filterModalContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Cookbook Filter */}
-          <View style={styles.filterCategoryContainer}>
+          <View
+            style={[
+              styles.filterCategory,
+              { borderBottomColor: colors.borderLight },
+            ]}
+          >
             <TouchableOpacity
               style={styles.filterCategoryHeader}
               onPress={() => toggleCategory('cookbook')}
             >
-              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
+              <Display size="sm" color={colors.textPrimary}>
+                {t('recipes.cookbookSection')}
+              </Display>
               <ChevronDown
                 size={20}
-                color={colors.neutral[600]}
-                style={[
-                  styles.chevronIcon,
-                  expandedCategories.cookbook && styles.chevronIconExpanded
-                ]}
+                color={colors.textSecondary}
+                style={
+                  expandedCategories.cookbook
+                    ? styles.chevronExpanded
+                    : undefined
+                }
               />
             </TouchableOpacity>
             {expandedCategories.cookbook && (
               <View style={styles.filterOptionsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.filterOption,
-                    selectedCookbook === 'all' && styles.filterOptionSelected
-                  ]}
-                  onPress={() => onCookbookChange('all')}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      selectedCookbook === 'all' && styles.filterOptionTextSelected
-                    ]}
-                  >
-                    All Recipes
-                  </Text>
-                  {selectedCookbook === 'all' && (
-                    <Check size={16} color={colors.primary[500]} />
-                  )}
-                </TouchableOpacity>
-                {userCookbooks.map((cookbook) => (
-                  <TouchableOpacity
-                    key={cookbook.id}
-                    style={[
-                      styles.filterOption,
-                      selectedCookbook === cookbook.id && styles.filterOptionSelected
-                    ]}
-                    onPress={() => onCookbookChange(cookbook.id)}
-                  >
-                    <View style={styles.filterOptionWithEmoji}>
-                      <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
-                        ]}
-                      >
-                        {cookbook.name}
-                      </Text>
-                    </View>
-                    {selectedCookbook === cookbook.id && (
-                      <Check size={16} color={colors.primary[500]} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                {renderOption(
+                  t('recipes.allRecipes'),
+                  selectedCookbook === 'all',
+                  () => onCookbookChange('all'),
+                  'cookbook-all',
+                )}
+                {userCookbooks.map((cookbook) =>
+                  renderOption(
+                    cookbook.name,
+                    selectedCookbook === cookbook.id,
+                    () => onCookbookChange(cookbook.id),
+                    `cookbook-${cookbook.id}`,
+                    cookbook.emoji,
+                  ),
+                )}
               </View>
             )}
           </View>
 
           {/* Existing Filter Categories */}
-          {filterCategories.map((category, categoryIndex) => (
-            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
+          {buildFilterCategories().map((category, categoryIndex) => (
+            <View
+              key={`filter-category-${category.id}-${categoryIndex}`}
+              style={[
+                styles.filterCategory,
+                { borderBottomColor: colors.borderLight },
+              ]}
+            >
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
               >
-                <Text style={styles.filterCategoryTitle}>{category.title}</Text>
+                <Display size="sm" color={colors.textPrimary}>
+                  {category.title}
+                </Display>
                 <ChevronDown
                   size={20}
-                  color={colors.neutral[600]}
-                  style={[
-                    styles.chevronIcon,
-                    expandedCategories[category.id] && styles.chevronIconExpanded
-                  ]}
+                  color={colors.textSecondary}
+                  style={
+                    expandedCategories[category.id]
+                      ? styles.chevronExpanded
+                      : undefined
+                  }
                 />
               </TouchableOpacity>
               {expandedCategories[category.id] && (
                 <View style={styles.filterOptionsContainer}>
-                  {category.options.map((option, optionIndex) => {
-                    const isSelected = localFilters[category.id] === option.id;
-                    return (
-                      <TouchableOpacity
-                        key={`${category.id}-${option.id}-${optionIndex}`}
-                        style={[
-                          styles.filterOption,
-                          isSelected && styles.filterOptionSelected
-                        ]}
-                        onPress={() => updateFilter(category.id, option.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.filterOptionText,
-                            isSelected && styles.filterOptionTextSelected
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                        {isSelected && (
-                          <Check size={16} color={colors.primary[500]} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {category.options.map((option, optionIndex) =>
+                    renderOption(
+                      option.label,
+                      localFilters[category.id] === option.id,
+                      () => updateFilter(category.id, option.id),
+                      `${category.id}-${option.id}-${optionIndex}`,
+                    ),
+                  )}
                 </View>
               )}
             </View>
           ))}
         </ScrollView>
-        <View style={styles.filterModalFooter}>
-          <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
-            <Text style={styles.applyFiltersText}>
-              Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
+
+        <View
+          style={[
+            styles.filterModalFooter,
+            { borderTopColor: colors.borderLight },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.applyButton, { backgroundColor: colors.primary }]}
+            onPress={applyFilters}
+          >
+            <Text style={styles.applyButtonText}>
+              {t('recipes.showRecipes', { count: recipeCount })}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -434,21 +545,47 @@ const EmptyState: React.FC<{
   onAddRecipe: () => void;
   onClearFilters: () => void;
 }> = ({ hasFilters, onAddRecipe, onClearFilters }) => {
+  const { colors } = useTheme();
+
   if (hasFilters) {
     return (
-      <View style={styles.emptyStateContainer}>
-        <Filter size={64} color={colors.neutral[400]} />
-        <Text style={styles.emptyStateTitle}>No Recipes Found</Text>
-        <Text style={styles.emptyStateSubtitle}>
-          Try adjusting your filters or add new recipes to your collection
+      <View style={styles.emptyState}>
+        <View
+          style={[
+            styles.emptyIcon,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.borderLight,
+            },
+          ]}
+        >
+          <SlidersHorizontal size={30} color={colors.textSecondary} />
+        </View>
+        <Display size="md" color={colors.textPrimary} style={styles.emptyTitle}>
+          {t('recipes.emptyFilteredTitle')}
+        </Display>
+        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+          {t('recipes.emptyFilteredSubtitle')}
         </Text>
-        <View style={styles.emptyStateActions}>
-          <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
-            <Text style={styles.emptyActionText}>Clear Filters</Text>
+        <View style={styles.emptyActions}>
+          <TouchableOpacity
+            style={[styles.emptyPrimary, { backgroundColor: colors.primary }]}
+            onPress={onClearFilters}
+          >
+            <Text style={styles.emptyPrimaryText}>
+              {t('recipes.clearFilters')}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
-            <Plus size={20} color={colors.neutral[600]} />
-            <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
+          <TouchableOpacity
+            style={[styles.emptyGhost, { borderColor: colors.border }]}
+            onPress={onAddRecipe}
+          >
+            <Plus size={18} color={colors.textPrimary} />
+            <Text
+              style={[styles.emptyGhostText, { color: colors.textPrimary }]}
+            >
+              {t('recipes.addRecipe')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -456,16 +593,30 @@ const EmptyState: React.FC<{
   }
 
   return (
-    <View style={styles.emptyStateContainer}>
-      <ChefHat size={64} color={colors.primary[500]} />
-      <Text style={styles.emptyStateTitle}>Start Your Recipe Collection</Text>
-      <Text style={styles.emptyStateSubtitle}>
-        Discover and save recipes that match your taste and pantry
+    <View style={styles.emptyState}>
+      <View
+        style={[
+          styles.emptyIcon,
+          { backgroundColor: colors.surface, borderColor: colors.borderLight },
+        ]}
+      >
+        <Sparkles size={30} color={colors.primary} />
+      </View>
+      <Display size="md" color={colors.textPrimary} style={styles.emptyTitle}>
+        {t('recipes.emptyStartTitle')}
+      </Display>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        {t('recipes.emptyStartSubtitle')}
       </Text>
-      <View style={styles.emptyStateActions}>
-        <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
-          <Plus size={20} color={colors.primary[500]} />
-          <Text style={styles.emptyActionText}>Browse Library</Text>
+      <View style={styles.emptyActions}>
+        <TouchableOpacity
+          style={[styles.emptyPrimary, { backgroundColor: colors.primary }]}
+          onPress={onAddRecipe}
+        >
+          <Plus size={18} color="#fff" />
+          <Text style={styles.emptyPrimaryText}>
+            {t('recipes.browseLibrary')}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -473,14 +624,12 @@ const EmptyState: React.FC<{
 };
 
 export default function Recipes() {
+  const { colors } = useTheme();
   const [recipes, setRecipes] = React.useState<Recipe[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showFilters, setShowFilters] = React.useState(false);
-  
-  // VIEW MODE STATE
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
-  
+
   // Cookbook filter states
   const [selectedCookbook, setSelectedCookbook] = React.useState('all');
   const [userCookbooks, setUserCookbooks] = React.useState<any[]>([]);
@@ -495,7 +644,9 @@ export default function Recipes() {
   // Load user cookbooks
   const loadUserCookbooks = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -515,10 +666,15 @@ export default function Recipes() {
   const loadRecipes = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view recipes.');
+        Alert.alert(
+          t('recipes.loginRequiredTitle'),
+          t('recipes.loginRequiredMessage'),
+        );
         return;
       }
 
@@ -531,37 +687,39 @@ export default function Recipes() {
 
       if (error) {
         console.error('Error loading recipes:', error);
-        Alert.alert('Error', 'Failed to load recipes');
+        Alert.alert(t('recipes.loadErrorTitle'), t('recipes.loadErrorMessage'));
         return;
       }
 
       // Format recipes (aligned with Supabase schema)
-      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
-        id: dbRecipe.id,
-        title: dbRecipe.title,
-        description: dbRecipe.description || '',
-        image_url: dbRecipe.image_url,
-        prep_time: dbRecipe.prep_time || 0,
-        cook_time: dbRecipe.cook_time || 0,
-        servings: dbRecipe.servings || 1,
-        difficulty: dbRecipe.difficulty || 'Easy',
-        ingredients: dbRecipe.ingredients || [],
-        instructions: dbRecipe.instructions || [],
-        nutrition: dbRecipe.nutrition,
-        tags: dbRecipe.tags || [],
-        category: dbRecipe.category || 'General',
-        is_favorite: dbRecipe.is_favorite || false,
-        is_ai_generated: dbRecipe.is_ai_generated || false,
-        source_url: dbRecipe.source_url,
-        ai_match_score: dbRecipe.ai_match_score,
-        created_at: dbRecipe.created_at,
-        updated_at: dbRecipe.updated_at,
-      }));
+      const formattedRecipes: Recipe[] = (recipesData || []).map(
+        (dbRecipe) => ({
+          id: dbRecipe.id,
+          title: dbRecipe.title,
+          description: dbRecipe.description || '',
+          image_url: dbRecipe.image_url,
+          prep_time: dbRecipe.prep_time || 0,
+          cook_time: dbRecipe.cook_time || 0,
+          servings: dbRecipe.servings || 1,
+          difficulty: dbRecipe.difficulty || 'Easy',
+          ingredients: dbRecipe.ingredients || [],
+          instructions: dbRecipe.instructions || [],
+          nutrition: dbRecipe.nutrition,
+          tags: dbRecipe.tags || [],
+          category: dbRecipe.category || 'General',
+          is_favorite: dbRecipe.is_favorite || false,
+          is_ai_generated: dbRecipe.is_ai_generated || false,
+          source_url: dbRecipe.source_url,
+          ai_match_score: dbRecipe.ai_match_score,
+          created_at: dbRecipe.created_at,
+          updated_at: dbRecipe.updated_at,
+        }),
+      );
 
       setRecipes(formattedRecipes);
     } catch (error) {
       console.error('Error loading recipes:', error);
-      Alert.alert('Error', 'Failed to load recipes');
+      Alert.alert(t('common.error'), t('recipes.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -577,58 +735,67 @@ export default function Recipes() {
 
     // Cookbook filter
     if (selectedCookbook !== 'all') {
-      // Cookbook'taki recipe ID'lerini al
       const { data: cookbookRecipes } = await supabase
         .from('recipe_cookbooks')
         .select('recipe_id')
         .eq('cookbook_id', selectedCookbook);
 
-      const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
-      filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
+      const recipeIds = cookbookRecipes?.map((cr) => cr.recipe_id) || [];
+      filtered = filtered.filter((recipe) => recipeIds.includes(recipe.id));
     }
 
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        recipe.description?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.title.toLowerCase().includes(query) ||
+          recipe.description?.toLowerCase().includes(query),
       );
     }
 
     // Meal type filter
     if (filters.meal_type !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.category.toLowerCase() === filters.meal_type.toLowerCase()
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.category.toLowerCase() === filters.meal_type.toLowerCase(),
       );
     }
 
     // Diet filter
     if (filters.diet !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()))
+      filtered = filtered.filter((recipe) =>
+        recipe.tags.some((tag) =>
+          tag.toLowerCase().includes(filters.diet.toLowerCase()),
+        ),
       );
     }
 
     // Cook time filter
     if (filters.cook_time !== 'all') {
       const totalTime = (recipe: Recipe) => recipe.prep_time + recipe.cook_time;
-      filtered = filtered.filter(recipe => {
+      filtered = filtered.filter((recipe) => {
         const time = totalTime(recipe);
         switch (filters.cook_time) {
-          case 'under_15': return time < 15;
-          case 'under_30': return time < 30;
-          case 'under_60': return time < 60;
-          case 'over_60': return time >= 60;
-          default: return true;
+          case 'under_15':
+            return time < 15;
+          case 'under_30':
+            return time < 30;
+          case 'under_60':
+            return time < 60;
+          case 'over_60':
+            return time >= 60;
+          default:
+            return true;
         }
       });
     }
 
     // Difficulty filter
     if (filters.difficulty !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase(),
       );
     }
 
@@ -677,7 +844,7 @@ export default function Recipes() {
   // Handle favorite toggle
   const handleFavorite = async (recipeId: string) => {
     try {
-      const recipe = recipes.find(r => r.id === recipeId);
+      const recipe = recipes.find((r) => r.id === recipeId);
       if (!recipe) return;
 
       const newFavoriteStatus = !recipe.is_favorite;
@@ -688,16 +855,21 @@ export default function Recipes() {
         .eq('id', recipeId);
 
       if (error) {
-        Alert.alert('Error', 'Failed to update favorite status');
+        Alert.alert(
+          t('recipes.loadErrorTitle'),
+          t('recipes.favoriteErrorMessage'),
+        );
         return;
       }
 
-      setRecipes(prev => prev.map(r =>
-        r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
-      ));
+      setRecipes((prev) =>
+        prev.map((r) =>
+          r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r,
+        ),
+      );
     } catch (error) {
       console.error('Error updating favorite:', error);
-      Alert.alert('Error', 'Failed to update favorite status');
+      Alert.alert(t('common.error'), t('recipes.favoriteFailed'));
     }
   };
 
@@ -706,26 +878,12 @@ export default function Recipes() {
     router.push('/library');
   };
 
-  // Handle more options
-  const handleMorePress = (recipe: Recipe) => {
-    Alert.alert(
-      recipe.title,
-      'Recipe options',
-      [
-        { text: 'View Details', onPress: () => router.push(`/recipe/${recipe.id}`) },
-        { text: 'Share', onPress: () => console.log('Share recipe') },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-
   // Quick Action handlers
   const handleSocialPress = () => {
-    Alert.alert('Coming Soon', 'Social recipes feature is coming soon!');
+    Alert.alert(t('recipes.comingSoonTitle'), t('recipes.comingSoonMessage'));
   };
 
   const handleAIRecipesPress = () => {
-    // AI Meal Plan sayfasına yönlendir
     router.push('/ai-meal-plan');
   };
 
@@ -734,10 +892,12 @@ export default function Recipes() {
   };
 
   const handleFavoritesPress = () => {
-    // Show only favorites
-    const favoriteRecipes = recipes.filter(r => r.is_favorite);
+    const favoriteRecipes = recipes.filter((r) => r.is_favorite);
     if (favoriteRecipes.length === 0) {
-      Alert.alert('No Favorites', 'You haven\'t favorited any recipes yet!');
+      Alert.alert(
+        t('recipes.noFavoritesTitle'),
+        t('recipes.noFavoritesMessage'),
+      );
     } else {
       setFilteredRecipes(favoriteRecipes);
     }
@@ -745,101 +905,139 @@ export default function Recipes() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading your recipes...</Text>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+          {t('recipes.loading')}
+        </Text>
       </View>
     );
   }
 
+  const [hero, ...rest] = filteredRecipes;
+
   return (
-    <View style={styles.container}>
-      {/* Header with View Toggle */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>AI Recipe Discovery</Text>
-          <Text style={styles.headerSubtitle}>
-            {filteredRecipes.length} AI-generated recipes
-          </Text>
-        </View>
-        
-        {/* VIEW MODE TOGGLE */}
-        <View style={styles.viewToggle}>
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              viewMode === 'grid' && styles.activeToggle
-            ]}
-            onPress={() => setViewMode('grid')}
-          >
-            <Grid3X3 
-              size={20} 
-              color={viewMode === 'grid' ? colors.primary[500] : colors.neutral[400]} 
-            />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              viewMode === 'list' && styles.activeToggle
-            ]}
-            onPress={() => setViewMode('list')}
-          >
-            <List 
-              size={20} 
-              color={viewMode === 'list' ? colors.primary[500] : colors.neutral[400]} 
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Search and Controls */}
-      <View style={styles.controls}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[400]} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search recipes..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={colors.neutral[400]}
-          />
-        </View>
-        <TouchableOpacity
-          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
-          onPress={() => setShowFilters(true)}
-        >
-          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
-          {getActiveFilterCount() > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{getActiveFilterCount()}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions Dropdown */}
-      <QuickActionsDropdown
-        onSocialPress={handleSocialPress}
-        onAIRecipesPress={handleAIRecipesPress}
-        onLibraryPress={handleLibraryPress}
-        onFavoritesPress={handleFavoritesPress}
-      />
-
-      {/* Recipes List/Grid */}
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <ScrollView
-        style={styles.recipesContainer}
+        style={{ backgroundColor: colors.background }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.recipesContent}
+        contentContainerStyle={styles.content}
       >
+        {/* Header */}
+        <Eyebrow>{t('recipes.eyebrow')}</Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('recipes.title')}
+        </Display>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+          {t('recipes.subtitle', { count: filteredRecipes.length })}
+        </Text>
+
+        {/* Search and Controls */}
+        <View style={styles.controls}>
+          <View
+            style={[
+              styles.searchContainer,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
+          >
+            <Search size={18} color={colors.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder={t('recipes.searchPlaceholder')}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+              hasActiveFilters && {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+              },
+            ]}
+            onPress={() => setShowFilters(true)}
+          >
+            <SlidersHorizontal
+              size={18}
+              color={hasActiveFilters ? '#fff' : colors.textSecondary}
+            />
+            {getActiveFilterCount() > 0 && (
+              <View
+                style={[styles.filterBadge, { backgroundColor: colors.accent }]}
+              >
+                <Text style={styles.filterBadgeText}>
+                  {getActiveFilterCount()}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions Dropdown */}
+        <QuickActionsDropdown
+          onSocialPress={handleSocialPress}
+          onAIRecipesPress={handleAIRecipesPress}
+          onLibraryPress={handleLibraryPress}
+          onFavoritesPress={handleFavoritesPress}
+        />
+
+        {/* Recipes */}
         {filteredRecipes.length > 0 ? (
-          <RecipeGrid
-            recipes={filteredRecipes}
-            viewMode={viewMode}
-            onRecipePress={handleRecipePress}
-            onFavoritePress={handleFavorite}
-            onMorePress={handleMorePress}
-          />
+          <View style={styles.list}>
+            {hero ? (
+              <View style={styles.heroWrap}>
+                <FeatureCard
+                  title={hero.title}
+                  kicker={kickerFor(hero)}
+                  chip={
+                    hero.is_ai_generated
+                      ? t('recipes.chipAi')
+                      : t('recipes.chipRecipe')
+                  }
+                  imageUrl={hero.image_url ?? null}
+                  matchPct={matchFor(hero)}
+                  timeMin={timeFor(hero)}
+                  saved={hero.is_favorite}
+                  onPress={() => handleRecipePress(hero)}
+                  onToggleSave={() => handleFavorite(hero.id)}
+                />
+              </View>
+            ) : null}
+
+            {rest.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader title={t('recipes.sectionAll')} />
+                {rest.map((recipe) => (
+                  <RecipeListCard
+                    key={recipe.id}
+                    title={recipe.title}
+                    kicker={kickerFor(recipe)}
+                    imageUrl={recipe.image_url ?? null}
+                    matchPct={matchFor(recipe)}
+                    timeMin={timeFor(recipe)}
+                    onPress={() => handleRecipePress(recipe)}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         ) : (
           <EmptyState
             hasFilters={hasActiveFilters}
@@ -862,262 +1060,178 @@ export default function Recipes() {
       />
 
       {/* Add Recipe Button */}
-      <TouchableOpacity style={styles.addButton} onPress={handleAddRecipe}>
-        <Plus size={28} color={colors.neutral[0]} />
+      <TouchableOpacity
+        style={[
+          styles.addButton,
+          { backgroundColor: colors.primary, shadowColor: colors.primary },
+        ]}
+        onPress={handleAddRecipe}
+      >
+        <Plus size={26} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
+  container: { flex: 1 },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 120,
+    paddingTop: spacing.sm,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
   },
   loadingText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
+    fontFamily: fonts.body,
+    fontSize: 15,
     marginTop: spacing.md,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: typography.fontSize['3xl'],
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
+  title: { marginTop: 6, marginBottom: 6 },
   headerSubtitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[600],
+    fontFamily: fonts.body,
+    fontSize: 14,
+    marginBottom: spacing.lg,
   },
-  
-  // VIEW TOGGLE STYLES
-  viewToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 8,
-    padding: 2,
-    marginLeft: spacing.md,
-  },
-  toggleButton: {
-    padding: 8,
-    borderRadius: 6,
-  },
-  activeToggle: {
-    backgroundColor: colors.neutral[0],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  
+
+  // Search + filter controls
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-    gap: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
+    gap: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     paddingHorizontal: spacing.md,
-    height: 48,
+    height: 50,
   },
   searchInput: {
     flex: 1,
-    marginLeft: spacing.sm,
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[800],
+    fontFamily: fonts.body,
+    fontSize: 15,
   },
   filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
+    width: 50,
+    height: 50,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
-  filterButtonActive: {
-    backgroundColor: colors.primary[50],
-  },
   filterBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 16,
+    top: 6,
+    right: 6,
+    minWidth: 16,
     height: 16,
+    paddingHorizontal: 3,
     borderRadius: 8,
-    backgroundColor: colors.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
   },
   filterBadgeText: {
+    fontFamily: fonts.bodyBold,
     fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.neutral[0],
+    color: '#fff',
   },
 
-  // Quick Actions Dropdown Styles
-  quickActionsDropdown: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  // Quick actions
+  quickActions: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.lg,
     overflow: 'hidden',
+    shadowColor: '#3C2814',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
-  dropdownHeader: {
+  quickHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    padding: spacing.md,
   },
-  dropdownHeaderLeft: {
+  quickHeaderLeft: { gap: 3 },
+  quickSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+  },
+  quickContent: { overflow: 'hidden' },
+  quickRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  dropdownTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.neutral[800],
-  },
-  dropdownSubtitle: {
-    fontSize: 13,
-    color: colors.neutral[500],
-  },
-  dropdownContent: {
-    backgroundColor: colors.neutral[50],
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  dropdownItemLast: {
-    borderBottomWidth: 0,
-  },
-  dropdownIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  quickIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  dropdownItemText: {
-    flex: 1,
-    paddingRight: 8,
+  quickRowText: { flex: 1, paddingRight: spacing.xs, gap: 2 },
+  quickRowTitle: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 14.5,
   },
-  dropdownItemTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: 2,
+  quickRowSubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    lineHeight: 17,
   },
-  dropdownItemSubtitle: {
-    fontSize: 13,
-    color: colors.neutral[500],
-    lineHeight: 18,
-    flexWrap: 'wrap',
-  },
-  
-  // Filter Modal Styles
-  filterModalContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
+
+  // Recipe list
+  list: { marginTop: spacing.xs },
+  heroWrap: { marginBottom: spacing.lg },
+  section: { marginTop: spacing.md },
+
+  // Filter modal
+  filterModalContainer: { flex: 1 },
   filterModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  filterModalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
   },
   clearAllText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[500],
+    fontFamily: fonts.bodySemibold,
+    fontSize: 12,
+    letterSpacing: 0,
+    textTransform: 'none',
   },
   filterModalContent: {
     flex: 1,
     paddingHorizontal: spacing.lg,
   },
-  filterCategoryContainer: {
+  filterCategory: {
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   filterCategoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  filterCategoryTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  chevronIcon: {
-    transform: [{ rotate: '0deg' }],
-  },
-  chevronIconExpanded: {
-    transform: [{ rotate: '180deg' }],
-  },
-  filterOptionsContainer: {
-    paddingTop: spacing.sm,
-  },
+  chevronExpanded: { transform: [{ rotate: '180deg' }] },
+  filterOptionsContainer: { paddingTop: spacing.sm },
   filterOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1125,24 +1239,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     marginVertical: 2,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
-  filterOptionSelected: {
-    backgroundColor: colors.primary[50],
-  },
-  filterOptionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[700],
-  },
-  filterOptionTextSelected: {
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.primary[600],
-  },
-  filterOptionWithEmoji: {
+  filterOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  filterOptionText: {
+    fontFamily: fonts.body,
+    fontSize: 15,
   },
   cookbookEmoji: {
     fontSize: 16,
@@ -1151,89 +1256,90 @@ const styles = StyleSheet.create({
   filterModalFooter: {
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
   },
-  applyFiltersButton: {
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
+  applyButton: {
+    borderRadius: 18,
+    height: 54,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  applyFiltersText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    fontWeight: '600',
-    color: colors.neutral[0],
+  applyButtonText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: '#fff',
   },
 
-  recipesContainer: {
-    flex: 1,
-  },
-  recipesContent: {
-    paddingBottom: spacing.xl * 2,
-  },
-  emptyStateContainer: {
+  // Empty state
+  emptyState: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
-  emptyStateTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
-    color: colors.neutral[700],
-    marginTop: spacing.lg,
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
-  emptyStateSubtitle: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
+  emptySubtitle: {
+    fontFamily: fonts.body,
+    fontSize: 14,
     textAlign: 'center',
+    lineHeight: 20,
     marginBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
   },
-  emptyStateActions: {
+  emptyActions: {
     flexDirection: 'row',
     gap: spacing.md,
   },
-  emptyActionButton: {
+  emptyPrimary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary[50],
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
     gap: spacing.sm,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    height: 52,
   },
-  emptyActionButtonSecondary: {
+  emptyPrimaryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: '#fff',
+  },
+  emptyGhost: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
     gap: spacing.sm,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    height: 52,
   },
-  emptyActionText: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.primary[600],
+  emptyGhostText: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 15,
   },
-  emptyActionTextSecondary: {
-    fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
-    color: colors.neutral[600],
-  },
+
+  // FAB
   addButton: {
     position: 'absolute',
     bottom: spacing.xl,
     right: spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary[500],
+    width: 58,
+    height: 58,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.lg,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
 });

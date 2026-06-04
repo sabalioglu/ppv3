@@ -1,21 +1,52 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Pressable, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Chrome as Home,
-  Package,
+  LayoutGrid,
+  Refrigerator,
   Camera,
-  Activity,
+  HeartPulse,
   ChefHat,
-  ShoppingCart,
+  ShoppingBasket,
   Settings,
   CreditCard,
 } from 'lucide-react-native';
-import { spacing } from '@/lib/theme';
+import { spacing, radius } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
+import { t } from '@/lib/i18n';
+
+// Elevated terracotta center action (the "Scan" tab). Keeps native tab
+// navigation working by forwarding the Tabs-provided onPress/accessibility props.
+function ScanTabButton({ onPress, accessibilityState, ...rest }: any) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      {...rest}
+      onPress={onPress}
+      accessibilityState={accessibilityState}
+      style={styles.scanWrap}
+    >
+      <View
+        style={[
+          styles.scanButton,
+          {
+            backgroundColor: colors.primary,
+            borderColor: colors.surface,
+            shadowColor: colors.primary,
+          },
+        ]}
+      >
+        <Camera size={26} color="#fff" strokeWidth={2.2} />
+      </View>
+    </Pressable>
+  );
+}
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -23,16 +54,18 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          ...styles.tabBar,
+          height: 76 + insets.bottom,
+          paddingBottom: insets.bottom + spacing.xs,
+          paddingTop: spacing.sm,
+          borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.borderLight,
           backgroundColor: colors.surface,
-          ...(Platform.OS === 'web' && {
-            position: 'relative',
-          }),
+          ...(Platform.OS === 'web' && { position: 'relative' }),
         },
         tabBarLabelStyle: {
           fontFamily: 'Inter-Medium',
-          fontSize: 12,
+          fontSize: 11,
+          marginTop: 2,
         },
         tabBarHideOnKeyboard: true,
       }}
@@ -40,68 +73,70 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ size, color }) => <Home size={size} color={color} />,
+          title: t('tabs.kitchen'),
+          tabBarIcon: ({ size, color }) => (
+            <LayoutGrid size={size} color={color} strokeWidth={2} />
+          ),
         }}
       />
       <Tabs.Screen
         name="pantry"
         options={{
-          title: 'Pantry',
+          title: t('tabs.pantry'),
           tabBarIcon: ({ size, color }) => (
-            <Package size={size} color={color} />
+            <Refrigerator size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
       <Tabs.Screen
         name="camera"
         options={{
-          title: 'Scan',
-          tabBarIcon: ({ size, color }) => <Camera size={size} color={color} />,
+          title: '',
+          tabBarButton: (props) => <ScanTabButton {...props} />,
         }}
       />
       <Tabs.Screen
         name="nutrition"
         options={{
-          title: 'Nutrition',
+          title: t('tabs.nutrition'),
           tabBarIcon: ({ size, color }) => (
-            <Activity size={size} color={color} />
+            <HeartPulse size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
       <Tabs.Screen
         name="recipes"
         options={{
-          title: 'Recipes',
+          title: t('tabs.recipes'),
           tabBarIcon: ({ size, color }) => (
-            <ChefHat size={size} color={color} />
+            <ChefHat size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
       <Tabs.Screen
         name="shopping-list"
         options={{
-          title: 'Shopping',
+          title: t('tabs.list'),
           tabBarIcon: ({ size, color }) => (
-            <ShoppingCart size={size} color={color} />
+            <ShoppingBasket size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} />
+            <Settings size={size} color={color} strokeWidth={2} />
           ),
         }}
       />
       <Tabs.Screen
         name="subscription"
         options={{
-          title: 'Subscription',
+          title: t('tabs.subscription'),
           tabBarIcon: ({ size, color }) => (
-            <CreditCard size={size} color={color} />
+            <CreditCard size={size} color={color} strokeWidth={2} />
           ),
           href: null, // Hide from tab bar but keep accessible via navigation
         }}
@@ -111,9 +146,22 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    height: 70,
-    paddingBottom: spacing.xs,
-    borderTopWidth: 1,
+  scanWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scanButton: {
+    width: 58,
+    height: 58,
+    borderRadius: radius.full,
+    marginTop: -22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 4,
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
 });

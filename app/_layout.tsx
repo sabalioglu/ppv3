@@ -7,7 +7,18 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { mealPlanInitializer } from '../lib/meal-plan/initialize';
 import { AuthProvider } from '@/contexts/AuthContext';
 import SplashController from '@/components/SplashController';
-// ❌ useFonts import'u kaldırıldı
+import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import {
+  Fraunces_500Medium,
+  Fraunces_600SemiBold,
+  Fraunces_700Bold,
+} from '@expo-google-fonts/fraunces';
 
 // Prevent the splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -17,7 +28,16 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // ❌ Font loading kodu tamamen kaldırıldı
+  // ── Stovd brand fonts: Fraunces (editorial display) + Inter (body/UI) ──
+  const [fontsLoaded, fontError] = useFonts({
+    'Inter-Regular': Inter_400Regular,
+    'Inter-Medium': Inter_500Medium,
+    'Inter-SemiBold': Inter_600SemiBold,
+    'Inter-Bold': Inter_700Bold,
+    'Fraunces-Medium': Fraunces_500Medium,
+    'Fraunces-SemiBold': Fraunces_600SemiBold,
+    'Fraunces-Bold': Fraunces_700Bold,
+  });
 
   useEffect(() => {
     async function prepareApp() {
@@ -54,9 +74,11 @@ export default function RootLayout() {
     prepareApp();
   }, []); // ✅ Font dependency'leri kaldırıldı
 
+  const ready = appIsReady && (fontsLoaded || !!fontError);
+
   useEffect(() => {
     async function hideSplash() {
-      if (appIsReady) {
+      if (ready) {
         try {
           await SplashScreen.hideAsync();
         } catch (error) {
@@ -66,10 +88,10 @@ export default function RootLayout() {
     }
 
     hideSplash();
-  }, [appIsReady]);
+  }, [ready]);
 
-  // Show nothing while app is preparing
-  if (!appIsReady) {
+  // Show nothing while app is preparing (init + brand fonts)
+  if (!ready) {
     return null;
   }
 

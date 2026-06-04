@@ -29,6 +29,7 @@ import MacroCard from '@/components/nutrition/MacroCard';
 import { useNutritionDate } from '@/hooks/nutrition/useNutritionDate';
 
 import ThemedText from '@/components/UI/ThemedText';
+import { Display, Eyebrow } from '@/components/UI/Display';
 import { formatFullDate, formatRelativeDate } from '@/lib/nutrition/dates';
 
 import { useTheme } from '@/contexts/ThemeContext';
@@ -40,7 +41,7 @@ import { useNutritionStats } from '@/hooks/nutrition/useNutritionStats';
 import { useWater } from '@/hooks/nutrition/useWater';
 import { useWeeklyProgress } from '@/hooks/nutrition/useWeeklyProgress';
 import { useDailyMeals } from '@/hooks/nutrition/useDailyMeals';
-import { spacing, shadows, radius } from '@/lib/theme/index';
+import { spacing, radius } from '@/lib/theme/index';
 
 import LoadingCard from '@/components/UI/LoadingCard';
 import WaterSection from '@/components/nutrition/WaterSection';
@@ -52,6 +53,7 @@ import InsightCard from '@/components/dashboard/InsightCard';
 import DatePickerModal from '@/components/nutrition/DatePickerModal';
 import ErrorCard from '@/components/UI/ErrorCard';
 import { MacroKey } from '@/lib/nutrition/insights';
+import { t } from '@/lib/i18n';
 
 const macroKeys: MacroKey[] = ['protein', 'carbs', 'fat'];
 
@@ -94,7 +96,7 @@ export default function Nutrition() {
 
   const macroNutritionInsights = useMacroNutritionInsights(
     intake,
-    macroNutritionTargets
+    macroNutritionTargets,
   );
 
   const nutritionStats = useNutritionStats(intake, macroNutritionTargets);
@@ -137,7 +139,7 @@ export default function Nutrition() {
   };
 
   if (isLoading) {
-    return <LoadingCard statusText="Loading your nutrition data..." />;
+    return <LoadingCard statusText={t('nutrition.loading')} />;
   }
 
   if (error) {
@@ -151,31 +153,27 @@ export default function Nutrition() {
         showsVerticalScrollIndicator={false}
       >
         {/* **Header with Functional Calendar** */}
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: colors.surface,
-              borderBottomColor: colors.borderLight,
-            },
-          ]}
-        >
-          <View>
-            <ThemedText type="title" bold style={styles.headerTitle}>
-              Nutrition Tracker
-            </ThemedText>
-            <ThemedText type="caption" style={{ color: colors.primary }}>
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Eyebrow>{t('nutrition.eyebrow')}</Eyebrow>
+            <Display size="xl" style={styles.headerTitle}>
+              {t('nutrition.title')}
+            </Display>
+            <ThemedText type="caption" style={{ color: colors.textSecondary }}>
               {formatFullDate(selectedDate)}
             </ThemedText>
           </View>
           <TouchableOpacity
             style={[
               styles.calendarButton,
-              { backgroundColor: `${colors.primary}20` },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
             ]}
             onPress={() => setShowCalendar(true)}
           >
-            <Calendar size={24} color={colors.primary} />
+            <Calendar size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -194,18 +192,26 @@ export default function Nutrition() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <Target size={20} color={colors.primary} />
-              <ThemedText type="subtitle" bold>
-                {formatRelativeDate(selectedDate)}'s Progress
-              </ThemedText>
+              <Target size={18} color={colors.primary} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.summary', {
+                  label: formatRelativeDate(selectedDate),
+                })}
+              </Display>
             </View>
             <TouchableOpacity onPress={() => setShowTdeeTooltip(true)}>
-              <HelpCircle size={20} color={colors.primary} />
+              <HelpCircle size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <View
-            style={[styles.progressCard, { backgroundColor: colors.surface }]}
+            style={[
+              styles.progressCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
           >
             <ProgressBar
               percentage={nutritionStats.calories.safePercent}
@@ -213,12 +219,14 @@ export default function Nutrition() {
               size="large"
             >
               <View style={styles.caloriesContent}>
-                <ThemedText type="subtitle" bold>
+                <Display size="lg" color={colors.textPrimary}>
                   {Math.round(intake.calories)}
-                </ThemedText>
-                <ThemedText type="muted">calories</ThemedText>
+                </Display>
+                <ThemedText type="muted">{t('nutrition.kcal')}</ThemedText>
                 <ThemedText type="caption" style={{ color: colors.primary }}>
-                  {nutritionStats.calories.remaining} left
+                  {t('nutrition.remaining', {
+                    count: nutritionStats.calories.remaining,
+                  })}
                 </ThemedText>
               </View>
             </ProgressBar>
@@ -247,10 +255,10 @@ export default function Nutrition() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <Droplets size={20} color={colors.accent} />
-              <ThemedText type="subtitle" bold>
-                Water Intake
-              </ThemedText>
+              <Droplets size={18} color={colors.accent} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.waterTitle')}
+              </Display>
             </View>
           </View>
 
@@ -271,50 +279,58 @@ export default function Nutrition() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <LucideCamera size={20} color={colors.primary} />
-              <ThemedText type="subtitle" bold>
-                Quick Add Food
-              </ThemedText>
+              <LucideCamera size={18} color={colors.primary} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.quickAddTitle')}
+              </Display>
             </View>
           </View>
 
-          <View
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleQuickAdd}
             style={[
               styles.quickAddContainer,
-              { backgroundColor: colors.surface },
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
             ]}
           >
+            <View
+              style={[styles.quickAddIcon, { backgroundColor: colors.primary }]}
+            >
+              <Camera size={20} color="#fff" />
+            </View>
             <View style={styles.quickAddText}>
-              <ThemedText type="body">Scan Food with AI Camera</ThemedText>
+              <ThemedText type="body" bold>
+                {t('nutrition.quickAddHeading')}
+              </ThemedText>
               <ThemedText type="muted">
-                Take a photo to automatically detect food and calories
+                {t('nutrition.quickAddSubtitle')}
               </ThemedText>
             </View>
-            <TouchableOpacity
-              style={[
-                styles.quickAddButton,
-                { backgroundColor: `${colors.primary}20` },
-              ]}
-              onPress={handleQuickAdd}
-            >
-              <Camera size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* **Today's Meals with Delete & AI Badge** */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <Clock size={20} color={colors.secondary} />
-              <ThemedText type="subtitle" bold>
-                {formatRelativeDate(selectedDate)}'s Meals
-              </ThemedText>
+              <Clock size={18} color={colors.secondary} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.mealsTitle', {
+                  label: formatRelativeDate(selectedDate),
+                })}
+              </Display>
             </View>
             <TouchableOpacity
               style={[
                 styles.sectionAction,
-                { backgroundColor: `${colors.secondary}20` },
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderLight,
+                },
               ]}
               onPress={handleQuickAdd}
             >
@@ -336,8 +352,8 @@ export default function Nutrition() {
               <EmptyState
                 icon={AlertCircle}
                 color={colors.secondary}
-                title="No meals logged"
-                message="Start tracking your nutrition!"
+                title={t('nutrition.mealsEmptyTitle')}
+                message={t('nutrition.mealsEmptyMessage')}
               />
             )}
           </View>
@@ -347,10 +363,10 @@ export default function Nutrition() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <TrendingUp size={20} color={colors.primary} />
-              <ThemedText type="subtitle" bold>
-                Weekly Progress
-              </ThemedText>
+              <TrendingUp size={18} color={colors.primary} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.weeklyTitle')}
+              </Display>
             </View>
           </View>
           <WeeklyProgress
@@ -363,10 +379,10 @@ export default function Nutrition() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitle}>
-              <Award size={20} color={colors.warning} />
-              <ThemedText type="subtitle" bold>
-                Insights & Tips
-              </ThemedText>
+              <Award size={18} color={colors.accent} />
+              <Display size="md" color={colors.textPrimary}>
+                {t('nutrition.insightsTitle')}
+              </Display>
             </View>
           </View>
 
@@ -378,8 +394,8 @@ export default function Nutrition() {
             ) : (
               <EmptyState
                 icon={AlertCircle}
-                title="No insights available"
-                message="Log some meals to get personalized tips!"
+                title={t('nutrition.insightsEmptyTitle')}
+                message={t('nutrition.insightsEmptyMessage')}
               />
             )}
           </View>
@@ -404,21 +420,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
+    alignItems: 'flex-start',
+    paddingTop: spacing.lg,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
+    paddingBottom: spacing.md,
+  },
+  headerText: {
+    flex: 1,
+    gap: spacing.xs,
   },
   headerTitle: {
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   calendarButton: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: spacing.xs,
   },
   section: {
     padding: spacing.lg,
@@ -427,7 +448,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     flexDirection: 'row',
@@ -438,15 +459,21 @@ const styles = StyleSheet.create({
   sectionAction: {
     width: 32,
     height: 32,
-    borderRadius: radius.lg,
+    borderRadius: radius.full,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressCard: {
-    borderRadius: radius.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
     padding: spacing.lg,
     alignItems: 'center',
-    ...shadows.md,
+    shadowColor: '#3C2814',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
   },
   caloriesContent: {
     alignItems: 'center',
@@ -460,22 +487,27 @@ const styles = StyleSheet.create({
   // **Camera-Only Quick Add**
   quickAddContainer: {
     flexDirection: 'row',
-    borderRadius: radius.md,
-    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
     alignItems: 'center',
-    ...shadows.md,
+    gap: spacing.md,
+    shadowColor: '#3C2814',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  quickAddText: {
-    gap: spacing.sm,
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  quickAddButton: {
+  quickAddIcon: {
+    width: 44,
+    height: 44,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quickAddText: {
+    gap: spacing.xs,
+    flex: 1,
   },
   insightsContainer: {
     gap: spacing.md,

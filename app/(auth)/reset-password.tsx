@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, KeyRound } from 'lucide-react-native';
 import z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,9 +13,10 @@ import { useCustomAlert } from '@/hooks/useCustomAlert';
 import CustomAlert from '@/components/UI/CustomAlert';
 import FormInput from '@/components/auth/FormInput';
 import AuthLayout from '@/components/auth/AuthLayout';
-import ThemedText from '@/components/UI/ThemedText';
-import ThemedButton from '@/components/UI/ThemedButton';
-import { spacing } from '@/lib/theme';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import PrimaryButton from '@/components/auth/PrimaryButton';
+import { spacing } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
 const schema = z.object({
   email: z.string().email('Email required'),
@@ -46,17 +47,14 @@ const ResetPassword = () => {
           redirectTo: makeRedirectUri({
             path: 'reset-confirm-password',
           }),
-        }
+        },
       );
 
       if (error) throw error;
 
-      showAlert(
-        'Check your email! 📧',
-        'We have sent you a password reset link. Please check your email inbox.'
-      );
+      showAlert(t('auth.resetSentTitle'), t('auth.resetSentMessage'));
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to send reset email');
+      showAlert(t('common.error'), error.message || t('auth.resetFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -66,56 +64,65 @@ const ResetPassword = () => {
     <AuthLayout>
       <View style={styles.content}>
         {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
+        <Pressable
+          style={[styles.backButton, { borderColor: colors.border }]}
           onPress={() => router.back()}
+          hitSlop={8}
         >
-          <Ionicons name="arrow-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
+          <ArrowLeft size={20} color={colors.textPrimary} />
+        </Pressable>
 
         {/* Header */}
-        <View style={styles.header}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={64}
-            color={colors.primary}
-          />
-          <ThemedText type="heading" bold style={[styles.title]}>
-            Reset Password
-          </ThemedText>
-          <ThemedText type="subheading" style={styles.subtitle}>
-            Enter your email address and we'll send you a link to reset your
-            password
-          </ThemedText>
+        <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
+          <KeyRound size={24} color="#fff" />
         </View>
+        <Eyebrow style={styles.eyebrow}>{t('auth.resetEyebrow')}</Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('auth.resetTitle')}
+        </Display>
+        <Display
+          size="sm"
+          weight="displayMedium"
+          color={colors.textSecondary}
+          style={styles.lede}
+        >
+          {t('auth.resetLede')}
+        </Display>
 
         {/* Form */}
         <View style={styles.form}>
           <FormInput
             control={control}
             name="email"
-            placeholder="Email"
+            placeholder={t('auth.emailPlaceholder')}
             keyboardType="email-address"
           />
-          <ThemedButton
-            text="Send Reset Link"
+          <PrimaryButton
+            text={t('auth.sendResetLink')}
             onPress={handleSubmit(handleResetPassword)}
+            loading={isLoading}
             disabled={isLoading}
           />
         </View>
 
         {/* Back to Login Link */}
-        <View style={styles.footer}>
-          <ThemedText type="caption" style={{ color: colors.textSecondary }}>
-            Remember your password?{' '}
-          </ThemedText>
-          <ThemedButton
-            variant="bold"
-            onPress={() => router.replace('/login')}
-            text="Sign In"
-            style={{ marginBottom: 0, marginLeft: spacing.xs }}
-          />
-        </View>
+        <Pressable
+          onPress={() => router.replace('/login')}
+          hitSlop={8}
+          style={styles.footer}
+        >
+          <Display
+            size="sm"
+            weight="displayMedium"
+            color={colors.textSecondary}
+          >
+            {t('auth.rememberedPassword')}
+          </Display>
+          <Display size="sm" weight="displayBold" color={colors.primary}>
+            {t('auth.signInLink')}
+          </Display>
+        </Pressable>
+
         <CustomAlert
           visible={visible}
           title={title}
@@ -133,38 +140,43 @@ export default ResetPassword;
 const styles = StyleSheet.create({
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: 'center',
   },
   backButton: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 30,
-    left: 20,
-    zIndex: 1,
-    padding: spacing.sm,
-  },
-  header: {
+    top: spacing.xl,
+    left: spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+    justifyContent: 'center',
+    zIndex: 1,
   },
-  title: {
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+  brandMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    shadowColor: '#C8472B',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  subtitle: {
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
+  eyebrow: { marginBottom: spacing.sm },
+  title: { marginBottom: spacing.sm },
+  lede: { marginBottom: spacing.xl },
+  form: { width: '100%' },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
   },
 });

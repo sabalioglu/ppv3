@@ -1,0 +1,105 @@
+// settings strings. en = primary (displayed by default), tr = secondary.
+export default {
+  en: {
+    headerKicker: 'Your account',
+    title: 'Settings',
+    // group labels
+    groupAppearance: 'APPEARANCE',
+    groupPreferences: 'PREFERENCES',
+    groupAccount: 'ACCOUNT',
+    groupSupport: 'SUPPORT',
+    groupDanger: 'ACCOUNT ACTIONS',
+    // theme
+    theme: 'Theme',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSystem: 'System',
+    // preferences
+    notifications: 'Notifications',
+    notificationsSubtitle: 'Expiry alerts and suggestions',
+    language: 'Language',
+    languageValue: 'English',
+    // account
+    mySubscription: 'My subscription',
+    subscriptionActive: 'Active',
+    editProfile: 'Edit profile',
+    privacySecurity: 'Privacy & security',
+    // support
+    goPremium: 'Go Premium',
+    goPremiumSubtitle: 'Unlock everything with Stovd Premium',
+    helpFaq: 'Help & FAQ',
+    sendFeedback: 'Send feedback',
+    rateApp: 'Rate the app',
+    // danger
+    logout: 'Log out',
+    // logout dialog
+    logoutTitle: 'Log out',
+    logoutMessage: 'Are you sure you want to log out?',
+    logoutError: 'Log out failed',
+    logoutErrorMessage: 'Something went wrong while logging out',
+    // coming soon
+    comingSoon: 'Coming soon',
+    languageComingSoon: 'Language selection is coming soon.',
+    profileComingSoon: 'Profile editing is coming soon.',
+    privacyComingSoon: 'Privacy settings are coming soon.',
+    helpComingSoon: 'The help section is coming soon.',
+    feedbackComingSoon: 'The feedback feature is coming soon.',
+    rateComingSoon: 'App rating is coming soon.',
+    // app info
+    version: 'Version %{version}',
+    // premium plan name
+    premiumName: 'Stovd Premium',
+    premiumFallback: 'Premium',
+  },
+  tr: {
+    headerKicker: 'Hesabın',
+    title: 'Ayarlar',
+    // group labels
+    groupAppearance: 'GÖRÜNÜM',
+    groupPreferences: 'TERCİHLER',
+    groupAccount: 'HESAP',
+    groupSupport: 'DESTEK',
+    groupDanger: 'HESAP İŞLEMLERİ',
+    // theme
+    theme: 'Tema',
+    themeLight: 'Açık',
+    themeDark: 'Koyu',
+    themeSystem: 'Sistem',
+    // preferences
+    notifications: 'Bildirimler',
+    notificationsSubtitle: 'Son kullanma uyarıları ve öneriler',
+    language: 'Dil',
+    languageValue: 'Türkçe',
+    // account
+    mySubscription: 'Aboneliğim',
+    subscriptionActive: 'Aktif',
+    editProfile: 'Profili Düzenle',
+    privacySecurity: 'Gizlilik ve Güvenlik',
+    // support
+    goPremium: "Premium'a Geç",
+    goPremiumSubtitle: 'Stovd Premium ile tüm özellikleri aç',
+    helpFaq: 'Yardım ve SSS',
+    sendFeedback: 'Geri Bildirim Gönder',
+    rateApp: 'Uygulamayı Değerlendir',
+    // danger
+    logout: 'Çıkış Yap',
+    // logout dialog
+    logoutTitle: 'Çıkış Yap',
+    logoutMessage: 'Çıkış yapmak istediğine emin misin?',
+    logoutError: 'Çıkış Hatası',
+    logoutErrorMessage: 'Çıkış sırasında bir hata oluştu',
+    // coming soon
+    comingSoon: 'Yakında',
+    languageComingSoon: 'Dil seçimi yakında eklenecek.',
+    profileComingSoon: 'Profil düzenleme yakında eklenecek.',
+    privacyComingSoon: 'Gizlilik ayarları yakında eklenecek.',
+    helpComingSoon: 'Yardım bölümü yakında eklenecek.',
+    feedbackComingSoon: 'Geri bildirim özelliği yakında eklenecek.',
+    rateComingSoon: 'Uygulama değerlendirme yakında eklenecek.',
+    // app info
+    version: 'Sürüm %{version}',
+    // premium plan name
+    premiumName: 'Stovd Premium',
+    premiumFallback: 'Premium',
+  },
+};

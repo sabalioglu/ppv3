@@ -1,5 +1,5 @@
-//app/(tabs)/shopping-list.tsx
-import React, { useState, useEffect } from 'react';
+// app/(protected)/(tabs)/shopping-list.tsx — Stovd "Alışveriş Listesi" (Warm Kitchen).
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,35 +9,44 @@ import {
   TextInput,
   Alert,
   RefreshControl,
-  Platform,
   Modal,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Plus,
   Search,
-  Filter,
   ChevronDown,
   ChevronUp,
   ShoppingCart,
   CheckCircle2,
-  Circle,
-  Trash2,
-  Edit3,
   Package,
+  Trash2,
   X,
   Save,
-  DollarSign,
-  Tag,
   AlertCircle,
-  TrendingUp,
 } from 'lucide-react-native';
 
-// ✅ Theme import düzeltmesi
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import {
+  colors as palette,
+  spacing,
+  radius,
+  type Colors,
+} from '@/lib/theme/index';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { SectionHeader } from '@/components/UI/SectionHeader';
+import { ShoppingRow } from '@/components/shopping/ShoppingRow';
 import { supabase } from '@/lib/supabase';
-import { router } from 'expo-router';
+import { t, i18n } from '@/lib/i18n';
+
+// Currency/percent formats differ by locale; compute once (locale fixed at startup).
+const TR = i18n.locale === 'tr';
+const costLabel = (n: string | number) => (TR ? `₺${n}` : `$${n}`);
+const pctLabel = (p: number) => (TR ? `%${p}` : `${p}%`);
+
+type ThemeColors = Colors;
 
 // ✅ Interface tanımları
 interface ShoppingItem {
@@ -84,32 +93,75 @@ interface AddItemForm {
 
 // ✅ Categories ve Priorities tanımları
 const CATEGORIES = [
-  { id: 'all', name: 'All', icon: '🛒', color: colors.neutral[500] },
-  { id: 'fruits', name: 'Fruits', icon: '🍎', color: colors.success[500] },
+  {
+    id: 'all',
+    labelKey: 'shopping.catAll',
+    icon: '🛒',
+    color: palette.neutral[500],
+  },
+  {
+    id: 'fruits',
+    labelKey: 'shopping.catFruits',
+    icon: '🍎',
+    color: palette.success[500],
+  },
   {
     id: 'vegetables',
-    name: 'Vegetables',
+    labelKey: 'shopping.catVegetables',
     icon: '🥕',
-    color: colors.success[600],
+    color: palette.success[600],
   },
-  { id: 'dairy', name: 'Dairy', icon: '🥛', color: colors.primary[500] },
-  { id: 'meat', name: 'Meat', icon: '🥩', color: colors.error[500] },
-  { id: 'grains', name: 'Grains', icon: '🌾', color: colors.warning[500] },
-  { id: 'snacks', name: 'Snacks', icon: '🍪', color: colors.secondary[500] },
-  { id: 'beverages', name: 'Beverages', icon: '🥤', color: colors.accent[500] },
-  { id: 'general', name: 'General', icon: '📦', color: colors.neutral[400] },
+  {
+    id: 'dairy',
+    labelKey: 'shopping.catDairy',
+    icon: '🥛',
+    color: palette.primary[500],
+  },
+  {
+    id: 'meat',
+    labelKey: 'shopping.catMeat',
+    icon: '🥩',
+    color: palette.error[500],
+  },
+  {
+    id: 'grains',
+    labelKey: 'shopping.catGrains',
+    icon: '🌾',
+    color: palette.warning[500],
+  },
+  {
+    id: 'snacks',
+    labelKey: 'shopping.catSnacks',
+    icon: '🍪',
+    color: palette.secondary[500],
+  },
+  {
+    id: 'beverages',
+    labelKey: 'shopping.catBeverages',
+    icon: '🥤',
+    color: palette.accent[500],
+  },
+  {
+    id: 'general',
+    labelKey: 'shopping.catGeneral',
+    icon: '📦',
+    color: palette.neutral[400],
+  },
 ];
 
 const PRIORITIES = [
-  { id: 'low', name: 'Low', color: colors.success[500] },
-  { id: 'medium', name: 'Medium', color: colors.warning[500] },
-  { id: 'high', name: 'High', color: colors.error[500] },
-  { id: 'urgent', name: 'Urgent', color: colors.error[700] },
+  { id: 'low', labelKey: 'shopping.prioLow', color: palette.secondary[500] },
+  { id: 'medium', labelKey: 'shopping.prioMedium', color: palette.accent[600] },
+  { id: 'high', labelKey: 'shopping.prioHigh', color: palette.error[500] },
+  { id: 'urgent', labelKey: 'shopping.prioUrgent', color: palette.error[700] },
 ];
 
-const UNITS = ['piece', 'kg', 'g', 'l', 'ml', 'pack', 'bottle', 'can', 'box'];
+const UNITS = ['piece', 'kg', 'g', 'l', 'ml', 'pack', 'bottle', 'box', 'case'];
 
 export default function ShoppingList() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // ✅ State Management
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,7 +250,7 @@ export default function ShoppingList() {
 
   const handleAddItem = async () => {
     if (!addItemForm.item_name.trim()) {
-      Alert.alert('Error', 'Please enter an item name');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.errorNameRequired'));
       return;
     }
 
@@ -208,7 +260,7 @@ export default function ShoppingList() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Error', 'Please log in to add items');
+        Alert.alert(t('shopping.errorTitle'), t('shopping.errorLoginToAdd'));
         return;
       }
 
@@ -254,7 +306,7 @@ export default function ShoppingList() {
       setShowAddModal(false);
     } catch (error) {
       console.error('Error adding item:', error);
-      Alert.alert('Error', 'Failed to add item to shopping list');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.errorAddFailed'));
     } finally {
       setAddingItem(false);
     }
@@ -279,7 +331,7 @@ export default function ShoppingList() {
   // 🆕 Update Item Function
   const handleUpdateItem = async () => {
     if (!editingItem || !editForm.item_name.trim()) {
-      Alert.alert('Error', 'Please enter item name');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.errorNameRequired'));
       return;
     }
 
@@ -288,7 +340,7 @@ export default function ShoppingList() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Error', 'Please log in to update items');
+        Alert.alert(t('shopping.errorTitle'), t('shopping.errorLoginToUpdate'));
         return;
       }
 
@@ -314,16 +366,16 @@ export default function ShoppingList() {
 
       setItems((prev) =>
         prev.map((item) =>
-          item.id === editingItem.id ? { ...item, ...updateData } : item
-        )
+          item.id === editingItem.id ? { ...item, ...updateData } : item,
+        ),
       );
 
       setShowEditModal(false);
       setEditingItem(null);
-      Alert.alert('Success', 'Item updated successfully!');
+      Alert.alert(t('shopping.doneTitle'), t('shopping.successUpdated'));
     } catch (error) {
       console.error('Error updating item:', error);
-      Alert.alert('Error', 'Failed to update item');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.errorUpdateFailed'));
     }
   };
 
@@ -365,37 +417,44 @@ export default function ShoppingList() {
       if (error) throw error;
 
       setItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, ...updateData } : i))
+        prev.map((i) => (i.id === itemId ? { ...i, ...updateData } : i)),
       );
     } catch (error) {
       console.error('Error toggling completion:', error);
-      Alert.alert('Error', 'Failed to update item');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.errorUpdateFailed'));
     }
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert('Delete Item', 'Are you sure you want to delete this item?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from('shopping_list_items')
-              .delete()
-              .eq('id', itemId);
+    Alert.alert(
+      t('shopping.deleteItemTitle'),
+      t('shopping.deleteItemMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('shopping_list_items')
+                .delete()
+                .eq('id', itemId);
 
-            if (error) throw error;
+              if (error) throw error;
 
-            setItems((prev) => prev.filter((i) => i.id !== itemId));
-          } catch (error) {
-            console.error('Error deleting item:', error);
-            Alert.alert('Error', 'Failed to delete item');
-          }
+              setItems((prev) => prev.filter((i) => i.id !== itemId));
+            } catch (error) {
+              console.error('Error deleting item:', error);
+              Alert.alert(
+                t('shopping.errorTitle'),
+                t('shopping.errorDeleteFailed'),
+              );
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   // ✅ NEW: Pantry Integration Function
@@ -414,7 +473,7 @@ export default function ShoppingList() {
 
       if (error) throw error;
       if (!lowStockItems || lowStockItems.length === 0) {
-        Alert.alert('Info', 'No low stock items found in pantry');
+        Alert.alert(t('shopping.infoTitle'), t('shopping.pantryNoneLow'));
         return;
       }
 
@@ -427,7 +486,10 @@ export default function ShoppingList() {
         source: 'auto_pantry' as const,
         pantry_item_id: item.id,
         priority: 'medium' as const,
-        notes: `Running low (${item.quantity} ${item.unit} left)`,
+        notes: t('shopping.pantryRunningLow', {
+          quantity: item.quantity,
+          unit: item.unit,
+        }),
         is_completed: false,
         organic_preference: false,
         coupons_available: false,
@@ -443,11 +505,14 @@ export default function ShoppingList() {
 
       setItems((prev) => [...(data || []), ...prev]);
 
-      Alert.alert('Success', `Added ${lowStockItems.length} low stock items`);
+      Alert.alert(
+        t('shopping.doneTitle'),
+        t('shopping.pantryAdded', { count: lowStockItems.length }),
+      );
       setShowQuickActions(false);
     } catch (error) {
       console.error('Error adding from pantry:', error);
-      Alert.alert('Error', 'Failed to add items from pantry');
+      Alert.alert(t('shopping.errorTitle'), t('shopping.pantryAddFailed'));
     }
   };
 
@@ -456,17 +521,17 @@ export default function ShoppingList() {
     const completedItems = items.filter((item) => item.is_completed);
 
     if (completedItems.length === 0) {
-      Alert.alert('Info', 'No completed items to clear');
+      Alert.alert(t('shopping.infoTitle'), t('shopping.clearNoneTitle'));
       return;
     }
 
     Alert.alert(
-      'Clear Completed Items',
-      `Delete ${completedItems.length} completed items?`,
+      t('shopping.clearConfirmTitle'),
+      t('shopping.clearConfirmMessage', { count: completedItems.length }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -475,7 +540,7 @@ export default function ShoppingList() {
                 .delete()
                 .in(
                   'id',
-                  completedItems.map((item) => item.id)
+                  completedItems.map((item) => item.id),
                 );
 
               if (error) throw error;
@@ -483,11 +548,11 @@ export default function ShoppingList() {
               setShowQuickActions(false);
             } catch (error) {
               console.error('Error clearing completed items:', error);
-              Alert.alert('Error', 'Failed to clear completed items');
+              Alert.alert(t('shopping.errorTitle'), t('shopping.clearFailed'));
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -518,10 +583,10 @@ export default function ShoppingList() {
     pending: items.filter((item) => !item.is_completed).length,
     estimated_cost: items.reduce(
       (sum, item) => sum + (item.estimated_cost || 0),
-      0
+      0,
     ),
     urgent: items.filter(
-      (item) => item.priority === 'urgent' && !item.is_completed
+      (item) => item.priority === 'urgent' && !item.is_completed,
     ).length,
   };
 
@@ -535,115 +600,46 @@ export default function ShoppingList() {
     loadShoppingItems();
   };
 
-  // ✅ Updated Render Function with Edit
-  const renderShoppingItem = ({ item }: { item: ShoppingItem }) => (
-    <TouchableOpacity
-      style={styles.itemCard}
-      onPress={() => handleEditItem(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.itemHeader}>
-        <TouchableOpacity
-          style={styles.checkbox}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleToggleComplete(item.id);
-          }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          {item.is_completed ? (
-            <CheckCircle2 size={24} color={colors.success[500]} />
-          ) : (
-            <Circle size={24} color={colors.neutral[400]} />
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.itemContent}>
-          <Text
-            style={[styles.itemName, item.is_completed && styles.completedText]}
-          >
-            {item.item_name}
-          </Text>
-
-          {item.brand && <Text style={styles.itemBrand}>{item.brand}</Text>}
-
-          <View style={styles.itemMeta}>
-            <Text style={styles.itemQuantity}>
-              {item.quantity} {item.unit}
-            </Text>
-
-            {item.estimated_cost && (
-              <Text style={styles.itemCost}>
-                ${item.estimated_cost.toFixed(2)}
-              </Text>
-            )}
-
-            <View
-              style={[
-                styles.priorityBadge,
-                {
-                  backgroundColor:
-                    PRIORITIES.find((p) => p.id === item.priority)?.color +
-                    '20',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.priorityText,
-                  {
-                    color: PRIORITIES.find((p) => p.id === item.priority)
-                      ?.color,
-                  },
-                ]}
-              >
-                {item.priority}
-              </Text>
-            </View>
-          </View>
-
-          {item.notes && <Text style={styles.itemNotes}>{item.notes}</Text>}
-        </View>
-
-        <View style={styles.itemActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleDeleteItem(item.id);
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Trash2 size={18} color={colors.error[500]} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 🆕 Edit Indicator */}
-      <View style={styles.editIndicator}>
-        <Edit3 size={14} color={colors.neutral[400]} />
-        <Text style={styles.editHint}>Tap to edit</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  // ✅ Updated Render Function — Warm Kitchen row
+  const renderShoppingItem = ({ item }: { item: ShoppingItem }) => {
+    const cat = CATEGORIES.find(
+      (c) => c.id === item.category && c.id !== 'all',
+    );
+    return (
+      <ShoppingRow
+        item={item}
+        kicker={cat ? t(cat.labelKey) : undefined}
+        onPress={() => handleEditItem(item)}
+        onToggle={() => handleToggleComplete(item.id)}
+        onDelete={() => handleDeleteItem(item.id)}
+      />
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <ShoppingCart size={48} color={colors.neutral[300]} />
-      <Text style={styles.emptyTitle}>
-        {showCompleted ? 'No completed items' : 'Your shopping list is empty'}
-      </Text>
+      <View style={styles.emptyIcon}>
+        <ShoppingCart size={34} color={colors.primary} />
+      </View>
+      <Display size="md" color={colors.textPrimary} style={styles.emptyTitle}>
+        {showCompleted
+          ? t('shopping.emptyCompletedTitle')
+          : t('shopping.emptyTitle')}
+      </Display>
       <Text style={styles.emptySubtitle}>
         {showCompleted
-          ? 'Complete some items to see them here'
-          : 'Add items to get started with your shopping list'}
+          ? t('shopping.emptyCompletedSubtitle')
+          : t('shopping.emptySubtitle')}
       </Text>
       {!showCompleted && (
         <TouchableOpacity
           style={styles.emptyButton}
           onPress={() => setShowAddModal(true)}
         >
-          <Text style={styles.emptyButtonText}>Add First Item</Text>
+          <Plus size={18} color="#fff" />
+          <Text style={styles.emptyButtonText}>
+            {t('shopping.emptyAction')}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -652,27 +648,37 @@ export default function ShoppingList() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading shopping list...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>{t('shopping.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* ✅ Header with Dropdown Toggle */}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* ✅ Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Shopping List</Text>
+        <View style={styles.headerText}>
+          <Eyebrow>{t('shopping.eyebrow')}</Eyebrow>
+          <Display
+            size="xl"
+            color={colors.textPrimary}
+            style={styles.headerTitle}
+          >
+            {t('shopping.title')}
+          </Display>
           <Text style={styles.headerSubtitle}>
-            {stats.pending} pending • {stats.completed} completed
+            {t('shopping.subtitle', {
+              pending: stats.pending,
+              completed: stats.completed,
+            })}
           </Text>
         </View>
 
         <View style={styles.headerActions}>
           {stats.urgent > 0 && (
             <View style={styles.urgentBadge}>
-              <AlertCircle size={16} color={colors.error[700]} />
+              <AlertCircle size={15} color={palette.error[600]} />
               <Text style={styles.urgentText}>{stats.urgent}</Text>
             </View>
           )}
@@ -681,7 +687,7 @@ export default function ShoppingList() {
             style={styles.addButton}
             onPress={() => setShowAddModal(true)}
           >
-            <Plus size={24} color={colors.neutral[0]} />
+            <Plus size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -689,30 +695,32 @@ export default function ShoppingList() {
       {/* ✅ Compact Stats Row */}
       <View style={styles.compactStatsRow}>
         <View style={styles.compactStat}>
-          <Text style={styles.compactStatValue}>{stats.total}</Text>
-          <Text style={styles.compactStatLabel}>Items</Text>
+          <Display size="md" color={colors.textPrimary}>
+            {String(stats.total)}
+          </Display>
+          <Text style={styles.compactStatLabel}>{t('shopping.statItems')}</Text>
         </View>
-        <View style={styles.compactStat}>
-          <Text style={styles.compactStatValue}>
-            ${stats.estimated_cost.toFixed(2)}
-          </Text>
-          <Text style={styles.compactStatLabel}>Cost</Text>
+        <View style={[styles.compactStat, styles.compactStatDivider]}>
+          <Display size="md" color={colors.secondary}>
+            {costLabel(stats.estimated_cost.toFixed(0))}
+          </Display>
+          <Text style={styles.compactStatLabel}>{t('shopping.statCost')}</Text>
         </View>
-        <View style={styles.compactStat}>
-          <Text style={styles.compactStatValue}>
-            {Math.round((stats.completed / (stats.total || 1)) * 100)}%
-          </Text>
-          <Text style={styles.compactStatLabel}>Done</Text>
+        <View style={[styles.compactStat, styles.compactStatDivider]}>
+          <Display size="md" color={colors.primary}>
+            {pctLabel(Math.round((stats.completed / (stats.total || 1)) * 100))}
+          </Display>
+          <Text style={styles.compactStatLabel}>{t('shopping.statDone')}</Text>
         </View>
 
         <View style={styles.compactSearchContainer}>
-          <Search size={16} color={colors.neutral[400]} />
+          <Search size={16} color={colors.textSecondary} />
           <TextInput
             style={styles.compactSearchInput}
-            placeholder="Search..."
+            placeholder={t('shopping.searchPlaceholder')}
             value={searchText}
             onChangeText={setSearchText}
-            placeholderTextColor={colors.neutral[400]}
+            placeholderTextColor={colors.inputPlaceholder}
           />
         </View>
       </View>
@@ -723,11 +731,13 @@ export default function ShoppingList() {
           style={styles.quickActionsButton}
           onPress={() => setShowQuickActions(!showQuickActions)}
         >
-          <Text style={styles.quickActionsButtonText}>Quick Actions</Text>
+          <Text style={styles.quickActionsButtonText}>
+            {t('shopping.quickActions')}
+          </Text>
           {showQuickActions ? (
-            <ChevronUp size={20} color={colors.neutral[600]} />
+            <ChevronUp size={18} color={colors.textSecondary} />
           ) : (
-            <ChevronDown size={20} color={colors.neutral[600]} />
+            <ChevronDown size={18} color={colors.textSecondary} />
           )}
         </TouchableOpacity>
 
@@ -746,7 +756,7 @@ export default function ShoppingList() {
                 !showCompleted && styles.toggleTextActive,
               ]}
             >
-              Pending ({stats.pending})
+              {t('shopping.tabPending', { count: stats.pending })}
             </Text>
           </TouchableOpacity>
 
@@ -763,7 +773,7 @@ export default function ShoppingList() {
                 showCompleted && styles.toggleTextActive,
               ]}
             >
-              Done ({stats.completed})
+              {t('shopping.tabCompleted', { count: stats.completed })}
             </Text>
           </TouchableOpacity>
         </View>
@@ -774,14 +784,16 @@ export default function ShoppingList() {
         <View style={styles.dropdownContent}>
           {/* Quick Actions */}
           <View style={styles.dropdownSection}>
-            <Text style={styles.dropdownSectionTitle}>Quick Actions</Text>
+            <SectionHeader title={t('shopping.quickActions')} />
             <View style={styles.dropdownActions}>
               <TouchableOpacity
                 style={styles.dropdownActionButton}
                 onPress={addMissingFromPantry}
               >
-                <Package size={18} color={colors.primary[500]} />
-                <Text style={styles.dropdownActionText}>Add from Pantry</Text>
+                <Package size={18} color={colors.primary} />
+                <Text style={styles.dropdownActionText}>
+                  {t('shopping.addFromPantry')}
+                </Text>
               </TouchableOpacity>
 
               {stats.completed > 0 && (
@@ -789,14 +801,14 @@ export default function ShoppingList() {
                   style={styles.dropdownActionButton}
                   onPress={handleClearCompleted}
                 >
-                  <Trash2 size={18} color={colors.error[500]} />
+                  <Trash2 size={18} color={palette.error[500]} />
                   <Text
                     style={[
                       styles.dropdownActionText,
-                      { color: colors.error[500] },
+                      { color: palette.error[500] },
                     ]}
                   >
-                    Clear Completed ({stats.completed})
+                    {t('shopping.clearCompleted', { count: stats.completed })}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -805,7 +817,7 @@ export default function ShoppingList() {
 
           {/* Category Filter */}
           <View style={styles.dropdownSection}>
-            <Text style={styles.dropdownSectionTitle}>Categories</Text>
+            <SectionHeader title={t('shopping.sectionCategories')} />
             <View style={styles.dropdownCategoryGrid}>
               {CATEGORIES.map((category) => (
                 <TouchableOpacity
@@ -827,7 +839,7 @@ export default function ShoppingList() {
                         styles.dropdownCategoryTextActive,
                     ]}
                   >
-                    {category.name}
+                    {t(category.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -836,7 +848,7 @@ export default function ShoppingList() {
 
           {/* Priority Filter */}
           <View style={styles.dropdownSection}>
-            <Text style={styles.dropdownSectionTitle}>Priority Filter</Text>
+            <SectionHeader title={t('shopping.sectionPriority')} />
             <View style={styles.dropdownPriorityGrid}>
               {PRIORITIES.map((priority) => (
                 <TouchableOpacity
@@ -851,7 +863,7 @@ export default function ShoppingList() {
                   onPress={() => {
                     if (selectedPriorities.includes(priority.id)) {
                       setSelectedPriorities((prev) =>
-                        prev.filter((p) => p !== priority.id)
+                        prev.filter((p) => p !== priority.id),
                       );
                     } else {
                       setSelectedPriorities((prev) => [...prev, priority.id]);
@@ -873,7 +885,7 @@ export default function ShoppingList() {
                       },
                     ]}
                   >
-                    {priority.name}
+                    {t(priority.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -916,9 +928,9 @@ export default function ShoppingList() {
               }}
               style={styles.modalCloseButton}
             >
-              <X size={24} color={colors.neutral[600]} />
+              <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Add New Item</Text>
+            <Text style={styles.modalTitle}>{t('shopping.addTitle')}</Text>
             <TouchableOpacity
               onPress={handleAddItem}
               style={[
@@ -929,9 +941,9 @@ export default function ShoppingList() {
               disabled={!addItemForm.item_name.trim() || addingItem}
             >
               {addingItem ? (
-                <ActivityIndicator size="small" color={colors.neutral[0]} />
+                <ActivityIndicator size="small" color={'#fff'} />
               ) : (
-                <Save size={20} color={colors.neutral[0]} />
+                <Save size={20} color={'#fff'} />
               )}
             </TouchableOpacity>
           </View>
@@ -947,15 +959,15 @@ export default function ShoppingList() {
           >
             {/* Item Name */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Item Name *</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldName')}</Text>
               <TextInput
                 style={styles.formInput}
                 value={addItemForm.item_name}
                 onChangeText={(text) =>
                   setAddItemForm((prev) => ({ ...prev, item_name: text }))
                 }
-                placeholder="e.g., Bananas, Milk, Bread"
-                placeholderTextColor={colors.neutral[400]}
+                placeholder={t('shopping.fieldNamePlaceholder')}
+                placeholderTextColor={colors.inputPlaceholder}
                 autoFocus
               />
             </View>
@@ -963,7 +975,9 @@ export default function ShoppingList() {
             {/* Quantity & Unit */}
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.formLabel}>Quantity</Text>
+                <Text style={styles.formLabel}>
+                  {t('shopping.fieldQuantity')}
+                </Text>
                 <TextInput
                   style={styles.formInput}
                   value={addItemForm.quantity.toString()}
@@ -973,12 +987,12 @@ export default function ShoppingList() {
                   }}
                   keyboardType="numeric"
                   placeholder="1"
-                  placeholderTextColor={colors.neutral[400]}
+                  placeholderTextColor={colors.inputPlaceholder}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.formLabel}>Unit</Text>
+                <Text style={styles.formLabel}>{t('shopping.fieldUnit')}</Text>
                 <TouchableOpacity
                   style={styles.unitDropdownButton}
                   onPress={() => setShowAddUnitDropdown(!showAddUnitDropdown)}
@@ -986,7 +1000,7 @@ export default function ShoppingList() {
                   <Text style={styles.unitDropdownButtonText}>
                     {addItemForm.unit}
                   </Text>
-                  <ChevronDown size={16} color={colors.neutral[500]} />
+                  <ChevronDown size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
 
                 {showAddUnitDropdown && (
@@ -1018,10 +1032,7 @@ export default function ShoppingList() {
                             {unit}
                           </Text>
                           {addItemForm.unit === unit && (
-                            <CheckCircle2
-                              size={16}
-                              color={colors.primary[500]}
-                            />
+                            <CheckCircle2 size={16} color={colors.primary} />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1033,7 +1044,9 @@ export default function ShoppingList() {
 
             {/* Category */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Category</Text>
+              <Text style={styles.formLabel}>
+                {t('shopping.fieldCategory')}
+              </Text>
               <TouchableOpacity
                 style={styles.categoryDropdownButton}
                 onPress={() =>
@@ -1046,11 +1059,13 @@ export default function ShoppingList() {
                       ?.icon || '📦'}
                   </Text>
                   <Text style={styles.categoryDropdownButtonText}>
-                    {CATEGORIES.find((c) => c.id === addItemForm.category)
-                      ?.name || 'General'}
+                    {t(
+                      CATEGORIES.find((c) => c.id === addItemForm.category)
+                        ?.labelKey || 'shopping.catGeneral',
+                    )}
                   </Text>
                 </View>
-                <ChevronDown size={16} color={colors.neutral[500]} />
+                <ChevronDown size={16} color={colors.textSecondary} />
               </TouchableOpacity>
 
               {showAddCategoryDropdown && (
@@ -1086,11 +1101,11 @@ export default function ShoppingList() {
                                 styles.categoryDropdownItemTextActive,
                             ]}
                           >
-                            {category.name}
+                            {t(category.labelKey)}
                           </Text>
                         </View>
                         {addItemForm.category === category.id && (
-                          <CheckCircle2 size={16} color={colors.primary[500]} />
+                          <CheckCircle2 size={16} color={colors.primary} />
                         )}
                       </TouchableOpacity>
                     ))}
@@ -1101,7 +1116,9 @@ export default function ShoppingList() {
 
             {/* Priority */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Priority</Text>
+              <Text style={styles.formLabel}>
+                {t('shopping.fieldPriority')}
+              </Text>
               <TouchableOpacity
                 style={styles.priorityDropdownButton}
                 onPress={() =>
@@ -1114,17 +1131,19 @@ export default function ShoppingList() {
                       styles.priorityDropdownDot,
                       {
                         backgroundColor: PRIORITIES.find(
-                          (p) => p.id === addItemForm.priority
+                          (p) => p.id === addItemForm.priority,
                         )?.color,
                       },
                     ]}
                   />
                   <Text style={styles.priorityDropdownButtonText}>
-                    {PRIORITIES.find((p) => p.id === addItemForm.priority)
-                      ?.name || 'Medium'}
+                    {t(
+                      PRIORITIES.find((p) => p.id === addItemForm.priority)
+                        ?.labelKey || 'shopping.prioMedium',
+                    )}
                   </Text>
                 </View>
-                <ChevronDown size={16} color={colors.neutral[500]} />
+                <ChevronDown size={16} color={colors.textSecondary} />
               </TouchableOpacity>
 
               {showAddPriorityDropdown && (
@@ -1163,11 +1182,11 @@ export default function ShoppingList() {
                               styles.priorityDropdownItemTextActive,
                           ]}
                         >
-                          {priority.name}
+                          {t(priority.labelKey)}
                         </Text>
                       </View>
                       {addItemForm.priority === priority.id && (
-                        <CheckCircle2 size={16} color={colors.primary[500]} />
+                        <CheckCircle2 size={16} color={colors.primary} />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -1177,15 +1196,15 @@ export default function ShoppingList() {
 
             {/* Notes */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Notes (Optional)</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldNotes')}</Text>
               <TextInput
                 style={[styles.formInput, styles.notesInput]}
                 value={addItemForm.notes}
                 onChangeText={(text) =>
                   setAddItemForm((prev) => ({ ...prev, notes: text }))
                 }
-                placeholder="Any special notes..."
-                placeholderTextColor={colors.neutral[400]}
+                placeholder={t('shopping.fieldNotesPlaceholder')}
+                placeholderTextColor={colors.inputPlaceholder}
                 multiline
                 numberOfLines={3}
               />
@@ -1208,9 +1227,9 @@ export default function ShoppingList() {
               onPress={handleCancelEdit}
               style={styles.modalCloseButton}
             >
-              <X size={24} color={colors.neutral[600]} />
+              <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Item</Text>
+            <Text style={styles.modalTitle}>{t('shopping.editTitle')}</Text>
             <TouchableOpacity
               onPress={handleUpdateItem}
               style={[
@@ -1219,7 +1238,7 @@ export default function ShoppingList() {
               ]}
               disabled={!editForm.item_name.trim()}
             >
-              <Save size={20} color={colors.neutral[0]} />
+              <Save size={20} color={'#fff'} />
             </TouchableOpacity>
           </View>
 
@@ -1234,22 +1253,24 @@ export default function ShoppingList() {
           >
             {/* Item Name */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Item Name *</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldName')}</Text>
               <TextInput
                 style={styles.formInput}
                 value={editForm.item_name}
                 onChangeText={(text) =>
                   setEditForm((prev) => ({ ...prev, item_name: text }))
                 }
-                placeholder="e.g., Bananas, Milk, Bread"
-                placeholderTextColor={colors.neutral[400]}
+                placeholder={t('shopping.fieldNamePlaceholder')}
+                placeholderTextColor={colors.inputPlaceholder}
               />
             </View>
 
             {/* Quantity & Unit with Dropdown */}
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.formLabel}>Quantity</Text>
+                <Text style={styles.formLabel}>
+                  {t('shopping.fieldQuantity')}
+                </Text>
                 <TextInput
                   style={styles.formInput}
                   value={editForm.quantity.toString()}
@@ -1259,12 +1280,12 @@ export default function ShoppingList() {
                   }}
                   keyboardType="numeric"
                   placeholder="1"
-                  placeholderTextColor={colors.neutral[400]}
+                  placeholderTextColor={colors.inputPlaceholder}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.formLabel}>Unit</Text>
+                <Text style={styles.formLabel}>{t('shopping.fieldUnit')}</Text>
                 <TouchableOpacity
                   style={styles.unitDropdownButton}
                   onPress={() => setShowUnitDropdown(!showUnitDropdown)}
@@ -1272,7 +1293,7 @@ export default function ShoppingList() {
                   <Text style={styles.unitDropdownButtonText}>
                     {editForm.unit}
                   </Text>
-                  <ChevronDown size={16} color={colors.neutral[500]} />
+                  <ChevronDown size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
 
                 {showUnitDropdown && (
@@ -1304,10 +1325,7 @@ export default function ShoppingList() {
                             {unit}
                           </Text>
                           {editForm.unit === unit && (
-                            <CheckCircle2
-                              size={16}
-                              color={colors.primary[500]}
-                            />
+                            <CheckCircle2 size={16} color={colors.primary} />
                           )}
                         </TouchableOpacity>
                       ))}
@@ -1319,7 +1337,9 @@ export default function ShoppingList() {
 
             {/* Category with Dropdown */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Category</Text>
+              <Text style={styles.formLabel}>
+                {t('shopping.fieldCategory')}
+              </Text>
               <TouchableOpacity
                 style={styles.categoryDropdownButton}
                 onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
@@ -1330,11 +1350,13 @@ export default function ShoppingList() {
                       '📦'}
                   </Text>
                   <Text style={styles.categoryDropdownButtonText}>
-                    {CATEGORIES.find((c) => c.id === editForm.category)?.name ||
-                      'General'}
+                    {t(
+                      CATEGORIES.find((c) => c.id === editForm.category)
+                        ?.labelKey || 'shopping.catGeneral',
+                    )}
                   </Text>
                 </View>
-                <ChevronDown size={16} color={colors.neutral[500]} />
+                <ChevronDown size={16} color={colors.textSecondary} />
               </TouchableOpacity>
 
               {showCategoryDropdown && (
@@ -1370,11 +1392,11 @@ export default function ShoppingList() {
                                 styles.categoryDropdownItemTextActive,
                             ]}
                           >
-                            {category.name}
+                            {t(category.labelKey)}
                           </Text>
                         </View>
                         {editForm.category === category.id && (
-                          <CheckCircle2 size={16} color={colors.primary[500]} />
+                          <CheckCircle2 size={16} color={colors.primary} />
                         )}
                       </TouchableOpacity>
                     ))}
@@ -1385,7 +1407,9 @@ export default function ShoppingList() {
 
             {/* Priority with Dropdown */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Priority</Text>
+              <Text style={styles.formLabel}>
+                {t('shopping.fieldPriority')}
+              </Text>
               <TouchableOpacity
                 style={styles.priorityDropdownButton}
                 onPress={() => setShowPriorityDropdown(!showPriorityDropdown)}
@@ -1396,17 +1420,19 @@ export default function ShoppingList() {
                       styles.priorityDropdownDot,
                       {
                         backgroundColor: PRIORITIES.find(
-                          (p) => p.id === editForm.priority
+                          (p) => p.id === editForm.priority,
                         )?.color,
                       },
                     ]}
                   />
                   <Text style={styles.priorityDropdownButtonText}>
-                    {PRIORITIES.find((p) => p.id === editForm.priority)?.name ||
-                      'Medium'}
+                    {t(
+                      PRIORITIES.find((p) => p.id === editForm.priority)
+                        ?.labelKey || 'shopping.prioMedium',
+                    )}
                   </Text>
                 </View>
-                <ChevronDown size={16} color={colors.neutral[500]} />
+                <ChevronDown size={16} color={colors.textSecondary} />
               </TouchableOpacity>
 
               {showPriorityDropdown && (
@@ -1445,11 +1471,11 @@ export default function ShoppingList() {
                               styles.priorityDropdownItemTextActive,
                           ]}
                         >
-                          {priority.name}
+                          {t(priority.labelKey)}
                         </Text>
                       </View>
                       {editForm.priority === priority.id && (
-                        <CheckCircle2 size={16} color={colors.primary[500]} />
+                        <CheckCircle2 size={16} color={colors.primary} />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -1459,7 +1485,7 @@ export default function ShoppingList() {
 
             {/* Estimated Cost */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Estimated Cost (Optional)</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldCost')}</Text>
               <TextInput
                 style={styles.formInput}
                 value={
@@ -1473,35 +1499,35 @@ export default function ShoppingList() {
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.inputPlaceholder}
               />
             </View>
 
             {/* Brand */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Brand (Optional)</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldBrand')}</Text>
               <TextInput
                 style={styles.formInput}
                 value={editForm.brand}
                 onChangeText={(text) =>
                   setEditForm((prev) => ({ ...prev, brand: text }))
                 }
-                placeholder="e.g., Organic Valley"
-                placeholderTextColor={colors.neutral[400]}
+                placeholder={t('shopping.fieldBrandPlaceholder')}
+                placeholderTextColor={colors.inputPlaceholder}
               />
             </View>
 
             {/* Notes */}
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Notes (Optional)</Text>
+              <Text style={styles.formLabel}>{t('shopping.fieldNotes')}</Text>
               <TextInput
                 style={[styles.formInput, styles.notesInput]}
                 value={editForm.notes}
                 onChangeText={(text) =>
                   setEditForm((prev) => ({ ...prev, notes: text }))
                 }
-                placeholder="Any special notes..."
-                placeholderTextColor={colors.neutral[400]}
+                placeholder={t('shopping.fieldNotesPlaceholder')}
+                placeholderTextColor={colors.inputPlaceholder}
                 multiline
                 numberOfLines={3}
               />
@@ -1511,667 +1537,552 @@ export default function ShoppingList() {
           </ScrollView>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
-// ✅ Complete Styles with Dropdowns
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-  },
-  loadingText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-    marginTop: spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  headerTitle: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-  },
-  headerSubtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  urgentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.error[50],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-    gap: spacing.xs,
-  },
-  urgentText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.error[700],
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.sm,
-  },
+// ✅ Warm Kitchen styles — themed factory (dark-mode aware)
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 16,
+    },
 
-  // ✅ Compact Stats Row
-  compactStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[50],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  compactStat: {
-    alignItems: 'center',
-    marginRight: spacing.lg,
-  },
-  compactStatValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-  },
-  compactStatLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.neutral[500],
-    marginTop: 2,
-  },
-  compactSearchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  compactSearchInput: {
-    flex: 1,
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[800],
-    marginLeft: spacing.xs,
-  },
+    // Header
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    headerText: { flex: 1, gap: 4 },
+    headerTitle: { marginTop: 2 },
+    headerSubtitle: {
+      fontFamily: 'Inter-Regular',
+      fontSize: 13,
+      color: colors.textSecondary,
+      marginTop: 4,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: 22,
+    },
+    urgentBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.error[500] + '1A',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.full,
+      gap: spacing.xs,
+    },
+    urgentText: {
+      fontFamily: 'Inter-Bold',
+      fontSize: 13,
+      color: palette.error[600],
+    },
+    addButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    },
 
-  // ✅ Quick Actions Container
-  quickActionsContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  quickActionsButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    marginBottom: spacing.sm,
-  },
-  quickActionsButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[700],
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 8,
-    padding: 2,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: colors.neutral[0],
-    ...shadows.sm,
-  },
-  toggleText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
-  },
-  toggleTextActive: {
-    color: colors.neutral[800],
-    fontWeight: '600',
-  },
+    // Compact Stats Row
+    compactStatsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      paddingVertical: 14,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: spacing.md,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 2,
+    },
+    compactStat: { alignItems: 'center' },
+    compactStatDivider: {
+      borderLeftWidth: 1,
+      borderLeftColor: colors.borderLight,
+      paddingLeft: spacing.md,
+    },
+    compactStatLabel: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 10.5,
+      color: colors.textSecondary,
+      marginTop: 3,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    compactSearchContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    compactSearchInput: {
+      flex: 1,
+      fontFamily: 'Inter-Regular',
+      fontSize: 13,
+      color: colors.textPrimary,
+      marginLeft: spacing.xs,
+      padding: 0,
+    },
 
-  // ✅ Dropdown Content
-  dropdownContent: {
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
-  dropdownSection: {
-    marginBottom: spacing.lg,
-  },
-  dropdownSectionTitle: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.neutral[700],
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  dropdownActions: {
-    gap: spacing.sm,
-  },
-  dropdownActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    gap: spacing.sm,
-  },
-  dropdownActionText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.primary[500],
-    fontWeight: '500',
-  },
-  dropdownCategoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  dropdownCategoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[50],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    gap: spacing.xs,
-  },
-  dropdownCategoryItemActive: {
-    backgroundColor: colors.primary[50],
-    borderColor: colors.primary[200],
-  },
-  dropdownCategoryEmoji: {
-    fontSize: 14,
-  },
-  dropdownCategoryText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
-  },
-  dropdownCategoryTextActive: {
-    color: colors.primary[600],
-    fontWeight: '600',
-  },
-  dropdownPriorityGrid: {
-    gap: spacing.sm,
-  },
-  dropdownPriorityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[50],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    gap: spacing.sm,
-  },
-  priorityDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  dropdownPriorityText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
-  },
-  mainContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyListContent: {
-    flex: 1,
-  },
+    // Quick Actions
+    quickActionsContainer: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    quickActionsButton: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      marginBottom: spacing.sm,
+    },
+    quickActionsButtonText: {
+      fontFamily: 'Inter-SemiBold',
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    toggleContainer: {
+      flexDirection: 'row',
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: radius.md,
+      padding: 3,
+    },
+    toggleButton: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.sm,
+      alignItems: 'center',
+    },
+    toggleButtonActive: {
+      backgroundColor: colors.surface,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    },
+    toggleText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    toggleTextActive: {
+      fontFamily: 'Inter-SemiBold',
+      color: colors.textPrimary,
+    },
 
-  // Item Card Styles
-  itemCard: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 16,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[100],
-    ...shadows.sm,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: spacing.lg,
-  },
-  checkbox: {
-    marginRight: spacing.md,
-    marginTop: 2,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  completedText: {
-    textDecorationLine: 'line-through',
-    color: colors.neutral[400],
-  },
-  itemBrand: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    marginBottom: spacing.xs,
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  itemQuantity: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    fontWeight: '500',
-  },
-  itemCost: {
-    fontSize: typography.fontSize.sm,
-    color: colors.success[600],
-    fontWeight: '600',
-  },
-  priorityBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  priorityText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  itemNotes: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    fontStyle: 'italic',
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    // Dropdown Content
+    dropdownContent: {
+      backgroundColor: colors.surface,
+      marginHorizontal: spacing.lg,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    dropdownSection: { marginBottom: spacing.md },
+    dropdownActions: { gap: spacing.sm },
+    dropdownActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.background,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: spacing.sm,
+    },
+    dropdownActionText: {
+      fontFamily: 'Inter-SemiBold',
+      fontSize: 13,
+      color: colors.textPrimary,
+    },
+    dropdownCategoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    dropdownCategoryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.full,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: spacing.xs,
+    },
+    dropdownCategoryItemActive: {
+      backgroundColor: colors.primary + '14',
+      borderColor: colors.primary,
+    },
+    dropdownCategoryEmoji: { fontSize: 14 },
+    dropdownCategoryText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    dropdownCategoryTextActive: {
+      fontFamily: 'Inter-SemiBold',
+      color: colors.primary,
+    },
+    dropdownPriorityGrid: { gap: spacing.sm },
+    dropdownPriorityItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      gap: spacing.sm,
+    },
+    priorityDot: { width: 10, height: 10, borderRadius: 5 },
+    dropdownPriorityText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    mainContent: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: 4 },
+    emptyListContent: { flex: 1 },
 
-  // 🆕 Edit Indicator
-  editIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[100],
-    gap: spacing.xs,
-  },
-  editHint: {
-    fontSize: 12,
-    color: colors.neutral[400],
-    fontStyle: 'italic',
-  },
+    // Empty State
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.xl,
+    },
+    emptyIcon: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: colors.primary + '14',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptyTitle: { marginBottom: spacing.sm, textAlign: 'center' },
+    emptySubtitle: {
+      fontFamily: 'Inter-Regular',
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 21,
+      marginBottom: spacing.xl,
+    },
+    emptyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: colors.primary,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: 14,
+      borderRadius: 18,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+    },
+    emptyButtonText: {
+      fontFamily: 'Inter-Bold',
+      fontSize: 15,
+      color: '#fff',
+    },
 
-  // Empty State
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-  },
-  emptyTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[700],
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: spacing.xl,
-  },
-  emptyButton: {
-    backgroundColor: colors.primary[500],
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: 16,
-  },
-  emptyButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
+    // Modal
+    modalContainer: { flex: 1, backgroundColor: colors.background },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    modalCloseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalTitle: {
+      fontFamily: 'Inter-SemiBold',
+      fontSize: 18,
+      color: colors.textPrimary,
+    },
+    modalSaveButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalSaveButtonDisabled: { backgroundColor: colors.border },
+    modalContent: { flex: 1, padding: spacing.lg },
+    formGroup: { marginBottom: spacing.lg },
+    formLabel: {
+      fontFamily: 'Inter-SemiBold',
+      fontSize: 13,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    formInput: {
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontFamily: 'Inter-Regular',
+      fontSize: 15,
+      color: colors.textPrimary,
+      backgroundColor: colors.inputBackground,
+    },
+    notesInput: { height: 80, textAlignVertical: 'top' },
+    formRow: { flexDirection: 'row' },
 
-  // Modal Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  modalSaveButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalSaveButtonDisabled: {
-    backgroundColor: colors.neutral[300],
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.lg,
-  },
-  formGroup: {
-    marginBottom: spacing.lg,
-  },
-  formLabel: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.neutral[700],
-    marginBottom: spacing.sm,
-  },
-  formInput: {
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[800],
-    backgroundColor: colors.neutral[0],
-  },
-  notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
+    // Unit Dropdown
+    unitDropdownButton: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.inputBackground,
+    },
+    unitDropdownButtonText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    unitDropdownMenu: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      marginTop: spacing.xs,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+      zIndex: 1000,
+    },
+    unitDropdownScroll: { maxHeight: 200 },
+    unitDropdownItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    unitDropdownItemActive: { backgroundColor: colors.primary + '14' },
+    unitDropdownItemText: {
+      fontFamily: 'Inter-Regular',
+      fontSize: 13,
+      color: colors.textPrimary,
+    },
+    unitDropdownItemTextActive: {
+      fontFamily: 'Inter-SemiBold',
+      color: colors.primary,
+    },
 
-  // 🆕 Form Row
-  formRow: {
-    flexDirection: 'row',
-  },
+    // Category Dropdown
+    categoryDropdownButton: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.inputBackground,
+    },
+    categoryDropdownSelected: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    categoryDropdownEmoji: { fontSize: 18 },
+    categoryDropdownButtonText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    categoryDropdownMenu: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      marginTop: spacing.xs,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+      zIndex: 1000,
+    },
+    categoryDropdownScroll: { maxHeight: 250 },
+    categoryDropdownItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    categoryDropdownItemActive: { backgroundColor: colors.primary + '14' },
+    categoryDropdownItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    categoryDropdownItemEmoji: { fontSize: 18 },
+    categoryDropdownItemText: {
+      fontFamily: 'Inter-Regular',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    categoryDropdownItemTextActive: {
+      fontFamily: 'Inter-SemiBold',
+      color: colors.primary,
+    },
 
-  // 🆕 Unit Dropdown Styles
-  unitDropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-  },
-  unitDropdownButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[800],
-    fontWeight: '500',
-  },
-  unitDropdownMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: spacing.xs,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    ...shadows.md,
-    zIndex: 1000,
-  },
-  unitDropdownScroll: {
-    maxHeight: 200,
-  },
-  unitDropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  unitDropdownItemActive: {
-    backgroundColor: colors.primary[50],
-  },
-  unitDropdownItemText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[700],
-  },
-  unitDropdownItemTextActive: {
-    color: colors.primary[600],
-    fontWeight: '600',
-  },
-
-  // 🆕 Category Dropdown Styles
-  categoryDropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-  },
-  categoryDropdownSelected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  categoryDropdownEmoji: {
-    fontSize: 18,
-  },
-  categoryDropdownButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[800],
-    fontWeight: '500',
-  },
-  categoryDropdownMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: spacing.xs,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    ...shadows.md,
-    zIndex: 1000,
-  },
-  categoryDropdownScroll: {
-    maxHeight: 250,
-  },
-  categoryDropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  categoryDropdownItemActive: {
-    backgroundColor: colors.primary[50],
-  },
-  categoryDropdownItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  categoryDropdownItemEmoji: {
-    fontSize: 18,
-  },
-  categoryDropdownItemText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[700],
-  },
-  categoryDropdownItemTextActive: {
-    color: colors.primary[600],
-    fontWeight: '600',
-  },
-
-  // 🆕 Priority Dropdown Styles
-  priorityDropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
-  },
-  priorityDropdownSelected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  priorityDropdownDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  priorityDropdownButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[800],
-    fontWeight: '500',
-  },
-  priorityDropdownMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: spacing.xs,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    ...shadows.md,
-    zIndex: 1000,
-  },
-  priorityDropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  priorityDropdownItemActive: {
-    backgroundColor: colors.primary[50],
-  },
-  priorityDropdownItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  priorityDropdownItemDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  priorityDropdownItemText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[700],
-  },
-  priorityDropdownItemTextActive: {
-    color: colors.primary[600],
-    fontWeight: '600',
-  },
-});
+    // Priority Dropdown
+    priorityDropdownButton: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.inputBackground,
+    },
+    priorityDropdownSelected: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    priorityDropdownDot: { width: 12, height: 12, borderRadius: 6 },
+    priorityDropdownButtonText: {
+      fontFamily: 'Inter-Medium',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    priorityDropdownMenu: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      marginTop: spacing.xs,
+      backgroundColor: colors.surface,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.1,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+      zIndex: 1000,
+    },
+    priorityDropdownItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    priorityDropdownItemActive: { backgroundColor: colors.primary + '14' },
+    priorityDropdownItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    priorityDropdownItemDot: { width: 12, height: 12, borderRadius: 6 },
+    priorityDropdownItemText: {
+      fontFamily: 'Inter-Regular',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    priorityDropdownItemTextActive: {
+      fontFamily: 'Inter-SemiBold',
+      color: colors.primary,
+    },
+  });

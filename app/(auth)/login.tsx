@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
+import { ChefHat } from 'lucide-react-native';
 
 import FormInput from '@/components/auth/FormInput';
-import ThemedButton from '@/components/UI/ThemedButton';
 import Divider from '@/components/auth/Divider';
 import ErrorCard from '@/components/UI/ErrorCard';
 import AuthLayout from '@/components/auth/AuthLayout';
-import ThemedText from '@/components/UI/ThemedText';
 import CustomAlert from '@/components/UI/CustomAlert';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import GoogleButton from '@/components/auth/GoogleButton';
+import PrimaryButton from '@/components/auth/PrimaryButton';
 
 import { useCustomAlert } from '@/hooks/useCustomAlert';
-import { spacing } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
 const schema = z.object({
   email: z.string().email('Email required'),
@@ -27,6 +31,7 @@ type FormFields = z.infer<typeof schema>;
 
 const LoginPage = () => {
   const router = useRouter();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -51,11 +56,11 @@ const LoginPage = () => {
       if (error) {
         if (error.message.includes('Email not confirmed')) {
           showAlert(
-            'Email Not Confirmed',
-            'Please check your email and click the confirmation link before signing in.',
+            t('auth.emailNotConfirmedTitle'),
+            t('auth.emailNotConfirmedMessage'),
             [
               {
-                text: 'Resend Email',
+                text: t('auth.resendEmail'),
                 onPress: async () => {
                   const { error: resendError } = await supabase.auth.resend({
                     type: 'signup',
@@ -63,14 +68,14 @@ const LoginPage = () => {
                   });
                   if (!resendError) {
                     showAlert(
-                      'Email Sent',
-                      'Confirmation email has been resent.'
+                      t('auth.emailSentTitle'),
+                      t('auth.emailSentMessage'),
                     );
                   }
                 },
               },
-              { text: 'Cancel', onPress: hideAlert },
-            ]
+              { text: t('common.cancel'), onPress: hideAlert },
+            ],
           );
           return;
         }
@@ -111,47 +116,81 @@ const LoginPage = () => {
   return (
     <AuthLayout>
       <View style={styles.content}>
-        <ThemedText type="heading" bold={true} style={styles.title}>
-          🍽️ AI Food Pantry
-        </ThemedText>
-        <ThemedText type="subheading" style={styles.subtitle}>
-          Welcome Back
-        </ThemedText>
-        <FormInput
-          control={control}
-          name="email"
-          placeholder="Email"
-          keyboardType="email-address"
-        />
-        <FormInput
-          control={control}
-          name="password"
-          placeholder="Password"
-          secureTextEntry
-        />
-        <ThemedButton
-          variant="bold"
-          onPress={handleForgotPassword}
-          text="Forgot Password?"
-        />
-        <ThemedButton
-          onPress={handleSubmit(handleAuth)}
-          disabled={loading}
-          text="Sign In"
-        />
-        <Divider />
-        <ThemedButton
-          variant="google"
-          onPress={handleGoogleSignIn}
-          disabled={loading}
-          text="Continue with Google"
-        />
-        {errorMessage && <ErrorCard message={errorMessage} />}
-        <ThemedButton
-          variant="switch"
+        <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
+          <ChefHat size={26} color="#fff" />
+        </View>
+        <Eyebrow style={styles.eyebrow}>{t('auth.loginEyebrow')}</Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('auth.loginTitle')}
+        </Display>
+        <Display
+          size="sm"
+          weight="displayMedium"
+          color={colors.textSecondary}
+          style={styles.lede}
+        >
+          {t('auth.loginLede')}
+        </Display>
+
+        <View style={styles.form}>
+          <FormInput
+            control={control}
+            name="email"
+            placeholder={t('auth.emailPlaceholder')}
+            keyboardType="email-address"
+          />
+          <FormInput
+            control={control}
+            name="password"
+            placeholder={t('auth.passwordPlaceholder')}
+            secureTextEntry
+          />
+
+          <Pressable
+            onPress={handleForgotPassword}
+            hitSlop={8}
+            style={styles.forgot}
+          >
+            <Eyebrow color={colors.primary} style={styles.linkText}>
+              {t('auth.forgotPassword')}
+            </Eyebrow>
+          </Pressable>
+
+          <PrimaryButton
+            text={t('auth.signIn')}
+            onPress={handleSubmit(handleAuth)}
+            loading={loading}
+            disabled={loading}
+          />
+
+          <Divider />
+
+          <GoogleButton
+            text={t('auth.continueWithGoogle')}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          />
+
+          {errorMessage && <ErrorCard message={errorMessage} />}
+        </View>
+
+        <Pressable
           onPress={handleRedirectToSignUp}
-          text="Need an account? Sign Up"
-        />
+          hitSlop={8}
+          style={styles.switch}
+        >
+          <Display
+            size="sm"
+            weight="displayMedium"
+            color={colors.textSecondary}
+          >
+            {t('auth.noAccount')}
+          </Display>
+          <Display size="sm" weight="displayBold" color={colors.primary}>
+            {t('auth.signUpLink')}
+          </Display>
+        </Pressable>
+
         <CustomAlert
           visible={visible}
           title={title}
@@ -171,13 +210,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-  title: {
-    textAlign: 'center',
-    marginBottom: spacing.sm,
+  brandMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    shadowColor: '#C8472B',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: spacing.xl,
+  eyebrow: { marginBottom: spacing.sm },
+  title: { marginBottom: spacing.sm },
+  lede: { marginBottom: spacing.xl },
+  form: { gap: 0 },
+  forgot: { alignSelf: 'flex-end', marginBottom: spacing.lg, marginTop: -4 },
+  linkText: { letterSpacing: 0.3, textTransform: 'none', fontSize: 12.5 },
+  switch: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.xl,
   },
 });

@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
   Bell,
@@ -20,12 +21,15 @@ import {
   ChevronRight,
   Heart,
   Star,
+  Crown,
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 import { supabase } from '@/lib/supabase';
-import { spacing } from '@/lib/theme/index';
-import { router } from 'expo-router'; // ✅ YENİ: Navigation import
+import { spacing, radius, fonts } from '@/lib/theme/index';
+import { router } from 'expo-router';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { t } from '@/lib/i18n';
 
 interface SettingItem {
   icon: any;
@@ -34,6 +38,7 @@ interface SettingItem {
   onPress?: () => void;
   rightElement?: React.ReactNode;
   dangerous?: boolean;
+  muted?: boolean;
 }
 
 export default function SettingsScreen() {
@@ -89,31 +94,29 @@ export default function SettingsScreen() {
 
   const getSubscriptionName = (priceId: string): string => {
     if (priceId === 'price_1S0JK3Emd2R9npIslZBvpCQK') {
-      return 'Pantry Pal';
+      return t('settings.premiumName');
     }
-    return 'Unknown Plan';
+    return t('settings.premiumFallback');
   };
 
-  // ✅ GÜNCELLENMIŞ: Post-logout navigation eklendi
   const handleLogout = async () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.logoutTitle'), t('settings.logoutMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: t('settings.logout'),
         style: 'destructive',
         onPress: async () => {
           try {
             const { error } = await supabase.auth.signOut();
             if (error) {
-              Alert.alert('Logout Error', error.message);
+              Alert.alert(t('settings.logoutError'), error.message);
             } else {
-              // ✅ YENİ: Başarılı logout sonrası login ekranına yönlendirme
               router.replace('/(auth)/login');
             }
           } catch (error: any) {
             Alert.alert(
-              'Logout Error',
-              'An unexpected error occurred during logout'
+              t('settings.logoutError'),
+              t('settings.logoutErrorMessage'),
             );
           }
         },
@@ -124,24 +127,31 @@ export default function SettingsScreen() {
   const getThemeModeText = () => {
     switch (themeMode) {
       case 'light':
-        return 'Light';
+        return t('settings.themeLight');
       case 'dark':
-        return 'Dark';
+        return t('settings.themeDark');
       case 'system':
-        return 'System';
+        return t('settings.themeSystem');
     }
   };
+
+  const comingSoon = (msg: string) => () =>
+    Alert.alert(t('settings.comingSoon'), msg);
 
   const SettingSection: React.FC<{
     title: string;
     children: React.ReactNode;
   }> = ({ title, children }) => (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-        {title}
-      </Text>
+      <Eyebrow style={styles.sectionTitle}>{title}</Eyebrow>
       <View
-        style={[styles.sectionContent, { backgroundColor: colors.surface }]}
+        style={[
+          styles.sectionContent,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.borderLight,
+          },
+        ]}
       >
         {children}
       </View>
@@ -155,85 +165,116 @@ export default function SettingsScreen() {
     onPress,
     rightElement,
     dangerous,
-  }) => (
-    <TouchableOpacity
-      style={styles.settingRow}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <View
-        style={[
-          styles.iconContainer,
-          { backgroundColor: colors.surfaceVariant },
-        ]}
+    muted,
+  }) => {
+    const iconTint = dangerous
+      ? colors.error
+      : muted
+        ? colors.textSecondary
+        : colors.primary;
+    const titleTint = dangerous ? colors.error : colors.textPrimary;
+    return (
+      <TouchableOpacity
+        style={styles.settingRow}
+        onPress={onPress}
+        disabled={!onPress}
+        activeOpacity={0.7}
       >
-        <Icon size={20} color={dangerous ? colors.error : colors.primary} />
-      </View>
-
-      <View style={styles.textContainer}>
-        <Text
+        <View
           style={[
-            styles.settingTitle,
-            { color: dangerous ? colors.error : colors.textPrimary },
+            styles.iconContainer,
+            {
+              backgroundColor: dangerous
+                ? colors.error + '14'
+                : colors.surfaceVariant,
+            },
           ]}
         >
-          {title}
-        </Text>
-        {subtitle && (
-          <Text
-            style={[styles.settingSubtitle, { color: colors.textSecondary }]}
-          >
-            {subtitle}
-          </Text>
-        )}
-      </View>
+          <Icon size={19} color={iconTint} />
+        </View>
 
-      {rightElement ||
-        (onPress && <ChevronRight size={20} color={colors.textSecondary} />)}
-    </TouchableOpacity>
-  );
+        <View style={styles.textContainer}>
+          <Text style={[styles.settingTitle, { color: titleTint }]}>
+            {title}
+          </Text>
+          {subtitle && (
+            <Text
+              style={[styles.settingSubtitle, { color: colors.textSecondary }]}
+            >
+              {subtitle}
+            </Text>
+          )}
+        </View>
+
+        {rightElement ||
+          (onPress && <ChevronRight size={18} color={colors.textSecondary} />)}
+      </TouchableOpacity>
+    );
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <View style={styles.profileSection}>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>
-              {userName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={[styles.userName, { color: colors.textPrimary }]}>
-              {userName}
-            </Text>
-            <Text style={[styles.userEmail, { color: colors.textSecondary }]}>
-              {userEmail}
-            </Text>
-          </View>
-        </View>
-      </View>
-
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
+        <View style={styles.headerArea}>
+          <Eyebrow style={styles.headerKicker}>
+            {t('settings.headerKicker')}
+          </Eyebrow>
+          <Display size="xl" style={styles.screenTitle}>
+            {t('settings.title')}
+          </Display>
+
+          <View
+            style={[
+              styles.profileCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
+          >
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Display size="md" color="#fff" style={styles.avatarText}>
+                {(userName.charAt(0) || 'S').toUpperCase()}
+              </Display>
+            </View>
+            <View style={styles.profileInfo}>
+              <Display size="sm" color={colors.textPrimary} numberOfLines={1}>
+                {userName}
+              </Display>
+              <Text
+                style={[styles.userEmail, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {userEmail}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Appearance */}
-        <SettingSection title="APPEARANCE">
+        <SettingSection title={t('settings.groupAppearance')}>
           <SettingRow
             icon={Moon}
-            title="Theme"
+            title={t('settings.theme')}
             subtitle={getThemeModeText()}
             onPress={() => setShowThemeSwitcher(true)}
           />
         </SettingSection>
 
         {/* Preferences */}
-        <SettingSection title="PREFERENCES">
+        <SettingSection title={t('settings.groupPreferences')}>
           <SettingRow
             icon={Bell}
-            title="Notifications"
-            subtitle="Expiry alerts and recommendations"
+            title={t('settings.notifications')}
+            subtitle={t('settings.notificationsSubtitle')}
             rightElement={
               <Switch
                 value={notifications}
@@ -246,27 +287,23 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Globe}
-            title="Language"
-            subtitle="English"
-            onPress={() =>
-              Alert.alert(
-                'Coming Soon',
-                'Language selection will be available soon!'
-              )
-            }
+            title={t('settings.language')}
+            subtitle={t('settings.languageValue')}
+            muted
+            onPress={comingSoon(t('settings.languageComingSoon'))}
           />
         </SettingSection>
 
         {/* Account */}
-        <SettingSection title="ACCOUNT">
+        <SettingSection title={t('settings.groupAccount')}>
           {subscription && subscription.subscription_status === 'active' && (
             <>
               <SettingRow
-                icon={User}
-                title="Subscription"
+                icon={Crown}
+                title={t('settings.mySubscription')}
                 subtitle={`${getSubscriptionName(
-                  subscription.price_id
-                )} - Active`}
+                  subscription.price_id,
+                )} · ${t('settings.subscriptionActive')}`}
                 onPress={() => router.push('/subscription')}
               />
               <View
@@ -276,35 +313,27 @@ export default function SettingsScreen() {
           )}
           <SettingRow
             icon={User}
-            title="Edit Profile"
-            onPress={() =>
-              Alert.alert(
-                'Coming Soon',
-                'Profile editing will be available soon!'
-              )
-            }
+            title={t('settings.editProfile')}
+            muted
+            onPress={comingSoon(t('settings.profileComingSoon'))}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Shield}
-            title="Privacy & Security"
-            onPress={() =>
-              Alert.alert(
-                'Coming Soon',
-                'Privacy settings will be available soon!'
-              )
-            }
+            title={t('settings.privacySecurity')}
+            muted
+            onPress={comingSoon(t('settings.privacyComingSoon'))}
           />
         </SettingSection>
 
         {/* Support */}
-        <SettingSection title="SUPPORT">
+        <SettingSection title={t('settings.groupSupport')}>
           {(!subscription || subscription.subscription_status !== 'active') && (
             <>
               <SettingRow
-                icon={User}
-                title="Upgrade to Premium"
-                subtitle="Unlock all features with Pantry Pal"
+                icon={Crown}
+                title={t('settings.goPremium')}
+                subtitle={t('settings.goPremiumSubtitle')}
                 onPress={() => router.push('/subscription')}
               />
               <View
@@ -314,37 +343,31 @@ export default function SettingsScreen() {
           )}
           <SettingRow
             icon={HelpCircle}
-            title="Help & FAQ"
-            onPress={() =>
-              Alert.alert('Coming Soon', 'Help section will be available soon!')
-            }
+            title={t('settings.helpFaq')}
+            muted
+            onPress={comingSoon(t('settings.helpComingSoon'))}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Heart}
-            title="Send Feedback"
-            onPress={() =>
-              Alert.alert(
-                'Coming Soon',
-                'Feedback feature will be available soon!'
-              )
-            }
+            title={t('settings.sendFeedback')}
+            muted
+            onPress={comingSoon(t('settings.feedbackComingSoon'))}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Star}
-            title="Rate App"
-            onPress={() =>
-              Alert.alert('Coming Soon', 'App rating will be available soon!')
-            }
+            title={t('settings.rateApp')}
+            muted
+            onPress={comingSoon(t('settings.rateComingSoon'))}
           />
         </SettingSection>
 
         {/* Danger Zone */}
-        <SettingSection title="ACCOUNT ACTIONS">
+        <SettingSection title={t('settings.groupDanger')}>
           <SettingRow
             icon={LogOut}
-            title="Sign Out"
+            title={t('settings.logout')}
             dangerous
             onPress={handleLogout}
           />
@@ -352,11 +375,11 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={[styles.appName, { color: colors.textSecondary }]}>
-            AI Food Pantry
-          </Text>
+          <Display size="sm" color={colors.textSecondary}>
+            Stovd
+          </Display>
           <Text style={[styles.appVersion, { color: colors.textSecondary }]}>
-            Version 1.0.0
+            {t('settings.version', { version: '1.0.0' })}
           </Text>
         </View>
       </ScrollView>
@@ -366,7 +389,7 @@ export default function SettingsScreen() {
         visible={showThemeSwitcher}
         onClose={() => setShowThemeSwitcher(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -374,66 +397,85 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  scrollView: {
+    flex: 1,
   },
-  profileSection: {
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  headerArea: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  headerKicker: {
+    marginBottom: 6,
+  },
+  screenTitle: {
+    marginBottom: spacing.lg,
+  },
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    ...{
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 2,
+    },
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
   avatarText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontFamily: fonts.bodySemibold,
   },
   profileInfo: {
     flex: 1,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
+    gap: 3,
   },
   userEmail: {
-    fontSize: 14,
-  },
-  scrollView: {
-    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.body,
   },
   section: {
     marginTop: spacing.lg,
     marginHorizontal: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
     marginBottom: spacing.sm,
+    marginLeft: 4,
   },
   sectionContent: {
-    borderRadius: 12,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     overflow: 'hidden',
+    ...{
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 1,
+    },
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    paddingVertical: 13,
+    paddingHorizontal: spacing.md,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -442,28 +484,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15.5,
+    fontFamily: fonts.bodyMedium,
   },
   settingSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     marginTop: 2,
+    fontFamily: fonts.body,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: spacing.md + 36 + spacing.md,
+    marginLeft: spacing.md + 38 + spacing.md,
   },
   appInfo: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
-    marginBottom: spacing.xl,
-  },
-  appName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    gap: 4,
   },
   appVersion: {
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: fonts.body,
   },
 });

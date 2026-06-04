@@ -1,16 +1,15 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Circle as XCircle, ArrowLeft } from 'lucide-react-native';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, radius, fonts } from '@/lib/theme/index';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { t } from '@/lib/i18n';
 
 export default function SubscriptionCancel() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   const handleGoBack = () => {
     router.back();
@@ -21,26 +20,50 @@ export default function SubscriptionCancel() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <XCircle size={80} color={colors.error[500]} />
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: colors.textSecondary + '1A' },
+          ]}
+        >
+          <XCircle size={56} color={colors.textSecondary} />
         </View>
 
-        <Text style={styles.title}>Subscription Canceled</Text>
-        
-        <Text style={styles.subtitle}>
-          Your subscription process was canceled. No charges were made to your account.
+        <Eyebrow color={colors.textSecondary} style={styles.kicker}>
+          {t('subscription.cancelKicker')}
+        </Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('subscription.cancelTitle')}
+        </Display>
+
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          {t('subscription.cancelSubtitle')}
         </Text>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.tryAgainButton} onPress={handleTryAgain}>
-            <Text style={styles.tryAgainButtonText}>Try Again</Text>
+          <TouchableOpacity
+            style={[styles.tryAgainButton, { backgroundColor: colors.primary }]}
+            onPress={handleTryAgain}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.tryAgainButtonText}>
+              {t('subscription.tryAgain')}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <ArrowLeft size={20} color={colors.neutral[600]} />
-            <Text style={styles.backButtonText}>Go Back</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: colors.border }]}
+            onPress={handleGoBack}
+            activeOpacity={0.7}
+          >
+            <ArrowLeft size={18} color={colors.textSecondary} />
+            <Text
+              style={[styles.backButtonText, { color: colors.textSecondary }]}
+            >
+              {t('subscription.goBack')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -51,30 +74,35 @@ export default function SubscriptionCancel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
     alignItems: 'center',
     padding: spacing.xl,
-    maxWidth: 400,
+    maxWidth: 420,
+    width: '100%',
   },
   iconContainer: {
-    marginBottom: spacing.xl,
-  },
-  title: {
-    fontSize: typography.fontSize['3xl'],
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-    textAlign: 'center',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  subtitle: {
-    fontSize: typography.fontSize.lg,
-    color: colors.neutral[600],
+  kicker: {
+    marginBottom: 8,
+  },
+  title: {
     textAlign: 'center',
-    lineHeight: 28,
+    marginBottom: spacing.md,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontFamily: fonts.body,
+    textAlign: 'center',
+    lineHeight: 24,
     marginBottom: spacing.xl,
   },
   buttonContainer: {
@@ -82,30 +110,36 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   tryAgainButton: {
-    backgroundColor: colors.primary[500],
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: 12,
+    height: 54,
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    ...{
+      shadowColor: '#C8472B',
+      shadowOpacity: 0.28,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 4,
+    },
   },
   tryAgainButtonText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[0],
+    fontSize: 15,
+    fontFamily: fonts.bodyBold,
+    color: '#fff',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.neutral[300],
     gap: spacing.sm,
   },
   backButtonText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
   },
 });

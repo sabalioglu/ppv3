@@ -1,20 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react-native';
 
 import AuthLayout from '@/components/auth/AuthLayout';
 import CustomAlert from '@/components/UI/CustomAlert';
-import { spacing, radius } from '@/lib/theme/index';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { spacing, radius, fonts } from '@/lib/theme/index';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCustomAlert } from '@/hooks/useCustomAlert';
 
@@ -37,6 +34,7 @@ import Step8, {
 
 import ThemedText from '@/components/UI/ThemedText';
 import { useTheme } from '@/contexts/ThemeContext';
+import { t } from '@/lib/i18n';
 
 export const formSchema = z.object({
   fullName: z.string().min(1, 'Please enter your full name'),
@@ -61,7 +59,7 @@ export const formSchema = z.object({
     }),
   activityLevel: z.enum(
     activityLevelValues,
-    'Please select your activity level'
+    'Please select your activity level',
   ),
   healthGoalsMacros: z
     .array(z.enum(HealthGoalsMacrosKeys))
@@ -104,6 +102,11 @@ const steps: Record<
 
 const TOTAL_STEPS = Object.keys(steps).length;
 
+const stepTitle = (step: number) => ({
+  kicker: t(`auth.step${step}Kicker`),
+  title: t(`auth.step${step}Title`),
+});
+
 export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -124,7 +127,7 @@ export default function Onboarding() {
 
   const progress = useMemo(
     () => (currentStep / TOTAL_STEPS) * 100,
-    [currentStep]
+    [currentStep],
   );
 
   const handleNext = async () => {
@@ -174,7 +177,10 @@ export default function Onboarding() {
       await checkProfileCompletion();
       router.replace('/');
     } catch (error: any) {
-      showAlert('❌ Profile save failed', error.message || 'Please try again.');
+      showAlert(
+        t('auth.profileSaveFailed'),
+        error.message || t('auth.profileSaveFailedFallback'),
+      );
     } finally {
       setLoading(false);
     }
@@ -186,15 +192,43 @@ export default function Onboarding() {
         <SafeAreaView style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <ThemedText bold type="heading" style={styles.title}>
-              🍽 Complete Your Profile
-            </ThemedText>
-            <ThemedText type="subheading" style={styles.subtitle}>
-              Step {currentStep} of {TOTAL_STEPS}
-            </ThemedText>
+            <View style={styles.stepRow}>
+              <Eyebrow>
+                {t('auth.stepProgress', {
+                  current: currentStep,
+                  total: TOTAL_STEPS,
+                })}
+              </Eyebrow>
+              {currentStep > 1 ? (
+                <Pressable
+                  onPress={handleBack}
+                  hitSlop={8}
+                  style={[styles.backChip, { borderColor: colors.border }]}
+                >
+                  <ArrowLeft size={14} color={colors.textSecondary} />
+                  <ThemedText
+                    style={[
+                      styles.backChipText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {t('common.back')}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+            <Eyebrow color={colors.primary} style={styles.stepKicker}>
+              {stepTitle(currentStep).kicker}
+            </Eyebrow>
+            <Display size="xl" style={styles.title}>
+              {stepTitle(currentStep).title}
+            </Display>
             {/* Progress Bar */}
             <View
-              style={[styles.progressBar, { backgroundColor: colors.border }]}
+              style={[
+                styles.progressBar,
+                { backgroundColor: colors.borderLight },
+              ]}
             >
               <View
                 style={[
@@ -215,64 +249,79 @@ export default function Onboarding() {
               style={[
                 styles.summaryCard,
                 {
-                  backgroundColor: colors.success,
-                  borderColor: colors.primary,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderLight,
                 },
               ]}
             >
-              <ThemedText bold style={styles.summaryTitle}>
-                🎉 Almost Done!
-              </ThemedText>
-              <ThemedText type="muted" style={styles.summaryText}>
-                We'll calculate your daily nutrition goals automatically based
-                on your information and keep you safe from allergens.
-              </ThemedText>
+              <View
+                style={[
+                  styles.summaryIcon,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Sparkles size={18} color="#fff" />
+              </View>
+              <View style={styles.summaryBody}>
+                <Display
+                  size="sm"
+                  weight="displayBold"
+                  style={styles.summaryTitle}
+                >
+                  {t('auth.almostReadyTitle')}
+                </Display>
+                <ThemedText
+                  style={[styles.summaryText, { color: colors.textSecondary }]}
+                >
+                  {t('auth.almostReadyText')}
+                </ThemedText>
+              </View>
             </View>
           )}
 
           {/* Buttons */}
           <View style={styles.buttonContainer}>
-            {currentStep > 1 && (
-              <TouchableOpacity
-                onPress={handleBack}
-                style={[styles.backButton, { backgroundColor: colors.border }]}
-              >
-                <ThemedText bold type="label">
-                  ← Back
-                </ThemedText>
-              </TouchableOpacity>
-            )}
             {currentStep < TOTAL_STEPS ? (
-              <TouchableOpacity
+              <Pressable
                 onPress={handleNext}
-                style={[
-                  styles.nextButton,
-                  { backgroundColor: colors.buttonPrimary },
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    shadowColor: colors.primary,
+                    opacity: pressed ? 0.92 : 1,
+                  },
                 ]}
               >
-                <ThemedText bold type="label">
-                  {' '}
-                  Next →
+                <ThemedText style={styles.primaryBtnText}>
+                  {t('common.continue')}
                 </ThemedText>
-              </TouchableOpacity>
+                <ArrowRight size={18} color="#fff" />
+              </Pressable>
             ) : (
-              <TouchableOpacity
+              <Pressable
                 onPress={handleSubmit(onSubmit)}
-                style={[
-                  styles.completeButton,
-                  { backgroundColor: colors.buttonPrimary },
-                  loading && { backgroundColor: colors.border },
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    shadowColor: colors.primary,
+                    opacity: loading ? 0.6 : pressed ? 0.92 : 1,
+                  },
                 ]}
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color={colors.surface} />
+                  <ActivityIndicator color="#fff" />
                 ) : (
-                  <ThemedText type="label" bold>
-                    Complete Profile 🚀
-                  </ThemedText>
+                  <>
+                    <ThemedText style={styles.primaryBtnText}>
+                      {t('auth.completeProfile')}
+                    </ThemedText>
+                    <Sparkles size={18} color="#fff" />
+                  </>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
           <CustomAlert
@@ -290,65 +339,91 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   header: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     marginTop: spacing.lg,
   },
-  title: {
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-    fontSize: 24,
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  subtitle: {
-    textAlign: 'center',
+  backChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  backChipText: { fontFamily: fonts.bodyMedium, fontSize: 12.5 },
+  stepKicker: { marginBottom: spacing.xs },
+  title: {
     marginBottom: spacing.md,
   },
   progressBar: {
-    height: spacing.xs,
-    borderRadius: radius.xs,
+    height: 6,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: radius.xs,
+    borderRadius: radius.full,
   },
   summaryCard: {
-    borderRadius: radius.md,
-    padding: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     marginVertical: spacing.lg,
     borderWidth: 1,
+    shadowColor: '#3C2814',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryBody: { flex: 1 },
   summaryTitle: {
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
   summaryText: {
-    textAlign: 'center',
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
   },
   buttonContainer: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  primaryBtn: {
+    height: 54,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-  },
-  backButton: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  nextButton: {
-    flex: 2,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  completeButton: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.md,
+    gap: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  primaryBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: '#fff',
+    letterSpacing: 0.2,
   },
 });

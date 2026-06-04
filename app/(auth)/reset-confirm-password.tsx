@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { Ionicons } from '@expo/vector-icons';
+import { ShieldCheck } from 'lucide-react-native';
 import z from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,11 +11,12 @@ import { useCustomAlert } from '@/hooks/useCustomAlert';
 import { useTheme } from '@/contexts/ThemeContext';
 
 import CustomAlert from '@/components/UI/CustomAlert';
-import ThemedButton from '@/components/UI/ThemedButton';
 import FormInput from '@/components/auth/FormInput';
 import AuthLayout from '@/components/auth/AuthLayout';
-import ThemedText from '@/components/UI/ThemedText';
-import { spacing } from '@/lib/theme';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import PrimaryButton from '@/components/auth/PrimaryButton';
+import { spacing } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
 // ✅ validation schema
 const schema = z
@@ -54,17 +55,20 @@ const ResetConfirmPassword = () => {
       if (error) throw error;
 
       showAlert(
-        'Password Updated ✅',
-        'Your password has been reset successfully. You can now log in with your new password.',
+        t('auth.passwordUpdatedTitle'),
+        t('auth.passwordUpdatedMessage'),
         [
           {
-            text: 'OK',
+            text: t('common.ok'),
             onPress: () => router.replace('/login'),
           },
-        ]
+        ],
       );
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to reset password');
+      showAlert(
+        t('common.error'),
+        error.message || t('auth.updatePasswordFailed'),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -74,36 +78,44 @@ const ResetConfirmPassword = () => {
     <AuthLayout>
       <View style={styles.content}>
         {/* Header */}
-        <View style={styles.header}>
-          <Ionicons name="refresh-outline" size={64} color={colors.primary} />
-          <ThemedText type="heading" bold style={[styles.title]}>
-            Set New Password
-          </ThemedText>
-          <ThemedText type="subheading" style={styles.subtitle}>
-            Please enter and confirm your new password below
-          </ThemedText>
+        <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
+          <ShieldCheck size={24} color="#fff" />
         </View>
+        <Eyebrow style={styles.eyebrow}>{t('auth.newPasswordEyebrow')}</Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('auth.newPasswordTitle')}
+        </Display>
+        <Display
+          size="sm"
+          weight="displayMedium"
+          color={colors.textSecondary}
+          style={styles.lede}
+        >
+          {t('auth.newPasswordLede')}
+        </Display>
 
         {/* Form */}
         <View style={styles.form}>
           <FormInput
             control={control}
             name="password"
-            placeholder="New Password"
+            placeholder={t('auth.newPasswordPlaceholder')}
             secureTextEntry
           />
           <FormInput
             control={control}
             name="confirmPassword"
-            placeholder="Confirm Password"
+            placeholder={t('auth.confirmNewPasswordPlaceholder')}
             secureTextEntry
           />
-          <ThemedButton
-            text="Reset Password"
+          <PrimaryButton
+            text={t('auth.updatePassword')}
             onPress={handleSubmit(handleResetPasswordConfirm)}
+            loading={isLoading}
             disabled={isLoading}
           />
         </View>
+
         <CustomAlert
           visible={visible}
           title={title}
@@ -122,24 +134,24 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: 'center',
   },
-  header: {
+  brandMark: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 40,
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    shadowColor: '#C8472B',
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  title: {
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
+  eyebrow: { marginBottom: spacing.sm },
+  title: { marginBottom: spacing.sm },
+  lede: { marginBottom: spacing.xl },
+  form: { width: '100%' },
 });

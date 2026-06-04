@@ -1,82 +1,85 @@
+// ─── Stovd "Warm Kitchen" brand palette (runtime / useTheme source) ─────
+// Must mirror lib/theme.ts. Terracotta primary, herb-green secondary,
+// saffron accent, warm cream→espresso neutral ramp.
 export const colors = {
-  // Primary Colors
+  // Primary — Terracotta / tomato (brand)
   primary: {
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    200: '#A5D6A7',
-    300: '#81C784',
-    400: '#66BB6A',
-    500: '#10b981', // Main primary
-    600: '#388E3C',
-    700: '#2E7D32',
-    800: '#2E672E',
-    900: '#1B5E20',
+    50: '#FBEDE9',
+    100: '#F5D3C9',
+    200: '#ECB3A4',
+    300: '#E08E78',
+    400: '#D56A4F',
+    500: '#C8472B', // Main primary
+    600: '#B23D24',
+    700: '#97331E',
+    800: '#7C2A19',
+    900: '#5E2013',
   },
 
-  // Secondary Colors (Energy Orange)
+  // Secondary — Herb green
   secondary: {
-    50: '#FFF3E0',
-    100: '#FFE0B2',
-    200: '#FFCC80',
-    300: '#FFB74D',
-    400: '#FFA726',
-    500: '#FF8F00', // Main secondary
-    600: '#FB8C00',
-    700: '#F57C00',
-    800: '#EF6C00',
-    900: '#E65100',
+    50: '#ECF3EB',
+    100: '#CFE0CD',
+    200: '#AECBAB',
+    300: '#8DB689',
+    400: '#74A06F',
+    500: '#5B8C5A', // Main secondary
+    600: '#4E7A4D',
+    700: '#3F6440',
+    800: '#324F33',
+    900: '#243A26',
   },
 
-  // Accent Colors (Info Blue)
+  // Accent — Saffron / amber
   accent: {
-    50: '#E3F2FD',
-    100: '#BBDEFB',
-    200: '#90CAF9',
-    300: '#64B5F6',
-    400: '#42A5F5',
-    500: '#1976D2', // Main accent
-    600: '#1565C0',
-    700: '#0D47A1',
-    800: '#0A388A',
-    900: '#082973',
+    50: '#FDF4E5',
+    100: '#FAE2BD',
+    200: '#F5CE90',
+    300: '#EFB962',
+    400: '#EBAB48',
+    500: '#E8A13A', // Main accent
+    600: '#CE8A2C',
+    700: '#A86E22',
+    800: '#85571B',
+    900: '#5F3E13',
   },
 
   // Status Colors
   success: {
-    50: '#E8F5E8',
-    500: '#4CAF50',
-    600: '#43A047',
-    700: '#388E3C',
+    50: '#ECF5EC',
+    500: '#4F9D52',
+    600: '#43883F',
+    700: '#356B33',
   },
 
   warning: {
-    50: '#FFF8E1',
-    500: '#FF9800',
-    600: '#FB8C00',
-    700: '#F57C00',
+    50: '#FDF4E5',
+    500: '#E8920F',
+    600: '#CE7F0B',
+    700: '#A86609',
   },
 
   error: {
-    50: '#f3bfc6ff',
-    500: '#F44336',
-    600: '#E53935',
-    700: '#D32F2F',
+    50: '#FCEBEA',
+    500: '#DC2626',
+    600: '#C21F1F',
+    700: '#9F1A1A',
   },
 
-  // Neutral Colors
+  // Neutral — warm-tinted (cream → espresso)
   neutral: {
     0: '#FFFFFF',
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
-    950: '#0A0A0A',
+    50: '#FBF7F0',
+    100: '#F4EEE4',
+    200: '#E9E0D3',
+    300: '#D8CCBA',
+    400: '#B9AB97',
+    500: '#9A8C78',
+    600: '#7A6E5D',
+    700: '#5C5346',
+    800: '#3E382F',
+    900: '#2A2422',
+    950: '#1A1614',
   },
 };
 

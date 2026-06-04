@@ -11,10 +11,11 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Settings, 
+import {
+  ArrowLeft,
+  Settings,
   ChevronRight,
   Heart,
   ShoppingCart,
@@ -22,16 +23,23 @@ import {
   Calendar,
   RefreshCw,
   Sparkles,
+  Flame,
 } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '@/lib/theme';
+import { spacing, radius, fonts } from '@/lib/theme/index';
+import { useTheme } from '@/contexts/ThemeContext';
+import type { Colors } from '@/lib/theme/index';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { RecipeListCard } from '@/components/UI/RecipeCard';
+import { SectionHeader } from '@/components/UI/SectionHeader';
 import { supabase } from '@/lib/supabase';
+import { t } from '@/lib/i18n';
 import { useMealPlanStore, useMealPlanAutoLoad } from '@/lib/meal-plan/store';
 
 // ✅ DÜZELTME: types.ts'den import (api-clients/types değil)
-import type { 
-  Meal, 
-  PantryItem, 
-  MealPlan, 
+import type {
+  Meal,
+  PantryItem,
+  MealPlan,
   UserProfile,
 } from '@/lib/meal-plan/types';
 
@@ -65,366 +73,423 @@ interface EnhancedMealPlanSummary {
 }
 
 // ✅ Utility imports düzeltildi
-import { 
-  calculatePantryMetrics, 
-  generatePantryInsights 
+import {
+  calculatePantryMetrics,
+  generatePantryInsights,
 } from '@/lib/meal-plan/pantry-analysis';
 
 // ✅ Enhanced AI generation imports
-import { 
+import {
   generateAIMeal,
   generateAIMealWithQualityControl,
-  calculateAverageMatchScore 
+  calculateAverageMatchScore,
 } from '@/lib/meal-plan/api-clients/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
 
 // ✅ NEW: Enhanced generation imports
-import { 
+import {
   createEnhancedGenerator,
-  generateEnhancedMealPlan 
+  generateEnhancedMealPlan,
 } from '@/lib/meal-plan/enhanced-ai-generation';
 import { createDiversityManager } from '@/lib/meal-plan/enhanced-diversity';
 import { createPersonalizedGenerator } from '@/lib/meal-plan/personalized-generation';
 
-// ✅ Enhanced insights modal
-const EnhancedInsightsModal = ({ visible, onClose, insights }: any) => {
-  if (!visible || !insights) return null;
-  
+// Insight group — Eyebrow kicker + bulleted tips
+const InsightGroup = ({
+  label,
+  accent,
+  items,
+  colors,
+}: {
+  label: string;
+  accent: string;
+  items: string[];
+  colors: Colors;
+}) => {
+  if (!items || items.length === 0) return null;
   return (
-    <View style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <View style={{
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 16,
-        margin: 20,
-        maxWidth: 340,
-        maxHeight: '80%'
-      }}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' }}>
-            🌟 Meal Plan Insights
-          </Text>
-          
-          {/* Diversity Tips */}
-          {insights.diversityTips && insights.diversityTips.length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.primary[700], marginBottom: 8 }}>
-                🎯 Variety Tips
-              </Text>
-              {insights.diversityTips.map((tip: string, index: number) => (
-                <Text key={index} style={{ 
-                  fontSize: 14, 
-                  color: colors.neutral[700], 
-                  marginBottom: 4,
-                  paddingLeft: 8
-                }}>
-                  • {tip}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          {/* Personalization Adaptations */}
-          {insights.personalizationAdaptations && insights.personalizationAdaptations.length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.success[700], marginBottom: 8 }}>
-                🎨 Personal Touches
-              </Text>
-              {insights.personalizationAdaptations.slice(0, 3).map((adaptation: string, index: number) => (
-                <Text key={index} style={{ 
-                  fontSize: 14, 
-                  color: colors.neutral[700], 
-                  marginBottom: 4,
-                  paddingLeft: 8
-                }}>
-                  • {adaptation}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          {/* Next Suggestions */}
-          {insights.nextSuggestions && insights.nextSuggestions.length > 0 && (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.accent[700], marginBottom: 8 }}>
-                💡 What's Next
-              </Text>
-              {insights.nextSuggestions.slice(0, 2).map((suggestion: string, index: number) => (
-                <Text key={index} style={{ 
-                  fontSize: 14, 
-                  color: colors.neutral[700], 
-                  marginBottom: 4,
-                  paddingLeft: 8
-                }}>
-                  • {suggestion}
-                </Text>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-        
-        <TouchableOpacity 
-          style={{ 
-            backgroundColor: colors.primary[500], 
-            padding: 12, 
-            borderRadius: 8,
-            marginTop: 16
-          }}
-          onPress={onClose}
+    <View style={{ marginBottom: spacing.lg }}>
+      <Eyebrow color={accent} style={{ marginBottom: 8 }}>
+        {label}
+      </Eyebrow>
+      {items.map((tip, index) => (
+        <View
+          key={index}
+          style={{ flexDirection: 'row', gap: 8, marginBottom: 6 }}
         >
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>Got it!</Text>
+          <View
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 3,
+              backgroundColor: accent,
+              marginTop: 7,
+            }}
+          />
+          <Text
+            style={{
+              flex: 1,
+              fontSize: 14,
+              fontFamily: fonts.body,
+              lineHeight: 20,
+              color: colors.textSecondary,
+            }}
+          >
+            {tip}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+// ✅ Enhanced insights modal
+const EnhancedInsightsModal = ({ visible, onClose, insights, colors }: any) => {
+  if (!visible || !insights) return null;
+
+  return (
+    <View style={overlayStyles.overlay}>
+      <View
+        style={[
+          overlayStyles.sheet,
+          { backgroundColor: colors.surface, borderColor: colors.borderLight },
+        ]}
+      >
+        <View style={overlayStyles.sheetHeader}>
+          <Eyebrow>{t('mealPlan.insightsKicker')}</Eyebrow>
+          <Display size="md" style={{ marginTop: 4 }}>
+            {t('mealPlan.insightsTitle')}
+          </Display>
+        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ maxHeight: 360 }}
+        >
+          <InsightGroup
+            label={t('mealPlan.diversityTips')}
+            accent={colors.primary}
+            items={insights.diversityTips}
+            colors={colors}
+          />
+          <InsightGroup
+            label={t('mealPlan.personalTouches')}
+            accent={colors.secondary}
+            items={(insights.personalizationAdaptations || []).slice(0, 3)}
+            colors={colors}
+          />
+          <InsightGroup
+            label={t('mealPlan.upNext')}
+            accent={colors.accent}
+            items={(insights.nextSuggestions || []).slice(0, 2)}
+            colors={colors}
+          />
+        </ScrollView>
+
+        <TouchableOpacity
+          style={[
+            overlayStyles.primaryBtn,
+            { backgroundColor: colors.primary },
+          ]}
+          onPress={onClose}
+          activeOpacity={0.85}
+        >
+          <Text style={overlayStyles.primaryBtnText}>
+            {t('mealPlan.gotIt')}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-// ✅ GEÇİCİ MOCK COMPONENTS
-const MealDetailModal = ({ visible, onClose, meal, onViewRecipe, onAddToNutrition, onAddToShopping }: any) => {
+const MealDetailModal = ({
+  visible,
+  onClose,
+  meal,
+  onViewRecipe,
+  colors,
+}: any) => {
   if (!visible || !meal) return null;
   return (
-    <View style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <View style={{
-        backgroundColor: 'white',
-        padding: 20,
-        borderRadius: 16,
-        margin: 20,
-        maxWidth: 300
-      }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>{meal.name}</Text>
-        <Text style={{ marginBottom: 10 }}>{meal.calories} cal • {meal.protein}g protein</Text>
-        <TouchableOpacity 
-          style={{ 
-            backgroundColor: colors.primary[500], 
-            padding: 12, 
-            borderRadius: 8,
-            marginBottom: 10
-          }}
+    <View style={overlayStyles.overlay}>
+      <View
+        style={[
+          overlayStyles.sheet,
+          { backgroundColor: colors.surface, borderColor: colors.borderLight },
+        ]}
+      >
+        <Eyebrow>{meal.category || t('mealPlan.recipeFallback')}</Eyebrow>
+        <Display size="lg" style={{ marginTop: 4, marginBottom: 8 }}>
+          {meal.name}
+        </Display>
+        <View style={overlayStyles.metaRow}>
+          <View style={overlayStyles.metaItem}>
+            <Flame size={14} color={colors.accent} />
+            <Text
+              style={[overlayStyles.metaText, { color: colors.textSecondary }]}
+            >
+              {t('mealPlan.kcal', { count: meal.calories })}
+            </Text>
+          </View>
+          <Text
+            style={[overlayStyles.metaText, { color: colors.textSecondary }]}
+          >
+            {t('mealPlan.proteinGrams', { count: meal.protein })}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[
+            overlayStyles.primaryBtn,
+            { backgroundColor: colors.primary },
+          ]}
           onPress={() => onViewRecipe && onViewRecipe(meal)}
+          activeOpacity={0.85}
         >
-          <Text style={{ color: 'white', textAlign: 'center' }}>View Recipe</Text>
+          <Text style={overlayStyles.primaryBtnText}>
+            {t('mealPlan.viewRecipe')}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={{ backgroundColor: colors.neutral[200], padding: 12, borderRadius: 8 }}
+        <TouchableOpacity
+          style={[overlayStyles.ghostBtn, { borderColor: colors.border }]}
           onPress={onClose}
+          activeOpacity={0.7}
         >
-          <Text style={{ textAlign: 'center' }}>Close</Text>
+          <Text
+            style={[
+              overlayStyles.ghostBtnText,
+              { color: colors.textSecondary },
+            ]}
+          >
+            {t('common.close')}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-const MealCard = ({ meal, mealType, onPress, onRegenerate, isRegenerating, regenerationAttempts }: any) => (
-  <TouchableOpacity 
-    style={{
-      backgroundColor: 'white',
-      padding: 16,
-      borderRadius: 16,
-      marginBottom: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3
-    }}
+const MealCard = ({
+  meal,
+  mealType,
+  mealKey,
+  onPress,
+  onRegenerate,
+  isRegenerating,
+  colors,
+}: any) => (
+  <TouchableOpacity
+    style={[
+      cardStyles.mealCard,
+      { backgroundColor: colors.surface, borderColor: colors.borderLight },
+    ]}
     onPress={() => onPress && onPress(meal)}
+    activeOpacity={0.85}
   >
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 4 }}>{meal.emoji} {meal.name}</Text>
-        <Text style={{ color: colors.neutral[600], marginBottom: 8 }}>{mealType}</Text>
-        <Text style={{ color: colors.neutral[500] }}>{meal.calories} cal • {meal.protein}g protein</Text>
+    <View style={cardStyles.mealCardRow}>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Eyebrow color={colors.textSecondary}>{mealType}</Eyebrow>
+        <Display size="sm" color={colors.textPrimary} numberOfLines={2}>
+          {meal.name}
+        </Display>
+        <View style={overlayStyles.metaRow}>
+          <View style={overlayStyles.metaItem}>
+            <Flame size={13} color={colors.accent} />
+            <Text
+              style={[cardStyles.metaText, { color: colors.textSecondary }]}
+            >
+              {t('mealPlan.kcal', { count: meal.calories })}
+            </Text>
+          </View>
+          <Text style={[cardStyles.metaText, { color: colors.textSecondary }]}>
+            {t('mealPlan.proteinGrams', { count: meal.protein })}
+          </Text>
+        </View>
       </View>
       <TouchableOpacity
-        style={{
-          padding: 8,
-          backgroundColor: colors.primary[50],
-          borderRadius: 8
-        }}
-        onPress={() => onRegenerate && onRegenerate(mealType.toLowerCase())}
+        style={[
+          cardStyles.regenBtn,
+          { backgroundColor: colors.primary + '14' },
+        ]}
+        onPress={() => onRegenerate && onRegenerate(mealKey)}
         disabled={isRegenerating}
       >
         {isRegenerating ? (
-          <ActivityIndicator size="small" color={colors.primary[500]} />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
-          <RefreshCw size={16} color={colors.primary[600]} />
+          <RefreshCw size={16} color={colors.primary} />
         )}
       </TouchableOpacity>
     </View>
   </TouchableOpacity>
 );
 
-const MealPlanSummary = ({ plan, enhancedSummary }: any) => (
-  <View style={{
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
-  }}>
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Today's Summary</Text>
-    
+function scoreColor(value: number, colors: Colors) {
+  if (value >= 80) return colors.secondary;
+  if (value >= 60) return colors.accent;
+  return colors.error;
+}
+
+const MealPlanSummary = ({ plan, enhancedSummary, colors }: any) => (
+  <View
+    style={[
+      cardStyles.summaryCard,
+      { backgroundColor: colors.surface, borderColor: colors.borderLight },
+    ]}
+  >
+    <Display
+      size="md"
+      color={colors.textPrimary}
+      style={{ marginBottom: spacing.md }}
+    >
+      {t('mealPlan.todaySummary')}
+    </Display>
+
     {/* ✅ Basic stats */}
-    <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 }}>
-      <View style={{ alignItems: 'center' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.primary[500] }}>{plan.totalCalories}</Text>
-        <Text style={{ color: colors.neutral[600] }}>Calories</Text>
+    <View style={cardStyles.statsRow}>
+      <View style={cardStyles.stat}>
+        <Display size="lg" color={colors.primary}>
+          {plan.totalCalories}
+        </Display>
+        <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+          {t('mealPlan.statCalories')}
+        </Eyebrow>
       </View>
-      <View style={{ alignItems: 'center' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.success[500] }}>{plan.totalProtein}g</Text>
-        <Text style={{ color: colors.neutral[600] }}>Protein</Text>
+      <View style={cardStyles.stat}>
+        <Display size="lg" color={colors.secondary}>
+          {plan.totalProtein}g
+        </Display>
+        <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+          {t('mealPlan.statProtein')}
+        </Eyebrow>
       </View>
-      <View style={{ alignItems: 'center' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.accent[500] }}>{Math.round(plan.optimizationScore)}</Text>
-        <Text style={{ color: colors.neutral[600] }}>Match %</Text>
+      <View style={cardStyles.stat}>
+        <Display size="lg" color={colors.accent}>
+          {Math.round(plan.optimizationScore)}
+        </Display>
+        <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+          {t('mealPlan.statMatch')}
+        </Eyebrow>
       </View>
     </View>
 
     {/* ✅ Enhanced stats if available */}
     {enhancedSummary && (
-      <>
-        <View style={{ 
-          borderTopWidth: 1, 
-          borderTopColor: colors.neutral[200], 
-          paddingTop: 12,
-          marginTop: 4
-        }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ 
-                fontSize: 16, 
-                fontWeight: 'bold', 
-                color: enhancedSummary.totalDiversityScore >= 80 ? colors.success[600] : 
-                       enhancedSummary.totalDiversityScore >= 60 ? colors.warning[600] : colors.error[600]
-              }}>
-                {enhancedSummary.totalDiversityScore}%
-              </Text>
-              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Diversity</Text>
-            </View>
-            <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ 
-                fontSize: 16, 
-                fontWeight: 'bold', 
-                color: enhancedSummary.totalPersonalizationScore >= 80 ? colors.success[600] : 
-                       enhancedSummary.totalPersonalizationScore >= 60 ? colors.warning[600] : colors.error[600]
-              }}>
-                {enhancedSummary.totalPersonalizationScore}%
-              </Text>
-              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Personal</Text>
-            </View>
-            <View style={{ alignItems: 'center', flex: 1 }}>
-              <Text style={{ 
-                fontSize: 16, 
-                fontWeight: 'bold', 
-                color: enhancedSummary.pantryUtilization >= 70 ? colors.success[600] : 
-                       enhancedSummary.pantryUtilization >= 50 ? colors.warning[600] : colors.error[600]
-              }}>
-                {enhancedSummary.pantryUtilization}%
-              </Text>
-              <Text style={{ color: colors.neutral[600], fontSize: 12 }}>Pantry Use</Text>
-            </View>
+      <View
+        style={[
+          cardStyles.enhancedBlock,
+          { borderTopColor: colors.borderLight },
+        ]}
+      >
+        <View style={cardStyles.statsRow}>
+          <View style={cardStyles.stat}>
+            <Display
+              size="sm"
+              color={scoreColor(enhancedSummary.totalDiversityScore, colors)}
+            >
+              {enhancedSummary.totalDiversityScore}%
+            </Display>
+            <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+              {t('mealPlan.statDiversity')}
+            </Eyebrow>
           </View>
-          
-          {/* Generation methods indicator */}
-          <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8 }}>
-            <View style={{
-              backgroundColor: colors.accent[50],
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 8,
-              flexDirection: 'row',
-              alignItems: 'center'
-            }}>
-              <Sparkles size={12} color={colors.accent[600]} />
-              <Text style={{
-                fontSize: 10,
-                color: colors.accent[700],
-                marginLeft: 4,
-                fontWeight: '500'
-              }}>
-                {enhancedSummary.generationMethods.includes('personalized') ? 'AI Personalized' : 'AI Enhanced'}
-              </Text>
-            </View>
+          <View style={cardStyles.stat}>
+            <Display
+              size="sm"
+              color={scoreColor(
+                enhancedSummary.totalPersonalizationScore,
+                colors,
+              )}
+            >
+              {enhancedSummary.totalPersonalizationScore}%
+            </Display>
+            <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+              {t('mealPlan.statPersonal')}
+            </Eyebrow>
+          </View>
+          <View style={cardStyles.stat}>
+            <Display
+              size="sm"
+              color={scoreColor(enhancedSummary.pantryUtilization, colors)}
+            >
+              {enhancedSummary.pantryUtilization}%
+            </Display>
+            <Eyebrow color={colors.textSecondary} style={cardStyles.statLabel}>
+              {t('mealPlan.statPantryUse')}
+            </Eyebrow>
           </View>
         </View>
-      </>
+
+        {/* Generation methods indicator */}
+        <View style={cardStyles.methodRow}>
+          <View
+            style={[
+              cardStyles.methodPill,
+              { backgroundColor: colors.accent + '1A' },
+            ]}
+          >
+            <Sparkles size={12} color={colors.accent} />
+            <Text style={[cardStyles.methodText, { color: colors.accent }]}>
+              {enhancedSummary.generationMethods.includes('personalized')
+                ? t('mealPlan.methodPersonalized')
+                : t('mealPlan.methodEnhanced')}
+            </Text>
+          </View>
+        </View>
+      </View>
     )}
   </View>
 );
 
-const ViewModeTabs = ({ viewMode, onViewModeChange }: any) => (
-  <View style={{ 
-    flexDirection: 'row', 
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    padding: 4
-  }}>
-    {['daily', 'weekly', 'monthly'].map((mode) => (
-      <TouchableOpacity
-        key={mode}
-        style={{
-          flex: 1,
-          paddingVertical: 8,
-          paddingHorizontal: 16,
-          borderRadius: 8,
-          backgroundColor: viewMode === mode ? colors.primary[500] : 'transparent'
-        }}
-        onPress={() => onViewModeChange(mode)}
-      >
-        <Text style={{
-          textAlign: 'center',
-          color: viewMode === mode ? 'white' : colors.neutral[600],
-          fontWeight: viewMode === mode ? '600' : '400',
-          textTransform: 'capitalize'
-        }}>
-          {mode}
-        </Text>
-      </TouchableOpacity>
-    ))}
+const VIEW_MODES: { key: 'daily' | 'weekly' | 'monthly'; labelKey: string }[] =
+  [
+    { key: 'daily', labelKey: 'mealPlan.viewDaily' },
+    { key: 'weekly', labelKey: 'mealPlan.viewWeekly' },
+    { key: 'monthly', labelKey: 'mealPlan.viewMonthly' },
+  ];
+
+const ViewModeTabs = ({ viewMode, onViewModeChange, colors }: any) => (
+  <View style={[cardStyles.tabBar, { backgroundColor: colors.surfaceVariant }]}>
+    {VIEW_MODES.map(({ key, labelKey }) => {
+      const active = viewMode === key;
+      return (
+        <TouchableOpacity
+          key={key}
+          style={[
+            cardStyles.tab,
+            active && { backgroundColor: colors.surface },
+          ]}
+          onPress={() => onViewModeChange(key)}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              cardStyles.tabText,
+              { color: active ? colors.primary : colors.textSecondary },
+            ]}
+          >
+            {t(labelKey)}
+          </Text>
+        </TouchableOpacity>
+      );
+    })}
   </View>
 );
 
 export default function AIMealPlan() {
   const router = useRouter();
-  
+  const { colors } = useTheme();
+
   // ✅ CRITICAL: Use the store hooks properly
   const isStoreLoaded = useMealPlanAutoLoad();
-  const { 
-    currentMealPlan, 
+  const {
+    currentMealPlan,
     setCurrentMealPlan,
     aiMeals,
     setAIMeal,
-    loadingError 
+    loadingError,
   } = useMealPlanStore();
-  
+
   // ✅ Enhanced loading states for individual meals
   const [loadingStates, setLoadingStates] = useState<MealLoadingStates>({
     breakfast: false,
@@ -433,17 +498,20 @@ export default function AIMealPlan() {
     snacks: false,
     initial: true,
   });
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  
+  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>(
+    'daily',
+  );
+
   // ✅ NEW: Enhanced meal plan state
-  const [enhancedPlanSummary, setEnhancedPlanSummary] = useState<EnhancedMealPlanSummary | null>(null);
+  const [enhancedPlanSummary, setEnhancedPlanSummary] =
+    useState<EnhancedMealPlanSummary | null>(null);
   const [showInsights, setShowInsights] = useState(false);
-  
+
   // Modal states
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -482,12 +550,13 @@ export default function AIMealPlan() {
   useEffect(() => {
     const subscription = supabase
       .channel('pantry_changes')
-      .on('postgres_changes', 
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'pantry_items' },
         (payload) => {
           console.log('Pantry updated:', payload);
           loadAllData();
-        }
+        },
       )
       .subscribe();
 
@@ -498,8 +567,10 @@ export default function AIMealPlan() {
 
   const loadAllData = async () => {
     try {
-      setLoadingStates(prev => ({ ...prev, initial: true }));
-      const { data: { user } } = await supabase.auth.getUser();
+      setLoadingStates((prev) => ({ ...prev, initial: true }));
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -525,7 +596,7 @@ export default function AIMealPlan() {
         if (profile) {
           userProfileData = profile;
         }
-        
+
         setUserProfile(userProfileData);
       } catch (profileError) {
         console.error('Profile error:', profileError);
@@ -546,7 +617,7 @@ export default function AIMealPlan() {
 
         const validPantryItems = pantry || [];
         setPantryItems(validPantryItems);
-        
+
         // Calculate metrics
         const metrics = calculatePantryMetrics(validPantryItems);
         setPantryMetrics(metrics);
@@ -555,10 +626,9 @@ export default function AIMealPlan() {
         if (!currentMealPlan) {
           await generateInitialMealPlan(validPantryItems, userProfileData);
         }
-
       } catch (pantryError) {
         console.error('Pantry error:', pantryError);
-        
+
         // Use empty pantry as fallback
         setPantryItems([]);
         setPantryMetrics({
@@ -574,17 +644,20 @@ export default function AIMealPlan() {
         }
       }
 
-      setLoadingStates(prev => ({ ...prev, initial: false }));
+      setLoadingStates((prev) => ({ ...prev, initial: false }));
       setRefreshing(false);
     } catch (error) {
       console.error('Load data error:', error);
-      setLoadingStates(prev => ({ ...prev, initial: false }));
+      setLoadingStates((prev) => ({ ...prev, initial: false }));
       setRefreshing(false);
     }
   };
 
   // ✅ ENHANCED: Generate initial AI meal plan with diversity and personalization
-  const generateInitialMealPlan = async (pantryItems: PantryItem[], userProfile: UserProfile | null) => {
+  const generateInitialMealPlan = async (
+    pantryItems: PantryItem[],
+    userProfile: UserProfile | null,
+  ) => {
     try {
       if (pantryItems.length < 3) {
         console.log('⚠️ Insufficient pantry items, using fallback...');
@@ -594,16 +667,20 @@ export default function AIMealPlan() {
         return;
       }
 
-      console.log('🌟 Generating enhanced AI meal plan with personalization and diversity...');
-      
+      console.log(
+        '🌟 Generating enhanced AI meal plan with personalization and diversity...',
+      );
+
       // ✅ Use enhanced generation system
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       const enhancedResult = await generateEnhancedMealPlan(
         user.id,
         pantryItems,
-        userProfile
+        userProfile,
       );
 
       // Convert enhanced results to standard meal plan format
@@ -611,12 +688,24 @@ export default function AIMealPlan() {
         breakfast: enhancedResult.breakfast?.meal || null,
         lunch: enhancedResult.lunch?.meal || null,
         dinner: enhancedResult.dinner?.meal || null,
-        snacks: enhancedResult.snacks.map(s => s.meal).filter(Boolean) as Meal[]
+        snacks: enhancedResult.snacks
+          .map((s) => s.meal)
+          .filter(Boolean) as Meal[],
       };
 
-      const mealsForTotals = [aiMeals.breakfast, aiMeals.lunch, aiMeals.dinner].filter(Boolean) as Meal[];
-      const totalCalories = mealsForTotals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-      const totalProtein = mealsForTotals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
+      const mealsForTotals = [
+        aiMeals.breakfast,
+        aiMeals.lunch,
+        aiMeals.dinner,
+      ].filter(Boolean) as Meal[];
+      const totalCalories = mealsForTotals.reduce(
+        (sum, meal) => sum + (meal.calories || 0),
+        0,
+      );
+      const totalProtein = mealsForTotals.reduce(
+        (sum, meal) => sum + (meal.protein || 0),
+        0,
+      );
 
       const plan: MealPlan = {
         daily: {
@@ -625,8 +714,8 @@ export default function AIMealPlan() {
           totalProtein,
           optimizationScore: enhancedResult.summary.totalPersonalizationScore,
           generatedAt: new Date().toISOString(),
-          regenerationHistory: {}
-        }
+          regenerationHistory: {},
+        },
       };
 
       // ✅ Store enhanced summary for insights
@@ -637,37 +726,45 @@ export default function AIMealPlan() {
           personalizationAdaptations: [
             ...(enhancedResult.breakfast?.insights.adaptations || []),
             ...(enhancedResult.lunch?.insights.adaptations || []),
-            ...(enhancedResult.dinner?.insights.adaptations || [])
+            ...(enhancedResult.dinner?.insights.adaptations || []),
           ],
-          nextSuggestions: enhancedResult.breakfast?.insights.nextSuggestions || []
-        }
+          nextSuggestions:
+            enhancedResult.breakfast?.insights.nextSuggestions || [],
+        },
       });
 
       // ✅ Save to store
       await setCurrentMealPlan(plan);
       setMealPlan(plan);
-      
+
       console.log('✅ Enhanced AI meal plan generated successfully:', {
         diversityScore: enhancedResult.summary.totalDiversityScore,
         personalizationScore: enhancedResult.summary.totalPersonalizationScore,
         pantryUtilization: enhancedResult.summary.pantryUtilization,
-        methods: enhancedResult.summary.generationMethods
+        methods: enhancedResult.summary.generationMethods,
       });
-      
     } catch (error) {
       console.error('Failed to generate enhanced AI meal plan:', error);
       console.log('🔄 Generating fallback meal plan...');
-      
+
       // ✅ Enhanced fallback with basic diversity
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
           const generator = createEnhancedGenerator(user.id);
-          const fallbackResult = await generator.generateEnhancedMeal('lunch', pantryItems, userProfile, [], {
-            allowFallback: true,
-            maxAttempts: 1
-          });
-          
+          const fallbackResult = await generator.generateEnhancedMeal(
+            'lunch',
+            pantryItems,
+            userProfile,
+            [],
+            {
+              allowFallback: true,
+              maxAttempts: 1,
+            },
+          );
+
           const plan: MealPlan = {
             daily: {
               breakfast: null,
@@ -678,10 +775,10 @@ export default function AIMealPlan() {
               totalProtein: fallbackResult.meal.protein,
               optimizationScore: fallbackResult.personalizationScore,
               generatedAt: new Date().toISOString(),
-              regenerationHistory: {}
-            }
+              regenerationHistory: {},
+            },
           };
-          
+
           await setCurrentMealPlan(plan);
           setMealPlan(plan);
           return;
@@ -689,7 +786,7 @@ export default function AIMealPlan() {
       } catch (fallbackError) {
         console.error('Enhanced fallback also failed:', fallbackError);
       }
-      
+
       // Final fallback
       const fallbackPlan = generateFallbackPlan(pantryItems);
       await setCurrentMealPlan(fallbackPlan);
@@ -698,21 +795,25 @@ export default function AIMealPlan() {
   };
 
   // ✅ ENHANCED: Regenerate individual meal with diversity and personalization
-  const regenerateMeal = async (mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks') => {
+  const regenerateMeal = async (
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snacks',
+  ) => {
     if (!mealPlan || !userProfile) return;
 
     try {
       // Set loading state for this specific meal
-      setLoadingStates(prev => ({ ...prev, [mealType]: true }));
+      setLoadingStates((prev) => ({ ...prev, [mealType]: true }));
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
       // ✅ Use enhanced generator for better variety and personalization
       const generator = createEnhancedGenerator(user.id);
       const existingMeals = Object.values(mealPlan.daily)
         .flat()
-        .filter(meal => meal && typeof meal === 'object') as Meal[];
+        .filter((meal) => meal && typeof meal === 'object') as Meal[];
 
       const enhancedResult = await generator.generateEnhancedMeal(
         mealType === 'snacks' ? 'snack' : mealType,
@@ -723,18 +824,18 @@ export default function AIMealPlan() {
           prioritizeDiversity: true, // Focus on diversity for regeneration
           prioritizePersonalization: true,
           diversityThreshold: 60, // Lower threshold for regeneration
-          maxAttempts: 2 // Faster regeneration
-        }
+          maxAttempts: 2, // Faster regeneration
+        },
       );
 
       const newMeal = enhancedResult.meal;
 
       // Update meal plan
-      setMealPlan(prevPlan => {
+      setMealPlan((prevPlan) => {
         if (!prevPlan) return prevPlan;
 
         const updatedDaily = { ...prevPlan.daily };
-        
+
         if (mealType === 'snacks') {
           updatedDaily.snacks = [newMeal];
         } else {
@@ -742,15 +843,17 @@ export default function AIMealPlan() {
         }
 
         // Recalculate totals
-        const totalCalories = (updatedDaily.breakfast?.calories || 0) + 
-                             (updatedDaily.lunch?.calories || 0) + 
-                             (updatedDaily.dinner?.calories || 0) + 
-                             updatedDaily.snacks.reduce((sum, snack) => sum + snack.calories, 0);
-        
-        const totalProtein = (updatedDaily.breakfast?.protein || 0) + 
-                            (updatedDaily.lunch?.protein || 0) + 
-                            (updatedDaily.dinner?.protein || 0) + 
-                            updatedDaily.snacks.reduce((sum, snack) => sum + snack.protein, 0);
+        const totalCalories =
+          (updatedDaily.breakfast?.calories || 0) +
+          (updatedDaily.lunch?.calories || 0) +
+          (updatedDaily.dinner?.calories || 0) +
+          updatedDaily.snacks.reduce((sum, snack) => sum + snack.calories, 0);
+
+        const totalProtein =
+          (updatedDaily.breakfast?.protein || 0) +
+          (updatedDaily.lunch?.protein || 0) +
+          (updatedDaily.dinner?.protein || 0) +
+          updatedDaily.snacks.reduce((sum, snack) => sum + snack.protein, 0);
 
         updatedDaily.totalCalories = totalCalories;
         updatedDaily.totalProtein = totalProtein;
@@ -758,7 +861,7 @@ export default function AIMealPlan() {
 
         const updatedPlan = {
           ...prevPlan,
-          daily: updatedDaily
+          daily: updatedDaily,
         };
 
         // ✅ Save to store using hook
@@ -768,46 +871,51 @@ export default function AIMealPlan() {
       });
 
       // Update regeneration attempts
-      setRegenerationAttempts(prev => ({
+      setRegenerationAttempts((prev) => ({
         ...prev,
-        [mealType]: prev[mealType] + 1
+        [mealType]: prev[mealType] + 1,
       }));
 
       // ✅ Enhanced success message with insights
-      const diversityInfo = enhancedResult.diversityScore > 80 
-        ? '🌟 Great variety!' 
-        : enhancedResult.diversityScore > 60 
-          ? '✨ Good diversity!' 
-          : '🔄 More variety next time!';
+      const diversityInfo =
+        enhancedResult.diversityScore > 80
+          ? t('mealPlan.diversityGreat')
+          : enhancedResult.diversityScore > 60
+            ? t('mealPlan.diversityGood')
+            : t('mealPlan.diversityMore');
 
-      const generationInfo = enhancedResult.generationMethod === 'personalized'
-        ? '🎯 Personalized for you!'
-        : '🌍 Culturally optimized!';
+      const generationInfo =
+        enhancedResult.generationMethod === 'personalized'
+          ? t('mealPlan.generationPersonalized')
+          : t('mealPlan.generationCultural');
 
       Alert.alert(
-        'Meal Updated! ✨',
-        `Your ${mealType} has been regenerated.\n${diversityInfo}\n${generationInfo}`,
+        t('mealPlan.mealUpdatedTitle'),
+        t('mealPlan.mealUpdatedMessage', {
+          mealType,
+          diversity: diversityInfo,
+          generation: generationInfo,
+        }),
         [
-          { 
-            text: 'See Insights', 
-            onPress: () => setShowInsights(true) 
+          {
+            text: t('mealPlan.seeInsights'),
+            onPress: () => setShowInsights(true),
           },
-          { 
-            text: 'Great!' 
-          }
-        ]
+          {
+            text: t('mealPlan.great'),
+          },
+        ],
       );
-
     } catch (error) {
       console.error(`Failed to regenerate ${mealType}:`, error);
       Alert.alert(
-        'Generation Failed',
-        'Sorry, we couldn\'t generate a new meal right now. Please try again.',
-        [{ text: 'OK' }]
+        t('mealPlan.generationFailedTitle'),
+        t('mealPlan.generationFailedMessage'),
+        [{ text: t('common.ok') }],
       );
     } finally {
       // Clear loading state
-      setLoadingStates(prev => ({ ...prev, [mealType]: false }));
+      setLoadingStates((prev) => ({ ...prev, [mealType]: false }));
     }
   };
 
@@ -820,17 +928,17 @@ export default function AIMealPlan() {
     }
 
     Alert.alert(
-      'Regenerate All Meals?',
-      'This will create completely new meal suggestions for today.',
+      t('mealPlan.regenerateAllTitle'),
+      t('mealPlan.regenerateAllMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Regenerate All', 
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('mealPlan.regenerateAllConfirm'),
           style: 'default',
           onPress: async () => {
             // ✅ Reset any previous selection
             setSelectedMeal(null);
-            
+
             setLoadingStates({
               breakfast: true,
               lunch: true,
@@ -841,7 +949,7 @@ export default function AIMealPlan() {
 
             try {
               await generateInitialMealPlan(pantryItems, userProfile);
-              
+
               // Reset regeneration attempts
               setRegenerationAttempts({
                 breakfast: 0,
@@ -851,16 +959,16 @@ export default function AIMealPlan() {
               });
 
               Alert.alert(
-                'All Meals Updated! 🎉',
-                'Your entire meal plan has been regenerated with fresh recipes.',
-                [{ text: 'Awesome!' }]
+                t('mealPlan.allMealsUpdatedTitle'),
+                t('mealPlan.allMealsUpdatedMessage'),
+                [{ text: t('mealPlan.awesome') }],
               );
             } catch (error) {
               console.error('Regenerate all meals error:', error);
               Alert.alert(
-                'Generation Failed',
-                'Sorry, we couldn\'t regenerate all meals. Please try again.',
-                [{ text: 'OK' }]
+                t('mealPlan.generationFailedTitle'),
+                t('mealPlan.regenerateAllFailedMessage'),
+                [{ text: t('common.ok') }],
               );
             } finally {
               setLoadingStates({
@@ -871,16 +979,18 @@ export default function AIMealPlan() {
                 initial: false,
               });
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   // Enhanced shopping list integration
   const handleAddToShoppingList = async (missingIngredients: string[]) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Please log in to add items to shopping list');
       }
@@ -889,7 +999,7 @@ export default function AIMealPlan() {
         throw new Error('No ingredients to add');
       }
 
-      const shoppingItems = missingIngredients.map(ingredient => ({
+      const shoppingItems = missingIngredients.map((ingredient) => ({
         user_id: user.id,
         item_name: ingredient,
         category: 'general',
@@ -897,7 +1007,7 @@ export default function AIMealPlan() {
         unit: 'unit',
         is_completed: false,
         priority: 'high',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       }));
 
       const { error } = await supabase
@@ -907,16 +1017,19 @@ export default function AIMealPlan() {
       if (error) throw error;
 
       Alert.alert(
-        'Success',
-        `Added ${missingIngredients.length} items to your shopping list`,
+        t('common.success'),
+        t('mealPlan.itemsAdded', { count: missingIngredients.length }),
         [
-          { text: 'View List', onPress: () => router.push('/(tabs)/shopping-list') },
-          { text: 'OK' }
-        ]
+          {
+            text: t('mealPlan.viewList'),
+            onPress: () => router.push('/(tabs)/shopping-list'),
+          },
+          { text: t('common.ok') },
+        ],
       );
     } catch (error) {
       console.error('Add to shopping list error:', error);
-      Alert.alert('Error', 'Failed to add items to shopping list');
+      Alert.alert(t('common.error'), t('mealPlan.addToShoppingFailed'));
     }
   };
 
@@ -934,14 +1047,16 @@ export default function AIMealPlan() {
       router.push(`/recipe/${meal.id}?source=meal_plan`);
     } catch (error) {
       console.error('Navigation error:', error);
-      Alert.alert('Error', 'Failed to navigate to recipe');
+      Alert.alert(t('common.error'), t('mealPlan.navigateRecipeFailed'));
     }
   };
 
   // Add meal to nutrition log
   const addToNutritionLog = async (meal: Meal) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Please log in to track nutrition');
       }
@@ -969,59 +1084,79 @@ export default function AIMealPlan() {
       if (error) throw error;
 
       setModalVisible(false);
-      Alert.alert('Success', 'Meal added to today\'s nutrition log');
+      Alert.alert(t('common.success'), t('mealPlan.mealAddedNutrition'));
     } catch (error) {
       console.error('Add to nutrition error:', error);
-      Alert.alert('Error', 'Failed to add meal to nutrition log');
+      Alert.alert(t('common.error'), t('mealPlan.addToNutritionFailed'));
     }
   };
 
   const renderDailyView = () => {
     if (!mealPlan?.daily) return null;
     const plan = mealPlan.daily;
+    const anyLoading = Object.values(loadingStates).some(Boolean);
 
     return (
       <View style={styles.dailyContent}>
         {/* Today's Summary Card */}
-        <MealPlanSummary plan={plan} enhancedSummary={enhancedPlanSummary} />
+        <MealPlanSummary
+          plan={plan}
+          enhancedSummary={enhancedPlanSummary}
+          colors={colors}
+        />
 
         {/* ✅ Action buttons row */}
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-          <TouchableOpacity 
-            style={[styles.regenerateAllButton, { flex: 1 }]}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[
+              styles.regenerateAllButton,
+              { flex: 1, backgroundColor: colors.accent + '1A' },
+            ]}
             onPress={regenerateAllMeals}
-            disabled={loadingStates.initial || Object.values(loadingStates).some(Boolean)}
+            disabled={loadingStates.initial || anyLoading}
+            activeOpacity={0.85}
           >
-            <Sparkles size={18} color={colors.accent[600]} />
-            <Text style={[styles.regenerateAllText, { fontSize: 14 }]}>Regenerate All</Text>
-            <RefreshCw size={14} color={colors.accent[600]} />
+            <Sparkles size={17} color={colors.accent} />
+            <Text style={[styles.regenerateAllText, { color: colors.accent }]}>
+              {t('mealPlan.regenerateAll')}
+            </Text>
+            <RefreshCw size={14} color={colors.accent} />
           </TouchableOpacity>
-          
+
           {/* ✅ Show insights button */}
           {enhancedPlanSummary?.insights && (
-            <TouchableOpacity 
-              style={[styles.insightsButton]}
+            <TouchableOpacity
+              style={[
+                styles.insightsButton,
+                { backgroundColor: colors.primary + '14' },
+              ]}
               onPress={() => setShowInsights(true)}
+              activeOpacity={0.85}
             >
-              <Text style={styles.insightsButtonText}>💡 Insights</Text>
+              <Sparkles size={14} color={colors.primary} />
+              <Text
+                style={[styles.insightsButtonText, { color: colors.primary }]}
+              >
+                {t('mealPlan.suggestions')}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
 
         {/* Meals Section */}
         <View style={styles.mealsSection}>
-          <Text style={styles.sectionTitle}>Today's Meals</Text>
-          
+          <SectionHeader title={t('mealPlan.todaysMeals')} />
+
           {/* Breakfast */}
           {plan.breakfast && (
             <MealCard
               meal={plan.breakfast}
-              mealType="Breakfast"
+              mealType={t('mealPlan.breakfast')}
+              mealKey="breakfast"
               onPress={handleMealPress}
-              onAddToShopping={handleAddToShoppingList}
               onRegenerate={regenerateMeal}
               isRegenerating={loadingStates.breakfast}
-              regenerationAttempts={regenerationAttempts.breakfast}
+              colors={colors}
             />
           )}
 
@@ -1029,12 +1164,12 @@ export default function AIMealPlan() {
           {plan.lunch && (
             <MealCard
               meal={plan.lunch}
-              mealType="Lunch"
+              mealType={t('mealPlan.lunch')}
+              mealKey="lunch"
               onPress={handleMealPress}
-              onAddToShopping={handleAddToShoppingList}
               onRegenerate={regenerateMeal}
               isRegenerating={loadingStates.lunch}
-              regenerationAttempts={regenerationAttempts.lunch}
+              colors={colors}
             />
           )}
 
@@ -1042,12 +1177,12 @@ export default function AIMealPlan() {
           {plan.dinner && (
             <MealCard
               meal={plan.dinner}
-              mealType="Dinner"
+              mealType={t('mealPlan.dinner')}
+              mealKey="dinner"
               onPress={handleMealPress}
-              onAddToShopping={handleAddToShoppingList}
               onRegenerate={regenerateMeal}
               isRegenerating={loadingStates.dinner}
-              regenerationAttempts={regenerationAttempts.dinner}
+              colors={colors}
             />
           )}
         </View>
@@ -1055,46 +1190,39 @@ export default function AIMealPlan() {
         {/* Snacks Section */}
         <View style={styles.snacksSection}>
           <View style={styles.snacksHeader}>
-            <Text style={styles.sectionTitle}>Snacks</Text>
+            <Display size="md" color={colors.textPrimary}>
+              {t('mealPlan.snacks')}
+            </Display>
             {/* ✅ Regenerate Snacks Button */}
             <TouchableOpacity
-              style={styles.regenerateSnacksButton}
+              style={[
+                styles.regenerateSnacksButton,
+                { backgroundColor: colors.primary + '14' },
+              ]}
               onPress={() => regenerateMeal('snacks')}
               disabled={loadingStates.snacks}
             >
               {loadingStates.snacks ? (
-                <ActivityIndicator size="small" color={colors.primary[500]} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <RefreshCw size={16} color={colors.primary[600]} />
+                <RefreshCw size={16} color={colors.primary} />
               )}
             </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.snacksContainer}>
-            {plan.snacks.map((snack, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[
-                  styles.snackCard,
-                  loadingStates.snacks && styles.snackCardLoading
-                ]}
-                onPress={() => handleMealPress(snack)}
-                disabled={loadingStates.snacks}
-              >
-                <Text style={styles.snackEmoji}>{snack.emoji}</Text>
-                <Text style={styles.snackName}>{snack.name}</Text>
-                <Text style={styles.snackStats}>
-                  {snack.calories} cal • {snack.protein}g protein
-                </Text>
-                {snack.source === 'ai_generated' && (
-                  <View style={styles.snackAiBadge}>
-                    <Sparkles size={10} color={colors.accent[600]} />
-                    <Text style={styles.snackAiText}>AI</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {plan.snacks.map((snack, index) => (
+            <RecipeListCard
+              key={index}
+              title={snack.name}
+              kicker={
+                snack.source === 'ai_generated'
+                  ? t('mealPlan.snackKickerAi')
+                  : t('mealPlan.snackKicker')
+              }
+              imageUrl={(snack as any).image_url ?? null}
+              onPress={() => handleMealPress(snack)}
+            />
+          ))}
         </View>
       </View>
     );
@@ -1102,26 +1230,41 @@ export default function AIMealPlan() {
 
   if (loadingStates.initial) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Creating your personalized meal plan...</Text>
-        <Text style={styles.loadingSubtext}>Analyzing your pantry and preferences</Text>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Display size="md" style={styles.loadingTitle}>
+          {t('mealPlan.loadingTitle')}
+        </Display>
+        <Text style={[styles.loadingSubtext, { color: colors.textSecondary }]}>
+          {t('mealPlan.loadingSubtitle')}
+        </Text>
         {loadingError && (
-          <Text style={styles.errorText}>Storage: {loadingError}</Text>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {t('mealPlan.storage', { error: loadingError })}
+          </Text>
         )}
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       {/* ✅ Enhanced insights modal */}
       <EnhancedInsightsModal
         visible={showInsights}
         insights={enhancedPlanSummary?.insights}
         onClose={() => setShowInsights(false)}
+        colors={colors}
       />
-      
+
       {/* ✅ ÇÖZÜM 3: Modal with proper onClose handler */}
       <MealDetailModal
         visible={modalVisible}
@@ -1137,72 +1280,151 @@ export default function AIMealPlan() {
           setSelectedMeal(null); // ✅ Reset selected meal when closing
           handleAddToShoppingList(ingredients);
         }}
+        colors={colors}
       />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.neutral[800]} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[
+            styles.iconButton,
+            { backgroundColor: colors.surfaceVariant },
+          ]}
+        >
+          <ArrowLeft size={22} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Meal Plan</Text>
-        <TouchableOpacity onPress={() => router.push('/settings')} style={styles.settingsButton}>
-          <Settings size={24} color={colors.neutral[800]} />
+        <Display size="md" color={colors.textPrimary}>
+          {t('mealPlan.title')}
+        </Display>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          style={[
+            styles.iconButton,
+            { backgroundColor: colors.surfaceVariant },
+          ]}
+        >
+          <Settings size={20} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       {/* View Mode Tabs */}
-      <ViewModeTabs viewMode={viewMode} onViewModeChange={setViewMode} />
+      <ViewModeTabs
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        colors={colors}
+      />
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={loadAllData}
-            tintColor={colors.primary[500]}
+            tintColor={colors.primary}
           />
         }
       >
         {/* Pantry Status Card */}
-        <TouchableOpacity 
-          style={styles.pantryStatusCard}
+        <TouchableOpacity
+          style={[
+            styles.pantryStatusCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.borderLight,
+            },
+          ]}
           onPress={() => router.push('/(tabs)/pantry')}
+          activeOpacity={0.85}
         >
           <View style={styles.pantryStatusLeft}>
             <View style={styles.pantryStatusHeader}>
-              <Text style={styles.pantryStatusTitle}>Pantry Status</Text>
+              <Display size="sm" color={colors.textPrimary}>
+                {t('mealPlan.pantryStatus')}
+              </Display>
               {pantryMetrics.expiredItems > 0 && (
-                <View style={styles.expiredBadge}>
-                  <Text style={styles.expiredBadgeText}>{pantryMetrics.expiredItems} expired</Text>
+                <View
+                  style={[
+                    styles.expiredBadge,
+                    { backgroundColor: colors.error + '14' },
+                  ]}
+                >
+                  <Text
+                    style={[styles.expiredBadgeText, { color: colors.error }]}
+                  >
+                    {t('mealPlan.pantryFinished', {
+                      count: pantryMetrics.expiredItems,
+                    })}
+                  </Text>
                 </View>
               )}
             </View>
-            <Text style={styles.pantryStatusSubtitle}>
-              {pantryMetrics.totalItems} items • {pantryMetrics.expiringItems} expiring soon
+            <Text
+              style={[
+                styles.pantryStatusSubtitle,
+                { color: colors.textSecondary },
+              ]}
+            >
+              {t('mealPlan.pantrySubtitle', {
+                total: pantryMetrics.totalItems,
+                expiring: pantryMetrics.expiringItems,
+              })}
             </Text>
           </View>
-          <ChevronRight size={20} color={colors.neutral[400]} />
+          <ChevronRight size={20} color={colors.textSecondary} />
         </TouchableOpacity>
 
         {/* Allergen Safety Info */}
-        {userProfile?.dietary_restrictions && userProfile.dietary_restrictions.length > 0 && (
-          <View style={styles.allergenInfo}>
-            <ShieldCheck size={20} color={colors.success[600]} />
-            <Text style={styles.allergenText}>
-              All recipes are free from: {userProfile.dietary_restrictions.join(', ')}
-            </Text>
-          </View>
-        )}
+        {userProfile?.dietary_restrictions &&
+          userProfile.dietary_restrictions.length > 0 && (
+            <View
+              style={[
+                styles.allergenInfo,
+                { backgroundColor: colors.secondary + '14' },
+              ]}
+            >
+              <ShieldCheck size={20} color={colors.secondary} />
+              <Text style={[styles.allergenText, { color: colors.secondary }]}>
+                {t('mealPlan.allergenFree', {
+                  list: userProfile.dietary_restrictions.join(', '),
+                })}
+              </Text>
+            </View>
+          )}
 
         {/* Preferences Card */}
         {userProfile && (
-          <View style={styles.preferencesCard}>
-            <Text style={styles.preferencesTitle}>Your Preferences</Text>
+          <View
+            style={[
+              styles.preferencesCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
+          >
+            <Eyebrow style={styles.preferencesTitle}>
+              {t('mealPlan.yourPreferences')}
+            </Eyebrow>
             <View style={styles.preferencesTags}>
               {userProfile.dietary_preferences?.map((pref) => (
-                <View key={pref} style={styles.preferenceTag}>
-                  <Text style={styles.preferenceTagText}>{pref.replace('_', ' ')}</Text>
+                <View
+                  key={pref}
+                  style={[
+                    styles.preferenceTag,
+                    { backgroundColor: colors.primary + '12' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.preferenceTagText,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    {pref.replace('_', ' ')}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -1213,78 +1435,131 @@ export default function AIMealPlan() {
         {viewMode === 'daily' && renderDailyView()}
         {viewMode === 'weekly' && (
           <View style={styles.comingSoonContainer}>
-            <Calendar size={48} color={colors.neutral[400]} />
-            <Text style={styles.comingSoonTitle}>Weekly View Coming Soon</Text>
-            <Text style={styles.comingSoonSubtitle}>Plan your entire week with AI-generated meal plans</Text>
+            <Calendar size={44} color={colors.textSecondary} />
+            <Display size="md" style={styles.comingSoonTitle}>
+              {t('mealPlan.weeklyComingTitle')}
+            </Display>
+            <Text
+              style={[
+                styles.comingSoonSubtitle,
+                { color: colors.textSecondary },
+              ]}
+            >
+              {t('mealPlan.weeklyComingSubtitle')}
+            </Text>
           </View>
         )}
         {viewMode === 'monthly' && (
           <View style={styles.comingSoonContainer}>
-            <Calendar size={48} color={colors.neutral[400]} />
-            <Text style={styles.comingSoonTitle}>Monthly View Coming Soon</Text>
-            <Text style={styles.comingSoonSubtitle}>Long-term meal planning and shopping optimization</Text>
+            <Calendar size={44} color={colors.textSecondary} />
+            <Display size="md" style={styles.comingSoonTitle}>
+              {t('mealPlan.monthlyComingTitle')}
+            </Display>
+            <Text
+              style={[
+                styles.comingSoonSubtitle,
+                { color: colors.textSecondary },
+              ]}
+            >
+              {t('mealPlan.monthlyComingSubtitle')}
+            </Text>
           </View>
         )}
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
             onPress={() => router.push('/(tabs)/nutrition')}
+            activeOpacity={0.85}
           >
-            <View style={styles.actionButtonIcon}>
-              <Heart size={20} color={colors.error[500]} />
+            <View
+              style={[
+                styles.actionButtonIcon,
+                { backgroundColor: colors.error + '14' },
+              ]}
+            >
+              <Heart size={19} color={colors.error} />
             </View>
-            <Text style={styles.actionButtonText}>Track Nutrition</Text>
-            <ChevronRight size={16} color={colors.neutral[400]} />
+            <Text
+              style={[styles.actionButtonText, { color: colors.textPrimary }]}
+            >
+              {t('mealPlan.nutritionTracking')}
+            </Text>
+            <ChevronRight size={16} color={colors.textSecondary} />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.borderLight,
+              },
+            ]}
             onPress={() => router.push('/(tabs)/shopping-list')}
+            activeOpacity={0.85}
           >
-            <View style={styles.actionButtonIcon}>
-              <ShoppingCart size={20} color={colors.primary[500]} />
+            <View
+              style={[
+                styles.actionButtonIcon,
+                { backgroundColor: colors.primary + '14' },
+              ]}
+            >
+              <ShoppingCart size={19} color={colors.primary} />
             </View>
-            <Text style={styles.actionButtonText}>Shopping List</Text>
-            <ChevronRight size={16} color={colors.neutral[400]} />
+            <Text
+              style={[styles.actionButtonText, { color: colors.textPrimary }]}
+            >
+              {t('mealPlan.shoppingList')}
+            </Text>
+            <ChevronRight size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
+
+const WARM_SHADOW = {
+  shadowColor: '#3C2814',
+  shadowOpacity: 0.05,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 2,
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.neutral[50],
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
     padding: spacing.xl,
+    gap: spacing.sm,
   },
-  loadingText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
+  loadingTitle: {
     marginTop: spacing.lg,
     textAlign: 'center',
-    fontWeight: '600',
   },
   loadingSubtext: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    marginTop: spacing.sm,
+    fontSize: 14,
+    fontFamily: fonts.body,
     textAlign: 'center',
   },
   errorText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.error[600],
+    fontSize: 13,
+    fontFamily: fonts.body,
     marginTop: spacing.sm,
     textAlign: 'center',
   },
@@ -1292,47 +1567,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.neutral[0],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    paddingVertical: spacing.md,
   },
-  backButton: {
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '700',
-    color: colors.neutral[800],
-  },
-  settingsButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 120,
+  },
   pantryStatusCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
     padding: spacing.lg,
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
-    borderRadius: 16,
-    ...shadows.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    ...WARM_SHADOW,
   },
   pantryStatusLeft: {
     flex: 1,
@@ -1340,56 +1600,45 @@ const styles = StyleSheet.create({
   pantryStatusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     marginBottom: spacing.xs,
   },
-  pantryStatusTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginRight: spacing.md,
-  },
   expiredBadge: {
-    backgroundColor: colors.error[50],
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: 12,
+    borderRadius: radius.full,
   },
   expiredBadgeText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.error[600],
-    fontWeight: '600',
+    fontSize: 11,
+    fontFamily: fonts.bodySemibold,
   },
   pantryStatusSubtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
+    fontSize: 13,
+    fontFamily: fonts.body,
   },
   allergenInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.success[50],
     padding: spacing.md,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    borderRadius: 12,
+    borderRadius: radius.md,
   },
   allergenText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.success[700],
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
     marginLeft: spacing.sm,
     flex: 1,
   },
   preferencesCard: {
-    backgroundColor: colors.neutral[0],
     padding: spacing.lg,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    borderRadius: 16,
-    ...shadows.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    ...WARM_SHADOW,
   },
   preferencesTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[700],
     marginBottom: spacing.md,
   },
   preferencesTags: {
@@ -1398,58 +1647,50 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   preferenceTag: {
-    backgroundColor: colors.primary[50],
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 20,
+    borderRadius: radius.full,
   },
   preferenceTagText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.primary[700],
-    fontWeight: '500',
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
     textTransform: 'capitalize',
   },
   dailyContent: {
     paddingHorizontal: spacing.lg,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
   regenerateAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.accent[50],
-    padding: spacing.lg,
-    borderRadius: 16,
-    marginTop: spacing.lg,
+    paddingVertical: 14,
+    borderRadius: radius.lg,
     gap: spacing.sm,
-    ...shadows.sm,
   },
   regenerateAllText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.accent[700],
+    fontSize: 14,
+    fontFamily: fonts.bodySemibold,
   },
   insightsButton: {
-    backgroundColor: colors.primary[50],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    ...shadows.sm,
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    justifyContent: 'center',
   },
   insightsButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.primary[700],
+    fontSize: 13,
+    fontFamily: fonts.bodySemibold,
   },
   mealsSection: {
     marginTop: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '700',
-    color: colors.neutral[800],
-    marginBottom: spacing.lg,
   },
   snacksSection: {
     marginTop: spacing.xl,
@@ -1458,61 +1699,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   regenerateSnacksButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary[50],
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  snacksContainer: {
-    paddingLeft: 0,
-  },
-  snackCard: {
-    backgroundColor: colors.neutral[0],
-    padding: spacing.lg,
-    borderRadius: 12,
-    marginRight: spacing.md,
-    minWidth: 160,
-    alignItems: 'center',
-    ...shadows.sm,
-  },
-  snackCardLoading: {
-    opacity: 0.6,
-  },
-  snackEmoji: {
-    fontSize: 24,
-    marginBottom: spacing.sm,
-  },
-  snackName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  snackStats: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  snackAiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.accent[50],
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
-  },
-  snackAiText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.accent[700],
-    fontWeight: '600',
   },
   quickActions: {
     marginTop: spacing.xl,
@@ -1522,65 +1716,199 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    padding: spacing.lg,
-    borderRadius: 16,
-    marginBottom: spacing.md,
-    ...shadows.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    ...WARM_SHADOW,
   },
   actionButtonIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.neutral[50],
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
   },
   actionButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
+    fontSize: 15,
+    fontFamily: fonts.bodyMedium,
     flex: 1,
   },
   comingSoonContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
     paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   comingSoonTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[600],
     marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  comingSoonTitle2: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '700',
-    color: colors.primary[600],
-    marginBottom: spacing.md,
     textAlign: 'center',
   },
   comingSoonSubtitle: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[500],
+    fontSize: 14,
+    fontFamily: fonts.body,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: spacing.xl,
-  },
-  featuresList: {
-    alignItems: 'flex-start',
-    marginTop: spacing.lg,
-  },
-  featureItem: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[700],
-    marginBottom: spacing.sm,
-    paddingLeft: spacing.sm,
+    lineHeight: 22,
   },
   bottomSpacer: {
     height: spacing.xl,
+  },
+});
+
+const overlayStyles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(18,11,7,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    zIndex: 1000,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 360,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    ...{
+      shadowColor: '#241710',
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 14 },
+      elevation: 8,
+    },
+  },
+  sheetHeader: {
+    marginBottom: spacing.md,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaText: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+  },
+  primaryBtn: {
+    height: 52,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  primaryBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.bodyBold,
+    color: '#fff',
+  },
+  ghostBtn: {
+    height: 50,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ghostBtnText: {
+    fontSize: 14,
+    fontFamily: fonts.bodyMedium,
+  },
+});
+
+const cardStyles = StyleSheet.create({
+  mealCard: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+    ...WARM_SHADOW,
+  },
+  mealCardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  metaText: {
+    fontSize: 12.5,
+    fontFamily: fonts.bodyMedium,
+  },
+  regenBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  summaryCard: {
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    ...WARM_SHADOW,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md,
+  },
+  stat: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  statLabel: {
+    fontSize: 9.5,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  enhancedBlock: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.md,
+    marginTop: spacing.xs,
+  },
+  methodRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  methodPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+  },
+  methodText: {
+    fontSize: 10.5,
+    fontFamily: fonts.bodySemibold,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    borderRadius: radius.md,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  tabText: {
+    fontSize: 13.5,
+    fontFamily: fonts.bodySemibold,
   },
 });

@@ -1,5 +1,7 @@
-// app/(tabs)/pantry.tsx
-import React, { useState, useEffect } from 'react';
+// app/(tabs)/pantry.tsx — Stovd pantry ("Dolabım") in the Warm Kitchen language:
+// cream paper, serif screen title, Eyebrow kickers, category chips, editorial
+// item cards. Restyle only — all data hooks, CRUD and navigation are unchanged.
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,30 +18,24 @@ import {
   Dimensions,
   FlatList,
   ListRenderItem,
-  Image,
-  ViewStyle,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Plus,
   Search,
-  Filter,
   Package,
-  Calendar,
   TriangleAlert as AlertTriangle,
   X,
-  Camera,
   Clock,
-  MapPin,
-  TrendingUp,
   ChevronDown,
-  Trash2,
-  CreditCard as Edit3,
-  MoveVertical as MoreVertical,
-  ShoppingCart,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
-import { typography } from '@/lib/theme/index';
+import { fonts, radius, spacing, type Colors } from '@/lib/theme/index';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import { SectionHeader } from '@/components/UI/SectionHeader';
+import { PantryItemCard } from '@/components/pantry/PantryItemCard';
+import { t } from '@/lib/i18n';
 
 interface PantryItem {
   id: string;
@@ -56,37 +52,97 @@ interface PantryItem {
   user_id?: string;
 }
 
+// Stored keys/values are unchanged (data layer); only the displayed `label`
+// is localized. Locale is fixed at startup, so labels resolve once at module load.
 const CATEGORIES = [
-  { key: 'all', label: 'All Items', emoji: '📦' },
-  { key: 'dairy', label: 'Dairy', emoji: '🥛' },
-  { key: 'meat', label: 'Meat & Fish', emoji: '🥩' },
-  { key: 'vegetables', label: 'Vegetables', emoji: '🥬' },
-  { key: 'fruits', label: 'Fruits', emoji: '🍎' },
-  { key: 'grains', label: 'Grains & Bread', emoji: '🌾' },
-  { key: 'snacks', label: 'Snacks', emoji: '🍿' },
-  { key: 'beverages', label: 'Beverages', emoji: '🥤' },
-  { key: 'condiments', label: 'Sauces & Spices', emoji: '🧂' },
-  { key: 'frozen', label: 'Frozen', emoji: '🧊' },
-  { key: 'canned', label: 'Canned Goods', emoji: '🥫' },
-  { key: 'bakery', label: 'Bakery', emoji: '🥐' },
+  { key: 'all', label: t('common.all'), emoji: '📦' },
+  { key: 'dairy', label: t('pantry.cat.dairy'), emoji: '🥛' },
+  { key: 'meat', label: t('pantry.cat.meat'), emoji: '🥩' },
+  { key: 'vegetables', label: t('pantry.cat.vegetables'), emoji: '🥬' },
+  { key: 'fruits', label: t('pantry.cat.fruits'), emoji: '🍎' },
+  { key: 'grains', label: t('pantry.cat.grains'), emoji: '🌾' },
+  { key: 'snacks', label: t('pantry.cat.snacks'), emoji: '🍿' },
+  { key: 'beverages', label: t('pantry.cat.beverages'), emoji: '🥤' },
+  { key: 'condiments', label: t('pantry.cat.condiments'), emoji: '🧂' },
+  { key: 'frozen', label: t('pantry.cat.frozen'), emoji: '🧊' },
+  { key: 'canned', label: t('pantry.cat.canned'), emoji: '🥫' },
+  { key: 'bakery', label: t('pantry.cat.bakery'), emoji: '🥐' },
 ];
 
 const UNITS = [
-  { value: 'pcs', label: 'Pieces', category: 'Count' },
-  { value: 'kg', label: 'Kilograms', category: 'Weight' },
-  { value: 'g', label: 'Grams', category: 'Weight' },
-  { value: 'L', label: 'Liters', category: 'Volume' },
-  { value: 'ml', label: 'Milliliters', category: 'Volume' },
-  { value: 'oz', label: 'Ounces', category: 'Weight' },
-  { value: 'lb', label: 'Pounds', category: 'Weight' },
-  { value: 'cups', label: 'Cups', category: 'Volume' },
-  { value: 'tbsp', label: 'Tablespoons', category: 'Volume' },
-  { value: 'tsp', label: 'Teaspoons', category: 'Volume' },
-  { value: 'grams', label: 'Grams', category: 'Weight' },
-  { value: 'piece', label: 'Piece', category: 'Count' },
+  {
+    value: 'pcs',
+    label: t('pantry.unit.pcs'),
+    category: t('pantry.unitCat.count'),
+  },
+  {
+    value: 'kg',
+    label: t('pantry.unit.kg'),
+    category: t('pantry.unitCat.weight'),
+  },
+  {
+    value: 'g',
+    label: t('pantry.unit.g'),
+    category: t('pantry.unitCat.weight'),
+  },
+  {
+    value: 'L',
+    label: t('pantry.unit.L'),
+    category: t('pantry.unitCat.volume'),
+  },
+  {
+    value: 'ml',
+    label: t('pantry.unit.ml'),
+    category: t('pantry.unitCat.volume'),
+  },
+  {
+    value: 'oz',
+    label: t('pantry.unit.oz'),
+    category: t('pantry.unitCat.weight'),
+  },
+  {
+    value: 'lb',
+    label: t('pantry.unit.lb'),
+    category: t('pantry.unitCat.weight'),
+  },
+  {
+    value: 'cups',
+    label: t('pantry.unit.cups'),
+    category: t('pantry.unitCat.volume'),
+  },
+  {
+    value: 'tbsp',
+    label: t('pantry.unit.tbsp'),
+    category: t('pantry.unitCat.volume'),
+  },
+  {
+    value: 'tsp',
+    label: t('pantry.unit.tsp'),
+    category: t('pantry.unitCat.volume'),
+  },
+  {
+    value: 'grams',
+    label: t('pantry.unit.grams'),
+    category: t('pantry.unitCat.weight'),
+  },
+  {
+    value: 'piece',
+    label: t('pantry.unit.piece'),
+    category: t('pantry.unitCat.count'),
+  },
 ];
 
-const LOCATIONS = ['Fridge', 'Freezer', 'Pantry', 'Cabinet', 'Counter'];
+// Stored location value (TR) -> display label key. Values stay as-is in the DB.
+const LOCATIONS = ['Buzdolabı', 'Dondurucu', 'Kiler', 'Dolap', 'Tezgah'];
+const LOCATION_LABEL_KEY: Record<string, string> = {
+  Buzdolabı: 'pantry.loc.fridge',
+  Dondurucu: 'pantry.loc.freezer',
+  Kiler: 'pantry.loc.pantry',
+  Dolap: 'pantry.loc.cupboard',
+  Tezgah: 'pantry.loc.counter',
+};
+const locationLabel = (loc: string) =>
+  LOCATION_LABEL_KEY[loc] ? t(LOCATION_LABEL_KEY[loc]) : loc;
 
 const categoryImages = {
   dairy: require('@/assets/images/categoryImages/dairy.webp'),
@@ -112,6 +168,7 @@ const getItemImageSource = (category: string) => {
 
 export default function PantryScreen() {
   const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState<PantryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +220,7 @@ export default function PantryScreen() {
     quantity: '1',
     unit: 'pcs',
     expiry_date: '',
-    location: 'Fridge',
+    location: 'Buzdolabı',
   });
 
   useEffect(() => {
@@ -199,7 +256,7 @@ export default function PantryScreen() {
       setCategoryStats(stats);
     } catch (error) {
       console.error('Error loading pantry items:', error);
-      Alert.alert('Error', 'Could not load pantry items');
+      Alert.alert(t('common.error'), t('pantry.loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -249,7 +306,7 @@ export default function PantryScreen() {
 
   const handleAddItem = async () => {
     if (!newItem.name.trim()) {
-      Alert.alert('Error', 'Please enter item name');
+      Alert.alert(t('common.error'), t('pantry.enterName'));
       return;
     }
 
@@ -282,16 +339,16 @@ export default function PantryScreen() {
       setItems([data, ...items]);
       setShowAddModal(false);
       resetNewItem();
-      Alert.alert('Success', 'Item added to pantry!');
+      Alert.alert(t('pantry.addedTitle'), t('pantry.addedMessage'));
     } catch (error: any) {
       console.error('Error adding item:', error);
-      Alert.alert('Error', error.message || 'Could not add item');
+      Alert.alert(t('common.error'), error.message || t('pantry.addError'));
     }
   };
 
   const handleUpdateItem = async () => {
     if (!editingItem || !newItem.name.trim()) {
-      Alert.alert('Error', 'Please enter item name');
+      Alert.alert(t('common.error'), t('pantry.enterName'));
       return;
     }
 
@@ -325,18 +382,18 @@ export default function PantryScreen() {
       setEditMode(false);
       setEditingItem(null);
       resetNewItem();
-      Alert.alert('Success', 'Item updated successfully!');
+      Alert.alert(t('pantry.addedTitle'), t('pantry.updatedMessage'));
     } catch (error: any) {
       console.error('Error updating item:', error);
-      Alert.alert('Error', error.message || 'Could not update item');
+      Alert.alert(t('common.error'), error.message || t('pantry.updateError'));
     }
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert('Delete Item', 'Are you sure you want to remove this item?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('pantry.deleteTitle'), t('pantry.deleteMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -351,7 +408,7 @@ export default function PantryScreen() {
             setShowActionsMenu(null);
           } catch (error) {
             console.error('Error deleting item:', error);
-            Alert.alert('Error', 'Could not delete item');
+            Alert.alert(t('common.error'), t('pantry.deleteError'));
           }
         },
       },
@@ -367,7 +424,7 @@ export default function PantryScreen() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Error', 'Please log in to add items to shopping list');
+        Alert.alert(t('common.error'), t('pantry.loginToAdd'));
         return;
       }
 
@@ -385,9 +442,9 @@ export default function PantryScreen() {
 
       if (existingItems && existingItems.length > 0) {
         Alert.alert(
-          'Item Already Exists',
-          `${item.name} is already in your shopping list.`,
-          [{ text: 'OK', style: 'default' }],
+          t('pantry.alreadyExistsTitle'),
+          t('pantry.alreadyExistsMessage', { name: item.name }),
+          [{ text: t('common.ok'), style: 'default' }],
         );
         setShowActionsMenu(null);
         return;
@@ -427,19 +484,20 @@ export default function PantryScreen() {
 
       // ✅ Başarı mesajında miktar ve birim bilgisini göster
       Alert.alert(
-        'Success! ✅',
-        `${item.name}${item.brand ? ` (${item.brand})` : ''} - ${
-          item.quantity
-        } ${item.unit} has been added to your shopping list!`,
-        [{ text: 'OK', style: 'default' }],
+        t('pantry.addedToListTitle'),
+        t('pantry.addedToListMessage', {
+          name: `${item.name}${item.brand ? ` (${item.brand})` : ''}`,
+          quantity: item.quantity,
+          unit: item.unit,
+        }),
+        [{ text: t('common.ok'), style: 'default' }],
       );
       setShowActionsMenu(null);
     } catch (error: any) {
       console.error('Error adding to shopping list:', error);
       Alert.alert(
-        'Error',
-        error.message ||
-          'Failed to add item to shopping list. Please try again.',
+        t('common.error'),
+        error.message || t('pantry.addToListError'),
       );
       setShowActionsMenu(null);
     }
@@ -454,7 +512,7 @@ export default function PantryScreen() {
       quantity: item.quantity.toString(),
       unit: item.unit,
       expiry_date: item.expiry_date || '',
-      location: item.location || 'Fridge',
+      location: item.location || 'Buzdolabı',
     });
     setEditMode(true);
     setShowAddModal(true);
@@ -469,7 +527,7 @@ export default function PantryScreen() {
       quantity: '1',
       unit: 'pcs',
       expiry_date: '',
-      location: 'Fridge',
+      location: 'Buzdolabı',
     });
     setShowUnitDropdown(false);
     setEditMode(false);
@@ -502,18 +560,35 @@ export default function PantryScreen() {
 
   const renderCategoriesHeader = () => (
     <View>
+      <Eyebrow style={styles.screenEyebrow}>{t('pantry.eyebrow')}</Eyebrow>
+      <Display size="xl" style={styles.screenTitle}>
+        {t('pantry.title')}
+      </Display>
+
+      <View style={styles.searchContainer}>
+        <Search size={18} color={colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('pantry.searchPlaceholder')}
+          placeholderTextColor={colors.inputPlaceholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
       <View style={styles.categoriesHeaderInList}>
-        <Text style={styles.categoriesTitle}>Categories</Text>
-        {(selectedCategory !== 'all' || activeExpiryFilter !== 'all') && (
-          <TouchableOpacity
-            onPress={() => {
-              setSelectedCategory('all');
-              setActiveExpiryFilter('all');
-            }}
-          >
-            <Text style={styles.clearFilter}>Clear Filters</Text>
-          </TouchableOpacity>
-        )}
+        <SectionHeader
+          title={t('pantry.categoriesTitle')}
+          actionLabel={
+            selectedCategory !== 'all' || activeExpiryFilter !== 'all'
+              ? t('pantry.clearFilter')
+              : undefined
+          }
+          onAction={() => {
+            setSelectedCategory('all');
+            setActiveExpiryFilter('all');
+          }}
+        />
       </View>
 
       <ScrollView
@@ -535,25 +610,29 @@ export default function PantryScreen() {
             >
               <View style={styles.categoryContent}>
                 <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    isActive && styles.categoryTabTextActive,
-                  ]}
+                <Eyebrow
+                  color={isActive ? colors.textOnPrimary : colors.textSecondary}
+                  style={styles.categoryTabText}
                 >
                   {category.label}
-                </Text>
+                </Eyebrow>
                 {count > 0 && (
                   <View
                     style={[
                       styles.categoryBadge,
-                      isActive && styles.categoryBadgeActive,
+                      isActive && {
+                        backgroundColor: 'rgba(255,255,255,0.25)',
+                      },
                     ]}
                   >
                     <Text
                       style={[
                         styles.categoryBadgeText,
-                        isActive && styles.categoryBadgeTextActive,
+                        {
+                          color: isActive
+                            ? colors.textOnPrimary
+                            : colors.textSecondary,
+                        },
                       ]}
                     >
                       {count}
@@ -583,8 +662,16 @@ export default function PantryScreen() {
                 : colors.textSecondary
             }
           />
-          <Text style={styles.statValue}>{categoryStats['all'] || 0}</Text>
-          <Text style={styles.statLabel}>TOTAL</Text>
+          <Display
+            size="md"
+            color={colors.textPrimary}
+            style={styles.statValue}
+          >
+            {`${categoryStats['all'] || 0}`}
+          </Display>
+          <Eyebrow color={colors.textSecondary} style={styles.statLabel}>
+            {t('pantry.statTotal')}
+          </Eyebrow>
         </TouchableOpacity>
 
         <View style={styles.statDivider} />
@@ -609,15 +696,21 @@ export default function PantryScreen() {
                 : colors.textSecondary
             }
           />
-          <Text style={styles.statValue}>
-            {
+          <Display
+            size="md"
+            color={colors.textPrimary}
+            style={styles.statValue}
+          >
+            {`${
               items.filter((item) => {
                 const days = getDaysUntilExpiry(item.expiry_date || '');
                 return days !== null && days <= 3 && days >= 0;
               }).length
-            }
-          </Text>
-          <Text style={styles.statLabel}>EXPIRING</Text>
+            }`}
+          </Display>
+          <Eyebrow color={colors.textSecondary} style={styles.statLabel}>
+            {t('pantry.statExpiring')}
+          </Eyebrow>
         </TouchableOpacity>
 
         <View style={styles.statDivider} />
@@ -642,15 +735,21 @@ export default function PantryScreen() {
                 : colors.textSecondary
             }
           />
-          <Text style={styles.statValue}>
-            {
+          <Display
+            size="md"
+            color={colors.textPrimary}
+            style={styles.statValue}
+          >
+            {`${
               items.filter((item) => {
                 const days = getDaysUntilExpiry(item.expiry_date || '');
                 return days !== null && days < 0;
               }).length
-            }
-          </Text>
-          <Text style={styles.statLabel}>EXPIRED</Text>
+            }`}
+          </Display>
+          <Eyebrow color={colors.textSecondary} style={styles.statLabel}>
+            {t('pantry.statExpired')}
+          </Eyebrow>
         </TouchableOpacity>
       </View>
     </View>
@@ -675,129 +774,40 @@ export default function PantryScreen() {
     );
   };
 
+  const expiryLabel = (days: number | null) => {
+    if (days === null) return undefined;
+    if (days === 0) return t('pantry.expiryToday');
+    if (days === 1) return t('pantry.expiryTomorrow');
+    if (days > 0) return t('pantry.expiryDays', { count: days });
+    return t('pantry.expiryPassed');
+  };
+
   const renderPantryItem: ListRenderItem<PantryItem> = ({ item, index }) => {
     const daysUntilExpiry = getDaysUntilExpiry(item.expiry_date || '');
     const expiryColor = getExpiryColor(daysUntilExpiry);
 
-    const itemStyle = [
-      styles.itemCard,
-      {
-        width: numColumns === 1 ? '100%' : itemWidth - 8,
-        marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
-      },
-    ];
+    const cardStyle = {
+      width: numColumns === 1 ? ('100%' as const) : itemWidth - 8,
+      marginRight: numColumns > 1 && (index + 1) % numColumns !== 0 ? 8 : 0,
+    };
 
     return (
-      <View style={itemStyle}>
-        <TouchableOpacity
-          style={styles.itemActionsButton}
-          onPress={() =>
-            setShowActionsMenu(showActionsMenu === item.id ? null : item.id)
-          }
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <MoreVertical size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
-
-        {showActionsMenu === item.id && (
-          <View style={styles.actionsDropdown}>
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => handleEditItem(item)}
-            >
-              <Edit3 size={16} color="#10b981" />
-              <Text style={[styles.actionText, { color: '#10b981' }]}>
-                Edit
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.actionDivider} />
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => handleAddToShoppingList(item)}
-            >
-              <ShoppingCart size={16} color="#3b82f6" />
-              <Text style={[styles.actionText, { color: '#3b82f6' }]}>
-                Add to Shopping List
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.actionDivider} />
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => handleDeleteItem(item.id)}
-            >
-              <Trash2 size={16} color="#ef4444" />
-              <Text style={[styles.actionText, { color: '#ef4444' }]}>
-                Delete
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.itemHeader}>
-          <Image
-            source={getItemImageSource(item.category)}
-            style={styles.itemImage}
-          />
-          <View style={styles.itemInfo}>
-            <Text
-              style={styles.itemName}
-              numberOfLines={numColumns > 1 ? 2 : 1}
-            >
-              {item.name}
-            </Text>
-            {item.brand && (
-              <Text style={styles.itemBrand} numberOfLines={1}>
-                {item.brand}
-              </Text>
-            )}
-          </View>
-          <View style={styles.itemQuantityContainer}>
-            <View style={styles.itemQuantity}>
-              <Text style={styles.quantityText}>{item.quantity}</Text>
-              <Text style={styles.quantityUnit}>{item.unit}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.itemDetails}>
-          <View style={styles.itemMeta}>
-            <MapPin size={12} color={colors.textSecondary} />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {item.location}
-            </Text>
-          </View>
-
-          {item.expiry_date && (
-            <View style={[styles.itemMeta, styles.expiryMeta]}>
-              <Calendar size={12} color={expiryColor} />
-              <Text
-                style={[styles.metaText, { color: expiryColor }]}
-                numberOfLines={1}
-              >
-                {daysUntilExpiry === 0
-                  ? 'Today'
-                  : daysUntilExpiry === 1
-                    ? 'Tomorrow'
-                    : daysUntilExpiry && daysUntilExpiry > 0
-                      ? `${daysUntilExpiry}d`
-                      : 'Expired'}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {daysUntilExpiry !== null &&
-          daysUntilExpiry <= 3 &&
-          daysUntilExpiry >= 0 && (
-            <View
-              style={[styles.expiryIndicator, { backgroundColor: expiryColor }]}
-            />
-          )}
-      </View>
+      <PantryItemCard
+        item={item}
+        imageSource={getItemImageSource(item.category)}
+        daysUntilExpiry={daysUntilExpiry}
+        expiryColor={expiryColor}
+        expiryLabel={expiryLabel(daysUntilExpiry)}
+        showMenu={showActionsMenu === item.id}
+        onToggleMenu={() =>
+          setShowActionsMenu(showActionsMenu === item.id ? null : item.id)
+        }
+        onEdit={() => handleEditItem(item)}
+        onAddToShoppingList={() => handleAddToShoppingList(item)}
+        onDelete={() => handleDeleteItem(item.id)}
+        twoUp={numColumns > 1}
+        style={cardStyle}
+      />
     );
   };
 
@@ -817,9 +827,9 @@ export default function PantryScreen() {
       >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {editMode ? 'Edit Item' : 'Add New Item'}
-            </Text>
+            <Display size="lg" color={colors.textPrimary}>
+              {editMode ? t('pantry.editTitle') : t('pantry.addTitle')}
+            </Display>
             <TouchableOpacity
               onPress={() => {
                 setShowAddModal(false);
@@ -833,10 +843,12 @@ export default function PantryScreen() {
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Item Name *</Text>
+              <Eyebrow color={colors.textSecondary} style={styles.label}>
+                {t('pantry.fieldName')}
+              </Eyebrow>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., Milk, Chicken Breast"
+                placeholder={t('pantry.fieldNamePlaceholder')}
                 placeholderTextColor={colors.inputPlaceholder}
                 value={newItem.name}
                 onChangeText={(text) => setNewItem({ ...newItem, name: text })}
@@ -844,10 +856,12 @@ export default function PantryScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Brand (Optional)</Text>
+              <Eyebrow color={colors.textSecondary} style={styles.label}>
+                {t('pantry.fieldBrand')}
+              </Eyebrow>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., Organic Valley"
+                placeholder={t('pantry.fieldBrandPlaceholder')}
                 placeholderTextColor={colors.inputPlaceholder}
                 value={newItem.brand}
                 onChangeText={(text) => setNewItem({ ...newItem, brand: text })}
@@ -856,7 +870,9 @@ export default function PantryScreen() {
 
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.label}>Quantity</Text>
+                <Eyebrow color={colors.textSecondary} style={styles.label}>
+                  {t('pantry.fieldQuantity')}
+                </Eyebrow>
                 <TextInput
                   style={styles.input}
                   placeholder="1"
@@ -870,7 +886,9 @@ export default function PantryScreen() {
               </View>
 
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.label}>Unit</Text>
+                <Eyebrow color={colors.textSecondary} style={styles.label}>
+                  {t('pantry.fieldUnit')}
+                </Eyebrow>
                 <TouchableOpacity
                   style={styles.unitDropdownButton}
                   onPress={() => setShowUnitDropdown(true)}
@@ -885,7 +903,9 @@ export default function PantryScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Category</Text>
+              <Eyebrow color={colors.textSecondary} style={styles.label}>
+                {t('pantry.fieldCategory')}
+              </Eyebrow>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.categoryPicker}>
                   {CATEGORIES.slice(1).map((cat) => (
@@ -901,15 +921,16 @@ export default function PantryScreen() {
                       }
                     >
                       <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.categoryLabel,
-                          newItem.category === cat.key &&
-                            styles.categoryLabelActive,
-                        ]}
+                      <Eyebrow
+                        color={
+                          newItem.category === cat.key
+                            ? colors.primary
+                            : colors.textSecondary
+                        }
+                        style={styles.categoryLabel}
                       >
                         {cat.label}
-                      </Text>
+                      </Eyebrow>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -917,7 +938,9 @@ export default function PantryScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Storage Location</Text>
+              <Eyebrow color={colors.textSecondary} style={styles.label}>
+                {t('pantry.fieldLocation')}
+              </Eyebrow>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.locationPicker}>
                   {LOCATIONS.map((loc) => (
@@ -929,14 +952,16 @@ export default function PantryScreen() {
                       ]}
                       onPress={() => setNewItem({ ...newItem, location: loc })}
                     >
-                      <Text
-                        style={[
-                          styles.locationText,
-                          newItem.location === loc && styles.locationTextActive,
-                        ]}
+                      <Eyebrow
+                        color={
+                          newItem.location === loc
+                            ? colors.primary
+                            : colors.textSecondary
+                        }
+                        style={styles.locationText}
                       >
-                        {loc}
-                      </Text>
+                        {locationLabel(loc)}
+                      </Eyebrow>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -944,7 +969,9 @@ export default function PantryScreen() {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Expiry Date (Optional)</Text>
+              <Eyebrow color={colors.textSecondary} style={styles.label}>
+                {t('pantry.fieldExpiry')}
+              </Eyebrow>
               <TextInput
                 style={styles.input}
                 placeholder="YYYY-MM-DD"
@@ -964,7 +991,9 @@ export default function PantryScreen() {
                   resetNewItem();
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>
+                  {t('common.cancel')}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -972,7 +1001,7 @@ export default function PantryScreen() {
                 onPress={editMode ? handleUpdateItem : handleAddItem}
               >
                 <Text style={styles.addButtonText}>
-                  {editMode ? 'Update Item' : 'Add Item'}
+                  {editMode ? t('pantry.updateButton') : t('common.add')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -996,7 +1025,9 @@ export default function PantryScreen() {
       >
         <View style={styles.dropdownContainer}>
           <View style={styles.dropdownHeader}>
-            <Text style={styles.dropdownTitle}>Select Unit</Text>
+            <Display size="sm" color={colors.textPrimary}>
+              {t('pantry.pickUnit')}
+            </Display>
             <TouchableOpacity
               onPress={() => setShowUnitDropdown(false)}
               style={styles.dropdownCloseButton}
@@ -1042,35 +1073,13 @@ export default function PantryScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading your pantry...</Text>
+        <Text style={styles.loadingText}>{t('pantry.loading')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Pantry</Text>
-        <TouchableOpacity
-          style={styles.headerAddButton}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
-        <Search size={20} color={colors.textSecondary} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search items..."
-          placeholderTextColor={colors.inputPlaceholder}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={filteredItems}
         renderItem={renderPantryItem}
@@ -1094,20 +1103,24 @@ export default function PantryScreen() {
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Package size={56} color={colors.textSecondary} strokeWidth={1.5} />
-            <Text style={styles.emptyText}>
+            <Display
+              size="md"
+              color={colors.textPrimary}
+              style={styles.emptyText}
+            >
               {searchQuery ||
               selectedCategory !== 'all' ||
               activeExpiryFilter !== 'all'
-                ? 'No items found'
-                : 'Your pantry is empty'}
-            </Text>
-            <Text style={styles.emptySubtext}>
+                ? t('pantry.emptyNoResults')
+                : t('pantry.emptyTitle')}
+            </Display>
+            <Eyebrow color={colors.textSecondary} style={styles.emptySubtext}>
               {searchQuery ||
               selectedCategory !== 'all' ||
               activeExpiryFilter !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Tap the + button to add items'}
-            </Text>
+                ? t('pantry.emptyNoResultsHint')
+                : t('pantry.emptyHint')}
+            </Eyebrow>
           </View>
         )}
         columnWrapperStyle={
@@ -1115,617 +1128,412 @@ export default function PantryScreen() {
         }
       />
 
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.85}
+      >
+        <Plus size={24} color={colors.textOnPrimary} />
+      </TouchableOpacity>
+
       {renderAddItemModal()}
       {renderUnitDropdown()}
-    </View>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-    fontFamily: typography.bodyText.fontFamily,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1f2937',
-    letterSpacing: -0.5,
-    fontFamily: typography.headingTextBold.fontFamily, // ✅ Bunu ekleyin
-  },
-  headerAddButton: {
-    backgroundColor: '#10b981',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingLeft: 12,
-    fontSize: 16,
-    color: '#1f2937',
-    fontFamily: typography.bodyText.fontFamily,
-  },
-  categoriesHeaderInList: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 0,
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  categoriesScrollViewInList: {
-    paddingLeft: 0,
-    marginBottom: 8,
-    height: 44,
-  },
-  categoriesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    letterSpacing: -0.3,
-  },
-  clearFilter: {
-    fontSize: 14,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  categoryTab: {
-    paddingHorizontal: 20,
-    marginRight: 12,
-    borderRadius: 22,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  categoryTabActive: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  categoryContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoryEmoji: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  categoryTabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    letterSpacing: -0.2,
-  },
-  categoryTabTextActive: {
-    color: '#FFFFFF',
-  },
-  categoryBadge: {
-    backgroundColor: '#e5e7eb',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginLeft: 8,
-    minWidth: 24,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-  },
-  categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6b7280',
-  },
-  categoryBadgeTextActive: {
-    color: '#FFFFFF',
-  },
-  statsBar: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    marginHorizontal: 0,
-    marginTop: 8,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  statItemActive: {
-    backgroundColor: '#10b98115',
-    transform: [{ scale: 1.02 }],
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 10,
-    height: '50%',
-    alignSelf: 'center',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginTop: 1,
-  },
-  statLabel: {
-    fontSize: 9,
-    color: '#6b7280',
-    marginTop: 1,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    fontWeight: '600',
-  },
-  flatListContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  flatListContent: {
-    paddingTop: 0,
-    paddingBottom: 120,
-    flexGrow: 1,
-  },
-  itemCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    position: 'relative',
-    overflow: 'visible',
-    minHeight: 120,
-  },
-  itemActionsButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 10,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionsDropdown: {
-    position: 'absolute',
-    top: 36,
-    right: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingVertical: 4,
-    minWidth: 140,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 999,
-    zIndex: 99999,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  actionDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 12,
-  },
-  actionText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1f2937',
-    marginLeft: 12,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  itemImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    marginRight: 12,
-    resizeMode: 'cover',
-    backgroundColor: '#f3f4f6',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  itemInfo: {
-    flex: 1,
-    marginRight: 8,
-  },
-  itemName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1f2937',
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  itemBrand: {
-    fontSize: 14,
-    color: '#6b7280',
-    letterSpacing: -0.2,
-  },
-  itemQuantityContainer: {
-    marginRight: 24,
-  },
-  itemQuantity: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  quantityText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  quantityUnit: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  expiryMeta: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  expiryIndicator: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 4,
-    height: '100%',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginTop: 16,
-    letterSpacing: -0.3,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 6,
-    letterSpacing: -0.2,
-  },
-  columnWrapperStyle: {
-    justifyContent: 'space-between',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: 24,
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
-    letterSpacing: -0.5,
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  formRow: {
-    flexDirection: 'row',
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 10,
-    letterSpacing: -0.2,
-  },
-  input: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#1f2937',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  pickerContainer: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  pickerText: {
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  categoryPicker: {
-    flexDirection: 'row',
-    paddingRight: 20,
-  },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    marginRight: 10,
-  },
-  categoryChipActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#ecfdf5',
-  },
-  categoryLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginLeft: 8,
-    letterSpacing: -0.2,
-  },
-  categoryLabelActive: {
-    color: '#10b981',
-  },
-  locationPicker: {
-    flexDirection: 'row',
-    paddingRight: 20,
-  },
-  locationChip: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    marginRight: 10,
-  },
-  locationChipActive: {
-    borderColor: '#10b981',
-    backgroundColor: '#ecfdf5',
-  },
-  locationText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6b7280',
-    letterSpacing: -0.2,
-  },
-  locationTextActive: {
-    color: '#10b981',
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 32,
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-    letterSpacing: -0.3,
-  },
-  addButton: {
-    flex: 1,
-    backgroundColor: '#10b981',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  unitDropdownButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  unitDropdownText: {
-    fontSize: 16,
-    color: '#1f2937',
-    flex: 1,
-  },
-  dropdownOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  dropdownContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    maxHeight: '70%',
-    width: '100%',
-    maxWidth: 320,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  dropdownTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  dropdownCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dropdownList: {
-    maxHeight: 300,
-  },
-  dropdownItem: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
-  },
-  dropdownItemSelected: {
-    backgroundColor: '#10b98115',
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  dropdownItemTextSelected: {
-    color: '#10b981',
-    fontWeight: '600',
-  },
-  dropdownItemCategory: {
-    fontSize: 12,
-    color: '#6b7280',
-    textTransform: 'capitalize',
-  },
-});
+function makeStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      marginTop: spacing.sm + 4,
+      fontSize: 15,
+      color: colors.textSecondary,
+      fontFamily: fonts.body,
+    },
+    screenEyebrow: {
+      marginTop: spacing.sm,
+    },
+    screenTitle: {
+      marginTop: spacing.xs + 2,
+      marginBottom: spacing.md,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.lg,
+      height: 50,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 1,
+    },
+    searchInput: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      paddingLeft: spacing.sm + 4,
+      fontSize: 15,
+      color: colors.textPrimary,
+      fontFamily: fonts.body,
+    },
+    categoriesHeaderInList: {
+      marginTop: spacing.lg,
+    },
+    categoriesScrollViewInList: {
+      marginBottom: spacing.sm,
+      height: 44,
+    },
+    categoryTab: {
+      paddingHorizontal: spacing.md,
+      marginRight: spacing.sm + 2,
+      borderRadius: radius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    categoryTabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.22,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    categoryContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    categoryEmoji: {
+      fontSize: 16,
+      marginRight: spacing.xs + 2,
+    },
+    categoryTabText: {
+      fontSize: 10.5,
+      letterSpacing: 0.8,
+    },
+    categoryBadge: {
+      backgroundColor: colors.surfaceVariant,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: radius.md,
+      marginLeft: spacing.sm,
+      minWidth: 22,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    categoryBadgeText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 11,
+    },
+    statsBar: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      marginTop: spacing.sm + 4,
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+      shadowColor: '#3C2814',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 1,
+    },
+    statItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+      borderRadius: radius.md,
+    },
+    statItemActive: {
+      backgroundColor: colors.surfaceVariant,
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: colors.borderLight,
+      marginHorizontal: spacing.sm + 2,
+      height: '55%',
+      alignSelf: 'center',
+    },
+    statValue: {
+      marginTop: 2,
+    },
+    statLabel: {
+      fontSize: 9,
+      marginTop: 2,
+    },
+    flatListContainer: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    flatListContent: {
+      paddingTop: 0,
+      paddingBottom: 120,
+      flexGrow: 1,
+    },
+    fab: {
+      position: 'absolute',
+      right: spacing.lg,
+      bottom: spacing.xl,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.32,
+      shadowRadius: 14,
+      elevation: 8,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 60,
+    },
+    emptyText: {
+      marginTop: spacing.md,
+      textAlign: 'center',
+    },
+    emptySubtext: {
+      marginTop: spacing.sm,
+      fontSize: 11,
+      letterSpacing: 0.6,
+      textTransform: 'none',
+      fontFamily: fonts.bodyMedium,
+    },
+    columnWrapperStyle: {
+      justifyContent: 'space-between',
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      paddingTop: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: Platform.OS === 'ios' ? 34 : spacing.lg,
+      maxHeight: '90%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    modalCloseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    formGroup: {
+      marginBottom: spacing.md + 4,
+    },
+    formRow: {
+      flexDirection: 'row',
+    },
+    label: {
+      marginBottom: spacing.sm + 2,
+    },
+    input: {
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 6,
+      fontSize: 15,
+      color: colors.textPrimary,
+      fontFamily: fonts.body,
+    },
+    categoryPicker: {
+      flexDirection: 'row',
+      paddingRight: spacing.lg,
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 4,
+      borderRadius: radius.full,
+      backgroundColor: colors.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      marginRight: spacing.sm + 2,
+    },
+    categoryChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    categoryLabel: {
+      fontSize: 10.5,
+      letterSpacing: 0.8,
+      marginLeft: spacing.xs + 2,
+    },
+    locationPicker: {
+      flexDirection: 'row',
+      paddingRight: spacing.lg,
+    },
+    locationChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      borderRadius: radius.md,
+      backgroundColor: colors.surfaceVariant,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+      marginRight: spacing.sm + 2,
+    },
+    locationChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    locationText: {
+      fontSize: 10.5,
+      letterSpacing: 0.8,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: spacing.sm + 4,
+      marginTop: spacing.xl,
+    },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+    },
+    cancelButtonText: {
+      fontFamily: fonts.bodySemibold,
+      fontSize: 15,
+      color: colors.textSecondary,
+    },
+    addButton: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      paddingVertical: spacing.md,
+      borderRadius: radius.md,
+      alignItems: 'center',
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    addButtonText: {
+      fontFamily: fonts.bodyBold,
+      fontSize: 15,
+      color: colors.textOnPrimary,
+    },
+    unitDropdownButton: {
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 6,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    unitDropdownText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      flex: 1,
+      fontFamily: fonts.body,
+    },
+    dropdownOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl + 8,
+    },
+    dropdownContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      maxHeight: '70%',
+      width: '100%',
+      maxWidth: 320,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    dropdownHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md + 4,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderLight,
+    },
+    dropdownCloseButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dropdownList: {
+      maxHeight: 300,
+    },
+    dropdownItem: {
+      paddingHorizontal: spacing.md + 4,
+      paddingVertical: spacing.md,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderLight,
+    },
+    dropdownItemSelected: {
+      backgroundColor: colors.surfaceVariant,
+    },
+    dropdownItemText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      marginBottom: 2,
+      fontFamily: fonts.bodyMedium,
+    },
+    dropdownItemTextSelected: {
+      color: colors.primary,
+      fontFamily: fonts.bodySemibold,
+    },
+    dropdownItemCategory: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      textTransform: 'capitalize',
+      fontFamily: fonts.body,
+    },
+  });
+}

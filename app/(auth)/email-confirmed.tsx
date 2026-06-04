@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { CircleCheck } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import ThemedText from '@/components/UI/ThemedText';
-import ThemedButton from '@/components/UI/ThemedButton';
-import { spacing } from '@/lib/theme';
+import { Display, Eyebrow } from '@/components/UI/Display';
+import PrimaryButton from '@/components/auth/PrimaryButton';
+import { spacing } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
 export default function EmailConfirmedScreen() {
   const router = useRouter();
@@ -26,28 +27,45 @@ export default function EmailConfirmedScreen() {
         <View
           style={[
             styles.iconContainer,
-            { backgroundColor: colors.primary + '20' },
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.secondary,
+            },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
+          <CircleCheck size={64} color={colors.secondary} strokeWidth={2.2} />
         </View>
 
-        <ThemedText type="heading" bold style={styles.title}>
-          Email Verified! 🎉
-        </ThemedText>
+        <Eyebrow color={colors.secondary} style={styles.eyebrow}>
+          {t('auth.confirmedEyebrow')}
+        </Eyebrow>
+        <Display size="xl" style={styles.title}>
+          {t('auth.confirmedTitle')}
+        </Display>
+        <Display
+          size="sm"
+          weight="displayMedium"
+          color={colors.textSecondary}
+          style={styles.subtitle}
+        >
+          {t('auth.confirmedSubtitle')}
+        </Display>
 
-        <ThemedText type="subheading" style={styles.subtitle}>
-          Your email has been successfully verified.
-        </ThemedText>
+        <View style={styles.cta}>
+          <PrimaryButton
+            onPress={() => router.replace(isWeb ? '/' : '/login')}
+            text={isWeb ? t('auth.goToApp') : t('auth.goToLogin')}
+          />
+        </View>
 
-        <ThemedButton
-          onPress={() => router.replace(isWeb ? '/' : '/login')}
-          text={`Go to ${isWeb ? 'App' : 'Login'}`}
-        />
-
-        <ThemedText type="muted" style={styles.redirectText}>
-          Redirecting to App in 5 seconds...?{' '}
-        </ThemedText>
+        <Display
+          size="sm"
+          weight="displayMedium"
+          color={colors.textSecondary}
+          style={styles.redirectText}
+        >
+          {t('auth.redirecting')}
+        </Display>
       </View>
     </View>
   );
@@ -58,28 +76,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: spacing.lg,
   },
   content: {
     alignItems: 'center',
-    padding: 20,
+    width: '100%',
     maxWidth: 400,
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
     marginBottom: spacing.xl,
+    shadowColor: '#3C2814',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
   },
-  redirectText: {
-    marginTop: 20,
-  },
+  eyebrow: { marginBottom: spacing.sm, textAlign: 'center' },
+  title: { marginBottom: spacing.md, textAlign: 'center' },
+  subtitle: { marginBottom: spacing.xl, textAlign: 'center' },
+  cta: { width: '100%' },
+  redirectText: { marginTop: spacing.lg, textAlign: 'center' },
 });
