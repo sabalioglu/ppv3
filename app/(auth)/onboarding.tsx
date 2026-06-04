@@ -32,9 +32,14 @@ import Step8, {
   cookingSkillValues,
 } from '@/components/onboarding/CookingSkill';
 
+import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
+import PayoffScreen from '@/components/onboarding/PayoffScreen';
+
 import ThemedText from '@/components/UI/ThemedText';
 import { useTheme } from '@/contexts/ThemeContext';
 import { t } from '@/lib/i18n';
+
+type Phase = 'welcome' | 'form' | 'payoff';
 
 export const formSchema = z.object({
   fullName: z.string().min(1, 'Please enter your full name'),
@@ -108,8 +113,14 @@ const stepTitle = (step: number) => ({
 });
 
 export default function Onboarding() {
+  const [phase, setPhase] = useState<Phase>('welcome');
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [payoffSummary, setPayoffSummary] = useState<{
+    cuisines: string[];
+    skill: string;
+    allergens: number;
+  } | null>(null);
 
   const StepComponent = steps[currentStep].component;
 
@@ -174,8 +185,12 @@ export default function Onboarding() {
 
       if (error) throw error;
 
-      await checkProfileCompletion();
-      router.replace('/');
+      setPayoffSummary({
+        cuisines: data.cuisinePreferences ?? [],
+        skill: data.cookingSkillLevel ?? '',
+        allergens: data.dietaryRestrictions?.length ?? 0,
+      });
+      setPhase('payoff');
     } catch (error: any) {
       showAlert(
         t('auth.profileSaveFailed'),
@@ -185,6 +200,27 @@ export default function Onboarding() {
       setLoading(false);
     }
   };
+
+  const handleFinish = async () => {
+    await checkProfileCompletion();
+    router.replace('/');
+  };
+
+  if (phase === 'welcome') {
+    return (
+      <FormProvider {...formMethods}>
+        <WelcomeScreen onStart={() => setPhase('form')} />
+      </FormProvider>
+    );
+  }
+
+  if (phase === 'payoff' && payoffSummary) {
+    return (
+      <FormProvider {...formMethods}>
+        <PayoffScreen summary={payoffSummary} onFinish={handleFinish} />
+      </FormProvider>
+    );
+  }
 
   return (
     <FormProvider {...formMethods}>

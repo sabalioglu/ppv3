@@ -25,9 +25,9 @@ export class AuthService {
         email,
         password,
       });
-      
+
       if (error) throw error;
-      
+
       console.log('✅ Email sign in successful');
       return data.user;
     } catch (error: any) {
@@ -36,7 +36,11 @@ export class AuthService {
     }
   }
 
-  static async signUpWithEmail(email: string, password: string, displayName?: string): Promise<any> {
+  static async signUpWithEmail(
+    email: string,
+    password: string,
+    displayName?: string,
+  ): Promise<any> {
     try {
       console.log('📝 Creating account with email:', email);
       const { data, error } = await supabase.auth.signUp({
@@ -48,9 +52,9 @@ export class AuthService {
           },
         },
       });
-      
+
       if (error) throw error;
-      
+
       console.log('✅ Email sign up successful');
       return data.user;
     } catch (error: any) {
@@ -63,16 +67,17 @@ export class AuthService {
   static async signInWithGoogle(): Promise<any> {
     try {
       console.log('🔍 Starting Google sign in...');
-      
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: Platform.OS === 'web' ? window.location.origin : 'pantrypal://auth',
+          redirectTo:
+            Platform.OS === 'web' ? window.location.origin : 'stovd://auth',
         },
       });
-      
+
       if (error) throw error;
-      
+
       console.log('✅ Google sign in initiated');
       return data;
     } catch (error: any) {
@@ -85,16 +90,17 @@ export class AuthService {
   static async signInWithApple(): Promise<any> {
     try {
       console.log('🍎 Starting Apple Sign In...');
-      
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: Platform.OS === 'web' ? window.location.origin : 'pantrypal://auth',
+          redirectTo:
+            Platform.OS === 'web' ? window.location.origin : 'stovd://auth',
         },
       });
-      
+
       if (error) throw error;
-      
+
       console.log('✅ Apple sign in initiated');
       return data;
     } catch (error: any) {
@@ -129,7 +135,10 @@ export class AuthService {
   // Get Current User
   static async getCurrentUser(): Promise<any> {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
       if (error) throw error;
       return user;
     } catch (error: any) {
@@ -140,8 +149,14 @@ export class AuthService {
 
   // Enhanced Auth State Listener with Supabase
   static onAuthStateChanged(callback: (user: any) => void): () => void {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔄 Auth state changed:', event, session?.user ? `User: ${session.user.email}` : 'No user');
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(
+        '🔄 Auth state changed:',
+        event,
+        session?.user ? `User: ${session.user.email}` : 'No user',
+      );
       callback(session?.user || null);
     });
 
@@ -149,15 +164,21 @@ export class AuthService {
   }
 
   // Create User Profile in Supabase
-  private static async createUserProfile(user: any, provider: UserProfile['provider']): Promise<void> {
+  private static async createUserProfile(
+    user: any,
+    provider: UserProfile['provider'],
+  ): Promise<void> {
     try {
       const userProfile: Omit<UserProfile, 'id'> = {
         email: user.email!,
-        full_name: user.user_metadata?.full_name || user.user_metadata?.name || undefined,
+        full_name:
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          undefined,
         avatar_url: user.user_metadata?.avatar_url || undefined,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        provider
+        provider,
       };
 
       const { error } = await supabase
@@ -173,14 +194,17 @@ export class AuthService {
   }
 
   // Update User Profile
-  private static async updateUserProfile(user: any, provider: UserProfile['provider']): Promise<void> {
+  private static async updateUserProfile(
+    user: any,
+    provider: UserProfile['provider'],
+  ): Promise<void> {
     try {
       const { data: existingProfile, error: fetchError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       if (fetchError && fetchError.code !== 'PGRST116') {
         throw fetchError;
       }
@@ -227,7 +251,7 @@ export class AuthService {
     if (errorMessage.includes('User not found')) {
       return 'No user found with this email address';
     }
-    
+
     console.log('Unknown auth error:', errorMessage);
     return 'Authentication error occurred';
   }

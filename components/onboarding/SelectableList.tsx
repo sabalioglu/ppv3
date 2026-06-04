@@ -1,29 +1,33 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { useFormContext } from 'react-hook-form';
+import { Check } from 'lucide-react-native';
 import ThemedText from '@/components/UI/ThemedText';
 import { useTheme } from '@/contexts/ThemeContext';
-import { spacing, shadows, radius } from '@/lib/theme/index';
+import { spacing, radius, fonts } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
-type Option = {
-  key: string;
-  label: string;
+export type SelectableOption = {
+  key: string; // stored value — never translated
+  label: () => string; // displayed, localized label
 };
 
 interface SelectableListProps {
   name: string; // RHF field name
-  title: string;
-  subtitle?: string;
-  options: readonly Option[];
-  noSelectionLabel?: string;
+  helper?: string;
+  options: readonly SelectableOption[];
+  /** When set, shows a "none of these" pill that clears the selection. */
+  allowNone?: boolean;
 }
 
+// Premium multi-select chip grid (Warm Kitchen): hairline pills, terracotta
+// fill + herb-green check when active, wraps cleanly. No in-body title — the
+// wrapper already renders the serif step title.
 export default function SelectableList({
   name,
-  title,
-  subtitle,
+  helper,
   options,
-  noSelectionLabel,
+  allowNone,
 }: SelectableListProps) {
   const { colors } = useTheme();
   const {
@@ -32,12 +36,12 @@ export default function SelectableList({
     formState: { errors },
   } = useFormContext();
 
-  const selectedValues = watch(name) || [];
+  const selectedValues: string[] = watch(name) || [];
   const errorMessage = errors?.[name]?.message as string | undefined;
 
   const toggleOption = (key: string) => {
     const updated = selectedValues.includes(key)
-      ? selectedValues.filter((item: string) => item !== key)
+      ? selectedValues.filter((item) => item !== key)
       : [...selectedValues, key];
     setValue(name, updated, { shouldValidate: true });
   };
@@ -46,120 +50,150 @@ export default function SelectableList({
     setValue(name, [], { shouldValidate: true });
   };
 
+  const noneSelected = selectedValues.length === 0;
+
   return (
     <View style={styles.form}>
-      <ThemedText bold type="body" style={styles.title}>
-        {title}
-      </ThemedText>
-
-      {subtitle && (
-        <ThemedText type="muted" style={styles.subtitle}>
-          {subtitle}
+      {helper ? (
+        <ThemedText style={[styles.helper, { color: colors.textSecondary }]}>
+          {helper}
         </ThemedText>
-      )}
+      ) : null}
 
-      <View style={styles.optionsGrid}>
-        {options.map(({ key, label }) => {
-          const selected = selectedValues.includes(key);
+      <View style={styles.grid}>
+        {options.map((opt) => {
+          const selected = selectedValues.includes(opt.key);
           return (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.optionCard,
+            <Pressable
+              key={opt.key}
+              onPress={() => toggleOption(opt.key)}
+              style={({ pressed }) => [
+                styles.chip,
                 {
-                  backgroundColor: selected ? colors.success : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  ...shadows.md,
+                  backgroundColor: selected ? colors.primary : colors.surface,
+                  borderColor: selected ? colors.primary : colors.borderLight,
+                  opacity: pressed ? 0.92 : 1,
                 },
               ]}
-              onPress={() => toggleOption(key)}
-              activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={label}
               accessibilityState={{ selected }}
+              accessibilityLabel={opt.label()}
             >
-              <ThemedText type="caption" bold style={styles.optionLabel}>
-                {label}
+              {selected ? (
+                <Check size={13} color="#fff" strokeWidth={3} />
+              ) : null}
+              <ThemedText
+                style={[
+                  styles.chipText,
+                  { color: selected ? '#fff' : colors.textPrimary },
+                ]}
+              >
+                {opt.label()}
               </ThemedText>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
-      {noSelectionLabel && (
-        <TouchableOpacity
-          style={[
-            styles.clearButton,
+
+      {allowNone ? (
+        <Pressable
+          onPress={clearAll}
+          style={({ pressed }) => [
+            styles.noneRow,
             {
-              backgroundColor:
-                selectedValues.length === 0
-                  ? colors.success
-                  : colors.background,
-              borderColor:
-                selectedValues.length === 0 ? colors.primary : colors.border,
+              backgroundColor: noneSelected ? colors.surface : 'transparent',
+              borderColor: noneSelected ? colors.primary : colors.borderLight,
+              opacity: pressed ? 0.92 : 1,
             },
           ]}
-          onPress={clearAll}
           accessibilityRole="button"
-          accessibilityLabel="Clear all selections"
+          accessibilityLabel={t('auth.onboarding.clearSelection')}
+          accessibilityState={{ selected: noneSelected }}
         >
-          <ThemedText type="caption" bold>
-            {noSelectionLabel}
+          <View
+            style={[
+              styles.noneDot,
+              {
+                backgroundColor: noneSelected
+                  ? colors.secondary
+                  : 'transparent',
+                borderColor: noneSelected ? colors.secondary : colors.border,
+              },
+            ]}
+          >
+            {noneSelected ? (
+              <Check size={13} color="#fff" strokeWidth={3} />
+            ) : null}
+          </View>
+          <ThemedText style={[styles.noneText, { color: colors.textPrimary }]}>
+            {t('auth.onboarding.clearSelection')}
           </ThemedText>
-        </TouchableOpacity>
-      )}
-      {errorMessage && (
+        </Pressable>
+      ) : null}
+
+      {errorMessage ? (
         <ThemedText
           type="caption"
           style={[styles.error, { color: colors.error }]}
         >
-          ⚠️ {errorMessage}
+          {errorMessage}
         </ThemedText>
-      )}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   form: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  title: {
-    fontSize: 20,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
+  helper: {
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
   },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  optionsGrid: {
+  grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.lg,
-    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
-  optionCard: {
-    flexGrow: 1,
-    flexBasis: '48%',
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+  },
+  chipText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13.5,
+  },
+  noneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
     borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
+  noneDot: {
+    width: 22,
+    height: 22,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
   },
-  optionLabel: {
-    textAlign: 'center',
-  },
-  clearButton: {
-    borderWidth: 2,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.lg,
-    alignItems: 'center',
+  noneText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13.5,
   },
   error: {
     marginTop: spacing.md,
-    textAlign: 'center',
   },
 });

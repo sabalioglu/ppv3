@@ -1,63 +1,110 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
 import FormInput from '@/components/auth/FormInput';
+import OptionCard from '@/components/onboarding/OptionCard';
+import { Eyebrow } from '@/components/UI/Display';
 import ThemedText from '@/components/UI/ThemedText';
-import { spacing } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, fonts } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
+// Stored values must stay verbatim — only displayed labels are translated.
 const activityLevelOptions = [
-  { label: 'Sedentary (little exercise)', value: 'sedentary' },
-  { label: 'Lightly Active (1-3 days/week)', value: 'lightly_active' },
-  { label: 'Moderately Active (3-5 days/week)', value: 'moderately_active' },
-  { label: 'Very Active (6-7 days/week)', value: 'very_active' },
-  { label: 'Extra Active (very intense)', value: 'extra_active' },
+  {
+    value: 'sedentary',
+    label: () => t('auth.onboarding.activitySedentary'),
+    desc: () => t('auth.onboarding.activitySedentaryDesc'),
+  },
+  {
+    value: 'lightly_active',
+    label: () => t('auth.onboarding.activityLightly'),
+    desc: () => t('auth.onboarding.activityLightlyDesc'),
+  },
+  {
+    value: 'moderately_active',
+    label: () => t('auth.onboarding.activityModerately'),
+    desc: () => t('auth.onboarding.activityModeratelyDesc'),
+  },
+  {
+    value: 'very_active',
+    label: () => t('auth.onboarding.activityVery'),
+    desc: () => t('auth.onboarding.activityVeryDesc'),
+  },
+  {
+    value: 'extra_active',
+    label: () => t('auth.onboarding.activityExtra'),
+    desc: () => t('auth.onboarding.activityExtraDesc'),
+  },
 ] as const;
 
 export const activityLevelValues = activityLevelOptions.map((opt) => opt.value);
 
 export default function PhysicalStats() {
   const { control } = useFormContext();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.form}>
-      <ThemedText bold type="body" style={styles.stepTitle}>
-        📏 Physical Stats
+      <ThemedText style={[styles.helper, { color: colors.textSecondary }]}>
+        {t('auth.onboarding.physicalHelper')}
       </ThemedText>
 
-      {/* Height & Weight */}
       <View style={styles.row}>
         <View style={styles.halfWidth}>
-          <ThemedText bold type="body" style={styles.label}>
-            Height (cm) *
-          </ThemedText>
+          <Eyebrow color={colors.textSecondary} style={styles.label}>
+            {t('auth.onboarding.heightLabel')}
+          </Eyebrow>
           <FormInput
             control={control}
             name="height"
-            placeholder="Enter your height in cm"
+            placeholder={t('auth.onboarding.heightPlaceholder')}
+            keyboardType="numeric"
+            unit={t('auth.onboarding.heightUnit')}
           />
         </View>
 
         <View style={styles.halfWidth}>
-          <ThemedText bold type="body" style={styles.label}>
-            Weight (kg) *
-          </ThemedText>
+          <Eyebrow color={colors.textSecondary} style={styles.label}>
+            {t('auth.onboarding.weightLabel')}
+          </Eyebrow>
           <FormInput
             control={control}
             name="weight"
-            placeholder="Enter your weight in kg"
+            placeholder={t('auth.onboarding.weightPlaceholder')}
+            keyboardType="numeric"
+            unit={t('auth.onboarding.weightUnit')}
           />
         </View>
       </View>
 
-      {/* Activity Level */}
-      <ThemedText bold type="body" style={styles.label}>
-        Activity Level *
-      </ThemedText>
-      <FormInput
+      <Eyebrow color={colors.textSecondary} style={styles.label}>
+        {t('auth.onboarding.activityLabel')}
+      </Eyebrow>
+      <Controller
         control={control}
         name="activityLevel"
-        placeholder="Select activity level"
-        pickerOptions={activityLevelOptions}
+        render={({ field: { onChange, value }, fieldState: { error } }) => (
+          <>
+            {activityLevelOptions.map((opt) => (
+              <OptionCard
+                key={opt.value}
+                title={opt.label()}
+                description={opt.desc()}
+                selected={value === opt.value}
+                onPress={() => onChange(opt.value)}
+              />
+            ))}
+            {error && (
+              <ThemedText
+                type="caption"
+                style={[styles.error, { color: colors.error }]}
+              >
+                {error.message}
+              </ThemedText>
+            )}
+          </>
+        )}
       />
     </View>
   );
@@ -65,12 +112,13 @@ export default function PhysicalStats() {
 
 const styles = StyleSheet.create({
   form: {
-    marginBottom: spacing.xl,
-  },
-  stepTitle: {
-    fontSize: 20,
     marginBottom: spacing.lg,
-    textAlign: 'center',
+  },
+  helper: {
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
   },
   label: {
     marginBottom: spacing.sm,
@@ -81,5 +129,9 @@ const styles = StyleSheet.create({
   },
   halfWidth: {
     flex: 1,
+  },
+  error: {
+    marginTop: spacing.xs,
+    marginLeft: spacing.xs,
   },
 });

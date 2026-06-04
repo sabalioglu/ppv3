@@ -1,43 +1,78 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, Controller } from 'react-hook-form';
+import OptionCard from '@/components/onboarding/OptionCard';
+import { Eyebrow } from '@/components/UI/Display';
 import ThemedText from '@/components/UI/ThemedText';
-import FormInput from '@/components/auth/FormInput';
-import { spacing } from '@/lib/theme/index';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, fonts } from '@/lib/theme/index';
+import { t } from '@/lib/i18n';
 
+// Stored values must stay verbatim — only displayed labels are translated.
 const cookingSkillOptions = [
-  { label: '🌱 Beginner', value: 'beginner' },
-  { label: '🍳 Intermediate', value: 'intermediate' },
-  { label: '👨‍🍳 Advanced', value: 'advanced' },
-  { label: '⭐ Expert', value: 'expert' },
+  {
+    value: 'beginner',
+    label: () => t('auth.onboarding.skillBeginner'),
+    desc: () => t('auth.onboarding.skillBeginnerDesc'),
+  },
+  {
+    value: 'intermediate',
+    label: () => t('auth.onboarding.skillIntermediate'),
+    desc: () => t('auth.onboarding.skillIntermediateDesc'),
+  },
+  {
+    value: 'advanced',
+    label: () => t('auth.onboarding.skillAdvanced'),
+    desc: () => t('auth.onboarding.skillAdvancedDesc'),
+  },
+  {
+    value: 'expert',
+    label: () => t('auth.onboarding.skillExpert'),
+    desc: () => t('auth.onboarding.skillExpertDesc'),
+  },
 ];
 
 export const cookingSkillValues = cookingSkillOptions.map(
-  (option) => option.value
+  (option) => option.value,
 );
 
 export default function CookingSkill() {
   const { control } = useFormContext();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.form}>
-      <ThemedText bold type="body" style={styles.stepTitle}>
-        👩‍🍳 Cooking Skill Level
+      <ThemedText style={[styles.helper, { color: colors.textSecondary }]}>
+        {t('auth.onboarding.cookingHelper')}
       </ThemedText>
 
-      <ThemedText type="muted" style={styles.subheading}>
-        How would you describe your cooking experience?
-      </ThemedText>
-
-      <ThemedText bold type="body" style={styles.label}>
-        Cooking Skill Level *
-      </ThemedText>
-
-      <FormInput
+      <Eyebrow color={colors.textSecondary} style={styles.label}>
+        {t('auth.onboarding.cookingLabel')}
+      </Eyebrow>
+      <Controller
         control={control}
         name="cookingSkillLevel"
-        placeholder="Select your skill level"
-        pickerOptions={cookingSkillOptions}
+        render={({ field: { onChange, value }, fieldState: { error } }) => (
+          <>
+            {cookingSkillOptions.map((opt) => (
+              <OptionCard
+                key={opt.value}
+                title={opt.label()}
+                description={opt.desc()}
+                selected={value === opt.value}
+                onPress={() => onChange(opt.value)}
+              />
+            ))}
+            {error && (
+              <ThemedText
+                type="caption"
+                style={[styles.error, { color: colors.error }]}
+              >
+                {error.message}
+              </ThemedText>
+            )}
+          </>
+        )}
       />
     </View>
   );
@@ -45,18 +80,19 @@ export default function CookingSkill() {
 
 const styles = StyleSheet.create({
   form: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
-  stepTitle: {
-    fontSize: 20,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  subheading: {
-    textAlign: 'center',
-    marginBottom: spacing.md,
+  helper: {
+    fontFamily: fonts.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
   },
   label: {
     marginBottom: spacing.sm,
+  },
+  error: {
+    marginTop: spacing.xs,
+    marginLeft: spacing.xs,
   },
 });

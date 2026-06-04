@@ -1,104 +1,136 @@
-import SelectableList from '@/components/onboarding/SelectableList';
+import SelectableList, {
+  SelectableOption,
+} from '@/components/onboarding/SelectableList';
+import { t } from '@/lib/i18n';
 
-const HEALTH_GOALS_MACROS = [
-  { key: 'weight_loss', label: '🏃‍♀️ Weight Loss' },
-  { key: 'muscle_gain', label: '💪 Muscle Gain' },
-  { key: 'maintain_weight', label: '⚖️ Maintain Weight' },
-] as const;
+// NOTE: `key` values are stored data — never translate them. Only `label`
+// (a resolver fn) is localized.
+const HEALTH_GOALS_MACROS: readonly SelectableOption[] = [
+  { key: 'weight_loss', label: () => t('auth.onboarding.goalWeightLoss') },
+  { key: 'muscle_gain', label: () => t('auth.onboarding.goalMuscleGain') },
+  {
+    key: 'maintain_weight',
+    label: () => t('auth.onboarding.goalMaintainWeight'),
+  },
+];
 
-// Static data arrays
-const HEALTH_GOALS_MICROS = [
-  { key: 'improve_health', label: '❤️ Improve Health' },
-  { key: 'energy_boost', label: '⚡ Energy Boost' },
-  { key: 'digestive_health', label: '🌿 Digestive Health' },
-  { key: 'skin_health', label: '✨ Skin Health' },
-  { key: 'hormonal_balance', label: '🔄 Hormonal Balance' },
-  { key: 'heart_health', label: '❤️‍🩹 Heart Health' },
-  { key: 'immune_support', label: '🛡️ Immune Support' },
-  { key: 'bone_strength', label: '🦴 Bone Strength' },
-  { key: 'anti_aging', label: '⏳ Anti-Aging' },
-  { key: 'blood_sugar_control', label: '🍭 Blood Sugar Control' },
-  { key: 'cholesterol_control', label: '🩸 Cholesterol Control' },
-] as const;
+const HEALTH_GOALS_MICROS: readonly SelectableOption[] = [
+  {
+    key: 'improve_health',
+    label: () => t('auth.onboarding.goalImproveHealth'),
+  },
+  { key: 'energy_boost', label: () => t('auth.onboarding.goalEnergyBoost') },
+  {
+    key: 'digestive_health',
+    label: () => t('auth.onboarding.goalDigestiveHealth'),
+  },
+  { key: 'skin_health', label: () => t('auth.onboarding.goalSkinHealth') },
+  {
+    key: 'hormonal_balance',
+    label: () => t('auth.onboarding.goalHormonalBalance'),
+  },
+  { key: 'heart_health', label: () => t('auth.onboarding.goalHeartHealth') },
+  {
+    key: 'immune_support',
+    label: () => t('auth.onboarding.goalImmuneSupport'),
+  },
+  { key: 'bone_strength', label: () => t('auth.onboarding.goalBoneStrength') },
+  { key: 'anti_aging', label: () => t('auth.onboarding.goalAntiAging') },
+  {
+    key: 'blood_sugar_control',
+    label: () => t('auth.onboarding.goalBloodSugar'),
+  },
+  {
+    key: 'cholesterol_control',
+    label: () => t('auth.onboarding.goalCholesterol'),
+  },
+];
 
 export const HealthGoalsMicrosKeys = HEALTH_GOALS_MICROS.map((opt) => opt.key);
 export const HealthGoalsMacrosKeys = HEALTH_GOALS_MACROS.map((opt) => opt.key);
 
-const COMMON_ALLERGENS = [
-  { key: 'nuts', label: '🥜 Tree Nuts' },
-  { key: 'peanuts', label: '🥜 Peanuts' },
-  { key: 'dairy', label: '🥛 Dairy/Lactose' },
-  { key: 'eggs', label: '🥚 Eggs' },
-  { key: 'soy', label: '🫘 Soy' },
-  { key: 'wheat', label: '🌾 Wheat/Gluten' },
-  { key: 'fish', label: '🐟 Fish' },
-  { key: 'shellfish', label: '🦐 Shellfish' },
-  { key: 'sesame', label: '🌰 Sesame' },
-  { key: 'sulfites', label: '🍷 Sulfites' },
+const COMMON_ALLERGENS: readonly SelectableOption[] = [
+  { key: 'nuts', label: () => t('auth.onboarding.allergenNuts') },
+  { key: 'peanuts', label: () => t('auth.onboarding.allergenPeanuts') },
+  { key: 'dairy', label: () => t('auth.onboarding.allergenDairy') },
+  { key: 'eggs', label: () => t('auth.onboarding.allergenEggs') },
+  { key: 'soy', label: () => t('auth.onboarding.allergenSoy') },
+  { key: 'wheat', label: () => t('auth.onboarding.allergenWheat') },
+  { key: 'fish', label: () => t('auth.onboarding.allergenFish') },
+  { key: 'shellfish', label: () => t('auth.onboarding.allergenShellfish') },
+  { key: 'sesame', label: () => t('auth.onboarding.allergenSesame') },
+  { key: 'sulfites', label: () => t('auth.onboarding.allergenSulfites') },
 ];
 
-const CUISINE_PREFERENCES = [
-  { key: 'italian', label: '🇮🇹 Italian' },
-  { key: 'chinese', label: '🇨🇳 Chinese' },
-  { key: 'japanese', label: '🇯🇵 Japanese' },
-  { key: 'turkish', label: '🇹🇷 Turkish' },
-  { key: 'mexican', label: '🇲🇽 Mexican' },
-  { key: 'indian', label: '🇮🇳 Indian' },
-  { key: 'french', label: '🇫🇷 French' },
-  { key: 'thai', label: '🇹🇭 Thai' },
-  { key: 'greek', label: '🇬🇷 Greek' },
-  { key: 'korean', label: '🇰🇷 Korean' },
-  { key: 'spanish', label: '🇪🇸 Spanish' },
-  { key: 'vietnamese', label: '🇻🇳 Vietnamese' },
-  { key: 'lebanese', label: '🇱🇧 Lebanese' },
-  { key: 'german', label: '🇩🇪 German' },
-  { key: 'brazilian', label: '🇧🇷 Brazilian' },
-  { key: 'moroccan', label: '🇲🇦 Moroccan' },
-  { key: 'ethiopian', label: '🇪🇹 Ethiopian' },
-  { key: 'russian', label: '🇷🇺 Russian' },
-  { key: 'american', label: '🇺🇸 American' },
-  { key: 'peruvian', label: '🇵🇪 Peruvian' },
+const CUISINE_PREFERENCES: readonly SelectableOption[] = [
+  { key: 'italian', label: () => t('auth.onboarding.cuisineItalian') },
+  { key: 'chinese', label: () => t('auth.onboarding.cuisineChinese') },
+  { key: 'japanese', label: () => t('auth.onboarding.cuisineJapanese') },
+  { key: 'turkish', label: () => t('auth.onboarding.cuisineTurkish') },
+  { key: 'mexican', label: () => t('auth.onboarding.cuisineMexican') },
+  { key: 'indian', label: () => t('auth.onboarding.cuisineIndian') },
+  { key: 'french', label: () => t('auth.onboarding.cuisineFrench') },
+  { key: 'thai', label: () => t('auth.onboarding.cuisineThai') },
+  { key: 'greek', label: () => t('auth.onboarding.cuisineGreek') },
+  { key: 'korean', label: () => t('auth.onboarding.cuisineKorean') },
+  { key: 'spanish', label: () => t('auth.onboarding.cuisineSpanish') },
+  { key: 'vietnamese', label: () => t('auth.onboarding.cuisineVietnamese') },
+  { key: 'lebanese', label: () => t('auth.onboarding.cuisineLebanese') },
+  { key: 'german', label: () => t('auth.onboarding.cuisineGerman') },
+  { key: 'brazilian', label: () => t('auth.onboarding.cuisineBrazilian') },
+  { key: 'moroccan', label: () => t('auth.onboarding.cuisineMoroccan') },
+  { key: 'ethiopian', label: () => t('auth.onboarding.cuisineEthiopian') },
+  { key: 'russian', label: () => t('auth.onboarding.cuisineRussian') },
+  { key: 'american', label: () => t('auth.onboarding.cuisineAmerican') },
+  { key: 'peruvian', label: () => t('auth.onboarding.cuisinePeruvian') },
 ];
 
-const DIETARY_PREFERENCES = [
-  { key: 'vegan', label: '🌱 Vegan' },
-  { key: 'vegetarian', label: '🥬 Vegetarian' },
-  { key: 'pescatarian', label: '🐟 Pescatarian' },
-  { key: 'keto', label: '🥑 Ketogenic' },
-  { key: 'paleo', label: '🦴 Paleo' },
-  { key: 'mediterranean', label: '🫒 Mediterranean' },
-  { key: 'low_carb', label: '🥩 Low Carb' },
-  { key: 'gluten_free', label: '🌾 Gluten Free' },
-  { key: 'dairy_free', label: '🥛 Dairy Free' },
-  { key: 'low_fat', label: '🍃 Low Fat' },
-  { key: 'raw_food', label: '🥗 Raw Food' },
-  { key: 'flexitarian', label: '🍽️ Flexitarian' },
-  { key: 'whole30', label: '🧘 Whole30' },
-  { key: 'dash', label: '💓 DASH' },
-  { key: 'fodmap', label: '🚫 FODMAP' },
-  { key: 'carnivore', label: '🥓 Carnivore' },
-  { key: 'halal', label: '🕌 Halal' },
-  { key: 'kosher', label: '✡️ Kosher' },
-  { key: 'intermittent_fasting', label: '⏱️ Intermittent Fasting' },
-  { key: 'diabetic_friendly', label: '🩸 Diabetic-Friendly' },
+const DIETARY_PREFERENCES: readonly SelectableOption[] = [
+  { key: 'vegan', label: () => t('auth.onboarding.dietVegan') },
+  { key: 'vegetarian', label: () => t('auth.onboarding.dietVegetarian') },
+  { key: 'pescatarian', label: () => t('auth.onboarding.dietPescatarian') },
+  { key: 'keto', label: () => t('auth.onboarding.dietKeto') },
+  { key: 'paleo', label: () => t('auth.onboarding.dietPaleo') },
+  {
+    key: 'mediterranean',
+    label: () => t('auth.onboarding.dietMediterranean'),
+  },
+  { key: 'low_carb', label: () => t('auth.onboarding.dietLowCarb') },
+  { key: 'gluten_free', label: () => t('auth.onboarding.dietGlutenFree') },
+  { key: 'dairy_free', label: () => t('auth.onboarding.dietDairyFree') },
+  { key: 'low_fat', label: () => t('auth.onboarding.dietLowFat') },
+  { key: 'raw_food', label: () => t('auth.onboarding.dietRawFood') },
+  { key: 'flexitarian', label: () => t('auth.onboarding.dietFlexitarian') },
+  { key: 'whole30', label: () => t('auth.onboarding.dietWhole30') },
+  { key: 'dash', label: () => t('auth.onboarding.dietDash') },
+  { key: 'fodmap', label: () => t('auth.onboarding.dietFodmap') },
+  { key: 'carnivore', label: () => t('auth.onboarding.dietCarnivore') },
+  { key: 'halal', label: () => t('auth.onboarding.dietHalal') },
+  { key: 'kosher', label: () => t('auth.onboarding.dietKosher') },
+  {
+    key: 'intermittent_fasting',
+    label: () => t('auth.onboarding.dietIntermittentFasting'),
+  },
+  {
+    key: 'diabetic_friendly',
+    label: () => t('auth.onboarding.dietDiabeticFriendly'),
+  },
 ];
 
-// 🧩 Export individual screens using the shared component
+// Step screens using the shared multi-select component.
 export const HealthGoalsMicros = () => (
   <SelectableList
     name="healthGoalsMicros"
-    title="🎯 Health Goals Micros"
-    subtitle="Select your micro wellness goals"
+    helper={t('auth.onboarding.goalsMicrosHelper')}
     options={HEALTH_GOALS_MICROS}
-    noSelectionLabel="✅ No specific micro health goals needed"
+    allowNone
   />
 );
 
 export const HealthGoalsMacros = () => (
   <SelectableList
     name="healthGoalsMacros"
-    title="🎯 Health Goals Macros"
-    subtitle="Select your macro wellness goals"
+    helper={t('auth.onboarding.goalsMacrosHelper')}
     options={HEALTH_GOALS_MACROS}
   />
 );
@@ -106,29 +138,26 @@ export const HealthGoalsMacros = () => (
 export const Allergens = () => (
   <SelectableList
     name="dietaryRestrictions"
-    title="🛡️ Food Allergies & Intolerances"
-    subtitle="Help us keep you safe by selecting any allergens you have"
+    helper={t('auth.onboarding.allergensHelper')}
     options={COMMON_ALLERGENS}
-    noSelectionLabel="✅ I don’t have any food allergies or intolerances"
+    allowNone
   />
 );
 
 export const DietaryPreferences = () => (
   <SelectableList
     name="dietaryPreferences"
-    title="🥗 Dietary Preferences"
-    subtitle="Select your preferred eating styles"
+    helper={t('auth.onboarding.dietaryHelper')}
     options={DIETARY_PREFERENCES}
-    noSelectionLabel="✅ No specific dietary preference"
+    allowNone
   />
 );
 
 export const CuisinePreferences = () => (
   <SelectableList
     name="cuisinePreferences"
-    title="🍽️ Cuisine Preferences"
-    subtitle="Pick cuisines you enjoy the most"
+    helper={t('auth.onboarding.cuisinesHelper')}
     options={CUISINE_PREFERENCES}
-    noSelectionLabel="✅ No specific cuisine preference"
+    allowNone
   />
 );
