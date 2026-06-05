@@ -192,7 +192,7 @@ async function geminiFromMarkdown(
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return json({}, 204);
+  if (req.method === 'OPTIONS') return json({ ok: true }, 200);
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'missing authorization' }, 401);

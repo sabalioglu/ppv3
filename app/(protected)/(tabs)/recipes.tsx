@@ -22,7 +22,6 @@ import {
   Sparkles,
   Heart,
   Plus,
-  Share2,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -172,16 +171,10 @@ function matchFor(recipe: Recipe) {
 
 // Quick Actions Dropdown Component (Warm Kitchen card)
 const QuickActionsDropdown: React.FC<{
-  onSocialPress: () => void;
   onAIRecipesPress: () => void;
   onLibraryPress: () => void;
   onFavoritesPress: () => void;
-}> = ({
-  onSocialPress,
-  onAIRecipesPress,
-  onLibraryPress,
-  onFavoritesPress,
-}) => {
+}> = ({ onAIRecipesPress, onLibraryPress, onFavoritesPress }) => {
   const { colors } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const animatedHeight = useRef(new Animated.Value(0)).current;
@@ -213,12 +206,6 @@ const QuickActionsDropdown: React.FC<{
     subtitle: string;
     onPress: () => void;
   }> = [
-    {
-      icon: <Share2 size={18} color={colors.secondary} />,
-      title: t('recipes.socialTitle'),
-      subtitle: t('recipes.socialSubtitle'),
-      onPress: onSocialPress,
-    },
     {
       icon: <Sparkles size={18} color={colors.primary} />,
       title: t('recipes.aiRecipesTitle'),
@@ -879,10 +866,6 @@ export default function Recipes() {
   };
 
   // Quick Action handlers
-  const handleSocialPress = () => {
-    Alert.alert(t('recipes.comingSoonTitle'), t('recipes.comingSoonMessage'));
-  };
-
   const handleAIRecipesPress = () => {
     router.push('/ai-meal-plan');
   };
@@ -992,7 +975,6 @@ export default function Recipes() {
 
         {/* Quick Actions Dropdown */}
         <QuickActionsDropdown
-          onSocialPress={handleSocialPress}
           onAIRecipesPress={handleAIRecipesPress}
           onLibraryPress={handleLibraryPress}
           onFavoritesPress={handleFavoritesPress}

@@ -89,7 +89,7 @@ INCLUDE: milk, eggs, cheese, bread, cereal, pasta, rice, fruits, vegetables, mea
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return json({}, 204);
+  if (req.method === 'OPTIONS') return json({ ok: true }, 200);
 
   // ---- auth: require a valid user (don't expose an open AI proxy) ----
   const authHeader = req.headers.get('Authorization');

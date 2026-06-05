@@ -34,7 +34,7 @@ async function geminiJSON(prompt: string): Promise<unknown> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return json({}, 204);
+  if (req.method === 'OPTIONS') return json({ ok: true }, 200);
 
   // ---- auth: identity from token, never from body ----
   const authHeader = req.headers.get('Authorization');
