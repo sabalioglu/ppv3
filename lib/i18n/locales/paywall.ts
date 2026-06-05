@@ -1,0 +1,53 @@
+// paywall strings (native RevenueCat paywall). en = primary, tr = secondary.
+export default {
+  en: {
+    kicker: 'Stovd Premium',
+    title: 'Cook smarter,\nwithout limits',
+    subtitle: 'Unlock unlimited AI plans, scans and imports.',
+    featureUnlimitedPlans: 'Unlimited AI meal plans (weekly + monthly)',
+    featureUnlimitedScans: 'Unlimited pantry & food photo scans',
+    featureUnlimitedImports: 'Unlimited recipe imports from any link',
+    featurePriority: 'Priority new features',
+    cta: 'Continue',
+    restore: 'Restore purchases',
+    restoredTitle: 'Purchases restored',
+    restoredBody: 'Your premium access is active again.',
+    nothingToRestoreTitle: 'Nothing to restore',
+    nothingToRestoreBody: 'We could not find an active subscription.',
+    purchaseFailedTitle: 'Purchase failed',
+    purchaseFailedBody: 'Something went wrong. Please try again.',
+    unavailableTitle: 'Store unavailable',
+    unavailableBody:
+      'Subscriptions are not available right now. Please try again later.',
+    legal:
+      'Subscription auto-renews until canceled. Manage or cancel anytime in your store account.',
+    close: 'Maybe later',
+    perMonth: '/mo',
+    loading: 'Loading plans…',
+  },
+  tr: {
+    kicker: 'Stovd Premium',
+    title: 'Sınırsız\nakıllı yemek',
+    subtitle: 'Sınırsız AI plan, tarama ve içe aktarma aç.',
+    featureUnlimitedPlans: 'Sınırsız AI öğün planı (haftalık + aylık)',
+    featureUnlimitedScans: 'Sınırsız kiler & yemek fotoğrafı taraması',
+    featureUnlimitedImports: 'Her bağlantıdan sınırsız tarif içe aktarma',
+    featurePriority: 'Yeni özelliklere öncelikli erişim',
+    cta: 'Devam et',
+    restore: 'Satın alımları geri yükle',
+    restoredTitle: 'Satın alımlar geri yüklendi',
+    restoredBody: 'Premium erişimin yeniden aktif.',
+    nothingToRestoreTitle: 'Geri yüklenecek bir şey yok',
+    nothingToRestoreBody: 'Aktif bir abonelik bulamadık.',
+    purchaseFailedTitle: 'Satın alma başarısız',
+    purchaseFailedBody: 'Bir şeyler ters gitti. Lütfen tekrar dene.',
+    unavailableTitle: 'Mağaza kullanılamıyor',
+    unavailableBody:
+      'Abonelikler şu anda kullanılamıyor. Lütfen daha sonra tekrar dene.',
+    legal:
+      'Abonelik iptal edilene kadar otomatik yenilenir. Mağaza hesabından istediğin zaman yönetebilir veya iptal edebilirsin.',
+    close: 'Belki sonra',
+    perMonth: '/ay',
+    loading: 'Planlar yükleniyor…',
+  },
+};

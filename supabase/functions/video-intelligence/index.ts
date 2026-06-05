@@ -9,6 +9,7 @@
 // (Frames+transcript are sent as images+text, so the LLM is swappable to local Gemma later.)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
+import { feedCorpus } from '../_shared/embed.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -294,6 +295,15 @@ Deno.serve(async (req) => {
     );
 
   await recordUsage(admin, userId, 'recipe_import');
+
+  // Feed the imported recipe into the shared RAG corpus (community flywheel).
+  await feedCorpus(admin, userId, {
+    title: row.title,
+    cuisine: row.category,
+    ingredients: row.ingredients as Array<{ name?: string } | string>,
+    instructions: row.instructions as Array<{ instruction?: string } | string>,
+    image_url: row.image_url,
+  });
 
   return json({
     success: true,

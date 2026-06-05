@@ -36,3 +36,6 @@ yarn-error.*
 
 # Supabase CLI temp
 supabase/.temp/
+
+# claude-flow runtime data (contains secrets, never commit)
+.claude-flow/

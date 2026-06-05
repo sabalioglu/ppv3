@@ -59,6 +59,9 @@ export default {
     },
     extra: {
       rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
+      // RevenueCat public SDK keys (NOT secrets — ship in bundle by design).
+      rcIosKey: process.env.EXPO_PUBLIC_RC_IOS_KEY,
+      rcAndroidKey: process.env.EXPO_PUBLIC_RC_ANDROID_KEY,
     },
   },
 };

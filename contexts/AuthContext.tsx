@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import { configurePurchases, logOutPurchases } from '@/lib/purchases';
 
 interface AuthState {
   session: Session | null;
@@ -62,7 +63,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(currentSession ?? null);
 
         if (currentSession?.user?.id) {
+          await configurePurchases(currentSession.user.id);
           await checkProfile(currentSession.user.id);
+        } else {
+          await configurePurchases();
         }
       } catch (err) {
         console.error('Auth init failed', err);
@@ -78,8 +82,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setTimeout(async () => {
           setSession(newSession ?? null);
           if (event === 'SIGNED_IN' && newSession?.user?.id) {
+            await configurePurchases(newSession.user.id);
             await checkProfile(newSession.user.id);
             setIsReady(true);
+          } else if (event === 'SIGNED_OUT') {
+            await logOutPurchases();
           }
         }, 1000);
       },

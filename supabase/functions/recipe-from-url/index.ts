@@ -6,6 +6,7 @@
 // Auth: requires a valid user JWT. Output: { recipe: ExtractedRecipeData, method }.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
+import { feedCorpus } from '../_shared/embed.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -231,6 +232,7 @@ Deno.serve(async (req) => {
   if (ld && (ld.ingredients as unknown[])?.length) {
     if (!ld.image_url) ld.image_url = scraped.ogImage;
     await recordUsage(admin, user.id, 'recipe_import');
+    await feedCorpus(admin, user.id, ld as Record<string, unknown>);
     return json({ recipe: ld, method: 'jsonld' });
   }
 
@@ -269,5 +271,6 @@ Deno.serve(async (req) => {
     ai_match_score: conf || null,
   };
   await recordUsage(admin, user.id, 'recipe_import');
+  await feedCorpus(admin, user.id, recipe as Record<string, unknown>);
   return json({ recipe, method: 'gemini' });
 });

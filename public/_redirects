@@ -1,3 +1,6 @@
 /auth/email-confirmed  /auth/email-confirmed  200!
 /auth/callback  /auth/callback  200!
+/privacy  /privacy.html  200!
+/terms  /terms.html  200!
+/data-deletion  /data-deletion.html  200!
 /*  /index.html  200

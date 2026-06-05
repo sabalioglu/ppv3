@@ -8,7 +8,12 @@ import {
   Switch,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
+
+// Canonical web host serving the legal pages (public/*.html via _redirects).
+// Change here if the Stovd marketing domain differs.
+const LEGAL_BASE = 'https://stovd.app';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   User,
@@ -321,8 +326,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon={Shield}
             title={t('settings.privacySecurity')}
-            muted
-            onPress={comingSoon(t('settings.privacyComingSoon'))}
+            onPress={() => Linking.openURL(`${LEGAL_BASE}/privacy`)}
           />
         </SettingSection>
 

@@ -48,6 +48,65 @@ export function recipeEmbeddingText(r: {
     .join('\n');
 }
 
+/**
+ * Feed a user-imported / user-added recipe into recipe_corpus so it enriches RAG
+ * retrieval for everyone (community flywheel). Fire-and-forget: never throw — a
+ * corpus-feed failure must not break the import the user actually asked for.
+ *
+ * Dedupes per owner by lowercased title so re-importing the same recipe is a no-op.
+ * `admin` must be a service-role client (corpus insert bypasses RLS).
+ */
+// deno-lint-ignore no-explicit-any
+export async function feedCorpus(
+  admin: any,
+  userId: string,
+  // deno-lint-ignore no-explicit-any
+  recipe: Record<string, any>,
+  source: 'imported' | 'user' = 'imported',
+): Promise<void> {
+  try {
+    const title = (recipe.title ?? '').trim();
+    if (!title) return;
+    const ingredient_names = normalizeIngredientNames(recipe.ingredients ?? []);
+    if (!ingredient_names.length) return;
+
+    // dedupe by (owner, lower(title))
+    const { data: existing } = await admin
+      .from('recipe_corpus')
+      .select('id')
+      .eq('owner_user_id', userId)
+      .ilike('title', title)
+      .maybeSingle();
+    if (existing) return;
+
+    const steps: string[] = Array.isArray(recipe.steps)
+      ? recipe.steps.filter(Boolean)
+      : Array.isArray(recipe.instructions)
+        ? recipe.instructions
+            .map((s) => (typeof s === 'string' ? s : (s?.instruction ?? '')))
+            .filter(Boolean)
+        : [];
+
+    const row = {
+      source,
+      external_id: null,
+      title,
+      cuisine: recipe.cuisine ?? null,
+      ingredients: recipe.ingredients ?? [],
+      ingredient_names,
+      steps,
+      skill_level: null,
+      image_url: recipe.image_url ?? recipe.imageUrl ?? null,
+      tags: recipe.tags ?? [],
+      owner_user_id: userId,
+    };
+    const embedding = await embed(recipeEmbeddingText(row));
+    await admin.from('recipe_corpus').insert({ ...row, embedding });
+  } catch (_e) {
+    // swallow — corpus enrichment is best-effort
+  }
+}
+
 export const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':

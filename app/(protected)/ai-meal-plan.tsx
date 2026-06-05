@@ -571,12 +571,12 @@ export default function AIMealPlan() {
       }
     } catch (error) {
       if (error instanceof MealPlanQuotaError) {
-        Alert.alert(
-          t('mealPlan.quotaTitle'),
-          error.fairUse
-            ? t('mealPlan.quotaFairUse')
-            : t('mealPlan.quotaReached'),
-        );
+        // Free limit reached -> paywall. Fair-use (premium) ceiling -> just inform.
+        if (error.fairUse) {
+          Alert.alert(t('mealPlan.quotaTitle'), t('mealPlan.quotaFairUse'));
+        } else {
+          router.push('/paywall');
+        }
       } else {
         console.error(`Failed to generate ${mode} plan:`, error);
         Alert.alert(t('mealPlan.genFailedTitle'), t('mealPlan.genFailedBody'));
@@ -794,6 +794,11 @@ export default function AIMealPlan() {
       });
     } catch (error) {
       console.error('Failed to generate enhanced AI meal plan:', error);
+      // Free AI plan quota exhausted -> surface the paywall (fallback plan still
+      // renders below so the screen is never empty). Fair-use ceiling is premium.
+      if (error instanceof MealPlanQuotaError && !error.fairUse) {
+        router.push('/paywall');
+      }
       console.log('🔄 Generating fallback meal plan...');
 
       // ✅ Enhanced fallback with basic diversity
