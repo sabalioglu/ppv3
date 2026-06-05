@@ -8,7 +8,6 @@
 //   3. Store into user_recipes with the source thumbnail as image_url.
 // (Frames+transcript are sent as images+text, so the LLM is swappable to local Gemma later.)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { checkQuota, quotaBody, recordUsage } from '../_shared/entitlement.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -104,68 +103,6 @@ CAPTION (hint only): ${b.caption || '(none)'}`,
   return JSON.parse(text);
 }
 
-const VIDEO_INSTRUCTION = `You are Stovd's recipe extractor. You are given a cooking VIDEO (with audio) plus its CAPTION (a supporting hint only).
-WATCH the video — both the visuals (ingredients, quantities, actions) AND the audio (spoken steps/amounts) — and read the caption. Fuse them into ONE complete, faithful recipe. NEVER rely on the caption alone; prefer what the video shows and says, and use the caption only to fill gaps.
-Return JSON ONLY:
-{
-  "title": "string",
-  "cuisine": "string|null",
-  "servings": number|null,
-  "prep_time_min": number|null,
-  "cook_time_min": number|null,
-  "difficulty": "easy|medium|hard|null",
-  "ingredients": [{"name":"string","amount":"string"}],
-  "steps": ["string"],
-  "confidence": 0.0
-}
-confidence = your 0-1 certainty the recipe is complete and faithful to the video.`;
-
-// Gemini-native video understanding: the model watches the actual video
-// (frames + audio) directly. Used for Instagram, whose CDN video URL the VPS
-// yt-dlp can't ingest. Inline path (<=18MB); larger reels would need Files API.
-async function geminiVideo(
-  videoUrl: string,
-  caption: string,
-): Promise<Record<string, unknown>> {
-  const vr = await fetch(videoUrl);
-  if (!vr.ok) throw new Error(`video fetch ${vr.status}`);
-  const buf = new Uint8Array(await vr.arrayBuffer());
-  const MAX = 18 * 1024 * 1024;
-  if (buf.byteLength > MAX)
-    throw new Error(
-      `video too large for inline (${(buf.byteLength / 1048576).toFixed(1)}MB > 18MB; Files API needed)`,
-    );
-  const b64 = encodeBase64(buf);
-  const res = await fetch(
-    `${GEMINI_BASE}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { inlineData: { mimeType: 'video/mp4', data: b64 } },
-              {
-                text: `${VIDEO_INSTRUCTION}\n\nCAPTION (hint only): ${caption || '(none)'}`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-        },
-      }),
-    },
-  );
-  if (!res.ok) throw new Error(`gemini ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
-  return JSON.parse(text);
-}
-
 function isInstagram(url: string): boolean {
   return /(^|\.)instagram\.com\//i.test(url);
 }
@@ -239,6 +176,9 @@ Deno.serve(async (req) => {
   let recipe: Record<string, unknown>;
 
   if (isInstagram(url)) {
+    // Apify resolves the CDN video URL (yt-dlp can't reach IG from a datacenter
+    // IP); the video service then analyzes the actual clip (frames + whisper) at
+    // any size, exactly like TikTok. Apify's caption is usually the fullest text.
     let ig: IgResolved;
     try {
       ig = await resolveInstagram(url);
@@ -249,19 +189,34 @@ Deno.serve(async (req) => {
       );
     }
     try {
-      recipe = await geminiVideo(ig.videoUrl, ig.caption);
+      const res = await fetch(`${VIDEO_SVC_URL}/analyze`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${VIDEO_SVC_SECRET}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: ig.videoUrl }),
+      });
+      if (!res.ok)
+        return json({ error: 'analyze failed', detail: await res.text() }, 502);
+      bundle = await res.json();
     } catch (e) {
       return json(
-        { error: 'instagram video analysis failed', detail: String(e) },
+        { error: 'video service unreachable', detail: String(e) },
         502,
       );
     }
-    bundle = {
-      platform: 'instagram',
-      caption: ig.caption,
-      thumbnail: ig.thumbnail,
-      webpage_url: url,
-    };
+    bundle.platform = 'instagram';
+    bundle.webpage_url = url;
+    bundle.caption = ig.caption || bundle.caption;
+    bundle.thumbnail = ig.thumbnail || bundle.thumbnail;
+    if (!bundle.frames?.length && !bundle.transcript && !bundle.caption)
+      return json({ error: 'no analyzable content' }, 422);
+    try {
+      recipe = await geminiFuse(bundle);
+    } catch (e) {
+      return json({ error: 'fusion failed', detail: String(e) }, 502);
+    }
   } else {
     try {
       const res = await fetch(`${VIDEO_SVC_URL}/analyze`, {
@@ -307,7 +262,11 @@ Deno.serve(async (req) => {
     title: (recipe.title as string) ?? bundle.title ?? 'Imported recipe',
     description: null,
     ingredients,
-    instructions: Array.isArray(recipe.steps) ? recipe.steps : [],
+    instructions: Array.isArray(recipe.steps)
+      ? recipe.steps.map((s: unknown, i: number) =>
+          typeof s === 'string' ? { step: i + 1, instruction: s } : s,
+        )
+      : [],
     category: (recipe.cuisine as string) ?? null,
     servings: (recipe.servings as number) ?? null,
     prep_time: (recipe.prep_time_min as number) ?? null,

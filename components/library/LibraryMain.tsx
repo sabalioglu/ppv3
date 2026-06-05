@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -49,8 +49,14 @@ import { Cookbook } from '../../types/cookbook';
 import { CookbookBottomSheet } from './modals/CookbookBottomSheet';
 import { EditCookbookBottomSheet } from './modals/EditCookbookBottomSheet';
 // **Recipe AI Service Imports**
-import { extractRecipeFromUrl, ExtractedRecipeData } from '../../lib/recipeAIService';
-import { extractVideoRecipe, detectVideoPlatform } from '../../lib/supabase-functions';
+import {
+  extractRecipeFromUrl,
+  ExtractedRecipeData,
+} from '../../lib/recipeAIService';
+import {
+  extractVideoRecipe,
+  detectVideoPlatform,
+} from '../../lib/supabase-functions';
 
 // **Import the hook**
 import { useCookbookManager } from '../../hooks/useCookbookManager';
@@ -67,8 +73,17 @@ interface Recipe {
   cook_time: number;
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
-  ingredients: Array<{ name: string; quantity?: string; unit?: string; notes?: string }>;
-  instructions: Array<{ step: number; instruction: string; duration_mins?: number }>;
+  ingredients: Array<{
+    name: string;
+    quantity?: string;
+    unit?: string;
+    notes?: string;
+  }>;
+  instructions: Array<{
+    step: number;
+    instruction: string;
+    duration_mins?: number;
+  }>;
   nutrition?: {
     calories?: number;
     protein?: number;
@@ -106,7 +121,7 @@ const filterCategories: FilterCategory[] = [
       { id: 'dinner', label: 'Dinner' },
       { id: 'snacks', label: 'Snacks' },
       { id: 'desserts', label: 'Desserts' },
-    ]
+    ],
   },
   {
     id: 'diet',
@@ -119,7 +134,7 @@ const filterCategories: FilterCategory[] = [
       { id: 'low_carb', label: 'Low Carb' },
       { id: 'high_protein', label: 'High Protein' },
       { id: 'gluten_free', label: 'Gluten Free' },
-    ]
+    ],
   },
   {
     id: 'cook_time',
@@ -130,7 +145,7 @@ const filterCategories: FilterCategory[] = [
       { id: 'under_30', label: 'Under 30 min' },
       { id: 'under_60', label: 'Under 60 min' },
       { id: 'over_60', label: 'Over 60 min' },
-    ]
+    ],
   },
   {
     id: 'difficulty',
@@ -140,7 +155,7 @@ const filterCategories: FilterCategory[] = [
       { id: 'easy', label: 'Easy' },
       { id: 'medium', label: 'Medium' },
       { id: 'hard', label: 'Hard' },
-    ]
+    ],
   },
   {
     id: 'cuisine',
@@ -153,8 +168,8 @@ const filterCategories: FilterCategory[] = [
       { id: 'italian', label: 'Italian' },
       { id: 'mexican', label: 'Mexican' },
       { id: 'indian', label: 'Indian' },
-    ]
-  }
+    ],
+  },
 ];
 
 // **Updated Import Categories**
@@ -194,7 +209,7 @@ const importCategories: ImportCategory[] = [
     icon: FileText,
     color: colors.neutral[600],
     description: 'Type it yourself',
-  }
+  },
 ];
 
 // **Bulk Actions Bottom Sheet Component**
@@ -209,7 +224,9 @@ const BulkActionsBottomSheet: React.FC<{
 
   const loadCookbooks = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -234,7 +251,7 @@ const BulkActionsBottomSheet: React.FC<{
   const handleBulkAdd = async (cookbookId: string) => {
     try {
       setLoading(true);
-      
+
       // Check existing entries to avoid duplicates
       const { data: existing } = await supabase
         .from('recipe_cookbooks')
@@ -242,17 +259,22 @@ const BulkActionsBottomSheet: React.FC<{
         .eq('cookbook_id', cookbookId)
         .in('recipe_id', selectedRecipeIds);
 
-      const existingIds = existing?.map(e => e.recipe_id) || [];
-      const newRecipeIds = selectedRecipeIds.filter(id => !existingIds.includes(id));
+      const existingIds = existing?.map((e) => e.recipe_id) || [];
+      const newRecipeIds = selectedRecipeIds.filter(
+        (id) => !existingIds.includes(id),
+      );
 
       if (newRecipeIds.length === 0) {
-        Alert.alert('Info', 'All selected recipes are already in this cookbook');
+        Alert.alert(
+          'Info',
+          'All selected recipes are already in this cookbook',
+        );
         return;
       }
 
-      const insertData = newRecipeIds.map(recipeId => ({
+      const insertData = newRecipeIds.map((recipeId) => ({
         recipe_id: recipeId,
-        cookbook_id: cookbookId
+        cookbook_id: cookbookId,
       }));
 
       const { error } = await supabase
@@ -261,7 +283,10 @@ const BulkActionsBottomSheet: React.FC<{
 
       if (error) throw error;
 
-      Alert.alert('Success', `Added ${newRecipeIds.length} recipes to cookbook`);
+      Alert.alert(
+        'Success',
+        `Added ${newRecipeIds.length} recipes to cookbook`,
+      );
       onCookbooksUpdated();
     } catch (error) {
       console.error('Error adding recipes to cookbook:', error);
@@ -283,7 +308,7 @@ const BulkActionsBottomSheet: React.FC<{
               <X size={24} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
-          
+
           <ScrollView style={styles.bulkModalContent}>
             {cookbooks.map((cookbook) => (
               <TouchableOpacity
@@ -295,9 +320,13 @@ const BulkActionsBottomSheet: React.FC<{
                 <Text style={styles.bulkCookbookEmoji}>{cookbook.emoji}</Text>
                 <View style={styles.bulkCookbookInfo}>
                   <Text style={styles.bulkCookbookName}>{cookbook.name}</Text>
-                  <Text style={styles.bulkCookbookDescription}>{cookbook.description}</Text>
+                  <Text style={styles.bulkCookbookDescription}>
+                    {cookbook.description}
+                  </Text>
                 </View>
-                {loading && <ActivityIndicator size="small" color={colors.primary[500]} />}
+                {loading && (
+                  <ActivityIndicator size="small" color={colors.primary[500]} />
+                )}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -317,7 +346,7 @@ const ImportCategoriesModal: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.importModalOverlay}
         activeOpacity={1}
         onPress={onClose}
@@ -341,19 +370,30 @@ const ImportCategoriesModal: React.FC<{
                   key={`import-${category.id}-${index}`}
                   style={[
                     styles.importModalItem,
-                    index === importCategories.length - 1 && { borderBottomWidth: 0 }
+                    index === importCategories.length - 1 && {
+                      borderBottomWidth: 0,
+                    },
                   ]}
                   onPress={() => {
                     onSelect(category.id);
                     onClose();
                   }}
                 >
-                  <View style={[styles.importModalIcon, { backgroundColor: `${category.color}15` }]}>
+                  <View
+                    style={[
+                      styles.importModalIcon,
+                      { backgroundColor: `${category.color}15` },
+                    ]}
+                  >
                     <IconComponent size={24} color={category.color} />
                   </View>
                   <View style={styles.importModalTextContainer}>
-                    <Text style={styles.importModalItemTitle}>{category.name}</Text>
-                    <Text style={styles.importModalItemDescription}>{category.description}</Text>
+                    <Text style={styles.importModalItemTitle}>
+                      {category.name}
+                    </Text>
+                    <Text style={styles.importModalItemDescription}>
+                      {category.description}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -418,27 +458,27 @@ const ManualRecipeModal: React.FC<{
     try {
       const ingredientsList = formData.ingredients
         .split('\n')
-        .filter(line => line.trim())
+        .filter((line) => line.trim())
         .map((line, index) => ({
           name: line.trim(),
           quantity: '',
           unit: '',
-          notes: ''
+          notes: '',
         }));
 
       const instructionsList = formData.instructions
         .split('\n')
-        .filter(line => line.trim())
+        .filter((line) => line.trim())
         .map((line, index) => ({
           step: index + 1,
           instruction: line.trim(),
-          duration_mins: undefined
+          duration_mins: undefined,
         }));
 
       const tagsList = formData.tags
         .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag);
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
 
       const recipeData = {
         title: formData.title.trim(),
@@ -467,7 +507,11 @@ const ManualRecipeModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
       <View style={styles.manualRecipeContainer}>
         <View style={styles.manualRecipeHeader}>
           <TouchableOpacity onPress={onClose}>
@@ -482,7 +526,10 @@ const ManualRecipeModal: React.FC<{
             )}
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.manualRecipeContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.manualRecipeContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Basic Information</Text>
             <View style={styles.formGroup}>
@@ -491,7 +538,9 @@ const ManualRecipeModal: React.FC<{
                 style={styles.formInput}
                 placeholder="Enter recipe title..."
                 value={formData.title}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, title: text }))}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, title: text }))
+                }
                 placeholderTextColor={colors.neutral[400]}
               />
             </View>
@@ -501,49 +550,65 @@ const ManualRecipeModal: React.FC<{
                 style={[styles.formInput, styles.textArea]}
                 placeholder="Brief description of the recipe..."
                 value={formData.description}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, description: text }))
+                }
                 placeholderTextColor={colors.neutral[400]}
                 multiline
                 numberOfLines={3}
               />
             </View>
             <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
+              <View
+                style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}
+              >
                 <Text style={styles.formLabel}>Prep Time (min)</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="15"
                   value={formData.prep_time}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, prep_time: text }))}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, prep_time: text }))
+                  }
                   placeholderTextColor={colors.neutral[400]}
                   keyboardType="numeric"
                 />
               </View>
-              <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
+              <View
+                style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}
+              >
                 <Text style={styles.formLabel}>Cook Time (min)</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="30"
                   value={formData.cook_time}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, cook_time: text }))}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, cook_time: text }))
+                  }
                   placeholderTextColor={colors.neutral[400]}
                   keyboardType="numeric"
                 />
               </View>
             </View>
             <View style={styles.formRow}>
-              <View style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}>
+              <View
+                style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}
+              >
                 <Text style={styles.formLabel}>Servings</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="4"
                   value={formData.servings}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, servings: text }))}
+                  onChangeText={(text) =>
+                    setFormData((prev) => ({ ...prev, servings: text }))
+                  }
                   placeholderTextColor={colors.neutral[400]}
                   keyboardType="numeric"
                 />
               </View>
-              <View style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}>
+              <View
+                style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}
+              >
                 <Text style={styles.formLabel}>Difficulty</Text>
                 <View style={styles.pickerContainer}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -552,14 +617,21 @@ const ManualRecipeModal: React.FC<{
                         key={`difficulty-${level}-${levelIndex}`}
                         style={[
                           styles.pickerOption,
-                          formData.difficulty === level && styles.pickerOptionSelected
+                          formData.difficulty === level &&
+                            styles.pickerOptionSelected,
                         ]}
-                        onPress={() => setFormData(prev => ({ ...prev, difficulty: level }))}
+                        onPress={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            difficulty: level,
+                          }))
+                        }
                       >
                         <Text
                           style={[
                             styles.pickerOptionText,
-                            formData.difficulty === level && styles.pickerOptionTextSelected
+                            formData.difficulty === level &&
+                              styles.pickerOptionTextSelected,
                           ]}
                         >
                           {level}
@@ -574,37 +646,47 @@ const ManualRecipeModal: React.FC<{
               <Text style={styles.formLabel}>Category</Text>
               <View style={styles.pickerContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map((cat, catIndex) => (
-                    <TouchableOpacity
-                      key={`category-${cat}-${catIndex}`}
-                      style={[
-                        styles.pickerOption,
-                        formData.category === cat && styles.pickerOptionSelected
-                      ]}
-                      onPress={() => setFormData(prev => ({ ...prev, category: cat }))}
-                    >
-                      <Text
+                  {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map(
+                    (cat, catIndex) => (
+                      <TouchableOpacity
+                        key={`category-${cat}-${catIndex}`}
                         style={[
-                          styles.pickerOptionText,
-                          formData.category === cat && styles.pickerOptionTextSelected
+                          styles.pickerOption,
+                          formData.category === cat &&
+                            styles.pickerOptionSelected,
                         ]}
+                        onPress={() =>
+                          setFormData((prev) => ({ ...prev, category: cat }))
+                        }
                       >
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.pickerOptionText,
+                            formData.category === cat &&
+                              styles.pickerOptionTextSelected,
+                          ]}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ),
+                  )}
                 </ScrollView>
               </View>
             </View>
           </View>
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Ingredients *</Text>
-            <Text style={styles.formHint}>Enter each ingredient on a new line</Text>
+            <Text style={styles.formHint}>
+              Enter each ingredient on a new line
+            </Text>
             <TextInput
               style={[styles.formInput, styles.textArea, { height: 120 }]}
               placeholder="1 cup flour&#10;2 eggs&#10;1/2 cup milk&#10;Salt to taste"
               value={formData.ingredients}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, ingredients: text }))}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, ingredients: text }))
+              }
               placeholderTextColor={colors.neutral[400]}
               multiline
               textAlignVertical="top"
@@ -617,7 +699,9 @@ const ManualRecipeModal: React.FC<{
               style={[styles.formInput, styles.textArea, { height: 150 }]}
               placeholder="Preheat oven to 350F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;Bake for 25-30 minutes"
               value={formData.instructions}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, instructions: text }))}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, instructions: text }))
+              }
               placeholderTextColor={colors.neutral[400]}
               multiline
               textAlignVertical="top"
@@ -630,7 +714,9 @@ const ManualRecipeModal: React.FC<{
               style={styles.formInput}
               placeholder="vegetarian, quick, healthy, comfort food"
               value={formData.tags}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, tags: text }))}
+              onChangeText={(text) =>
+                setFormData((prev) => ({ ...prev, tags: text }))
+              }
               placeholderTextColor={colors.neutral[400]}
             />
           </View>
@@ -650,24 +736,35 @@ const FilterModal: React.FC<{
   userCookbooks: any[];
   selectedCookbook: string;
   onCookbookChange: (cookbookId: string) => void;
-}> = ({ visible, onClose, filters, onFiltersChange, recipeCount, userCookbooks, selectedCookbook, onCookbookChange }) => {
+}> = ({
+  visible,
+  onClose,
+  filters,
+  onFiltersChange,
+  recipeCount,
+  userCookbooks,
+  selectedCookbook,
+  onCookbookChange,
+}) => {
   const [localFilters, setLocalFilters] = useState(filters);
-  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({
+  const [expandedCategories, setExpandedCategories] = useState<{
+    [key: string]: boolean;
+  }>({
     cookbook: true,
     meal_type: true,
   });
 
   const toggleCategory = (categoryId: string) => {
-    setExpandedCategories(prev => ({
+    setExpandedCategories((prev) => ({
       ...prev,
-      [categoryId]: !prev[categoryId]
+      [categoryId]: !prev[categoryId],
     }));
   };
 
   const updateFilter = (categoryId: string, optionId: string) => {
-    setLocalFilters(prev => ({
+    setLocalFilters((prev) => ({
       ...prev,
-      [categoryId]: optionId
+      [categoryId]: optionId,
     }));
   };
 
@@ -677,10 +774,13 @@ const FilterModal: React.FC<{
   };
 
   const clearAllFilters = () => {
-    const clearedFilters = Object.keys(localFilters).reduce((acc, key) => {
-      acc[key] = 'all';
-      return acc;
-    }, {} as { [key: string]: string });
+    const clearedFilters = Object.keys(localFilters).reduce(
+      (acc, key) => {
+        acc[key] = 'all';
+        return acc;
+      },
+      {} as { [key: string]: string },
+    );
     setLocalFilters(clearedFilters);
     onFiltersChange(clearedFilters);
     onCookbookChange('all');
@@ -688,7 +788,11 @@ const FilterModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
       <View style={styles.filterModalContainer}>
         <View style={styles.filterModalHeader}>
           <TouchableOpacity onPress={onClose}>
@@ -699,7 +803,10 @@ const FilterModal: React.FC<{
             <Text style={styles.clearAllText}>Clear All</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.filterModalContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.filterModalContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Cookbook Filter */}
           <View style={styles.filterCategoryContainer}>
             <TouchableOpacity
@@ -712,7 +819,7 @@ const FilterModal: React.FC<{
                 color={colors.neutral[600]}
                 style={[
                   styles.chevronIcon,
-                  expandedCategories.cookbook && styles.chevronIconExpanded
+                  expandedCategories.cookbook && styles.chevronIconExpanded,
                 ]}
               />
             </TouchableOpacity>
@@ -721,14 +828,15 @@ const FilterModal: React.FC<{
                 <TouchableOpacity
                   style={[
                     styles.filterOption,
-                    selectedCookbook === 'all' && styles.filterOptionSelected
+                    selectedCookbook === 'all' && styles.filterOptionSelected,
                   ]}
                   onPress={() => onCookbookChange('all')}
                 >
                   <Text
                     style={[
                       styles.filterOptionText,
-                      selectedCookbook === 'all' && styles.filterOptionTextSelected
+                      selectedCookbook === 'all' &&
+                        styles.filterOptionTextSelected,
                     ]}
                   >
                     All Recipes
@@ -742,7 +850,8 @@ const FilterModal: React.FC<{
                     key={cookbook.id}
                     style={[
                       styles.filterOption,
-                      selectedCookbook === cookbook.id && styles.filterOptionSelected
+                      selectedCookbook === cookbook.id &&
+                        styles.filterOptionSelected,
                     ]}
                     onPress={() => onCookbookChange(cookbook.id)}
                   >
@@ -751,7 +860,8 @@ const FilterModal: React.FC<{
                       <Text
                         style={[
                           styles.filterOptionText,
-                          selectedCookbook === cookbook.id && styles.filterOptionTextSelected
+                          selectedCookbook === cookbook.id &&
+                            styles.filterOptionTextSelected,
                         ]}
                       >
                         {cookbook.name}
@@ -768,7 +878,10 @@ const FilterModal: React.FC<{
 
           {/* Existing Filter Categories */}
           {filterCategories.map((category, categoryIndex) => (
-            <View key={`filter-category-${category.id}-${categoryIndex}`} style={styles.filterCategoryContainer}>
+            <View
+              key={`filter-category-${category.id}-${categoryIndex}`}
+              style={styles.filterCategoryContainer}
+            >
               <TouchableOpacity
                 style={styles.filterCategoryHeader}
                 onPress={() => toggleCategory(category.id)}
@@ -779,7 +892,8 @@ const FilterModal: React.FC<{
                   color={colors.neutral[600]}
                   style={[
                     styles.chevronIcon,
-                    expandedCategories[category.id] && styles.chevronIconExpanded
+                    expandedCategories[category.id] &&
+                      styles.chevronIconExpanded,
                   ]}
                 />
               </TouchableOpacity>
@@ -792,14 +906,14 @@ const FilterModal: React.FC<{
                         key={`${category.id}-${option.id}-${optionIndex}`}
                         style={[
                           styles.filterOption,
-                          isSelected && styles.filterOptionSelected
+                          isSelected && styles.filterOptionSelected,
                         ]}
                         onPress={() => updateFilter(category.id, option.id)}
                       >
                         <Text
                           style={[
                             styles.filterOptionText,
-                            isSelected && styles.filterOptionTextSelected
+                            isSelected && styles.filterOptionTextSelected,
                           ]}
                         >
                           {option.label}
@@ -816,7 +930,10 @@ const FilterModal: React.FC<{
           ))}
         </ScrollView>
         <View style={styles.filterModalFooter}>
-          <TouchableOpacity style={styles.applyFiltersButton} onPress={applyFilters}>
+          <TouchableOpacity
+            style={styles.applyFiltersButton}
+            onPress={applyFilters}
+          >
             <Text style={styles.applyFiltersText}>
               Show {recipeCount} Recipe{recipeCount !== 1 ? 's' : ''}
             </Text>
@@ -836,60 +953,65 @@ const URLImportModal: React.FC<{
   loading: boolean;
 }> = ({ visible, onClose, onImport, selectedSource, loading }) => {
   const [url, setUrl] = useState('');
-  const [currentLoadingMessage, setCurrentLoadingMessage] = useState('Our AI chef is cooking up your recipe...');
+  const [currentLoadingMessage, setCurrentLoadingMessage] = useState(
+    'Our AI chef is cooking up your recipe...',
+  );
 
   const getLoadingMessages = (url: string) => {
     const baseMessages = [
-  "AI chef is cooking...",
-  "Scanning ingredients...",
-  "Teaching robots to cook...",
-  "Brewing digital coffee...",
-  "Finding recipe image...",
-  "Cleaning digital crumbs...",
-  "Reading recipe wisdom...",
-  "Faster than slow cooking!",
-  "Almost ready to serve!",
-  "Adding AI magic..."
-];
+      'AI chef is cooking...',
+      'Scanning ingredients...',
+      'Teaching robots to cook...',
+      'Brewing digital coffee...',
+      'Finding recipe image...',
+      'Cleaning digital crumbs...',
+      'Reading recipe wisdom...',
+      'Faster than slow cooking!',
+      'Almost ready to serve!',
+      'Adding AI magic...',
+    ];
 
-const platformMessages: { [key: string]: string[] } = {
-  tiktok: [
-    "🎬 Analyzing TikTok...",
-    "👨‍🍳 Following chef...",
-    "📝 Taking notes...",
-    "🔥 Learning techniques..."
-  ],
-  instagram: [
-    "📸 Processing Reel...",
-    "✨ Extracting recipe...",
-    "🥘 Preparing list...",
-    "📱 Reading notes..."
-  ],
-  youtube: [
-    "🎥 Examining video...",
-    "📊 Scanning description...",
-    "⏱️ Recording steps...",
-    "🎯 Analyzing quality..."
-  ],
-  facebook: [
-    "📘 Processing video...",
-    "👥 Collecting tips...",
-    "📹 Optimizing quality...",
-    "🍳 Combining details..."
-  ],
-  web: [
-    "🌐 Scanning website...",
-    "📖 Reading ingredients...",
-    "👩‍🍳 Extracting steps...",
-    "🎨 Finding image..."
-  ]
-};
+    const platformMessages: { [key: string]: string[] } = {
+      tiktok: [
+        '🎬 Analyzing TikTok...',
+        '👨‍🍳 Following chef...',
+        '📝 Taking notes...',
+        '🔥 Learning techniques...',
+      ],
+      instagram: [
+        '📸 Processing Reel...',
+        '✨ Extracting recipe...',
+        '🥘 Preparing list...',
+        '📱 Reading notes...',
+      ],
+      youtube: [
+        '🎥 Examining video...',
+        '📊 Scanning description...',
+        '⏱️ Recording steps...',
+        '🎯 Analyzing quality...',
+      ],
+      facebook: [
+        '📘 Processing video...',
+        '👥 Collecting tips...',
+        '📹 Optimizing quality...',
+        '🍳 Combining details...',
+      ],
+      web: [
+        '🌐 Scanning website...',
+        '📖 Reading ingredients...',
+        '👩‍🍳 Extracting steps...',
+        '🎨 Finding image...',
+      ],
+    };
 
     let platform = selectedSource || 'web';
-    if (url.includes('tiktok.com') || url.includes('vt.tiktok.com')) platform = 'tiktok';
+    if (url.includes('tiktok.com') || url.includes('vt.tiktok.com'))
+      platform = 'tiktok';
     else if (url.includes('instagram.com')) platform = 'instagram';
-    else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
-    else if (url.includes('facebook.com') || url.includes('fb.watch')) platform = 'facebook';
+    else if (url.includes('youtube.com') || url.includes('youtu.be'))
+      platform = 'youtube';
+    else if (url.includes('facebook.com') || url.includes('fb.watch'))
+      platform = 'facebook';
 
     const specificMessages = platformMessages[platform] || platformMessages.web;
     return [...specificMessages, ...baseMessages].slice(0, 8);
@@ -901,7 +1023,7 @@ const platformMessages: { [key: string]: string[] } = {
       const messages = getLoadingMessages(url);
       let messageIndex = 0;
       setCurrentLoadingMessage(messages[0]);
-      
+
       interval = setInterval(() => {
         messageIndex = (messageIndex + 1) % messages.length;
         setCurrentLoadingMessage(messages[messageIndex]);
@@ -914,12 +1036,24 @@ const platformMessages: { [key: string]: string[] } = {
 
   const getSourceInfo = () => {
     if (selectedSource === 'web') {
-      return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
+      return {
+        name: 'Website',
+        color: colors.primary[500],
+        description: 'Any recipe website',
+      };
     }
     if (selectedSource === 'socials') {
-      return { name: 'Social Media', color: colors.secondary[500], description: 'TikTok, Instagram, YouTube, Facebook' };
+      return {
+        name: 'Social Media',
+        color: colors.secondary[500],
+        description: 'TikTok, Instagram, YouTube, Facebook',
+      };
     }
-    return { name: 'Website', color: colors.primary[500], description: 'Any recipe website' };
+    return {
+      name: 'Website',
+      color: colors.primary[500],
+      description: 'Any recipe website',
+    };
   };
 
   const sourceInfo = getSourceInfo();
@@ -944,7 +1078,8 @@ const platformMessages: { [key: string]: string[] } = {
 
   const getPlaceholderUrl = () => {
     if (selectedSource === 'web') return 'https://example.com/recipe';
-    if (selectedSource === 'socials') return 'https://tiktok.com/@user/video/...';
+    if (selectedSource === 'socials')
+      return 'https://tiktok.com/@user/video/...';
     return 'https://example.com/recipe';
   };
 
@@ -954,22 +1089,35 @@ const platformMessages: { [key: string]: string[] } = {
         <View style={styles.urlModalContainer}>
           <View style={styles.urlModalHeader}>
             <View style={styles.urlModalTitleContainer}>
-              <View style={[styles.urlModalIconContainer, { backgroundColor: `${sourceInfo.color}15` }]}>
+              <View
+                style={[
+                  styles.urlModalIconContainer,
+                  { backgroundColor: `${sourceInfo.color}15` },
+                ]}
+              >
                 <Link size={24} color={sourceInfo.color} />
               </View>
               <View>
-                <Text style={styles.urlModalTitle}>Import from {sourceInfo.name}</Text>
-                <Text style={styles.urlModalSubtitle}>{sourceInfo.description}</Text>
+                <Text style={styles.urlModalTitle}>
+                  Import from {sourceInfo.name}
+                </Text>
+                <Text style={styles.urlModalSubtitle}>
+                  {sourceInfo.description}
+                </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.urlModalCloseButton}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.urlModalCloseButton}
+            >
               <X size={20} color={colors.neutral[600]} />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.urlModalDescription}>
-            Paste a link from {sourceInfo.name} and our AI will automatically extract the recipe details,
-            including ingredients, instructions, and nutritional information.
+            Paste a link from {sourceInfo.name} and our AI will automatically
+            extract the recipe details, including ingredients, instructions, and
+            nutritional information.
           </Text>
 
           <View style={styles.urlInputWrapper}>
@@ -987,7 +1135,10 @@ const platformMessages: { [key: string]: string[] } = {
                 returnKeyType="done"
               />
               {url.length > 0 && (
-                <TouchableOpacity onPress={clearInput} style={styles.clearInputButton}>
+                <TouchableOpacity
+                  onPress={clearInput}
+                  style={styles.clearInputButton}
+                >
                   <X size={16} color={colors.neutral[400]} />
                 </TouchableOpacity>
               )}
@@ -996,11 +1147,15 @@ const platformMessages: { [key: string]: string[] } = {
 
           <View style={styles.exampleUrlsContainer}>
             <Text style={styles.exampleUrlsTitle}>
-              {selectedSource === 'socials' ? 'Supported channels:' : 'Supported formats:'}
+              {selectedSource === 'socials'
+                ? 'Supported channels:'
+                : 'Supported formats:'}
             </Text>
             <Text style={styles.exampleUrlsText}>
-              {selectedSource === 'web' && '- Recipe posts and articles\n- Food blog recipes\n- Cooking websites\n- Recipe sharing platforms'}
-              {selectedSource === 'socials' && '- TikTok video recipes\n- Instagram Reels & posts\n- YouTube cooking videos\n- Facebook recipe videos'}
+              {selectedSource === 'web' &&
+                '- Recipe posts and articles\n- Food blog recipes\n- Cooking websites\n- Recipe sharing platforms'}
+              {selectedSource === 'socials' &&
+                '- TikTok video recipes\n- Instagram Reels & posts\n- YouTube cooking videos\n- Facebook recipe videos'}
             </Text>
           </View>
 
@@ -1011,7 +1166,7 @@ const platformMessages: { [key: string]: string[] } = {
             <TouchableOpacity
               style={[
                 styles.urlImportButton,
-                (!url.trim() || loading) && styles.urlImportButtonDisabled
+                (!url.trim() || loading) && styles.urlImportButtonDisabled,
               ]}
               onPress={handleImport}
               disabled={!url.trim() || loading}
@@ -1065,10 +1220,14 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 }) => {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return colors.success[500];
-      case 'Medium': return colors.warning[500];
-      case 'Hard': return colors.error[500];
-      default: return colors.neutral[500];
+      case 'Easy':
+        return colors.success[500];
+      case 'Medium':
+        return colors.warning[500];
+      case 'Hard':
+        return colors.error[500];
+      default:
+        return colors.neutral[500];
     }
   };
 
@@ -1082,46 +1241,60 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
 
   if (viewMode === 'list') {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.listCard, 
-          isEditMode && isSelected && styles.selectedCard
-        ]} 
+          styles.listCard,
+          isEditMode && isSelected && styles.selectedCard,
+        ]}
         onPress={handlePress}
       >
         <View style={styles.listCardContent}>
           {/* Edit mode checkbox */}
           {isEditMode && (
             <View style={styles.listCheckbox}>
-              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+              <View
+                style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+              >
+                {isSelected && (
+                  <Ionicons name="checkmark" size={16} color="white" />
+                )}
               </View>
             </View>
           )}
-          
+
           {recipe.image_url ? (
-            <Image 
-              source={{ 
-                uri: recipe.source_url?.includes('instagram.com') 
+            <Image
+              source={{
+                uri: recipe.source_url?.includes('instagram.com')
                   ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=300&h=200&fit=cover&maxage=7d`
-                  : recipe.image_url 
-              }} 
+                  : recipe.image_url,
+              }}
               style={styles.listCardImage}
             />
           ) : (
-            <View style={[styles.listCardImage, { backgroundColor: colors.neutral[100], justifyContent: 'center', alignItems: 'center' }]}>
+            <View
+              style={[
+                styles.listCardImage,
+                {
+                  backgroundColor: colors.neutral[100],
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                },
+              ]}
+            >
               <ChefHat size={24} color={colors.neutral[400]} />
             </View>
           )}
-          
+
           <View style={styles.listCardInfo}>
             <Text style={styles.listCardTitle} numberOfLines={1}>
               {recipe.title}
             </Text>
             <Text style={styles.listCardDescription} numberOfLines={2}>
-              {recipe.description || `Data sources: ${recipe.source_url ? 'video visuals + metadata text' : 'manual entry'}. Nutrition is an estimate.`}
+              {recipe.description ||
+                `Data sources: ${recipe.source_url ? 'video visuals + metadata text' : 'manual entry'}. Nutrition is an estimate.`}
             </Text>
-            
+
             <View style={styles.listCardMeta}>
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={14} color="#666" />
@@ -1133,7 +1306,12 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                 <Ionicons name="people-outline" size={14} color="#666" />
                 <Text style={styles.metaText}>{recipe.servings}</Text>
               </View>
-              <View style={[styles.difficultyBadge, styles[`difficulty${recipe.difficulty}`]]}>
+              <View
+                style={[
+                  styles.difficultyBadge,
+                  styles[`difficulty${recipe.difficulty}`],
+                ]}
+              >
                 <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
               </View>
               {recipe.is_ai_generated && (
@@ -1143,13 +1321,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               )}
             </View>
           </View>
-          
+
           <View style={styles.listCardActions}>
             <TouchableOpacity onPress={onFavorite}>
-              <Ionicons 
-                name={recipe.is_favorite ? "heart" : "heart-outline"} 
-                size={20} 
-                color={recipe.is_favorite ? "#FF5252" : "#666"} 
+              <Ionicons
+                name={recipe.is_favorite ? 'heart' : 'heart-outline'}
+                size={20}
+                color={recipe.is_favorite ? '#FF5252' : '#666'}
               />
             </TouchableOpacity>
             <TouchableOpacity onPress={onAddToCookbook}>
@@ -1167,33 +1345,34 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   }
 
   return (
-    <TouchableOpacity 
-      style={[
-        styles.gridCard, 
-        isEditMode && isSelected && styles.selectedCard
-      ]} 
+    <TouchableOpacity
+      style={[styles.gridCard, isEditMode && isSelected && styles.selectedCard]}
       onPress={handlePress}
     >
       {/* Edit mode checkbox */}
       {isEditMode && (
         <View style={[styles.checkboxContainer, styles.gridCheckboxContainer]}>
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-            {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+          <View
+            style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+          >
+            {isSelected && (
+              <Ionicons name="checkmark" size={16} color="white" />
+            )}
           </View>
         </View>
       )}
 
       <View style={styles.gridImageContainer}>
         {recipe.image_url ? (
-  <Image
-    source={{ 
-      uri: recipe.source_url?.includes('instagram.com') 
-        ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=400&h=300&fit=cover&maxage=7d`
-        : recipe.image_url 
-    }}
-    style={styles.gridImage}
-    onError={(error) => console.log('Image load error:', error)}
-  />
+          <Image
+            source={{
+              uri: recipe.source_url?.includes('instagram.com')
+                ? `https://images.weserv.nl/?url=${encodeURIComponent(recipe.image_url)}&w=400&h=300&fit=cover&maxage=7d`
+                : recipe.image_url,
+            }}
+            style={styles.gridImage}
+            onError={(error) => console.log('Image load error:', error)}
+          />
         ) : (
           <View style={styles.gridPlaceholder}>
             <ChefHat size={32} color={colors.neutral[400]} />
@@ -1208,7 +1387,12 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             />
           </TouchableOpacity>
         )}
-        <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(recipe.difficulty) }]}>
+        <View
+          style={[
+            styles.difficultyBadge,
+            { backgroundColor: getDifficultyColor(recipe.difficulty) },
+          ]}
+        >
           <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
         </View>
         {recipe.is_ai_generated && (
@@ -1223,7 +1407,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         )}
       </View>
       <View style={styles.gridContent}>
-        <Text style={styles.gridTitle} numberOfLines={2}>{recipe.title}</Text>
+        <Text style={styles.gridTitle} numberOfLines={2}>
+          {recipe.title}
+        </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
           {recipe.description}
         </Text>
@@ -1241,19 +1427,27 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           {recipe.nutrition?.calories && (
             <View style={styles.gridMetaItem}>
               <Flame size={12} color={colors.neutral[500]} />
-              <Text style={styles.gridMetaText}>{recipe.nutrition.calories} cal</Text>
+              <Text style={styles.gridMetaText}>
+                {recipe.nutrition.calories} cal
+              </Text>
             </View>
           )}
         </View>
         {!isEditMode && (
           <View style={styles.gridActions}>
-            <TouchableOpacity onPress={onAddToCookbook} style={styles.gridActionButton}>
+            <TouchableOpacity
+              onPress={onAddToCookbook}
+              style={styles.gridActionButton}
+            >
               <Book size={14} color={colors.secondary[500]} />
             </TouchableOpacity>
             <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
               <Edit3 size={14} color={colors.primary[500]} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={onDelete} style={styles.gridActionButton}>
+            <TouchableOpacity
+              onPress={onDelete}
+              style={styles.gridActionButton}
+            >
               <Trash2 size={14} color={colors.error[500]} />
             </TouchableOpacity>
           </View>
@@ -1278,11 +1472,17 @@ const EmptyState: React.FC<{
           Try adjusting your filters or add new recipes to your collection
         </Text>
         <View style={styles.emptyStateActions}>
-          <TouchableOpacity style={styles.emptyActionButton} onPress={onClearFilters}>
+          <TouchableOpacity
+            style={styles.emptyActionButton}
+            onPress={onClearFilters}
+          >
             <X size={20} color={colors.primary[500]} />
             <Text style={styles.emptyActionText}>Clear Filters</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.emptyActionButtonSecondary} onPress={onAddRecipe}>
+          <TouchableOpacity
+            style={styles.emptyActionButtonSecondary}
+            onPress={onAddRecipe}
+          >
             <Plus size={20} color={colors.neutral[600]} />
             <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
           </TouchableOpacity>
@@ -1299,7 +1499,10 @@ const EmptyState: React.FC<{
         Start collecting your favorite recipes in one place
       </Text>
       <View style={styles.emptyStateActions}>
-        <TouchableOpacity style={styles.emptyActionButton} onPress={onAddRecipe}>
+        <TouchableOpacity
+          style={styles.emptyActionButton}
+          onPress={onAddRecipe}
+        >
           <Plus size={20} color={colors.primary[500]} />
           <Text style={styles.emptyActionText}>Add Recipe</Text>
         </TouchableOpacity>
@@ -1320,27 +1523,33 @@ export default function Library() {
   const [showFilters, setShowFilters] = useState(false);
   const [showManualRecipe, setShowManualRecipe] = useState(false);
   const [showAddToCookbook, setShowAddToCookbook] = useState(false);
-  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{id: string, title: string} | null>(null);
+  const [selectedRecipeForCookbook, setSelectedRecipeForCookbook] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
   const [selectedImportSource, setSelectedImportSource] = useState<string>('');
   const [filterMode, setFilterMode] = useState<string>('all');
   const [isImporting, setIsImporting] = useState(false);
+  // Reentrancy guard: state flips async (after getUser), leaving a window where a
+  // second tap fires a duplicate import. A ref blocks concurrent calls instantly.
+  const importingRef = useRef(false);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
-  
+
   // Bulk operations states
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
-  
+
   // Cookbook filter states
   const [selectedCookbook, setSelectedCookbook] = useState('all');
   const [userCookbooks, setUserCookbooks] = useState<any[]>([]);
 
   // Use the cookbook manager hook
-  const { 
-    cookbooks, 
+  const {
+    cookbooks,
     loading: cookbooksLoading,
     createCookbook,
-    loadCookbooks 
+    loadCookbooks,
   } = useCookbookManager();
 
   const [filters, setFilters] = useState<{ [key: string]: string }>({
@@ -1358,7 +1567,9 @@ export default function Library() {
 
   const loadUserCookbooks = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: cookbooksData, error: cookbooksError } = await supabase
@@ -1379,9 +1590,9 @@ export default function Library() {
 
           return {
             ...cookbook,
-            recipe_count: count || 0
+            recipe_count: count || 0,
           };
-        })
+        }),
       );
 
       setUserCookbooks(cookbooksWithCount);
@@ -1394,10 +1605,15 @@ export default function Library() {
     try {
       setRecipesLoading(true);
       console.log('🔄 Loading library data...');
-      
-      const { data: { user } } = await supabase.auth.getUser();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to view your recipe library.');
+        Alert.alert(
+          'Authentication Required',
+          'Please log in to view your recipe library.',
+        );
         return;
       }
 
@@ -1418,27 +1634,29 @@ export default function Library() {
 
       console.log('📝 Recipes loaded:', recipesData?.length || 0);
 
-      const formattedRecipes: Recipe[] = (recipesData || []).map(dbRecipe => ({
-        id: dbRecipe.id,
-        title: dbRecipe.title,
-        description: dbRecipe.description || '',
-        image_url: dbRecipe.image_url,
-        prep_time: dbRecipe.prep_time || 0,
-        cook_time: dbRecipe.cook_time || 0,
-        servings: dbRecipe.servings || 1,
-        difficulty: dbRecipe.difficulty || 'Easy',
-        ingredients: dbRecipe.ingredients || [],
-        instructions: dbRecipe.instructions || [],
-        nutrition: dbRecipe.nutrition,
-        tags: dbRecipe.tags || [],
-        category: dbRecipe.category || 'General',
-        is_favorite: dbRecipe.is_favorite || false,
-        is_ai_generated: dbRecipe.is_ai_generated || false,
-        source_url: dbRecipe.source_url,
-        ai_match_score: dbRecipe.ai_match_score,
-        created_at: dbRecipe.created_at,
-        updated_at: dbRecipe.updated_at,
-      }));
+      const formattedRecipes: Recipe[] = (recipesData || []).map(
+        (dbRecipe) => ({
+          id: dbRecipe.id,
+          title: dbRecipe.title,
+          description: dbRecipe.description || '',
+          image_url: dbRecipe.image_url,
+          prep_time: dbRecipe.prep_time || 0,
+          cook_time: dbRecipe.cook_time || 0,
+          servings: dbRecipe.servings || 1,
+          difficulty: dbRecipe.difficulty || 'Easy',
+          ingredients: dbRecipe.ingredients || [],
+          instructions: dbRecipe.instructions || [],
+          nutrition: dbRecipe.nutrition,
+          tags: dbRecipe.tags || [],
+          category: dbRecipe.category || 'General',
+          is_favorite: dbRecipe.is_favorite || false,
+          is_ai_generated: dbRecipe.is_ai_generated || false,
+          source_url: dbRecipe.source_url,
+          ai_match_score: dbRecipe.ai_match_score,
+          created_at: dbRecipe.created_at,
+          updated_at: dbRecipe.updated_at,
+        }),
+      );
 
       setRecipes(formattedRecipes);
       console.log('✅ Library data loaded successfully');
@@ -1461,9 +1679,9 @@ export default function Library() {
   };
 
   const toggleRecipeSelection = (recipeId: string) => {
-    setSelectedRecipes(prev => {
+    setSelectedRecipes((prev) => {
       if (prev.includes(recipeId)) {
-        return prev.filter(id => id !== recipeId);
+        return prev.filter((id) => id !== recipeId);
       }
       return [...prev, recipeId];
     });
@@ -1480,58 +1698,68 @@ export default function Library() {
         .select('recipe_id')
         .eq('cookbook_id', selectedCookbook);
 
-      const recipeIds = cookbookRecipes?.map(cr => cr.recipe_id) || [];
-      filtered = filtered.filter(recipe => recipeIds.includes(recipe.id));
+      const recipeIds = cookbookRecipes?.map((cr) => cr.recipe_id) || [];
+      filtered = filtered.filter((recipe) => recipeIds.includes(recipe.id));
     }
 
     // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(query) ||
-        recipe.description?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.title.toLowerCase().includes(query) ||
+          recipe.description?.toLowerCase().includes(query),
       );
     }
 
     // Meal type filter
     if (filters.meal_type !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.category.toLowerCase() === filters.meal_type.toLowerCase()
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.category.toLowerCase() === filters.meal_type.toLowerCase(),
       );
     }
 
     // Diet filter
     if (filters.diet !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.tags.some(tag => tag.toLowerCase().includes(filters.diet.toLowerCase()))
+      filtered = filtered.filter((recipe) =>
+        recipe.tags.some((tag) =>
+          tag.toLowerCase().includes(filters.diet.toLowerCase()),
+        ),
       );
     }
 
     // Cook time filter
     if (filters.cook_time !== 'all') {
       const totalTime = (recipe: Recipe) => recipe.prep_time + recipe.cook_time;
-      filtered = filtered.filter(recipe => {
+      filtered = filtered.filter((recipe) => {
         const time = totalTime(recipe);
         switch (filters.cook_time) {
-          case 'under_15': return time < 15;
-          case 'under_30': return time < 30;
-          case 'under_60': return time < 60;
-          case 'over_60': return time >= 60;
-          default: return true;
+          case 'under_15':
+            return time < 15;
+          case 'under_30':
+            return time < 30;
+          case 'under_60':
+            return time < 60;
+          case 'over_60':
+            return time >= 60;
+          default:
+            return true;
         }
       });
     }
 
     // Difficulty filter
     if (filters.difficulty !== 'all') {
-      filtered = filtered.filter(recipe => 
-        recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase()
+      filtered = filtered.filter(
+        (recipe) =>
+          recipe.difficulty.toLowerCase() === filters.difficulty.toLowerCase(),
       );
     }
 
     // Favorites filter
     if (filterMode === 'favorites') {
-      filtered = filtered.filter(recipe => recipe.is_favorite);
+      filtered = filtered.filter((recipe) => recipe.is_favorite);
     }
 
     return filtered;
@@ -1583,7 +1811,10 @@ export default function Library() {
 
       if (error) throw error;
 
-      Alert.alert('Success', `${selectedRecipes.length} recipes added to favorites`);
+      Alert.alert(
+        'Success',
+        `${selectedRecipes.length} recipes added to favorites`,
+      );
       setIsEditMode(false);
       setSelectedRecipes([]);
       loadLibraryData();
@@ -1611,7 +1842,10 @@ export default function Library() {
 
               if (error) throw error;
 
-              Alert.alert('Success', `${selectedRecipes.length} recipes deleted`);
+              Alert.alert(
+                'Success',
+                `${selectedRecipes.length} recipes deleted`,
+              );
               setIsEditMode(false);
               setSelectedRecipes([]);
               loadLibraryData();
@@ -1619,9 +1853,9 @@ export default function Library() {
               console.error('Error deleting recipes:', error);
               Alert.alert('Error', 'Failed to delete recipes');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
@@ -1632,8 +1866,8 @@ export default function Library() {
         params: {
           mode: 'recipe-scanner',
           returnTo: 'library',
-          timestamp: Date.now().toString()
-        }
+          timestamp: Date.now().toString(),
+        },
       });
     } else if (categoryId === 'manual') {
       setShowManualRecipe(true);
@@ -1648,7 +1882,9 @@ export default function Library() {
 
   const handleManualRecipeSave = async (recipeData: any) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'Please log in to save recipes');
         return;
@@ -1675,7 +1911,7 @@ export default function Library() {
 
   const handleFavorite = async (recipeId: string) => {
     try {
-      const recipe = recipes.find(r => r.id === recipeId);
+      const recipe = recipes.find((r) => r.id === recipeId);
       if (!recipe) return;
       const newFavoriteStatus = !recipe.is_favorite;
       const { error } = await supabase
@@ -1686,9 +1922,11 @@ export default function Library() {
         Alert.alert('Error', 'Failed to update favorite status');
         return;
       }
-      setRecipes(prev => prev.map(r =>
-        r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r
-      ));
+      setRecipes((prev) =>
+        prev.map((r) =>
+          r.id === recipeId ? { ...r, is_favorite: newFavoriteStatus } : r,
+        ),
+      );
     } catch (error) {
       console.error('Error updating favorite:', error);
       Alert.alert('Error', 'Failed to update favorite status');
@@ -1696,7 +1934,7 @@ export default function Library() {
   };
 
   const handleDelete = async (recipeId: string) => {
-    const recipe = recipes.find(r => r.id === recipeId);
+    const recipe = recipes.find((r) => r.id === recipeId);
     if (!recipe) return;
     Alert.alert(
       'Delete Recipe',
@@ -1716,70 +1954,94 @@ export default function Library() {
                 Alert.alert('Error', 'Failed to delete recipe');
                 return;
               }
-              setRecipes(prev => prev.filter(r => r.id !== recipeId));
+              setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
             } catch (error) {
               console.error('Error deleting recipe:', error);
               Alert.alert('Error', 'Failed to delete recipe');
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   const handleURLImport = async (url: string) => {
+    if (importingRef.current) return; // block duplicate concurrent imports
+    importingRef.current = true;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('Authentication Required', 'Please log in to save recipes.');
+        Alert.alert(
+          'Authentication Required',
+          'Please log in to save recipes.',
+        );
         return;
       }
 
       setIsImporting(true);
 
       if (!url.trim() || !url.includes('http')) {
-        Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
+        Alert.alert(
+          'Invalid URL',
+          'Please enter a valid URL starting with http:// or https://',
+        );
         return;
       }
 
-      const videoPlatforms = ['youtube.com', 'youtu.be', 'tiktok.com', 'vt.tiktok.com', 'instagram.com', 'facebook.com', 'fb.watch'];
-      const isVideoUrl = videoPlatforms.some(platform => url.includes(platform));
+      const videoPlatforms = [
+        'youtube.com',
+        'youtu.be',
+        'tiktok.com',
+        'vt.tiktok.com',
+        'instagram.com',
+        'facebook.com',
+        'fb.watch',
+      ];
+      const isVideoUrl = videoPlatforms.some((platform) =>
+        url.includes(platform),
+      );
 
       if (isVideoUrl) {
         console.log('🎥 Detected video URL, using video extraction...');
-        
+
         const platform = detectVideoPlatform(url);
         if (platform === 'Unknown') {
-          Alert.alert('Unsupported Platform', 'This video platform is not supported yet.');
+          Alert.alert(
+            'Unsupported Platform',
+            'This video platform is not supported yet.',
+          );
           return;
         }
 
         const result = await extractVideoRecipe(url, user.id);
-        
+
         if (!result.success || !result.recipe) {
           Alert.alert(
-            'Video Extraction Failed', 
-            result.error || 'Could not extract recipe from this video. Please try another video or add manually.'
+            'Video Extraction Failed',
+            result.error ||
+              'Could not extract recipe from this video. Please try another video or add manually.',
           );
           return;
         }
 
         Alert.alert(
-          'Success! 🎉', 
+          'Success! 🎉',
           `"${result.recipe.title}" has been extracted from the video and saved to your library!`,
-          [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
+          [{ text: 'Great!', onPress: () => setShowURLImport(false) }],
         );
 
         await loadLibraryData();
-
       } else {
         console.log('🌐 Detected web URL, using web extraction...');
-        const extractedData: ExtractedRecipeData | null = await extractRecipeFromUrl(url.trim(), user.id);
-        
+        const extractedData: ExtractedRecipeData | null =
+          await extractRecipeFromUrl(url.trim(), user.id);
+
         if (!extractedData) {
           Alert.alert(
-            'Import Failed', 
-            'Could not extract recipe details from this URL. The page might not contain a recipe or may be inaccessible.'
+            'Import Failed',
+            'Could not extract recipe details from this URL. The page might not contain a recipe or may be inaccessible.',
           );
           return;
         }
@@ -1807,29 +2069,35 @@ export default function Library() {
 
         if (error) {
           console.error('Error saving AI extracted recipe:', error);
-          Alert.alert('Save Error', 'Failed to save the imported recipe. Please try again.');
+          Alert.alert(
+            'Save Error',
+            'Failed to save the imported recipe. Please try again.',
+          );
           return;
         }
 
         Alert.alert(
-          'Success!', 
+          'Success!',
           `"${newRecipe.title}" has been successfully imported to your library!`,
-          [{ text: 'Great!', onPress: () => setShowURLImport(false) }]
+          [{ text: 'Great!', onPress: () => setShowURLImport(false) }],
         );
 
         await loadLibraryData();
       }
-
     } catch (error: any) {
       console.error('URL import process error:', error);
-      
+
       if (error.message?.includes('Rate limit')) {
         Alert.alert('Rate Limit', error.message);
       } else {
-        Alert.alert('Import Error', error.message || 'An unexpected error occurred. Please try again.');
+        Alert.alert(
+          'Import Error',
+          error.message || 'An unexpected error occurred. Please try again.',
+        );
       }
     } finally {
       setIsImporting(false);
+      importingRef.current = false;
     }
   };
 
@@ -1848,11 +2116,11 @@ export default function Library() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>My Recipe Library</Text>
-        
+
         <View style={styles.headerActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               setIsEditMode(!isEditMode);
               setSelectedRecipes([]);
@@ -1863,16 +2131,16 @@ export default function Library() {
               {isEditMode ? 'Done' : 'Edit'}
             </Text>
           </TouchableOpacity>
-          
+
           {/* YENİ: View mode toggle butonu */}
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             style={styles.viewModeButton}
           >
-            <Ionicons 
-              name={viewMode === 'grid' ? 'list' : 'grid'} 
-              size={20} 
-              color="#666" 
+            <Ionicons
+              name={viewMode === 'grid' ? 'list' : 'grid'}
+              size={20}
+              color="#666"
             />
           </TouchableOpacity>
         </View>
@@ -1884,22 +2152,24 @@ export default function Library() {
           <Text style={styles.selectionText}>
             {selectedRecipes.length} selected
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               if (selectedRecipes.length === filteredRecipes.length) {
                 setSelectedRecipes([]);
               } else {
-                setSelectedRecipes(filteredRecipes.map(r => r.id));
+                setSelectedRecipes(filteredRecipes.map((r) => r.id));
               }
             }}
           >
             <Text style={styles.selectAllText}>
-              {selectedRecipes.length === filteredRecipes.length ? 'Deselect All' : 'Select All'}
+              {selectedRecipes.length === filteredRecipes.length
+                ? 'Deselect All'
+                : 'Select All'}
             </Text>
           </TouchableOpacity>
         </View>
       )}
-      
+
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
           <Search size={20} color={colors.neutral[400]} />
@@ -1912,18 +2182,26 @@ export default function Library() {
           />
         </View>
         <TouchableOpacity
-          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+          style={[
+            styles.filterButton,
+            hasActiveFilters && styles.filterButtonActive,
+          ]}
           onPress={() => setShowFilters(true)}
         >
-          <Filter size={20} color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]} />
+          <Filter
+            size={20}
+            color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]}
+          />
           {getActiveFilterCount() > 0 && (
             <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{getActiveFilterCount()}</Text>
+              <Text style={styles.filterBadgeText}>
+                {getActiveFilterCount()}
+              </Text>
             </View>
           )}
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.addActions}>
         <TouchableOpacity
           style={styles.addActionButton}
@@ -1932,35 +2210,43 @@ export default function Library() {
           <Plus size={18} color={colors.primary[500]} />
           <Text style={styles.addActionText}>Add Recipe</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[
             styles.addActionButtonSecondary,
-            filterMode === 'favorites' && styles.addActionButtonSecondaryActive
+            filterMode === 'favorites' && styles.addActionButtonSecondaryActive,
           ]}
           onPress={handleFavoritesFilter}
         >
           <Heart
             size={18}
-            color={filterMode === 'favorites' ? colors.error[500] : colors.neutral[600]}
-            fill={filterMode === 'favorites' ? colors.error[500] : 'transparent'}
+            color={
+              filterMode === 'favorites'
+                ? colors.error[500]
+                : colors.neutral[600]
+            }
+            fill={
+              filterMode === 'favorites' ? colors.error[500] : 'transparent'
+            }
           />
-          <Text style={[
-            styles.addActionTextSecondary,
-            filterMode === 'favorites' && styles.addActionTextSecondaryActive
-          ]}>
+          <Text
+            style={[
+              styles.addActionTextSecondary,
+              filterMode === 'favorites' && styles.addActionTextSecondaryActive,
+            ]}
+          >
             Favorites
           </Text>
         </TouchableOpacity>
       </View>
-      
+
       <ScrollView
         style={styles.recipesContainer}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.recipesContent,
           viewMode === 'grid' && styles.recipesGridContent,
-          isEditMode && selectedRecipes.length > 0 && { paddingBottom: 120 }
+          isEditMode && selectedRecipes.length > 0 && { paddingBottom: 120 },
         ]}
       >
         {/* 📚 COOKBOOK SECTION */}
@@ -1971,9 +2257,9 @@ export default function Library() {
               <Plus size={20} color={colors.primary[500]} />
             </TouchableOpacity>
           </View>
-          
-          <ScrollView 
-            horizontal 
+
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.cookbooksScroll}
           >
@@ -1997,7 +2283,9 @@ export default function Library() {
               >
                 <Text style={styles.cookbookEmoji}>{cookbook.emoji}</Text>
                 <Text style={styles.cookbookName}>{cookbook.name}</Text>
-                <Text style={styles.cookbookCount}>{cookbook.recipe_count || 0} recipes</Text>
+                <Text style={styles.cookbookCount}>
+                  {cookbook.recipe_count || 0} recipes
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -2006,12 +2294,15 @@ export default function Library() {
         {/* Recipes Section */}
         <View style={styles.recipesSection}>
           <Text style={styles.sectionTitle}>All Recipes</Text>
-          
+
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
               <View style={styles.recipesGrid}>
                 {filteredRecipes.map((recipe, recipeIndex) => (
-                  <View key={`recipe-grid-${recipe.id}-${recipeIndex}`} style={styles.gridCardContainer}>
+                  <View
+                    key={`recipe-grid-${recipe.id}-${recipeIndex}`}
+                    style={styles.gridCardContainer}
+                  >
                     <RecipeCard
                       recipe={recipe}
                       viewMode="grid"
@@ -2065,23 +2356,23 @@ export default function Library() {
       {/* Bulk actions bottom bar */}
       {isEditMode && selectedRecipes.length > 0 && (
         <View style={styles.bulkActionsBar}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.bulkAction}
             onPress={() => setShowBulkActions(true)}
           >
             <Ionicons name="book-outline" size={20} color="#4CAF50" />
             <Text style={styles.bulkActionText}>Add to Cookbook</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.bulkAction}
             onPress={handleBulkFavorite}
           >
             <Ionicons name="heart-outline" size={20} color="#4CAF50" />
             <Text style={styles.bulkActionText}>Favorite</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.bulkAction, styles.bulkActionDelete]}
             onPress={handleBulkDelete}
           >
@@ -2092,19 +2383,19 @@ export default function Library() {
           </TouchableOpacity>
         </View>
       )}
-      
+
       <ImportCategoriesModal
         visible={showImportModal}
         onClose={() => setShowImportModal(false)}
         onSelect={handleImportCategorySelect}
       />
-      
+
       <ManualRecipeModal
         visible={showManualRecipe}
         onClose={() => setShowManualRecipe(false)}
         onSave={handleManualRecipeSave}
       />
-      
+
       <FilterModal
         visible={showFilters}
         onClose={() => setShowFilters(false)}
@@ -2115,7 +2406,7 @@ export default function Library() {
         selectedCookbook={selectedCookbook}
         onCookbookChange={setSelectedCookbook}
       />
-      
+
       <URLImportModal
         visible={showURLImport}
         onClose={() => setShowURLImport(false)}
@@ -2159,14 +2450,14 @@ export default function Library() {
           name: '',
           description: '',
           emoji: '📚',
-          color: colors.primary[500]
+          color: colors.primary[500],
         }}
         onUpdate={() => {
           setShowCreateCookbook(false);
           loadCookbooks();
         }}
       />
-      
+
       {/* DEĞİŞTİR: Floating Action Button (edit mode kontrolü ekle) */}
       {!isEditMode && (
         <TouchableOpacity
@@ -2370,7 +2661,7 @@ const styles = StyleSheet.create({
   gridCardContainer: {
     width: (width - spacing.lg * 2 - spacing.sm) / 2,
   },
-  
+
   // Cookbook Section Styles
   cookbooksSection: {
     marginBottom: spacing.xl,
@@ -2444,13 +2735,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
   },
-  
+
   // Filter Option with Emoji
   filterOptionWithEmoji: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  
+
   // List view styles
   listCard: {
     backgroundColor: 'white',
@@ -2534,7 +2825,7 @@ const styles = StyleSheet.create({
     gap: 16,
     marginLeft: 12,
   },
-  
+
   // Bulk Actions Styles
   bulkActionsBar: {
     position: 'absolute',
@@ -2657,7 +2948,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     borderColor: '#4CAF50',
   },
-  
+
   // Import Modal Styles
   importModalOverlay: {
     flex: 1,
@@ -2716,7 +3007,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     color: colors.neutral[500],
   },
-  
+
   // Manual Recipe Modal Styles
   manualRecipeContainer: {
     flex: 1,
@@ -2814,7 +3105,7 @@ const styles = StyleSheet.create({
   pickerOptionTextSelected: {
     color: colors.neutral[0],
   },
-  
+
   // Filter Modal Styles
   filterModalContainer: {
     flex: 1,
@@ -2915,7 +3206,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.neutral[0],
   },
-  
+
   // URL Import Modal Styles
   urlModalOverlay: {
     flex: 1,
@@ -3062,7 +3353,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
-  
+
   // Recipe Card Styles
   gridCard: {
     backgroundColor: colors.neutral[0],
@@ -3183,7 +3474,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   // Empty State Styles
   emptyStateContainer: {
     alignItems: 'center',

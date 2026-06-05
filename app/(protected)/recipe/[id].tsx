@@ -64,11 +64,14 @@ interface Recipe {
     unit?: string;
     notes?: string;
   }>;
-  instructions: Array<{
-    step: number;
-    instruction: string;
-    duration_mins?: number;
-  }>;
+  instructions: Array<
+    | {
+        step: number;
+        instruction: string;
+        duration_mins?: number;
+      }
+    | string
+  >;
   nutrition?: {
     calories?: number;
     protein?: number;
@@ -1285,7 +1288,8 @@ export default function RecipeDetail() {
                   ]}
                 >
                   <ThemedText style={styles.stepNumberText}>
-                    {instruction.step || index + 1}
+                    {(typeof instruction === 'object' && instruction?.step) ||
+                      index + 1}
                   </ThemedText>
                 </View>
                 <View style={styles.instructionContent}>
@@ -1295,7 +1299,9 @@ export default function RecipeDetail() {
                       { color: colors.textPrimary },
                     ]}
                   >
-                    {instruction.instruction}
+                    {typeof instruction === 'string'
+                      ? instruction
+                      : instruction?.instruction}
                   </ThemedText>
                   {instruction.duration_mins ? (
                     <View style={styles.instructionDurationRow}>
