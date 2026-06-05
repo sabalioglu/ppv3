@@ -924,7 +924,8 @@ export const generateAIMealWithQualityControl = async (
     name: 'culturally_intelligent',
     dietaryRestrictions: userProfile?.dietary_restrictions || [],
     // allergens live in dietary_restrictions for profiles created via onboarding
-    allergens: userProfile?.allergens || userProfile?.dietary_restrictions || [],
+    allergens:
+      userProfile?.allergens || userProfile?.dietary_restrictions || [],
     targetCalories: getCalorieTarget(userProfile, mealType),
     minPantryUsage: 0.7,
     cuisines: userProfile?.cuisine_preferences || [],

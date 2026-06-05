@@ -354,7 +354,9 @@ const ImportCategoriesModal: React.FC<{
       >
         <View style={styles.importModalContainer}>
           <View style={styles.importModalHeader}>
-            <Text style={styles.importModalTitle}>{t('library.addRecipeTitle')}</Text>
+            <Text style={styles.importModalTitle}>
+              {t('library.addRecipeTitle')}
+            </Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -518,7 +520,9 @@ const ManualRecipeModal: React.FC<{
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <Text style={styles.manualRecipeTitle}>{t('library.addRecipeManually')}</Text>
+          <Text style={styles.manualRecipeTitle}>
+            {t('library.addRecipeManually')}
+          </Text>
           <TouchableOpacity onPress={handleSave} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary[500]} />
@@ -532,9 +536,13 @@ const ManualRecipeModal: React.FC<{
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>{t('library.basicInformation')}</Text>
+            <Text style={styles.formSectionTitle}>
+              {t('library.basicInformation')}
+            </Text>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>{t('library.recipeTitleLabel')}</Text>
+              <Text style={styles.formLabel}>
+                {t('library.recipeTitleLabel')}
+              </Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="Enter recipe title..."
@@ -563,7 +571,9 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>{t('library.prepTimeLabel')}</Text>
+                <Text style={styles.formLabel}>
+                  {t('library.prepTimeLabel')}
+                </Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="15"
@@ -578,7 +588,9 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>{t('library.cookTimeLabel')}</Text>
+                <Text style={styles.formLabel}>
+                  {t('library.cookTimeLabel')}
+                </Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="30"
@@ -799,7 +811,9 @@ const FilterModal: React.FC<{
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <Text style={styles.filterModalTitle}>{t('library.filterRecipes')}</Text>
+          <Text style={styles.filterModalTitle}>
+            {t('library.filterRecipes')}
+          </Text>
           <TouchableOpacity onPress={clearAllFilters}>
             <Text style={styles.clearAllText}>{t('library.clearAll')}</Text>
           </TouchableOpacity>
@@ -814,7 +828,9 @@ const FilterModal: React.FC<{
               style={styles.filterCategoryHeader}
               onPress={() => toggleCategory('cookbook')}
             >
-              <Text style={styles.filterCategoryTitle}>{t('library.cookbook')}</Text>
+              <Text style={styles.filterCategoryTitle}>
+                {t('library.cookbook')}
+              </Text>
               <ChevronDown
                 size={20}
                 color={colors.neutral[600]}
@@ -1162,7 +1178,9 @@ const URLImportModal: React.FC<{
 
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
-              <Text style={styles.urlCancelButtonText}>{t('library.cancel')}</Text>
+              <Text style={styles.urlCancelButtonText}>
+                {t('library.cancel')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -1182,7 +1200,9 @@ const URLImportModal: React.FC<{
               ) : (
                 <>
                   <Link size={16} color={colors.neutral[0]} />
-                  <Text style={styles.urlImportButtonText}>{t('library.importRecipe')}</Text>
+                  <Text style={styles.urlImportButtonText}>
+                    {t('library.importRecipe')}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1468,7 +1488,9 @@ const EmptyState: React.FC<{
     return (
       <View style={styles.emptyStateContainer}>
         <Filter size={64} color={colors.neutral[400]} />
-        <Text style={styles.emptyStateTitle}>{t('library.noRecipesFoundTitle')}</Text>
+        <Text style={styles.emptyStateTitle}>
+          {t('library.noRecipesFoundTitle')}
+        </Text>
         <Text style={styles.emptyStateSubtitle}>
           Try adjusting your filters or add new recipes to your collection
         </Text>
@@ -1478,14 +1500,18 @@ const EmptyState: React.FC<{
             onPress={onClearFilters}
           >
             <X size={20} color={colors.primary[500]} />
-            <Text style={styles.emptyActionText}>{t('library.clearFilters')}</Text>
+            <Text style={styles.emptyActionText}>
+              {t('library.clearFilters')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.emptyActionButtonSecondary}
             onPress={onAddRecipe}
           >
             <Plus size={20} color={colors.neutral[600]} />
-            <Text style={styles.emptyActionTextSecondary}>{t('library.addRecipe')}</Text>
+            <Text style={styles.emptyActionTextSecondary}>
+              {t('library.addRecipe')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1495,7 +1521,9 @@ const EmptyState: React.FC<{
   return (
     <View style={styles.emptyStateContainer}>
       <BookOpen size={64} color={colors.primary[500]} />
-      <Text style={styles.emptyStateTitle}>{t('library.emptyLibraryTitle')}</Text>
+      <Text style={styles.emptyStateTitle}>
+        {t('library.emptyLibraryTitle')}
+      </Text>
       <Text style={styles.emptyStateSubtitle}>
         Start collecting your favorite recipes in one place
       </Text>
@@ -2272,7 +2300,9 @@ export default function Library() {
               <View style={styles.newCookbookIcon}>
                 <Plus size={24} color={colors.primary[500]} />
               </View>
-              <Text style={styles.newCookbookText}>{t('library.newCookbook')}</Text>
+              <Text style={styles.newCookbookText}>
+                {t('library.newCookbook')}
+              </Text>
             </TouchableOpacity>
 
             {/* Existing Cookbooks */}
@@ -2362,7 +2392,9 @@ export default function Library() {
             onPress={() => setShowBulkActions(true)}
           >
             <Ionicons name="book-outline" size={20} color="#4CAF50" />
-            <Text style={styles.bulkActionText}>{t('library.addToCookbook')}</Text>
+            <Text style={styles.bulkActionText}>
+              {t('library.addToCookbook')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
