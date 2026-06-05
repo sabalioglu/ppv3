@@ -90,7 +90,14 @@ import { generateFallbackPlan } from '@/lib/meal-plan/utils';
 import {
   createEnhancedGenerator,
   generateEnhancedMealPlan,
+  MealPlanQuotaError,
 } from '@/lib/meal-plan/enhanced-ai-generation';
+import {
+  generateWeeklyPlan,
+  generateMonthlySkeleton,
+  type MultiDayPlan,
+  type DayPlanLite,
+} from '@/lib/meal-plan/multi-day-generation';
 import { createDiversityManager } from '@/lib/meal-plan/enhanced-diversity';
 import { createPersonalizedGenerator } from '@/lib/meal-plan/personalized-generation';
 
@@ -511,6 +518,11 @@ export default function AIMealPlan() {
     useState<EnhancedMealPlanSummary | null>(null);
   const [showInsights, setShowInsights] = useState(false);
 
+  // ✅ Weekly (7-day) + monthly (30-day skeleton) plans
+  const [weeklyPlan, setWeeklyPlan] = useState<MultiDayPlan | null>(null);
+  const [monthlyPlan, setMonthlyPlan] = useState<MultiDayPlan | null>(null);
+  const [multiDayLoading, setMultiDayLoading] = useState(false);
+
   // Modal states
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -544,6 +556,44 @@ export default function AIMealPlan() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // ✅ Generate weekly / monthly plans lazily when their tab is first opened.
+  const generateMultiDay = async (mode: 'weekly' | 'monthly') => {
+    if (multiDayLoading) return;
+    setMultiDayLoading(true);
+    try {
+      if (mode === 'weekly') {
+        const plan = await generateWeeklyPlan(pantryItems, userProfile);
+        setWeeklyPlan(plan);
+      } else {
+        const plan = await generateMonthlySkeleton(pantryItems, userProfile);
+        setMonthlyPlan(plan);
+      }
+    } catch (error) {
+      if (error instanceof MealPlanQuotaError) {
+        Alert.alert(
+          t('mealPlan.quotaTitle'),
+          error.fairUse
+            ? t('mealPlan.quotaFairUse')
+            : t('mealPlan.quotaReached'),
+        );
+      } else {
+        console.error(`Failed to generate ${mode} plan:`, error);
+        Alert.alert(t('mealPlan.genFailedTitle'), t('mealPlan.genFailedBody'));
+      }
+    } finally {
+      setMultiDayLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'weekly' && !weeklyPlan && !multiDayLoading) {
+      generateMultiDay('weekly');
+    } else if (viewMode === 'monthly' && !monthlyPlan && !multiDayLoading) {
+      generateMultiDay('monthly');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   // Real-time pantry updates listener
   useEffect(() => {
@@ -1090,6 +1140,116 @@ export default function AIMealPlan() {
     }
   };
 
+  const renderMultiDayView = (
+    mode: 'weekly' | 'monthly',
+    plan: MultiDayPlan | null,
+    title: string,
+  ) => {
+    if (multiDayLoading && !plan) {
+      return (
+        <View style={styles.comingSoonContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text
+            style={[styles.comingSoonSubtitle, { color: colors.textSecondary }]}
+          >
+            {t('mealPlan.multiDayGenerating')}
+          </Text>
+        </View>
+      );
+    }
+    if (!plan || plan.days.length === 0) {
+      return (
+        <View style={styles.comingSoonContainer}>
+          <Calendar size={44} color={colors.textSecondary} />
+          <Text
+            style={[styles.comingSoonSubtitle, { color: colors.textSecondary }]}
+          >
+            {t('mealPlan.multiDayEmpty')}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.regenerateAllButton,
+              { backgroundColor: colors.accent + '1A', marginTop: spacing.md },
+            ]}
+            onPress={() => generateMultiDay(mode)}
+          >
+            <Sparkles size={17} color={colors.accent} />
+            <Text style={[styles.regenerateAllText, { color: colors.accent }]}>
+              {t('mealPlan.regeneratePlan')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    const mealRow = (
+      label: string,
+      meal: { name: string; calories: number } | null,
+    ) =>
+      meal ? (
+        <View style={styles.multiDayMealRow}>
+          <Text
+            style={[styles.multiDayMealType, { color: colors.textSecondary }]}
+          >
+            {label}
+          </Text>
+          <Text
+            style={[styles.multiDayMealName, { color: colors.textPrimary }]}
+            numberOfLines={1}
+          >
+            {meal.name}
+          </Text>
+          <Text
+            style={[styles.multiDayMealCal, { color: colors.textSecondary }]}
+          >
+            {t('mealPlan.dayCalories', { cal: meal.calories })}
+          </Text>
+        </View>
+      ) : null;
+    return (
+      <View style={styles.dailyContent}>
+        <View style={styles.actionRow}>
+          <SectionHeader title={title} />
+          <TouchableOpacity
+            style={[
+              styles.insightsButton,
+              { backgroundColor: colors.accent + '14' },
+            ]}
+            onPress={() => generateMultiDay(mode)}
+            disabled={multiDayLoading}
+          >
+            <RefreshCw size={14} color={colors.accent} />
+            <Text style={[styles.insightsButtonText, { color: colors.accent }]}>
+              {t('mealPlan.regeneratePlan')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {plan.days.map((day: DayPlanLite, idx: number) => (
+          <View
+            key={idx}
+            style={[
+              styles.multiDayCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.multiDayCardHeader}>
+              <Text
+                style={[styles.multiDayDayLabel, { color: colors.textPrimary }]}
+              >
+                {day.label}
+              </Text>
+              <Text style={[styles.multiDayDayCal, { color: colors.primary }]}>
+                {t('mealPlan.dayCalories', { cal: day.totalCalories })}
+              </Text>
+            </View>
+            {mealRow(t('mealPlan.breakfast'), day.breakfast)}
+            {mealRow(t('mealPlan.lunch'), day.lunch)}
+            {mealRow(t('mealPlan.dinner'), day.dinner)}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   const renderDailyView = () => {
     if (!mealPlan?.daily) return null;
     const plan = mealPlan.daily;
@@ -1432,38 +1592,14 @@ export default function AIMealPlan() {
 
         {/* Meal Plan Content - ACTIVATED */}
         {viewMode === 'daily' && renderDailyView()}
-        {viewMode === 'weekly' && (
-          <View style={styles.comingSoonContainer}>
-            <Calendar size={44} color={colors.textSecondary} />
-            <Display size="md" style={styles.comingSoonTitle}>
-              {t('mealPlan.weeklyComingTitle')}
-            </Display>
-            <Text
-              style={[
-                styles.comingSoonSubtitle,
-                { color: colors.textSecondary },
-              ]}
-            >
-              {t('mealPlan.weeklyComingSubtitle')}
-            </Text>
-          </View>
-        )}
-        {viewMode === 'monthly' && (
-          <View style={styles.comingSoonContainer}>
-            <Calendar size={44} color={colors.textSecondary} />
-            <Display size="md" style={styles.comingSoonTitle}>
-              {t('mealPlan.monthlyComingTitle')}
-            </Display>
-            <Text
-              style={[
-                styles.comingSoonSubtitle,
-                { color: colors.textSecondary },
-              ]}
-            >
-              {t('mealPlan.monthlyComingSubtitle')}
-            </Text>
-          </View>
-        )}
+        {viewMode === 'weekly' &&
+          renderMultiDayView('weekly', weeklyPlan, t('mealPlan.weeklyTitle'))}
+        {viewMode === 'monthly' &&
+          renderMultiDayView(
+            'monthly',
+            monthlyPlan,
+            t('mealPlan.monthlyTitle'),
+          )}
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -1724,6 +1860,47 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: spacing.xl,
+  },
+  // ✅ weekly / monthly multi-day cards
+  multiDayCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    gap: 6,
+  },
+  multiDayCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  multiDayDayLabel: {
+    fontSize: 15,
+    fontFamily: fonts.displayBold,
+  },
+  multiDayDayCal: {
+    fontSize: 13,
+    fontFamily: fonts.bodySemibold,
+  },
+  multiDayMealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  multiDayMealType: {
+    fontSize: 12,
+    fontFamily: fonts.bodyMedium,
+    width: 72,
+  },
+  multiDayMealName: {
+    flex: 1,
+    fontSize: 13.5,
+    fontFamily: fonts.body,
+  },
+  multiDayMealCal: {
+    fontSize: 12,
+    fontFamily: fonts.body,
   },
 });
 

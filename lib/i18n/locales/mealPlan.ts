@@ -52,11 +52,20 @@ export default {
     allergenFree: 'All recipes are free of: %{list}',
     // preferences
     yourPreferences: 'YOUR PREFERENCES',
-    // coming soon views
-    weeklyComingTitle: 'Weekly view coming soon',
-    weeklyComingSubtitle: 'Plan your whole week with AI',
-    monthlyComingTitle: 'Monthly view coming soon',
-    monthlyComingSubtitle: 'Long-term planning and shopping optimization',
+    // weekly / monthly multi-day views
+    weeklyTitle: 'Your 7-day plan',
+    monthlyTitle: 'Your 30-day plan',
+    multiDayGenerating: 'Generating your plan…',
+    multiDayEmpty: 'No plan yet',
+    dayCalories: '%{cal} kcal',
+    regeneratePlan: 'Regenerate plan',
+    quotaTitle: 'Plan limit reached',
+    quotaReached:
+      "You've used all your AI meal plans for this month. Upgrade for more.",
+    quotaFairUse:
+      "You've hit the fair-use limit for AI meal plans. Try again later.",
+    genFailedTitle: 'Generation failed',
+    genFailedBody: 'Could not generate the plan. Please try again.',
     // quick actions
     nutritionTracking: 'Nutrition tracking',
     shoppingList: 'Shopping list',
@@ -150,11 +159,20 @@ export default {
     allergenFree: 'Tüm tarifler şunlardan arındırılmış: %{list}',
     // preferences
     yourPreferences: 'TERCİHLERİN',
-    // coming soon views
-    weeklyComingTitle: 'Haftalık Görünüm Yakında',
-    weeklyComingSubtitle: 'Tüm haftanı AI ile planla',
-    monthlyComingTitle: 'Aylık Görünüm Yakında',
-    monthlyComingSubtitle: 'Uzun vadeli planlama ve alışveriş optimizasyonu',
+    // weekly / monthly multi-day views
+    weeklyTitle: '7 günlük planın',
+    monthlyTitle: '30 günlük planın',
+    multiDayGenerating: 'Planın oluşturuluyor…',
+    multiDayEmpty: 'Henüz plan yok',
+    dayCalories: '%{cal} kcal',
+    regeneratePlan: 'Planı yenile',
+    quotaTitle: 'Plan limiti doldu',
+    quotaReached:
+      'Bu ayki AI öğün planı hakkını kullandın. Daha fazlası için yükselt.',
+    quotaFairUse:
+      'AI öğün planı adil kullanım limitine ulaştın. Daha sonra tekrar dene.',
+    genFailedTitle: 'Üretim başarısız',
+    genFailedBody: 'Plan oluşturulamadı. Lütfen tekrar dene.',
     // quick actions
     nutritionTracking: 'Beslenme Takibi',
     shoppingList: 'Alışveriş Listesi',
