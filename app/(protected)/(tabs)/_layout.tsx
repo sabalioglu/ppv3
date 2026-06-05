@@ -6,7 +6,6 @@ import {
   LayoutGrid,
   Refrigerator,
   Camera,
-  HeartPulse,
   ChefHat,
   ShoppingBasket,
   Settings,
@@ -93,15 +92,6 @@ export default function TabsLayout() {
         options={{
           title: '',
           tabBarButton: (props) => <ScanTabButton {...props} />,
-        }}
-      />
-      <Tabs.Screen
-        name="nutrition"
-        options={{
-          title: t('tabs.nutrition'),
-          tabBarIcon: ({ size, color }) => (
-            <HeartPulse size={size} color={color} strokeWidth={2} />
-          ),
         }}
       />
       <Tabs.Screen

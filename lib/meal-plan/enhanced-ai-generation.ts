@@ -5,6 +5,21 @@ import { PantryItem, UserProfile, Meal } from './types';
 import { PersonalizedMealGenerator } from './personalized-generation';
 import { EnhancedDiversityManager } from './enhanced-diversity';
 import { generateAIMealWithQualityControl } from './api-clients/ai-generation';
+import { supabase } from '@/lib/supabase';
+
+// Thrown when the ai_meal_plan quota (free monthly limit or premium fair-use
+// ceiling) is exhausted. The screen catches this to show the paywall / fair-use
+// message instead of a generic error.
+export class MealPlanQuotaError extends Error {
+  constructor(
+    public readonly fairUse: boolean,
+    public readonly limit: number,
+    public readonly used: number,
+  ) {
+    super(fairUse ? 'fair_use_limit_reached' : 'monthly_limit_reached');
+    this.name = 'MealPlanQuotaError';
+  }
+}
 
 // Enhanced generation result
 interface EnhancedGenerationResult {
@@ -49,9 +64,8 @@ export class EnhancedMealGenerator {
     pantryItems: PantryItem[],
     userProfile: UserProfile | null,
     previousMeals: Meal[] = [],
-    options?: Partial<EnhancedGenerationOptions>
+    options?: Partial<EnhancedGenerationOptions>,
   ): Promise<EnhancedGenerationResult> {
-    
     const opts: EnhancedGenerationOptions = {
       prioritizeDiversity: true,
       prioritizePersonalization: true,
@@ -59,29 +73,34 @@ export class EnhancedMealGenerator {
       diversityThreshold: 70,
       personalizationThreshold: 60,
       maxAttempts: 3,
-      ...options
+      ...options,
     };
 
     console.log(`🚀 Starting enhanced meal generation for ${mealType}`);
     console.log(`📊 Options:`, opts);
-    
+
     let attempts = 0;
     let bestResult: EnhancedGenerationResult | null = null;
     let bestScore = 0;
 
     while (attempts < opts.maxAttempts) {
       attempts++;
-      console.log(`🎯 Enhanced generation attempt ${attempts}/${opts.maxAttempts}`);
+      console.log(
+        `🎯 Enhanced generation attempt ${attempts}/${opts.maxAttempts}`,
+      );
 
       try {
         // 1. Try personalized generation first
         const personalizedResult = await this.tryPersonalizedGeneration(
-          mealType, pantryItems, userProfile, previousMeals
+          mealType,
+          pantryItems,
+          userProfile,
+          previousMeals,
         );
 
         if (personalizedResult) {
           const score = this.calculateOverallScore(personalizedResult, opts);
-          
+
           if (score > bestScore) {
             bestResult = personalizedResult;
             bestScore = score;
@@ -90,21 +109,27 @@ export class EnhancedMealGenerator {
           // Check if meets thresholds
           if (
             personalizedResult.diversityScore >= opts.diversityThreshold &&
-            personalizedResult.personalizationScore >= opts.personalizationThreshold
+            personalizedResult.personalizationScore >=
+              opts.personalizationThreshold
           ) {
-            console.log(`✅ Enhanced personalized meal accepted with score ${score}`);
+            console.log(
+              `✅ Enhanced personalized meal accepted with score ${score}`,
+            );
             return personalizedResult;
           }
         }
 
         // 2. Fallback to cultural generation
         const culturalResult = await this.tryCulturalGeneration(
-          mealType, pantryItems, userProfile, previousMeals
+          mealType,
+          pantryItems,
+          userProfile,
+          previousMeals,
         );
 
         if (culturalResult) {
           const score = this.calculateOverallScore(culturalResult, opts);
-          
+
           if (score > bestScore) {
             bestResult = culturalResult;
             bestScore = score;
@@ -112,16 +137,28 @@ export class EnhancedMealGenerator {
 
           // Lower threshold for cultural generation
           if (culturalResult.diversityScore >= opts.diversityThreshold * 0.8) {
-            console.log(`✅ Enhanced cultural meal accepted with score ${score}`);
+            console.log(
+              `✅ Enhanced cultural meal accepted with score ${score}`,
+            );
             return culturalResult;
           }
         }
-
       } catch (error) {
-        console.error(`⚠️ Enhanced generation attempt ${attempts} failed:`, error);
-        if (attempts === opts.maxAttempts && !bestResult && opts.allowFallback) {
+        console.error(
+          `⚠️ Enhanced generation attempt ${attempts} failed:`,
+          error,
+        );
+        if (
+          attempts === opts.maxAttempts &&
+          !bestResult &&
+          opts.allowFallback
+        ) {
           // Last resort fallback
-          return await this.generateFallbackMeal(mealType, pantryItems, userProfile);
+          return await this.generateFallbackMeal(
+            mealType,
+            pantryItems,
+            userProfile,
+          );
         }
       }
     }
@@ -132,7 +169,11 @@ export class EnhancedMealGenerator {
     }
 
     if (opts.allowFallback) {
-      return await this.generateFallbackMeal(mealType, pantryItems, userProfile);
+      return await this.generateFallbackMeal(
+        mealType,
+        pantryItems,
+        userProfile,
+      );
     }
 
     throw new Error('Failed to generate enhanced meal after all attempts');
@@ -143,13 +184,15 @@ export class EnhancedMealGenerator {
     mealType: string,
     pantryItems: PantryItem[],
     userProfile: UserProfile | null,
-    previousMeals: Meal[]
+    previousMeals: Meal[],
   ): Promise<EnhancedGenerationResult | null> {
     try {
       console.log('🎨 Trying personalized generation...');
-      
+
       const result = await this.personalizedGenerator.generatePersonalizedMeal(
-        mealType, pantryItems, previousMeals
+        mealType,
+        pantryItems,
+        previousMeals,
       );
 
       if (!result.meal) {
@@ -158,11 +201,16 @@ export class EnhancedMealGenerator {
 
       // Diversity check
       const diversityCheck = await this.diversityManager.loadMealHistory();
-      const diversityRecommendations = this.diversityManager.getDiversityRecommendations();
-      
+      const diversityRecommendations =
+        this.diversityManager.getDiversityRecommendations();
+
       // Calculate scores
-      const diversityScore = this.calculateDiversityScore(result.meal, diversityRecommendations);
-      const personalizationScore = result.personalizationInsights.confidenceScore;
+      const diversityScore = this.calculateDiversityScore(
+        result.meal,
+        diversityRecommendations,
+      );
+      const personalizationScore =
+        result.personalizationInsights.confidenceScore;
       const pantryUtilization = result.meal.pantryUsagePercentage || 0;
 
       return {
@@ -175,10 +223,12 @@ export class EnhancedMealGenerator {
           reasoning: result.personalizationInsights.reasoning,
           adaptations: result.personalizationInsights.adaptations,
           diversityTips: this.generateDiversityTips(diversityRecommendations),
-          nextSuggestions: this.generateNextSuggestions(result.meal, userProfile)
-        }
+          nextSuggestions: this.generateNextSuggestions(
+            result.meal,
+            userProfile,
+          ),
+        },
       };
-
     } catch (error) {
       console.error('❌ Personalized generation failed:', error);
       return null;
@@ -190,22 +240,32 @@ export class EnhancedMealGenerator {
     mealType: string,
     pantryItems: PantryItem[],
     userProfile: UserProfile | null,
-    previousMeals: Meal[]
+    previousMeals: Meal[],
   ): Promise<EnhancedGenerationResult | null> {
     try {
       console.log('🌍 Trying cultural generation...');
-      
+
       const meal = await generateAIMealWithQualityControl(
-        mealType, pantryItems, userProfile, previousMeals
+        mealType,
+        pantryItems,
+        userProfile,
+        previousMeals,
       );
 
       // Diversity check
       await this.diversityManager.loadMealHistory();
-      const diversityRecommendations = this.diversityManager.getDiversityRecommendations();
-      
+      const diversityRecommendations =
+        this.diversityManager.getDiversityRecommendations();
+
       // Calculate scores
-      const diversityScore = this.calculateDiversityScore(meal, diversityRecommendations);
-      const personalizationScore = this.estimatePersonalizationScore(meal, userProfile);
+      const diversityScore = this.calculateDiversityScore(
+        meal,
+        diversityRecommendations,
+      );
+      const personalizationScore = this.estimatePersonalizationScore(
+        meal,
+        userProfile,
+      );
       const pantryUtilization = meal.pantryUsagePercentage || 0;
 
       return {
@@ -216,12 +276,14 @@ export class EnhancedMealGenerator {
         generationMethod: 'cultural',
         insights: {
           reasoning: `Cultural AI generation based on cuisine preferences and pantry optimization`,
-          adaptations: ['Applied cultural cooking patterns', 'Optimized for pantry ingredients'],
+          adaptations: [
+            'Applied cultural cooking patterns',
+            'Optimized for pantry ingredients',
+          ],
           diversityTips: this.generateDiversityTips(diversityRecommendations),
-          nextSuggestions: this.generateNextSuggestions(meal, userProfile)
-        }
+          nextSuggestions: this.generateNextSuggestions(meal, userProfile),
+        },
       };
-
     } catch (error) {
       console.error('❌ Cultural generation failed:', error);
       return null;
@@ -232,56 +294,74 @@ export class EnhancedMealGenerator {
   private async generateFallbackMeal(
     mealType: string,
     pantryItems: PantryItem[],
-    userProfile: UserProfile | null
+    userProfile: UserProfile | null,
   ): Promise<EnhancedGenerationResult> {
     console.log('🔄 Generating enhanced fallback meal...');
 
     const fallbackMeals = {
       breakfast: {
         name: 'Quick Pantry Breakfast',
-        ingredients: this.selectAvailableIngredients(pantryItems, ['eggs', 'bread', 'milk', 'banana'], 3),
+        ingredients: this.selectAvailableIngredients(
+          pantryItems,
+          ['eggs', 'bread', 'milk', 'banana'],
+          3,
+        ),
         calories: 320,
         protein: 15,
         carbs: 35,
-        fat: 12
+        fat: 12,
       },
       lunch: {
         name: 'Simple Pantry Lunch',
-        ingredients: this.selectAvailableIngredients(pantryItems, ['rice', 'chicken', 'vegetables', 'oil'], 3),
+        ingredients: this.selectAvailableIngredients(
+          pantryItems,
+          ['rice', 'chicken', 'vegetables', 'oil'],
+          3,
+        ),
         calories: 450,
         protein: 25,
         carbs: 50,
-        fat: 15
+        fat: 15,
       },
       dinner: {
         name: 'Easy Pantry Dinner',
-        ingredients: this.selectAvailableIngredients(pantryItems, ['pasta', 'tomato', 'cheese', 'herbs'], 4),
+        ingredients: this.selectAvailableIngredients(
+          pantryItems,
+          ['pasta', 'tomato', 'cheese', 'herbs'],
+          4,
+        ),
         calories: 550,
         protein: 20,
         carbs: 65,
-        fat: 18
+        fat: 18,
       },
       snack: {
         name: 'Healthy Pantry Snack',
-        ingredients: this.selectAvailableIngredients(pantryItems, ['apple', 'nuts', 'yogurt'], 2),
+        ingredients: this.selectAvailableIngredients(
+          pantryItems,
+          ['apple', 'nuts', 'yogurt'],
+          2,
+        ),
         calories: 180,
         protein: 8,
         carbs: 20,
-        fat: 8
-      }
+        fat: 8,
+      },
     };
 
-    const template = fallbackMeals[mealType as keyof typeof fallbackMeals] || fallbackMeals.lunch;
-    
+    const template =
+      fallbackMeals[mealType as keyof typeof fallbackMeals] ||
+      fallbackMeals.lunch;
+
     const meal: Meal = {
       id: `enhanced_fallback_${mealType}_${Date.now()}`,
       name: template.name,
-      ingredients: template.ingredients.map(item => ({
+      ingredients: template.ingredients.map((item) => ({
         name: item.name,
         amount: 1,
         unit: 'portion',
         category: item.category || 'General',
-        fromPantry: true
+        fromPantry: true,
       })),
       calories: template.calories,
       protein: template.protein,
@@ -298,16 +378,18 @@ export class EnhancedMealGenerator {
       instructions: [
         'Gather available ingredients from your pantry',
         'Combine ingredients using basic cooking methods',
-        'Season to taste and serve'
+        'Season to taste and serve',
       ],
       source: 'enhanced_fallback',
       created_at: new Date().toISOString(),
-      pantryUsagePercentage: Math.round((template.ingredients.length / Math.max(pantryItems.length, 1)) * 100),
+      pantryUsagePercentage: Math.round(
+        (template.ingredients.length / Math.max(pantryItems.length, 1)) * 100,
+      ),
       shoppingListItems: [],
       matchPercentage: 60,
       pantryMatch: template.ingredients.length,
       totalIngredients: template.ingredients.length,
-      missingIngredients: []
+      missingIngredients: [],
     };
 
     return {
@@ -317,36 +399,44 @@ export class EnhancedMealGenerator {
       pantryUtilization: meal.pantryUsagePercentage,
       generationMethod: 'fallback',
       insights: {
-        reasoning: 'Generated fallback meal due to insufficient pantry variety or generation issues',
-        adaptations: ['Used available pantry ingredients', 'Kept complexity simple'],
+        reasoning:
+          'Generated fallback meal due to insufficient pantry variety or generation issues',
+        adaptations: [
+          'Used available pantry ingredients',
+          'Kept complexity simple',
+        ],
         diversityTips: [
           'Add more variety to your pantry',
           'Try shopping for ingredients from different cuisines',
-          'Stock up on versatile ingredients like herbs and spices'
+          'Stock up on versatile ingredients like herbs and spices',
         ],
         nextSuggestions: [
           'Consider adding more proteins to your pantry',
           'Stock fresh vegetables for better meal variety',
-          'Try exploring new cuisines this week'
-        ]
-      }
+          'Try exploring new cuisines this week',
+        ],
+      },
     };
   }
 
   // ✅ Diversity score hesaplama
   private calculateDiversityScore(
     meal: Meal,
-    diversityRecommendations: any
+    diversityRecommendations: any,
   ): number {
-    const mealIngredients = meal.ingredients.map(i => i.name.toLowerCase());
-    const overusedIngredients = mealIngredients.filter(ingredient => 
-      diversityRecommendations.avoidIngredients.includes(ingredient)
+    const mealIngredients = meal.ingredients.map((i) => i.name.toLowerCase());
+    const overusedIngredients = mealIngredients.filter((ingredient) =>
+      diversityRecommendations.avoidIngredients.includes(ingredient),
     );
 
-    let score = 100 - (overusedIngredients.length * 20); // Penalty for overused ingredients
+    let score = 100 - overusedIngredients.length * 20; // Penalty for overused ingredients
 
     // Bonus for cuisine variety
-    if (meal.tags?.some(tag => diversityRecommendations.suggestCuisines.includes(tag))) {
+    if (
+      meal.tags?.some((tag) =>
+        diversityRecommendations.suggestCuisines.includes(tag),
+      )
+    ) {
       score += 10;
     }
 
@@ -359,32 +449,54 @@ export class EnhancedMealGenerator {
   }
 
   // ✅ Personalization score tahmini
-  private estimatePersonalizationScore(meal: Meal, userProfile: UserProfile | null): number {
+  private estimatePersonalizationScore(
+    meal: Meal,
+    userProfile: UserProfile | null,
+  ): number {
     if (!userProfile) return 50; // Default score
 
     let score = 60; // Base score
 
     // Cuisine preference match
-    if (userProfile.cuisine_preferences?.some(pref => 
-      meal.tags?.some(tag => tag.toLowerCase().includes(pref.toLowerCase()))
-    )) {
+    if (
+      userProfile.cuisine_preferences?.some((pref) =>
+        meal.tags?.some((tag) =>
+          tag.toLowerCase().includes(pref.toLowerCase()),
+        ),
+      )
+    ) {
       score += 15;
     }
 
     // Dietary restrictions compliance
-    if (userProfile.dietary_restrictions && userProfile.dietary_restrictions.length > 0) {
+    if (
+      userProfile.dietary_restrictions &&
+      userProfile.dietary_restrictions.length > 0
+    ) {
       // Check if meal violates any restrictions
-      const ingredientNames = meal.ingredients.map(i => i.name.toLowerCase()).join(' ');
-      const hasViolation = userProfile.dietary_restrictions.some(restriction => {
-        if (restriction === 'vegetarian' && /chicken|beef|pork|fish|meat/.test(ingredientNames)) {
-          return true;
-        }
-        if (restriction === 'vegan' && /chicken|beef|pork|fish|meat|dairy|milk|cheese|egg/.test(ingredientNames)) {
-          return true;
-        }
-        return false;
-      });
-      
+      const ingredientNames = meal.ingredients
+        .map((i) => i.name.toLowerCase())
+        .join(' ');
+      const hasViolation = userProfile.dietary_restrictions.some(
+        (restriction) => {
+          if (
+            restriction === 'vegetarian' &&
+            /chicken|beef|pork|fish|meat/.test(ingredientNames)
+          ) {
+            return true;
+          }
+          if (
+            restriction === 'vegan' &&
+            /chicken|beef|pork|fish|meat|dairy|milk|cheese|egg/.test(
+              ingredientNames,
+            )
+          ) {
+            return true;
+          }
+          return false;
+        },
+      );
+
       if (!hasViolation) {
         score += 10;
       } else {
@@ -393,10 +505,16 @@ export class EnhancedMealGenerator {
     }
 
     // Health goals alignment
-    if (userProfile.health_goals?.includes('weight_loss') && meal.calories < 400) {
+    if (
+      userProfile.health_goals?.includes('weight_loss') &&
+      meal.calories < 400
+    ) {
       score += 10;
     }
-    if (userProfile.health_goals?.includes('muscle_gain') && meal.protein >= 20) {
+    if (
+      userProfile.health_goals?.includes('muscle_gain') &&
+      meal.protein >= 20
+    ) {
       score += 10;
     }
 
@@ -406,7 +524,7 @@ export class EnhancedMealGenerator {
   // ✅ Overall score hesaplama
   private calculateOverallScore(
     result: EnhancedGenerationResult,
-    options: EnhancedGenerationOptions
+    options: EnhancedGenerationOptions,
   ): number {
     const diversityWeight = options.prioritizeDiversity ? 0.4 : 0.2;
     const personalizationWeight = options.prioritizePersonalization ? 0.4 : 0.2;
@@ -425,74 +543,85 @@ export class EnhancedMealGenerator {
   private selectAvailableIngredients(
     pantryItems: PantryItem[],
     preferred: string[],
-    maxCount: number
+    maxCount: number,
   ): PantryItem[] {
     const selected: PantryItem[] = [];
-    
+
     // First, try to find preferred ingredients
     for (const pref of preferred) {
-      const found = pantryItems.find(item => 
-        item.name.toLowerCase().includes(pref.toLowerCase())
+      const found = pantryItems.find((item) =>
+        item.name.toLowerCase().includes(pref.toLowerCase()),
       );
       if (found && selected.length < maxCount) {
         selected.push(found);
       }
     }
-    
+
     // Fill remaining spots with any available ingredients
     for (const item of pantryItems) {
       if (selected.length >= maxCount) break;
-      if (!selected.find(s => s.id === item.id)) {
+      if (!selected.find((s) => s.id === item.id)) {
         selected.push(item);
       }
     }
-    
+
     return selected.slice(0, maxCount);
   }
 
   // ✅ Diversity tips üretimi
   private generateDiversityTips(diversityRecommendations: any): string[] {
     const tips: string[] = [];
-    
+
     if (diversityRecommendations.suggestCuisines.length > 0) {
-      tips.push(`Try ${diversityRecommendations.suggestCuisines[0]} cuisine next`);
+      tips.push(
+        `Try ${diversityRecommendations.suggestCuisines[0]} cuisine next`,
+      );
     }
-    
+
     if (diversityRecommendations.suggestCookingMethods.length > 0) {
-      tips.push(`Experiment with ${diversityRecommendations.suggestCookingMethods[0]} cooking`);
+      tips.push(
+        `Experiment with ${diversityRecommendations.suggestCookingMethods[0]} cooking`,
+      );
     }
-    
+
     if (diversityRecommendations.avoidIngredients.length > 3) {
       tips.push('Consider taking a break from frequently used ingredients');
     }
-    
-    return tips.length > 0 ? tips : ['Keep experimenting with new ingredient combinations!'];
+
+    return tips.length > 0
+      ? tips
+      : ['Keep experimenting with new ingredient combinations!'];
   }
 
-  // ✅ Next suggestions üretimi  
-  private generateNextSuggestions(meal: Meal, userProfile: UserProfile | null): string[] {
+  // ✅ Next suggestions üretimi
+  private generateNextSuggestions(
+    meal: Meal,
+    userProfile: UserProfile | null,
+  ): string[] {
     const suggestions: string[] = [];
-    
+
     // Cuisine-based suggestions
-    const cuisine = meal.tags?.find(tag => 
-      ['Italian', 'Asian', 'Mexican', 'Indian', 'Mediterranean'].includes(tag)
+    const cuisine = meal.tags?.find((tag) =>
+      ['Italian', 'Asian', 'Mexican', 'Indian', 'Mediterranean'].includes(tag),
     );
-    
+
     if (cuisine) {
       suggestions.push(`Explore more ${cuisine} recipes this week`);
     }
-    
+
     // Ingredient-based suggestions
     if (meal.ingredients.length < 4) {
       suggestions.push('Try adding more vegetables for nutrition variety');
     }
-    
+
     // Health goal suggestions
     if (userProfile?.health_goals?.includes('weight_loss')) {
       suggestions.push('Consider lighter meals for the rest of the day');
     }
-    
-    return suggestions.length > 0 ? suggestions : ['Keep up the great meal planning!'];
+
+    return suggestions.length > 0
+      ? suggestions
+      : ['Keep up the great meal planning!'];
   }
 
   // ✅ Fallback emoji seçimi
@@ -501,19 +630,20 @@ export class EnhancedMealGenerator {
       breakfast: '🥣',
       lunch: '🍽️',
       dinner: '🍲',
-      snack: '🍎'
+      snack: '🍎',
     };
     return emojis[mealType as keyof typeof emojis] || '🍽️';
   }
 }
 
 // ✅ Utility functions for easy usage
-export const createEnhancedGenerator = (userId: string) => new EnhancedMealGenerator(userId);
+export const createEnhancedGenerator = (userId: string) =>
+  new EnhancedMealGenerator(userId);
 
 export const generateEnhancedMealPlan = async (
   userId: string,
   pantryItems: PantryItem[],
-  userProfile: UserProfile | null
+  userProfile: UserProfile | null,
 ): Promise<{
   breakfast: EnhancedGenerationResult | null;
   lunch: EnhancedGenerationResult | null;
@@ -527,26 +657,76 @@ export const generateEnhancedMealPlan = async (
   };
 }> => {
   console.log('🌟 Generating enhanced meal plan...');
-  
+
+  // Fair-use / freemium gate: one full plan = one ai_meal_plan unit. Enforced
+  // server-side (free monthly limit + premium fair-use ceiling). A 402 here
+  // means the quota is exhausted — surface it as MealPlanQuotaError.
+  const { data: quota, error: quotaError } = await supabase.functions.invoke(
+    'meal-plan-quota',
+    { body: { consume: true } },
+  );
+  if (quotaError) {
+    const status = (quotaError as any)?.context?.status;
+    if (status === 402) {
+      throw new MealPlanQuotaError(false, 0, 0);
+    }
+    throw new Error(`meal-plan-quota failed: ${quotaError.message}`);
+  }
+  if (quota && quota.allowed === false) {
+    throw new MealPlanQuotaError(
+      !!quota.fairUse,
+      quota.limit ?? 0,
+      quota.used ?? 0,
+    );
+  }
+
   const generator = new EnhancedMealGenerator(userId);
-  
-  const breakfast = await generator.generateEnhancedMeal('breakfast', pantryItems, userProfile, []);
-  const lunch = await generator.generateEnhancedMeal('lunch', pantryItems, userProfile, [breakfast.meal]);
-  const dinner = await generator.generateEnhancedMeal('dinner', pantryItems, userProfile, [breakfast.meal, lunch.meal]);
-  const snack = await generator.generateEnhancedMeal('snack', pantryItems, userProfile, [breakfast.meal, lunch.meal, dinner.meal]);
-  
+
+  const breakfast = await generator.generateEnhancedMeal(
+    'breakfast',
+    pantryItems,
+    userProfile,
+    [],
+  );
+  const lunch = await generator.generateEnhancedMeal(
+    'lunch',
+    pantryItems,
+    userProfile,
+    [breakfast.meal],
+  );
+  const dinner = await generator.generateEnhancedMeal(
+    'dinner',
+    pantryItems,
+    userProfile,
+    [breakfast.meal, lunch.meal],
+  );
+  const snack = await generator.generateEnhancedMeal(
+    'snack',
+    pantryItems,
+    userProfile,
+    [breakfast.meal, lunch.meal, dinner.meal],
+  );
+
   const results = [breakfast, lunch, dinner, snack];
-  
+
   return {
     breakfast,
     lunch,
     dinner,
     snacks: [snack],
     summary: {
-      totalDiversityScore: Math.round(results.reduce((sum, r) => sum + r.diversityScore, 0) / results.length),
-      totalPersonalizationScore: Math.round(results.reduce((sum, r) => sum + r.personalizationScore, 0) / results.length),
-      pantryUtilization: Math.round(results.reduce((sum, r) => sum + r.pantryUtilization, 0) / results.length),
-      generationMethods: results.map(r => r.generationMethod)
-    }
+      totalDiversityScore: Math.round(
+        results.reduce((sum, r) => sum + r.diversityScore, 0) / results.length,
+      ),
+      totalPersonalizationScore: Math.round(
+        results.reduce((sum, r) => sum + r.personalizationScore, 0) /
+          results.length,
+      ),
+      pantryUtilization: Math.round(
+        results.reduce((sum, r) => sum + r.pantryUtilization, 0) /
+          results.length,
+      ),
+      generationMethods: results.map((r) => r.generationMethod),
+    },
   };
 };

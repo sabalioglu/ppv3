@@ -15,7 +15,16 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 export const FREE_LIMITS: Record<string, number> = {
   photo_scan: 20, // vision-analyze (receipt / food / fridge photo)
   recipe_import: 10, // recipe-from-url + video-intelligence (social/URL import)
-  ai_meal_plan: 5, // recipe-recommend (AI "what can I cook" generation)
+  ai_meal_plan: 5, // generateEnhancedMealPlan (full daily AI plan)
+};
+
+// Premium fair-use ceilings. "Unlimited" still has a hard monthly cap per
+// feature to stop scripted abuse / runaway LLM cost. Normal humans never hit
+// these. Tune here. (Set a value to Infinity to truly uncap a feature.)
+export const FAIR_USE_LIMITS: Record<string, number> = {
+  photo_scan: 600,
+  recipe_import: 300,
+  ai_meal_plan: 150, // ~5 full plans/day — far above any real meal-planning need
 };
 
 export interface MeterResult {
@@ -39,15 +48,24 @@ export async function checkQuota(
     const { data: premium } = await admin.rpc('is_user_premium', {
       p_user_id: userId,
     });
-    if (premium === true)
+    if (premium === true) {
+      // Premium is "unlimited" but still bounded by a fair-use ceiling.
+      const fairLimit = FAIR_USE_LIMITS[feature] ?? Infinity;
+      const { data: pUsed } = await admin.rpc('get_usage', {
+        p_user_id: userId,
+        p_feature: feature,
+      });
+      const pu = typeof pUsed === 'number' ? pUsed : 0;
       return {
-        allowed: true,
+        allowed: pu < fairLimit,
         isPremium: true,
         feature,
-        used: 0,
-        limit,
-        remaining: Infinity,
+        used: pu,
+        limit: fairLimit,
+        remaining:
+          fairLimit === Infinity ? Infinity : Math.max(0, fairLimit - pu),
       };
+    }
 
     const { data: used } = await admin.rpc('get_usage', {
       p_user_id: userId,
@@ -91,14 +109,16 @@ export async function recordUsage(
   }
 }
 
-// Standard 402 body when the free monthly limit is reached.
+// Standard 402 body when a monthly limit is reached. For free users this means
+// "upgrade to premium"; for premium users it means "fair-use ceiling hit".
 export function quotaBody(meter: MeterResult) {
   return {
-    error: 'monthly_limit_reached',
+    error: meter.isPremium ? 'fair_use_limit_reached' : 'monthly_limit_reached',
     feature: meter.feature,
     limit: meter.limit,
     used: meter.used,
     remaining: 0,
-    upgrade: true,
+    upgrade: !meter.isPremium,
+    fairUse: meter.isPremium,
   };
 }

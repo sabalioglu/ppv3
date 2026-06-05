@@ -14,7 +14,6 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import {
-  Camera,
   Brain,
   Receipt,
   Image,
@@ -50,7 +49,6 @@ const progressLabel = (pct: number) =>
 type ScanMode =
   | 'food-recognition'
   | 'receipt-scanner'
-  | 'single-photo'
   | 'multiple-images'
   | 'calorie-counter';
 
@@ -114,12 +112,6 @@ export default function CameraScreen() {
   const tutorialOpacity = useRef(new Animated.Value(1)).current;
 
   const CAMERA_MODES = {
-    'single-photo': {
-      title: t('camera.modeSinglePhoto'),
-      icon: Camera,
-      color: colors.accent,
-      description: 'Hızlı yemek analizi',
-    },
     'food-recognition': {
       title: t('camera.modeFoodRecognition'),
       icon: Brain,
@@ -1317,7 +1309,8 @@ export default function CameraScreen() {
                   </TouchableOpacity>
 
                   {scanResult.data.items &&
-                    scanResult.data.items.length > 0 && (
+                    scanResult.data.items.length > 0 &&
+                    scanMode !== 'calorie-counter' && (
                       <TouchableOpacity
                         style={[
                           styles.addAllButton,

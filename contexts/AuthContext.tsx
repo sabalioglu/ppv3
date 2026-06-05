@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select(
-          'full_name, age, gender, height_cm, weight_kg, activity_level, health_goals'
+          'full_name, age, gender, height_cm, weight_kg, activity_level, health_goals_macros',
         )
         .eq('id', userId)
         .maybeSingle();
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         profile?.height_cm &&
         profile?.weight_kg &&
         profile?.activity_level &&
-        profile?.health_goals
+        profile?.health_goals_macros
       );
       setIsProfileComplete(complete);
     } catch (err) {
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setIsReady(true);
           }
         }, 1000);
-      }
+      },
     );
 
     return () => {

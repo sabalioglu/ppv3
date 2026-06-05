@@ -691,13 +691,7 @@ export default function RecipeDetail() {
       Alert.alert(
         t('recipeDetail.completedTitle'),
         t('recipeDetail.completedMessage'),
-        [
-          {
-            text: t('recipeDetail.viewNutrition'),
-            onPress: () => router.push('/(tabs)/nutrition'),
-          },
-          { text: t('common.ok') },
-        ],
+        [{ text: t('common.ok') }],
       );
     } catch (err) {
       console.error('❌ Recipe completion failed:', err);

@@ -3,8 +3,6 @@ import { Platform } from 'react-native';
 import { scrapeUrl, ScrapingResult } from '@/lib/scrapeService';
 import { supabase } from '@/lib/supabase';
 
-let openai: any = null;
-
 export interface ExtractedRecipeData {
   title: string;
   description?: string;
@@ -83,76 +81,6 @@ function checkRateLimit(userId: string): {
   userLimit.lastRequest = now;
   return { allowed: true };
 }
-
-const initializeOpenAI = async () => {
-  console.log('\n🔄 [OPENAI] ===== OpenAI CLIENT BAŞLATILIYOR =====');
-  console.log('📱 [OPENAI] Platform:', Platform.OS);
-
-  const OPENAI_API_KEY =
-    process.env.EXPO_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-
-  if (!OPENAI_API_KEY) {
-    console.error('❌ [OPENAI] API KEY BULUNAMADI!');
-    return null;
-  }
-
-  console.log(
-    '✅ [OPENAI] API Key bulundu:',
-    OPENAI_API_KEY.substring(0, 8) + '...',
-  );
-
-  try {
-    if (Platform.OS === 'web') {
-      console.log('🌐 [OPENAI] Web platform - özel import stratejisi...');
-
-      let OpenAI;
-      try {
-        const OpenAIModule = await import('openai');
-        OpenAI = OpenAIModule.default || OpenAIModule.OpenAI || OpenAIModule;
-        console.log('📦 [OPENAI] OpenAI modülü yüklendi:', typeof OpenAI);
-      } catch (importError) {
-        console.error('❌ [OPENAI] Import hatası:', importError);
-        throw new Error('OpenAI modülü web platformunda yüklenemedi');
-      }
-
-      if (!OpenAI || typeof OpenAI !== 'function') {
-        throw new Error('OpenAI constructor bulunamadı');
-      }
-
-      const client = new OpenAI({
-        apiKey: OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true,
-        timeout: 60000,
-        maxRetries: 3,
-      });
-
-      console.log('🏗️ [OPENAI] Client oluşturuldu, test API çağrısı...');
-      const testResponse = await client.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: 'Test connection' }],
-        max_tokens: 5,
-        temperature: 0,
-      });
-
-      if (testResponse && testResponse.choices && testResponse.choices[0]) {
-        console.log('✅ [OPENAI] Test API çağrısı başarılı!');
-        console.log('🔄 [OPENAI] ===== OpenAI CLIENT HAZIR =====\n');
-        return client;
-      } else {
-        throw new Error('Test API çağrısı geçersiz yanıt döndü');
-      }
-    } else {
-      console.log('📱 [OPENAI] Native platform için başlatılıyor');
-      const OpenAI = (await import('openai')).default;
-      return new OpenAI({
-        apiKey: OPENAI_API_KEY,
-      });
-    }
-  } catch (error) {
-    console.error('❌ [OPENAI] Client başlatma hatası:', error);
-    return null;
-  }
-};
 
 function extractJsonLdRecipe(
   html: string,

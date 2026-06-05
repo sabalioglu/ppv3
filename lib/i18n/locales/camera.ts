@@ -2,7 +2,6 @@
 export default {
   en: {
     // Mode chips
-    modeSinglePhoto: 'SNAP',
     modeFoodRecognition: 'FOOD',
     modeMultiple: 'MULTI',
     modeCalorie: 'CALORIE',
@@ -75,7 +74,6 @@ export default {
   },
   tr: {
     // Mode chips
-    modeSinglePhoto: 'TEK KARE',
     modeFoodRecognition: 'YEMEK',
     modeMultiple: 'ÇOKLU',
     modeCalorie: 'KALORİ',

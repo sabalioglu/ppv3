@@ -17,7 +17,6 @@ import {
   ArrowLeft,
   Settings,
   ChevronRight,
-  Heart,
   ShoppingCart,
   ShieldCheck,
   Calendar,
@@ -1468,33 +1467,6 @@ export default function AIMealPlan() {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.borderLight,
-              },
-            ]}
-            onPress={() => router.push('/(tabs)/nutrition')}
-            activeOpacity={0.85}
-          >
-            <View
-              style={[
-                styles.actionButtonIcon,
-                { backgroundColor: colors.error + '14' },
-              ]}
-            >
-              <Heart size={19} color={colors.error} />
-            </View>
-            <Text
-              style={[styles.actionButtonText, { color: colors.textPrimary }]}
-            >
-              {t('mealPlan.nutritionTracking')}
-            </Text>
-            <ChevronRight size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[
               styles.actionButton,

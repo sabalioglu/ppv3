@@ -32,7 +32,6 @@ function json(body: unknown, status = 200): Response {
 function promptFor(mode: string): string {
   switch (mode) {
     case 'food-recognition':
-    case 'single-photo':
       return `Analyze this image and identify all food items. Return ONLY a JSON response with:
 {
   "type": "food",
