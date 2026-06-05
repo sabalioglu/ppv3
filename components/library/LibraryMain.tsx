@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Platform,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -40,6 +39,8 @@ import {
   Book,
 } from 'lucide-react-native';
 import { colors, spacing, typography, shadows } from '../../lib/theme';
+import { fonts } from '../../lib/theme/constants/typography';
+import { t } from '../../lib/i18n';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -353,7 +354,7 @@ const ImportCategoriesModal: React.FC<{
       >
         <View style={styles.importModalContainer}>
           <View style={styles.importModalHeader}>
-            <Text style={styles.importModalTitle}>Add Recipe</Text>
+            <Text style={styles.importModalTitle}>{t('library.addRecipeTitle')}</Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -517,12 +518,12 @@ const ManualRecipeModal: React.FC<{
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <Text style={styles.manualRecipeTitle}>Add Recipe Manually</Text>
+          <Text style={styles.manualRecipeTitle}>{t('library.addRecipeManually')}</Text>
           <TouchableOpacity onPress={handleSave} disabled={loading}>
             {loading ? (
               <ActivityIndicator size="small" color={colors.primary[500]} />
             ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
+              <Text style={styles.saveButtonText}>{t('library.save')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -531,9 +532,9 @@ const ManualRecipeModal: React.FC<{
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>Basic Information</Text>
+            <Text style={styles.formSectionTitle}>{t('library.basicInformation')}</Text>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Recipe Title *</Text>
+              <Text style={styles.formLabel}>{t('library.recipeTitleLabel')}</Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="Enter recipe title..."
@@ -545,7 +546,7 @@ const ManualRecipeModal: React.FC<{
               />
             </View>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Description</Text>
+              <Text style={styles.formLabel}>{t('library.description')}</Text>
               <TextInput
                 style={[styles.formInput, styles.textArea]}
                 placeholder="Brief description of the recipe..."
@@ -562,7 +563,7 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>Prep Time (min)</Text>
+                <Text style={styles.formLabel}>{t('library.prepTimeLabel')}</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="15"
@@ -577,7 +578,7 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>Cook Time (min)</Text>
+                <Text style={styles.formLabel}>{t('library.cookTimeLabel')}</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="30"
@@ -594,7 +595,7 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginRight: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>Servings</Text>
+                <Text style={styles.formLabel}>{t('library.servings')}</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="4"
@@ -609,7 +610,7 @@ const ManualRecipeModal: React.FC<{
               <View
                 style={[styles.formGroup, { flex: 1, marginLeft: spacing.sm }]}
               >
-                <Text style={styles.formLabel}>Difficulty</Text>
+                <Text style={styles.formLabel}>{t('library.difficulty')}</Text>
                 <View style={styles.pickerContainer}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     {['Easy', 'Medium', 'Hard'].map((level, levelIndex) => (
@@ -643,7 +644,7 @@ const ManualRecipeModal: React.FC<{
               </View>
             </View>
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Category</Text>
+              <Text style={styles.formLabel}>{t('library.category')}</Text>
               <View style={styles.pickerContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Desserts'].map(
@@ -694,7 +695,7 @@ const ManualRecipeModal: React.FC<{
           </View>
           <View style={styles.formSection}>
             <Text style={styles.formSectionTitle}>Instructions *</Text>
-            <Text style={styles.formHint}>Enter each step on a new line</Text>
+            <Text style={styles.formHint}>{t('library.stepsHint')}</Text>
             <TextInput
               style={[styles.formInput, styles.textArea, { height: 150 }]}
               placeholder="Preheat oven to 350F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;Bake for 25-30 minutes"
@@ -708,8 +709,8 @@ const ManualRecipeModal: React.FC<{
             />
           </View>
           <View style={styles.formSection}>
-            <Text style={styles.formSectionTitle}>Tags</Text>
-            <Text style={styles.formHint}>Separate tags with commas</Text>
+            <Text style={styles.formSectionTitle}>{t('library.tags')}</Text>
+            <Text style={styles.formHint}>{t('library.tagsHint')}</Text>
             <TextInput
               style={styles.formInput}
               placeholder="vegetarian, quick, healthy, comfort food"
@@ -798,9 +799,9 @@ const FilterModal: React.FC<{
           <TouchableOpacity onPress={onClose}>
             <X size={24} color={colors.neutral[600]} />
           </TouchableOpacity>
-          <Text style={styles.filterModalTitle}>Filter Recipes</Text>
+          <Text style={styles.filterModalTitle}>{t('library.filterRecipes')}</Text>
           <TouchableOpacity onPress={clearAllFilters}>
-            <Text style={styles.clearAllText}>Clear All</Text>
+            <Text style={styles.clearAllText}>{t('library.clearAll')}</Text>
           </TouchableOpacity>
         </View>
         <ScrollView
@@ -813,7 +814,7 @@ const FilterModal: React.FC<{
               style={styles.filterCategoryHeader}
               onPress={() => toggleCategory('cookbook')}
             >
-              <Text style={styles.filterCategoryTitle}>Cookbook</Text>
+              <Text style={styles.filterCategoryTitle}>{t('library.cookbook')}</Text>
               <ChevronDown
                 size={20}
                 color={colors.neutral[600]}
@@ -839,7 +840,7 @@ const FilterModal: React.FC<{
                         styles.filterOptionTextSelected,
                     ]}
                   >
-                    All Recipes
+                    {t('library.allRecipes')}
                   </Text>
                   {selectedCookbook === 'all' && (
                     <Check size={16} color={colors.primary[500]} />
@@ -1161,7 +1162,7 @@ const URLImportModal: React.FC<{
 
           <View style={styles.urlModalActions}>
             <TouchableOpacity style={styles.urlCancelButton} onPress={onClose}>
-              <Text style={styles.urlCancelButtonText}>Cancel</Text>
+              <Text style={styles.urlCancelButtonText}>{t('library.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -1181,7 +1182,7 @@ const URLImportModal: React.FC<{
               ) : (
                 <>
                   <Link size={16} color={colors.neutral[0]} />
-                  <Text style={styles.urlImportButtonText}>Import Recipe</Text>
+                  <Text style={styles.urlImportButtonText}>{t('library.importRecipe')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1467,7 +1468,7 @@ const EmptyState: React.FC<{
     return (
       <View style={styles.emptyStateContainer}>
         <Filter size={64} color={colors.neutral[400]} />
-        <Text style={styles.emptyStateTitle}>No Recipes Found</Text>
+        <Text style={styles.emptyStateTitle}>{t('library.noRecipesFoundTitle')}</Text>
         <Text style={styles.emptyStateSubtitle}>
           Try adjusting your filters or add new recipes to your collection
         </Text>
@@ -1477,14 +1478,14 @@ const EmptyState: React.FC<{
             onPress={onClearFilters}
           >
             <X size={20} color={colors.primary[500]} />
-            <Text style={styles.emptyActionText}>Clear Filters</Text>
+            <Text style={styles.emptyActionText}>{t('library.clearFilters')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.emptyActionButtonSecondary}
             onPress={onAddRecipe}
           >
             <Plus size={20} color={colors.neutral[600]} />
-            <Text style={styles.emptyActionTextSecondary}>Add Recipe</Text>
+            <Text style={styles.emptyActionTextSecondary}>{t('library.addRecipe')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1494,7 +1495,7 @@ const EmptyState: React.FC<{
   return (
     <View style={styles.emptyStateContainer}>
       <BookOpen size={64} color={colors.primary[500]} />
-      <Text style={styles.emptyStateTitle}>Build Your Recipe Library</Text>
+      <Text style={styles.emptyStateTitle}>{t('library.emptyLibraryTitle')}</Text>
       <Text style={styles.emptyStateSubtitle}>
         Start collecting your favorite recipes in one place
       </Text>
@@ -1504,7 +1505,7 @@ const EmptyState: React.FC<{
           onPress={onAddRecipe}
         >
           <Plus size={20} color={colors.primary[500]} />
-          <Text style={styles.emptyActionText}>Add Recipe</Text>
+          <Text style={styles.emptyActionText}>{t('library.addRecipe')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -2105,7 +2106,7 @@ export default function Library() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
-        <Text style={styles.loadingText}>Loading your recipe library...</Text>
+        <Text style={styles.loadingText}>{t('library.loading')}</Text>
       </View>
     );
   }
@@ -2117,7 +2118,7 @@ export default function Library() {
           <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>My Recipe Library</Text>
+        <Text style={styles.headerTitle}>{t('library.headerTitle')}</Text>
 
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -2208,7 +2209,7 @@ export default function Library() {
           onPress={() => setShowImportModal(true)}
         >
           <Plus size={18} color={colors.primary[500]} />
-          <Text style={styles.addActionText}>Add Recipe</Text>
+          <Text style={styles.addActionText}>{t('library.addRecipe')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -2252,7 +2253,7 @@ export default function Library() {
         {/* 📚 COOKBOOK SECTION */}
         <View style={styles.cookbooksSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Cookbooks</Text>
+            <Text style={styles.sectionTitle}>{t('library.myCookbooks')}</Text>
             <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
               <Plus size={20} color={colors.primary[500]} />
             </TouchableOpacity>
@@ -2271,7 +2272,7 @@ export default function Library() {
               <View style={styles.newCookbookIcon}>
                 <Plus size={24} color={colors.primary[500]} />
               </View>
-              <Text style={styles.newCookbookText}>New cookbook</Text>
+              <Text style={styles.newCookbookText}>{t('library.newCookbook')}</Text>
             </TouchableOpacity>
 
             {/* Existing Cookbooks */}
@@ -2293,7 +2294,7 @@ export default function Library() {
 
         {/* Recipes Section */}
         <View style={styles.recipesSection}>
-          <Text style={styles.sectionTitle}>All Recipes</Text>
+          <Text style={styles.sectionTitle}>{t('library.allRecipes')}</Text>
 
           {filteredRecipes.length > 0 ? (
             viewMode === 'grid' ? (
@@ -2361,7 +2362,7 @@ export default function Library() {
             onPress={() => setShowBulkActions(true)}
           >
             <Ionicons name="book-outline" size={20} color="#4CAF50" />
-            <Text style={styles.bulkActionText}>Add to Cookbook</Text>
+            <Text style={styles.bulkActionText}>{t('library.addToCookbook')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -2369,7 +2370,7 @@ export default function Library() {
             onPress={handleBulkFavorite}
           >
             <Ionicons name="heart-outline" size={20} color="#4CAF50" />
-            <Text style={styles.bulkActionText}>Favorite</Text>
+            <Text style={styles.bulkActionText}>{t('library.favorite')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -2485,7 +2486,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[600],
     marginTop: spacing.md,
   },
@@ -2502,7 +2503,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontSize: typography.fontSize['2xl'],
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-Bold',
+    fontFamily: fonts.displayBold,
     color: colors.neutral[800],
     marginLeft: spacing.md,
   },
@@ -2565,7 +2566,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.sm,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[800],
   },
   filterButton: {
@@ -2630,13 +2631,13 @@ const styles = StyleSheet.create({
   },
   addActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.primary[600],
   },
   addActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[600],
   },
@@ -3025,13 +3026,13 @@ const styles = StyleSheet.create({
   },
   manualRecipeTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontFamily: fonts.display,
     fontWeight: '600',
     color: colors.neutral[800],
   },
   saveButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.primary[500],
   },
@@ -3044,7 +3045,7 @@ const styles = StyleSheet.create({
   },
   formSectionTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.md,
@@ -3054,7 +3055,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[700],
     marginBottom: spacing.xs,
@@ -3065,7 +3066,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[800],
     borderWidth: 1,
     borderColor: colors.neutral[200],
@@ -3079,7 +3080,7 @@ const styles = StyleSheet.create({
   },
   formHint: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[500],
     marginBottom: spacing.sm,
   },
@@ -3098,7 +3099,7 @@ const styles = StyleSheet.create({
   },
   pickerOptionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    fontFamily: fonts.bodyMedium,
     fontWeight: '500',
     color: colors.neutral[600],
   },
@@ -3123,13 +3124,13 @@ const styles = StyleSheet.create({
   },
   filterModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontFamily: fonts.display,
     fontWeight: '600',
     color: colors.neutral[800],
   },
   clearAllText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.primary[500],
   },
@@ -3150,7 +3151,7 @@ const styles = StyleSheet.create({
   },
   filterCategoryTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[800],
   },
@@ -3177,11 +3178,11 @@ const styles = StyleSheet.create({
   },
   filterOptionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[700],
   },
   filterOptionTextSelected: {
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.primary[600],
   },
@@ -3202,7 +3203,7 @@ const styles = StyleSheet.create({
   },
   applyFiltersText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[0],
   },
@@ -3242,13 +3243,13 @@ const styles = StyleSheet.create({
   },
   urlModalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontFamily: fonts.display,
     fontWeight: '600',
     color: colors.neutral[800],
   },
   urlModalSubtitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[500],
   },
   urlModalCloseButton: {
@@ -3261,7 +3262,7 @@ const styles = StyleSheet.create({
   },
   urlModalDescription: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[600],
     lineHeight: 22,
     marginBottom: spacing.xl,
@@ -3282,7 +3283,7 @@ const styles = StyleSheet.create({
   urlInput: {
     flex: 1,
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[800],
     paddingVertical: spacing.md,
   },
@@ -3299,14 +3300,14 @@ const styles = StyleSheet.create({
   },
   exampleUrlsTitle: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[600],
     marginBottom: spacing.md,
   },
   exampleUrlsText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[500],
     lineHeight: 20,
   },
@@ -3323,7 +3324,7 @@ const styles = StyleSheet.create({
   },
   urlCancelButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[600],
   },
@@ -3342,7 +3343,7 @@ const styles = StyleSheet.create({
   },
   urlImportButtonText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[0],
   },
@@ -3398,7 +3399,7 @@ const styles = StyleSheet.create({
   },
   difficultyText: {
     fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontFamily: fonts.bodyBold,
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -3413,7 +3414,7 @@ const styles = StyleSheet.create({
   },
   aiText: {
     fontSize: 9,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Bold',
+    fontFamily: fonts.bodyBold,
     fontWeight: 'bold',
     color: colors.neutral[0],
   },
@@ -3433,14 +3434,14 @@ const styles = StyleSheet.create({
   },
   gridTitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[800],
     marginBottom: spacing.xs,
   },
   gridDescription: {
     fontSize: typography.fontSize.sm,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[600],
     marginBottom: spacing.sm,
   },
@@ -3457,7 +3458,7 @@ const styles = StyleSheet.create({
   },
   gridMetaText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+    fontFamily: fonts.bodyMedium,
     fontWeight: '500',
     color: colors.neutral[500],
   },
@@ -3483,7 +3484,7 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'Poppins-SemiBold',
+    fontFamily: fonts.display,
     fontWeight: '600',
     color: colors.neutral[700],
     marginTop: spacing.lg,
@@ -3492,7 +3493,7 @@ const styles = StyleSheet.create({
   },
   emptyStateSubtitle: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+    fontFamily: fonts.body,
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -3521,13 +3522,13 @@ const styles = StyleSheet.create({
   },
   emptyActionText: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.primary[600],
   },
   emptyActionTextSecondary: {
     fontSize: typography.fontSize.base,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-SemiBold',
+    fontFamily: fonts.bodySemibold,
     fontWeight: '600',
     color: colors.neutral[600],
   },

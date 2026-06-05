@@ -26,21 +26,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: profile, error } = await supabase
         .from('user_profiles')
         .select(
-          'full_name, age, gender, height_cm, weight_kg, activity_level, health_goals_macros',
+          'full_name, age, gender, height_cm, weight_kg, activity_level',
         )
         .eq('id', userId)
         .maybeSingle();
 
       if (error) throw error;
 
+      // health_goals_macros dropped from onboarding; completeness now keys off
+      // the basic + physical fields that are still collected.
       const complete = !!(
         profile?.full_name &&
         profile?.age &&
         profile?.gender &&
         profile?.height_cm &&
         profile?.weight_kg &&
-        profile?.activity_level &&
-        profile?.health_goals_macros
+        profile?.activity_level
       );
       setIsProfileComplete(complete);
     } catch (err) {

@@ -249,6 +249,28 @@ const buildCulturallyIntelligentPrompt = (
   const hardConstraints = buildReligiousConstraints(
     culturalProfile.religiousRestrictions,
   );
+
+  // User personal constraints from onboarding (allergens live in
+  // dietary_restrictions). These must appear verbatim in the prompt so the
+  // model treats selected allergens as a hard constraint, not just a post-check.
+  const userAllergens =
+    userProfile?.dietary_restrictions || userProfile?.allergens || [];
+  const userDiet = userProfile?.dietary_preferences || [];
+  const userCuisines = userProfile?.cuisine_preferences || [];
+  const userConstraints =
+    [
+      userAllergens.length
+        ? `- ALLERGENS (NEVER include any of these, HARD CONSTRAINT): ${userAllergens.join(', ')}`
+        : '',
+      userDiet.length
+        ? `- Dietary preferences (respect): ${userDiet.join(', ')}`
+        : '',
+      userCuisines.length
+        ? `- Preferred cuisines: ${userCuisines.join(', ')}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n') || '- None specified';
   const culturalGuidelines = buildCulturalGuidelines(cuisineData, mealType);
   const regionalPreferences = buildRegionalPreferences(regionalData);
   const pantrySection = buildCulturalPantrySection(
@@ -279,6 +301,9 @@ const buildCulturallyIntelligentPrompt = (
 
 🚫 ABSOLUTE PROHIBITIONS (NEVER VIOLATE):
 ${hardConstraints}
+
+👤 USER PERSONAL CONSTRAINTS (from their profile):
+${userConstraints}
 
 🏛️ CULTURAL AUTHENTICITY REQUIREMENTS:
 ${culturalGuidelines}
@@ -544,7 +569,10 @@ const analyzeUserProfile = (userProfile: UserProfile | null) => {
     userProfile.cuisine_preferences?.length > 0
       ? userProfile.cuisine_preferences.join(', ')
       : 'international';
-  const allergenWarnings = userProfile.allergens || [];
+  // Onboarding stores selected allergens in dietary_restrictions; keep the
+  // legacy `allergens` field as a fallback for older profiles.
+  const allergenWarnings =
+    userProfile.allergens || userProfile.dietary_restrictions || [];
   const dietaryGuidelines = userProfile.dietary_preferences || [];
 
   return {
@@ -895,7 +923,8 @@ export const generateAIMealWithQualityControl = async (
   const policy: MealPolicy = {
     name: 'culturally_intelligent',
     dietaryRestrictions: userProfile?.dietary_restrictions || [],
-    allergens: userProfile?.allergens || [],
+    // allergens live in dietary_restrictions for profiles created via onboarding
+    allergens: userProfile?.allergens || userProfile?.dietary_restrictions || [],
     targetCalories: getCalorieTarget(userProfile, mealType),
     minPantryUsage: 0.7,
     cuisines: userProfile?.cuisine_preferences || [],

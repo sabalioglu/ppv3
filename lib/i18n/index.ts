@@ -25,6 +25,7 @@ import settings from './locales/settings';
 import auth from './locales/auth';
 import mealPlan from './locales/mealPlan';
 import subscription from './locales/subscription';
+import library from './locales/library';
 
 const AREAS = {
   common,
@@ -41,6 +42,7 @@ const AREAS = {
   auth,
   mealPlan,
   subscription,
+  library,
 };
 
 type Area = { en: Record<string, unknown>; tr: Record<string, unknown> };

@@ -20,10 +20,6 @@ import Step2, {
   activityLevelValues,
 } from '@/components/onboarding/PhysicalStats';
 import {
-  HealthGoalsMacrosKeys,
-  HealthGoalsMicrosKeys,
-  HealthGoalsMacros as Step3,
-  HealthGoalsMicros as Step4,
   Allergens as Step5,
   DietaryPreferences as Step6,
   CuisinePreferences as Step7,
@@ -66,10 +62,6 @@ export const formSchema = z.object({
     activityLevelValues,
     'Please select your activity level',
   ),
-  healthGoalsMacros: z
-    .array(z.enum(HealthGoalsMacrosKeys))
-    .length(1, 'Please select exactly one health goal'),
-  healthGoalsMicros: z.array(z.enum(HealthGoalsMicrosKeys)).optional(),
   dietaryRestrictions: z.array(z.string()).optional(), // This will store selected allergens
   dietaryPreferences: z.array(z.string()).optional(),
   cuisinePreferences: z.array(z.string()).optional(),
@@ -83,26 +75,28 @@ const defaultFormValues: z.infer<typeof formSchema> = {
   height: '',
   weight: '',
   activityLevel: 'moderately_active',
-  healthGoalsMacros: [],
-  healthGoalsMicros: [],
   dietaryRestrictions: [],
   dietaryPreferences: [],
   cuisinePreferences: [],
   cookingSkillLevel: '',
 };
 
+// 4-step onboarding. Clinical macro/micro goal steps were removed; the remaining
+// steps are consolidated so basic+physical and diet+cuisine each share one screen.
 const steps: Record<
   number,
-  { component: React.FC; fields: (keyof z.infer<typeof formSchema>)[] }
+  { components: React.FC[]; fields: (keyof z.infer<typeof formSchema>)[] }
 > = {
-  1: { component: Step1, fields: ['fullName', 'age', 'gender'] },
-  2: { component: Step2, fields: ['height', 'weight', 'activityLevel'] },
-  3: { component: Step3, fields: ['healthGoalsMacros'] },
-  4: { component: Step4, fields: ['healthGoalsMicros'] },
-  5: { component: Step5, fields: ['dietaryRestrictions'] },
-  6: { component: Step6, fields: ['dietaryPreferences'] },
-  7: { component: Step7, fields: ['cuisinePreferences'] },
-  8: { component: Step8, fields: ['cookingSkillLevel'] },
+  1: {
+    components: [Step1, Step2],
+    fields: ['fullName', 'age', 'gender', 'height', 'weight', 'activityLevel'],
+  },
+  2: { components: [Step5], fields: ['dietaryRestrictions'] },
+  3: {
+    components: [Step6, Step7],
+    fields: ['dietaryPreferences', 'cuisinePreferences'],
+  },
+  4: { components: [Step8], fields: ['cookingSkillLevel'] },
 };
 
 const TOTAL_STEPS = Object.keys(steps).length;
@@ -122,7 +116,7 @@ export default function Onboarding() {
     allergens: number;
   } | null>(null);
 
-  const StepComponent = steps[currentStep].component;
+  const StepComponents = steps[currentStep].components;
 
   const { session, checkProfileCompletion } = useAuth();
   const { colors } = useTheme();
@@ -171,8 +165,9 @@ export default function Onboarding() {
         height_cm: parseInt(data.height),
         weight_kg: parseFloat(data.weight),
         activity_level: data.activityLevel,
-        health_goals_macros: data.healthGoalsMacros,
-        health_goals_micros: data.healthGoalsMicros,
+        // clinical macro/micro goals no longer collected; columns kept, written null
+        health_goals_macros: null,
+        health_goals_micros: null,
         dietary_restrictions: data.dietaryRestrictions,
         dietary_preferences: data.dietaryPreferences,
         cuisine_preferences: data.cuisinePreferences,
@@ -276,8 +271,10 @@ export default function Onboarding() {
           </View>
 
           {/* Steps Content */}
-          <View style={{ marginVertical: spacing.sm }}>
-            <StepComponent />
+          <View style={{ marginVertical: spacing.sm, gap: spacing.lg }}>
+            {StepComponents.map((StepComponent, i) => (
+              <StepComponent key={i} />
+            ))}
           </View>
 
           {currentStep === TOTAL_STEPS && (
