@@ -38,6 +38,11 @@ import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
 import { FeatureCard, RecipeListCard } from '@/components/UI/RecipeCard';
 
+// Once-per-session guard: backfill the user's recipes into recipe_corpus so
+// manually-added recipes (which skip the edge embed path) still enrich RAG.
+// Fire-and-forget, idempotent server-side (dedupe by owner+title).
+let corpusBackfillDone = false;
+
 // Recipe interface (aligned with Supabase schema)
 interface Recipe {
   id: string;
@@ -663,6 +668,12 @@ export default function Recipes() {
           t('recipes.loginRequiredMessage'),
         );
         return;
+      }
+
+      // once per session: enrich the shared corpus with this user's recipes
+      if (!corpusBackfillDone) {
+        corpusBackfillDone = true;
+        supabase.functions.invoke('corpus-backfill').catch(() => {});
       }
 
       const { data: recipesData, error } = await supabase
