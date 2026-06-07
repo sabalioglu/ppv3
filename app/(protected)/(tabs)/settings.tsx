@@ -104,28 +104,30 @@ export default function SettingsScreen() {
     return t('settings.premiumFallback');
   };
 
+  const doLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        Alert.alert(t('settings.logoutError'), error.message);
+      } else {
+        router.replace('/(auth)/login');
+      }
+    } catch (error: any) {
+      Alert.alert(t('settings.logoutError'), t('settings.logoutErrorMessage'));
+    }
+  };
+
   const handleLogout = async () => {
+    // RN Alert.alert multi-button callbacks don't fire on web -> use window.confirm.
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('settings.logoutMessage'))) {
+        await doLogout();
+      }
+      return;
+    }
     Alert.alert(t('settings.logoutTitle'), t('settings.logoutMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('settings.logout'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const { error } = await supabase.auth.signOut();
-            if (error) {
-              Alert.alert(t('settings.logoutError'), error.message);
-            } else {
-              router.replace('/(auth)/login');
-            }
-          } catch (error: any) {
-            Alert.alert(
-              t('settings.logoutError'),
-              t('settings.logoutErrorMessage'),
-            );
-          }
-        },
-      },
+      { text: t('settings.logout'), style: 'destructive', onPress: doLogout },
     ]);
   };
 
