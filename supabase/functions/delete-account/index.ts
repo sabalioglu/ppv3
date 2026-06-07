@@ -82,7 +82,10 @@ Deno.serve(async (req) => {
   // 2) authoritative: remove the auth user (the account itself)
   const { error: delErr } = await admin.auth.admin.deleteUser(userId);
   if (delErr)
-    return json({ error: 'account deletion failed', detail: delErr.message }, 500);
+    return json(
+      { error: 'account deletion failed', detail: delErr.message },
+      500,
+    );
 
   return json({ ok: true, deleted: userId });
 });

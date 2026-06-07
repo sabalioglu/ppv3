@@ -64,7 +64,10 @@ export default function PaywallScreen() {
         close();
       }
     } catch {
-      Alert.alert(t('paywall.purchaseFailedTitle'), t('paywall.purchaseFailedBody'));
+      Alert.alert(
+        t('paywall.purchaseFailedTitle'),
+        t('paywall.purchaseFailedBody'),
+      );
     } finally {
       setBusy(false);
     }
@@ -196,7 +199,13 @@ export default function PaywallScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingTop: Platform.OS === 'ios' ? 56 : 32 },
-  closeBtn: { position: 'absolute', top: 48, right: 16, zIndex: 10, padding: 8 },
+  closeBtn: {
+    position: 'absolute',
+    top: 48,
+    right: 16,
+    zIndex: 10,
+    padding: 8,
+  },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   badge: {
     flexDirection: 'row',
@@ -231,7 +240,11 @@ const styles = StyleSheet.create({
   },
   planTitle: { fontFamily: fonts.bodySemibold, fontSize: 16 },
   planPrice: { fontFamily: fonts.displayBold, fontSize: 22, marginTop: 4 },
-  footer: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.sm,
+  },
   cta: {
     height: 54,
     borderRadius: radius.lg,
@@ -239,6 +252,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ctaText: { color: '#fff', fontFamily: fonts.bodyBold, fontSize: 17 },
-  restore: { textAlign: 'center', fontFamily: fonts.bodyMedium, fontSize: 14, paddingVertical: 4 },
-  legal: { textAlign: 'center', fontFamily: fonts.body, fontSize: 11, lineHeight: 16 },
+  restore: {
+    textAlign: 'center',
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  legal: {
+    textAlign: 'center',
+    fontFamily: fonts.body,
+    fontSize: 11,
+    lineHeight: 16,
+  },
 });
