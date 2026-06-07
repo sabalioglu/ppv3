@@ -18,6 +18,7 @@ export default {
 
     // social
     continueWithGoogle: 'Continue with Google',
+    continueWithApple: 'Continue with Apple',
 
     // signup
     signupEyebrow: 'JOIN STOVD',
@@ -262,6 +263,7 @@ export default {
 
     // social
     continueWithGoogle: 'Google ile devam et',
+    continueWithApple: 'Apple ile devam et',
 
     // signup
     signupEyebrow: "STOVD'A KATIL",

@@ -14,6 +14,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.stovd.app',
+      usesAppleSignIn: true,
       infoPlist: {
         CFBundleURLTypes: [
           {

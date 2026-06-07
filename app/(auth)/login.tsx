@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ import AuthLayout from '@/components/auth/AuthLayout';
 import CustomAlert from '@/components/UI/CustomAlert';
 import { Display, Eyebrow } from '@/components/UI/Display';
 import GoogleButton from '@/components/auth/GoogleButton';
+import AppleButton from '@/components/auth/AppleButton';
 import PrimaryButton from '@/components/auth/PrimaryButton';
 
 import { useCustomAlert } from '@/hooks/useCustomAlert';
@@ -105,6 +106,23 @@ const LoginPage = () => {
     }
   };
 
+  // App Store Guideline 4.8: offer Apple sign-in alongside Google (iOS).
+  const handleAppleSignIn = async () => {
+    setErrorMessage(null);
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: { redirectTo: makeRedirectUri() },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setErrorMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRedirectToSignUp = () => {
     router.replace('/signup');
   };
@@ -171,6 +189,16 @@ const LoginPage = () => {
             disabled={loading}
           />
 
+          {Platform.OS === 'ios' && (
+            <View style={styles.appleSpacer}>
+              <AppleButton
+                text={t('auth.continueWithApple')}
+                onPress={handleAppleSignIn}
+                disabled={loading}
+              />
+            </View>
+          )}
+
           {errorMessage && <ErrorCard message={errorMessage} />}
         </View>
 
@@ -226,6 +254,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   eyebrow: { marginBottom: spacing.sm },
+  appleSpacer: { marginTop: spacing.sm },
   title: { marginBottom: spacing.sm },
   lede: { marginBottom: spacing.xl },
   form: { gap: 0 },
