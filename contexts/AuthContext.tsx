@@ -53,8 +53,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const init = async () => {
-      // simulate a delay, e.g. for an API request
-      await new Promise((res) => setTimeout(() => res(null), 1000));
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -79,8 +77,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
+        // Update session state synchronously; defer any further Supabase calls
+        // to the next tick — calling supabase methods directly inside this
+        // callback can deadlock the auth client (documented constraint).
+        setSession(newSession ?? null);
         setTimeout(async () => {
-          setSession(newSession ?? null);
           if (event === 'SIGNED_IN' && newSession?.user?.id) {
             await configurePurchases(newSession.user.id);
             await checkProfile(newSession.user.id);
@@ -88,7 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else if (event === 'SIGNED_OUT') {
             await logOutPurchases();
           }
-        }, 1000);
+        }, 0);
       },
     );
 
