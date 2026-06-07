@@ -118,6 +118,89 @@ function parseDays(json: any, expected: number): DayPlanLite[] {
   });
 }
 
+// Common main-protein anchors used to detect a monotonous week (the "5 salmon"
+// problem). Order matters: more specific terms first so "ground beef" -> beef.
+const PROTEIN_KEYWORDS = [
+  'salmon', 'tuna', 'cod', 'shrimp', 'prawn', 'fish',
+  'chicken', 'turkey', 'duck',
+  'beef', 'steak', 'lamb', 'pork', 'bacon', 'sausage',
+  'tofu', 'tempeh', 'lentil', 'chickpea', 'bean', 'egg', 'paneer',
+];
+
+// Identify the main protein in a dish name, or null if none recognized.
+function mainProtein(name?: string | null): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  for (const p of PROTEIN_KEYWORDS) if (lower.includes(p)) return p;
+  return null;
+}
+
+// Proteins that appear in more than `max` dinners across the plan.
+function overusedDinnerProteins(days: DayPlanLite[], max = 2): string[] {
+  const counts = new Map<string, number>();
+  for (const d of days) {
+    const p = mainProtein(d.dinner?.name);
+    if (p) counts.set(p, (counts.get(p) ?? 0) + 1);
+  }
+  return [...counts.entries()].filter(([, n]) => n > max).map(([p]) => p);
+}
+
+// Post-check + ONE corrective retry (no extra quota): if any protein anchors
+// more than 2 dinners, regenerate just the offending days avoiding those
+// proteins. Best-effort — on any failure the original days are returned.
+async function enforceDinnerVariety(
+  plan: MultiDayPlan,
+  pantryItems: any[],
+  userProfile: any,
+): Promise<MultiDayPlan> {
+  const overused = overusedDinnerProteins(plan.days);
+  if (!overused.length) return plan;
+
+  // keep the first 2 occurrences of each overused protein; redo the rest
+  const seen = new Map<string, number>();
+  const redoIdx: number[] = [];
+  plan.days.forEach((d, i) => {
+    const p = mainProtein(d.dinner?.name);
+    if (p && overused.includes(p)) {
+      const n = (seen.get(p) ?? 0) + 1;
+      seen.set(p, n);
+      if (n > 2) redoIdx.push(i);
+    }
+  });
+  if (!redoIdx.length) return plan;
+
+  try {
+    const prompt = `Replace the dinner dishes for these days with NEW, varied dinners.
+Pantry: ${pantryLine(pantryItems)}.
+Constraints: ${constraintLine(userProfile)}
+HARD RULE: do NOT use any of these proteins as the main ingredient: ${overused.join(', ')}.
+Each replacement dinner must use a DIFFERENT main protein from the others.
+Return exactly ${redoIdx.length} dinners. Respond ONLY with JSON:
+{"dinners":[{"name":"...","calories":0,"protein":0}]}`;
+    const json = await callMealGenerate(SYSTEM, prompt);
+    const repl: any[] = Array.isArray(json?.dinners) ? json.dinners : [];
+    redoIdx.forEach((dayIdx, k) => {
+      const m = repl[k];
+      if (m && m.name) {
+        const newDinner: MealLite = {
+          name: String(m.name),
+          calories: Number(m.calories) || 0,
+          protein: m.protein != null ? Number(m.protein) : undefined,
+        };
+        const day = plan.days[dayIdx];
+        day.dinner = newDinner;
+        day.totalCalories =
+          (day.breakfast?.calories || 0) +
+          (day.lunch?.calories || 0) +
+          newDinner.calories;
+      }
+    });
+  } catch {
+    // keep the original plan if the corrective call fails
+  }
+  return plan;
+}
+
 // Weekly: one call, 7 days of breakfast/lunch/dinner with names + calories.
 export async function generateWeeklyPlan(
   pantryItems: any[],
@@ -127,11 +210,12 @@ export async function generateWeeklyPlan(
   const prompt = `Create a 7-day meal plan.
 Pantry: ${pantryLine(pantryItems)}.
 Constraints: ${constraintLine(userProfile)}
-Vary the meals across the week (no repeats). Respond ONLY with JSON:
+Vary the meals across the week (no repeats). Use a DIFFERENT main protein for dinner each day; never repeat the same protein more than twice. Respond ONLY with JSON:
 {"days":[{"label":"Day 1","breakfast":{"name":"...","calories":0,"protein":0},"lunch":{"name":"...","calories":0,"protein":0},"dinner":{"name":"...","calories":0,"protein":0}}]}
 Exactly 7 day objects.`;
   const json = await callMealGenerate(SYSTEM, prompt);
-  return { days: parseDays(json, 7), generatedAt: new Date().toISOString() };
+  const plan = { days: parseDays(json, 7), generatedAt: new Date().toISOString() };
+  return enforceDinnerVariety(plan, pantryItems, userProfile);
 }
 
 // Monthly: one call, 30-day skeleton (names + calories only).
