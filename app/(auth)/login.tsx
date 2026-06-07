@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -189,15 +189,13 @@ const LoginPage = () => {
             disabled={loading}
           />
 
-          {Platform.OS === 'ios' && (
-            <View style={styles.appleSpacer}>
-              <AppleButton
-                text={t('auth.continueWithApple')}
-                onPress={handleAppleSignIn}
-                disabled={loading}
-              />
-            </View>
-          )}
+          <View style={styles.appleSpacer}>
+            <AppleButton
+              text={t('auth.continueWithApple')}
+              onPress={handleAppleSignIn}
+              disabled={loading}
+            />
+          </View>
 
           {errorMessage && <ErrorCard message={errorMessage} />}
         </View>

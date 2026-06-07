@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { makeRedirectUri } from 'expo-auth-session';
 import { useForm } from 'react-hook-form';
@@ -175,15 +175,13 @@ const SignUpPage = () => {
             disabled={loading}
           />
 
-          {Platform.OS === 'ios' && (
-            <View style={styles.appleSpacer}>
-              <AppleButton
-                text={t('auth.continueWithApple')}
-                onPress={handleAppleSignUp}
-                disabled={loading}
-              />
-            </View>
-          )}
+          <View style={styles.appleSpacer}>
+            <AppleButton
+              text={t('auth.continueWithApple')}
+              onPress={handleAppleSignUp}
+              disabled={loading}
+            />
+          </View>
 
           {errorMessage && <ErrorCard message={errorMessage} />}
         </View>
