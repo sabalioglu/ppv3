@@ -219,6 +219,57 @@ Return exactly ${redoIdx.length} dinners. Respond ONLY with JSON:
   return plan;
 }
 
+// Regenerate ONE day of an existing multi-day plan (weekly or monthly skeleton).
+// No quota is consumed — this is an in-place tweak of a plan already paid for.
+// The new day is steered to differ from the other days' dinners. The day label
+// is preserved. Throws on failure so the caller can surface a retry.
+export async function regenerateSingleDay(
+  existing: MultiDayPlan,
+  dayIndex: number,
+  pantryItems: any[],
+  userProfile: any,
+): Promise<DayPlanLite> {
+  const current = existing.days[dayIndex];
+  const avoidDinners = existing.days
+    .filter((_, i) => i !== dayIndex)
+    .map((d) => d.dinner?.name)
+    .filter(Boolean)
+    .slice(0, 12);
+
+  const prompt = `Create ONE new day of meals: breakfast, lunch and dinner, each with a dish name and estimated calories (and protein grams if known).
+Pantry to favor: ${pantryLine(pantryItems)}.
+Constraints: ${constraintLine(userProfile)}
+Make this day DIFFERENT from these already-planned dinners (use other dishes and a different main protein): ${avoidDinners.join('; ') || 'none yet'}.
+Respond ONLY with JSON:
+{"breakfast":{"name":"...","calories":0,"protein":0},"lunch":{"name":"...","calories":0,"protein":0},"dinner":{"name":"...","calories":0,"protein":0}}`;
+
+  const json = await callMealGenerate(SYSTEM, prompt);
+  const toMeal = (m: any): MealLite | null =>
+    m && m.name
+      ? {
+          name: String(m.name),
+          calories: Number(m.calories) || 0,
+          protein: m.protein != null ? Number(m.protein) : undefined,
+        }
+      : null;
+  const breakfast = toMeal(json?.breakfast);
+  const lunch = toMeal(json?.lunch);
+  const dinner = toMeal(json?.dinner);
+  if (!breakfast && !lunch && !dinner) {
+    throw new Error('regenerateSingleDay: empty response');
+  }
+  return {
+    label: current.label,
+    breakfast,
+    lunch,
+    dinner,
+    totalCalories:
+      (breakfast?.calories || 0) +
+      (lunch?.calories || 0) +
+      (dinner?.calories || 0),
+  };
+}
+
 // Weekly: one call, 7 days of breakfast/lunch/dinner with names + calories.
 export async function generateWeeklyPlan(
   pantryItems: any[],

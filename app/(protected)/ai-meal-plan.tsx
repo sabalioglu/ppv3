@@ -95,6 +95,7 @@ import {
 import {
   generateWeeklyPlan,
   generateMonthlySkeleton,
+  regenerateSingleDay,
   type MultiDayPlan,
   type DayPlanLite,
 } from '@/lib/meal-plan/multi-day-generation';
@@ -522,6 +523,8 @@ export default function AIMealPlan() {
   const [weeklyPlan, setWeeklyPlan] = useState<MultiDayPlan | null>(null);
   const [monthlyPlan, setMonthlyPlan] = useState<MultiDayPlan | null>(null);
   const [multiDayLoading, setMultiDayLoading] = useState(false);
+  // which (mode,dayIndex) is regenerating, e.g. "weekly:2" — null when idle
+  const [dayRegenKey, setDayRegenKey] = useState<string | null>(null);
 
   // Modal states
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
@@ -583,6 +586,30 @@ export default function AIMealPlan() {
       }
     } finally {
       setMultiDayLoading(false);
+    }
+  };
+
+  // ✅ Regenerate a SINGLE day of an existing multi-day plan (no quota cost).
+  const regenerateDay = async (mode: 'weekly' | 'monthly', idx: number) => {
+    const plan = mode === 'weekly' ? weeklyPlan : monthlyPlan;
+    if (!plan || dayRegenKey) return;
+    setDayRegenKey(`${mode}:${idx}`);
+    try {
+      const newDay = await regenerateSingleDay(
+        plan,
+        idx,
+        pantryItems,
+        userProfile,
+      );
+      const days = plan.days.map((d, i) => (i === idx ? newDay : d));
+      const updated: MultiDayPlan = { ...plan, days };
+      if (mode === 'weekly') setWeeklyPlan(updated);
+      else setMonthlyPlan(updated);
+    } catch (error) {
+      console.error(`Failed to regenerate ${mode} day ${idx}:`, error);
+      Alert.alert(t('mealPlan.genFailedTitle'), t('mealPlan.genFailedBody'));
+    } finally {
+      setDayRegenKey(null);
     }
   };
 
@@ -1242,9 +1269,24 @@ export default function AIMealPlan() {
               >
                 {day.label}
               </Text>
-              <Text style={[styles.multiDayDayCal, { color: colors.primary }]}>
-                {t('mealPlan.dayCalories', { cal: day.totalCalories })}
-              </Text>
+              <View style={styles.multiDayHeaderRight}>
+                <Text style={[styles.multiDayDayCal, { color: colors.primary }]}>
+                  {t('mealPlan.dayCalories', { cal: day.totalCalories })}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => regenerateDay(mode, idx)}
+                  disabled={!!dayRegenKey || multiDayLoading}
+                  hitSlop={10}
+                  style={styles.dayRegenButton}
+                  accessibilityLabel={t('mealPlan.regenerateDay')}
+                >
+                  {dayRegenKey === `${mode}:${idx}` ? (
+                    <ActivityIndicator size="small" color={colors.accent} />
+                  ) : (
+                    <RefreshCw size={15} color={colors.accent} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
             {mealRow(t('mealPlan.breakfast'), day.breakfast)}
             {mealRow(t('mealPlan.lunch'), day.lunch)}
@@ -1883,6 +1925,17 @@ const styles = StyleSheet.create({
   multiDayDayLabel: {
     fontSize: 15,
     fontFamily: fonts.displayBold,
+  },
+  multiDayHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dayRegenButton: {
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   multiDayDayCal: {
     fontSize: 13,

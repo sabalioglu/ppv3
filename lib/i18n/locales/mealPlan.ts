@@ -59,6 +59,7 @@ export default {
     multiDayEmpty: 'No plan yet',
     dayCalories: '%{cal} kcal',
     regeneratePlan: 'Regenerate plan',
+    regenerateDay: 'Regenerate this day',
     quotaTitle: 'Plan limit reached',
     quotaReached:
       "You've used all your AI meal plans for this month. Upgrade for more.",
@@ -166,6 +167,7 @@ export default {
     multiDayEmpty: 'Henüz plan yok',
     dayCalories: '%{cal} kcal',
     regeneratePlan: 'Planı yenile',
+    regenerateDay: 'Bu günü yenile',
     quotaTitle: 'Plan limiti doldu',
     quotaReached:
       'Bu ayki AI öğün planı hakkını kullandın. Daha fazlası için yükselt.',
