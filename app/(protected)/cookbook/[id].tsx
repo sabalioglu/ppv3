@@ -35,6 +35,7 @@ import { supabase } from '@/lib/supabase';
 import { EditCookbookBottomSheet } from '@/components/library/modals/EditCookbookBottomSheet';
 import { RecipeSelectionBottomSheet } from '@/components/library/modals/RecipeSelectionBottomSheet';
 import { t, i18n } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/ui/confirm';
 
 // Locale is fixed at startup (device-driven), so compute label formats once.
 const TR = i18n.locale === 'tr';
@@ -178,34 +179,27 @@ export default function CookbookDetail() {
   }, [id]);
 
   const handleDeleteCookbook = async () => {
-    Alert.alert(
-      t('cookbook.deleteTitle'),
-      t('cookbook.deleteMessage', { name: cookbook?.name }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('cookbooks')
-                .delete()
-                .eq('id', cookbook?.id);
+    confirmDestructive({
+      title: t('cookbook.deleteTitle'),
+      message: t('cookbook.deleteMessage', { name: cookbook?.name }),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('cookbooks')
+            .delete()
+            .eq('id', cookbook?.id);
 
-              if (error) throw error;
+          if (error) throw error;
 
-              Alert.alert(t('common.success'), t('cookbook.deletedMessage'), [
-                { text: t('common.ok'), onPress: () => router.back() },
-              ]);
-            } catch (error) {
-              console.error('Error deleting cookbook:', error);
-              Alert.alert(t('common.error'), t('cookbook.deleteError'));
-            }
-          },
-        },
-      ],
-    );
+          router.back();
+        } catch (error) {
+          console.error('Error deleting cookbook:', error);
+          Alert.alert(t('common.error'), t('cookbook.deleteError'));
+        }
+      },
+    });
   };
 
   const handleAddRecipes = () => {

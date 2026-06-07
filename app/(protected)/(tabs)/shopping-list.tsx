@@ -40,6 +40,7 @@ import { SectionHeader } from '@/components/UI/SectionHeader';
 import { ShoppingRow } from '@/components/shopping/ShoppingRow';
 import { supabase } from '@/lib/supabase';
 import { t, i18n } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/ui/confirm';
 
 // Currency/percent formats differ by locale; compute once (locale fixed at startup).
 const TR = i18n.locale === 'tr';
@@ -426,35 +427,30 @@ export default function ShoppingList() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert(
-      t('shopping.deleteItemTitle'),
-      t('shopping.deleteItemMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('shopping_list_items')
-                .delete()
-                .eq('id', itemId);
+    confirmDestructive({
+      title: t('shopping.deleteItemTitle'),
+      message: t('shopping.deleteItemMessage'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('shopping_list_items')
+            .delete()
+            .eq('id', itemId);
 
-              if (error) throw error;
+          if (error) throw error;
 
-              setItems((prev) => prev.filter((i) => i.id !== itemId));
-            } catch (error) {
-              console.error('Error deleting item:', error);
-              Alert.alert(
-                t('shopping.errorTitle'),
-                t('shopping.errorDeleteFailed'),
-              );
-            }
-          },
-        },
-      ],
-    );
+          setItems((prev) => prev.filter((i) => i.id !== itemId));
+        } catch (error) {
+          console.error('Error deleting item:', error);
+          Alert.alert(
+            t('shopping.errorTitle'),
+            t('shopping.errorDeleteFailed'),
+          );
+        }
+      },
+    });
   };
 
   // ✅ NEW: Pantry Integration Function
@@ -525,35 +521,30 @@ export default function ShoppingList() {
       return;
     }
 
-    Alert.alert(
-      t('shopping.clearConfirmTitle'),
-      t('shopping.clearConfirmMessage', { count: completedItems.length }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('shopping_list_items')
-                .delete()
-                .in(
-                  'id',
-                  completedItems.map((item) => item.id),
-                );
+    confirmDestructive({
+      title: t('shopping.clearConfirmTitle'),
+      message: t('shopping.clearConfirmMessage', { count: completedItems.length }),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('shopping_list_items')
+            .delete()
+            .in(
+              'id',
+              completedItems.map((item) => item.id),
+            );
 
-              if (error) throw error;
-              setItems((prev) => prev.filter((item) => !item.is_completed));
-              setShowQuickActions(false);
-            } catch (error) {
-              console.error('Error clearing completed items:', error);
-              Alert.alert(t('shopping.errorTitle'), t('shopping.clearFailed'));
-            }
-          },
-        },
-      ],
-    );
+          if (error) throw error;
+          setItems((prev) => prev.filter((item) => !item.is_completed));
+          setShowQuickActions(false);
+        } catch (error) {
+          console.error('Error clearing completed items:', error);
+          Alert.alert(t('shopping.errorTitle'), t('shopping.clearFailed'));
+        }
+      },
+    });
   };
 
   // ✅ Filtering with priority support

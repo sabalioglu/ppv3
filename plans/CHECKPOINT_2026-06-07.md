@@ -21,12 +21,15 @@ Devam noktası. Branch `main`, her şey push'lu (son commit `7414600`). Ayrı br
 
 ---
 
-## ⏭️ SIRADAKİ OTONOM PLAN (deploy gerektirmeyen, lokal test edilir)
+## ✅ 2026-06-07 GEÇ OTURUM — bitenler (hepsi push'lu)
 
-1. **Variety hard-guarantee** — `lib/meal-plan/multi-day-generation.ts`: haftalık planda aynı ana protein >2 gün çıkarsa o günü yeniden ürettir (post-check + 1 retry). "1 günde 5 somon" sorununa sert garanti. Lokal CloakBrowser test.
-2. **AuthContext `setTimeout(1000)` fix** — `contexts/AuthContext.tsx` kırılgan gecikmeleri sağlam state mantığıyla değiştir (login sonrası yarış/loop riski azalır).
-3. **Phase 4 ölü kod temizliği** — import-grep ile doğrula sonra sil: `screens/*.backup`, boş `VideoExtractor.tsx`, `lib/errorHandler`, orphan `profile` route, `lib/openai*`/`lib/llm` kalıntıları.
-4. **Manuel tarif → corpus backfill** — elle eklenen tarifler (direkt client→user_recipes) henüz corpus'a gitmiyor (gte-small embed sadece edge'de çalışır). Trigger+cron veya `corpus-backfill` edge fn. *(Deploy gerekir.)*
+- **(item 6) Manuel tarif → corpus backfill** — `corpus-backfill` edge fn **DEPLOY EDİLDİ** (self-auth JWT, idempotent owner+title dedupe). Recipes sekmesi session başına bir kez fire-and-forget tetikler. `8e6519b`.
+- **(item 1) Variety hard-guarantee** — `multi-day-generation.ts`: haftalık planda aynı ana protein >2 akşam yemeği → kota harcamadan düzeltici tek retry ile o günleri yeniden ürettir (best-effort, fail→orijinal plan). Aylık iskelet etkilenmez. `122c47a`.
+- **(item 2) AuthContext gecikme fix** — yapay 1s `init` delay silindi; `onAuthStateChange` session'ı senkron set edip kalan supabase çağrılarını `setTimeout(0)` ile erteliyor (1000→0). `d1fdc9b`.
+- **(item 3) Ölü kod temizliği** — `lib/llm` (createLLM, 0 importer) silindi. `screens/*.backup`, `VideoExtractor`, `errorHandler`, profile route ZATEN yoktu. `lib/openaiVisionService.ts` camera.tsx kullanıyor → KORUNDU. `bf44aae`.
+
+## ⏭️ KALAN OTONOM (deploy gerektirmeyen)
+
 5. **Gün-bazlı regenerate** — weekly/monthly tek günü yenile (tüm-plan "Planı yenile" zaten var).
 6. **RN-web Alert.alert genel fix** — kalan multi-button confirm'leri (regenerate-all vb.) web-safe yap.
 

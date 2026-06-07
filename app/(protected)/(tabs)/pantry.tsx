@@ -36,6 +36,7 @@ import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
 import { PantryItemCard } from '@/components/pantry/PantryItemCard';
 import { t } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/ui/confirm';
 
 interface PantryItem {
   id: string;
@@ -390,29 +391,28 @@ export default function PantryScreen() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    Alert.alert(t('pantry.deleteTitle'), t('pantry.deleteMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from('pantry_items')
-              .delete()
-              .eq('id', itemId);
+    confirmDestructive({
+      title: t('pantry.deleteTitle'),
+      message: t('pantry.deleteMessage'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('pantry_items')
+            .delete()
+            .eq('id', itemId);
 
-            if (error) throw error;
+          if (error) throw error;
 
-            setItems(items.filter((item) => item.id !== itemId));
-            setShowActionsMenu(null);
-          } catch (error) {
-            console.error('Error deleting item:', error);
-            Alert.alert(t('common.error'), t('pantry.deleteError'));
-          }
-        },
+          setItems(items.filter((item) => item.id !== itemId));
+          setShowActionsMenu(null);
+        } catch (error) {
+          console.error('Error deleting item:', error);
+          Alert.alert(t('common.error'), t('pantry.deleteError'));
+        }
       },
-    ]);
+    });
   };
 
   // ✅ FIXED: handleAddToShoppingList - Sadece tabloda olan alanları kullan
