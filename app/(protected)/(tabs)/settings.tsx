@@ -23,6 +23,7 @@ import {
   Shield,
   CircleHelp as HelpCircle,
   LogOut,
+  Trash2,
   ChevronRight,
   Heart,
   Star,
@@ -128,6 +129,39 @@ export default function SettingsScreen() {
     Alert.alert(t('settings.logoutTitle'), t('settings.logoutMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('settings.logout'), style: 'destructive', onPress: doLogout },
+    ]);
+  };
+
+  const doDeleteAccount = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('delete-account', {
+        body: {},
+      });
+      if (error) {
+        Alert.alert(t('settings.deleteError'), error.message);
+        return;
+      }
+      await supabase.auth.signOut();
+      router.replace('/(auth)/login');
+    } catch (error: any) {
+      Alert.alert(t('settings.deleteError'), t('settings.deleteErrorMessage'));
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('settings.deleteConfirm'))) {
+        await doDeleteAccount();
+      }
+      return;
+    }
+    Alert.alert(t('settings.deleteTitle'), t('settings.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.deleteConfirmCta'),
+        style: 'destructive',
+        onPress: doDeleteAccount,
+      },
     ]);
   };
 
@@ -376,6 +410,14 @@ export default function SettingsScreen() {
             title={t('settings.logout')}
             dangerous
             onPress={handleLogout}
+          />
+          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+          <SettingRow
+            icon={Trash2}
+            title={t('settings.deleteAccount')}
+            subtitle={t('settings.deleteAccountSubtitle')}
+            dangerous
+            onPress={handleDeleteAccount}
           />
         </SettingSection>
 

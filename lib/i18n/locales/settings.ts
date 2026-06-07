@@ -37,6 +37,15 @@ export default {
     logoutMessage: 'Are you sure you want to log out?',
     logoutError: 'Log out failed',
     logoutErrorMessage: 'Something went wrong while logging out',
+    // delete account
+    deleteAccount: 'Delete account',
+    deleteAccountSubtitle: 'Permanently remove your account and data',
+    deleteTitle: 'Delete account',
+    deleteConfirm:
+      'This permanently deletes your account, pantry, recipes and all data. This cannot be undone. Continue?',
+    deleteConfirmCta: 'Delete account',
+    deleteError: 'Delete failed',
+    deleteErrorMessage: 'Something went wrong while deleting your account',
     // coming soon
     comingSoon: 'Coming soon',
     languageComingSoon: 'Language selection is coming soon.',
@@ -88,6 +97,15 @@ export default {
     logoutMessage: 'Çıkış yapmak istediğine emin misin?',
     logoutError: 'Çıkış Hatası',
     logoutErrorMessage: 'Çıkış sırasında bir hata oluştu',
+    // delete account
+    deleteAccount: 'Hesabı sil',
+    deleteAccountSubtitle: 'Hesabını ve tüm verini kalıcı olarak kaldır',
+    deleteTitle: 'Hesabı sil',
+    deleteConfirm:
+      'Bu işlem hesabını, kilerini, tariflerini ve tüm verini kalıcı olarak siler. Geri alınamaz. Devam edilsin mi?',
+    deleteConfirmCta: 'Hesabı sil',
+    deleteError: 'Silme başarısız',
+    deleteErrorMessage: 'Hesabın silinirken bir hata oluştu',
     // coming soon
     comingSoon: 'Yakında',
     languageComingSoon: 'Dil seçimi yakında eklenecek.',
