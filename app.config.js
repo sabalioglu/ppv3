@@ -63,6 +63,21 @@ export default {
       // RevenueCat public SDK keys (NOT secrets — ship in bundle by design).
       rcIosKey: process.env.EXPO_PUBLIC_RC_IOS_KEY,
       rcAndroidKey: process.env.EXPO_PUBLIC_RC_ANDROID_KEY,
+      // AdMob rewarded ad unit IDs (public). Fallback to Google's official test
+      // unit until a real AdMob account exists; lib/ads.ts also falls back.
+      admobRewardedIos: process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS,
+      admobRewardedAndroid: process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID,
     },
+  },
+  // react-native-google-mobile-ads reads app IDs from this root key (config
+  // plugin). Sample app IDs below are Google's public test IDs — replace with
+  // the real ca-app-pub-…~… App IDs once the AdMob account is created.
+  'react-native-google-mobile-ads': {
+    androidAppId:
+      process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID ||
+      'ca-app-pub-3940256099942544~3347511713',
+    iosAppId:
+      process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS ||
+      'ca-app-pub-3940256099942544~1458002511',
   },
 };

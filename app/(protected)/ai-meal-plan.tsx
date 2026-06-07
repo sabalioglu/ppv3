@@ -85,6 +85,7 @@ import {
 } from '@/lib/meal-plan/api-clients/ai-generation';
 
 import { generateFallbackPlan } from '@/lib/meal-plan/utils';
+import { offerAdOrPaywall } from '@/lib/quota-recovery';
 
 // ✅ NEW: Enhanced generation imports
 import {
@@ -578,7 +579,7 @@ export default function AIMealPlan() {
         if (error.fairUse) {
           Alert.alert(t('mealPlan.quotaTitle'), t('mealPlan.quotaFairUse'));
         } else {
-          router.push('/paywall');
+          offerAdOrPaywall('ai_meal_plan', () => generateMultiDay(mode));
         }
       } else {
         console.error(`Failed to generate ${mode} plan:`, error);
@@ -824,7 +825,9 @@ export default function AIMealPlan() {
       // Free AI plan quota exhausted -> surface the paywall (fallback plan still
       // renders below so the screen is never empty). Fair-use ceiling is premium.
       if (error instanceof MealPlanQuotaError && !error.fairUse) {
-        router.push('/paywall');
+        offerAdOrPaywall('ai_meal_plan', () =>
+          generateInitialMealPlan(pantryItems, userProfile),
+        );
       }
       console.log('🔄 Generating fallback meal plan...');
 
@@ -1270,7 +1273,9 @@ export default function AIMealPlan() {
                 {day.label}
               </Text>
               <View style={styles.multiDayHeaderRight}>
-                <Text style={[styles.multiDayDayCal, { color: colors.primary }]}>
+                <Text
+                  style={[styles.multiDayDayCal, { color: colors.primary }]}
+                >
                   {t('mealPlan.dayCalories', { cal: day.totalCalories })}
                 </Text>
                 <TouchableOpacity

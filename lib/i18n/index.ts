@@ -27,6 +27,7 @@ import mealPlan from './locales/mealPlan';
 import subscription from './locales/subscription';
 import library from './locales/library';
 import paywall from './locales/paywall';
+import ads from './locales/ads';
 
 const AREAS = {
   common,
@@ -45,6 +46,7 @@ const AREAS = {
   subscription,
   library,
   paywall,
+  ads,
 };
 
 type Area = { en: Record<string, unknown>; tr: Record<string, unknown> };

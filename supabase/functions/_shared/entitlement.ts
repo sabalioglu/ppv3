@@ -32,8 +32,9 @@ export interface MeterResult {
   isPremium: boolean;
   feature: string;
   used: number;
-  limit: number;
+  limit: number; // effective limit for free users = base + earned ad bonus
   remaining: number;
+  bonus: number; // ad-earned bonus included in `limit` (0 for premium)
 }
 
 // Gate BEFORE doing the work. Does not increment. Fails OPEN: a metering
@@ -64,6 +65,7 @@ export async function checkQuota(
         limit: fairLimit,
         remaining:
           fairLimit === Infinity ? Infinity : Math.max(0, fairLimit - pu),
+        bonus: 0,
       };
     }
 
@@ -72,13 +74,24 @@ export async function checkQuota(
       p_feature: feature,
     });
     const u = typeof used === 'number' ? used : 0;
+    // Free tier: effective limit = base + ad-earned bonus for this month.
+    let bonus = 0;
+    if (limit !== Infinity) {
+      const { data: b } = await admin.rpc('get_quota_bonus', {
+        p_user_id: userId,
+        p_feature: feature,
+      });
+      bonus = typeof b === 'number' ? b : 0;
+    }
+    const effLimit = limit === Infinity ? Infinity : limit + bonus;
     return {
-      allowed: u < limit,
+      allowed: u < effLimit,
       isPremium: false,
       feature,
       used: u,
-      limit,
-      remaining: Math.max(0, limit - u),
+      limit: effLimit,
+      remaining: effLimit === Infinity ? Infinity : Math.max(0, effLimit - u),
+      bonus,
     };
   } catch (_e) {
     return {
@@ -88,6 +101,7 @@ export async function checkQuota(
       used: 0,
       limit,
       remaining: limit,
+      bonus: 0,
     };
   }
 }
@@ -111,6 +125,10 @@ export async function recordUsage(
 
 // Standard 402 body when a monthly limit is reached. For free users this means
 // "upgrade to premium"; for premium users it means "fair-use ceiling hit".
+// Max bonus a free user can earn per feature per month (mirrors
+// grant_quota_bonus's cap). Once reached, only upgrading lifts the limit.
+export const MONTHLY_BONUS_CAP = 10;
+
 export function quotaBody(meter: MeterResult) {
   return {
     error: meter.isPremium ? 'fair_use_limit_reached' : 'monthly_limit_reached',
@@ -120,5 +138,7 @@ export function quotaBody(meter: MeterResult) {
     remaining: 0,
     upgrade: !meter.isPremium,
     fairUse: meter.isPremium,
+    // free users below the monthly bonus cap can watch a rewarded ad for +1
+    adExtendable: !meter.isPremium && meter.bonus < MONTHLY_BONUS_CAP,
   };
 }
