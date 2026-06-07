@@ -121,10 +121,28 @@ function parseDays(json: any, expected: number): DayPlanLite[] {
 // Common main-protein anchors used to detect a monotonous week (the "5 salmon"
 // problem). Order matters: more specific terms first so "ground beef" -> beef.
 const PROTEIN_KEYWORDS = [
-  'salmon', 'tuna', 'cod', 'shrimp', 'prawn', 'fish',
-  'chicken', 'turkey', 'duck',
-  'beef', 'steak', 'lamb', 'pork', 'bacon', 'sausage',
-  'tofu', 'tempeh', 'lentil', 'chickpea', 'bean', 'egg', 'paneer',
+  'salmon',
+  'tuna',
+  'cod',
+  'shrimp',
+  'prawn',
+  'fish',
+  'chicken',
+  'turkey',
+  'duck',
+  'beef',
+  'steak',
+  'lamb',
+  'pork',
+  'bacon',
+  'sausage',
+  'tofu',
+  'tempeh',
+  'lentil',
+  'chickpea',
+  'bean',
+  'egg',
+  'paneer',
 ];
 
 // Identify the main protein in a dish name, or null if none recognized.
@@ -214,7 +232,10 @@ Vary the meals across the week (no repeats). Use a DIFFERENT main protein for di
 {"days":[{"label":"Day 1","breakfast":{"name":"...","calories":0,"protein":0},"lunch":{"name":"...","calories":0,"protein":0},"dinner":{"name":"...","calories":0,"protein":0}}]}
 Exactly 7 day objects.`;
   const json = await callMealGenerate(SYSTEM, prompt);
-  const plan = { days: parseDays(json, 7), generatedAt: new Date().toISOString() };
+  const plan = {
+    days: parseDays(json, 7),
+    generatedAt: new Date().toISOString(),
+  };
   return enforceDinnerVariety(plan, pantryItems, userProfile);
 }
 

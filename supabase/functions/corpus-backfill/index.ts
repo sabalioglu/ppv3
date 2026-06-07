@@ -40,7 +40,8 @@ Deno.serve(async (req) => {
     .select('title, ingredients, instructions, category, image_url, tags')
     .eq('user_id', userId);
 
-  if (readErr) return json({ error: 'read failed', detail: readErr.message }, 500);
+  if (readErr)
+    return json({ error: 'read failed', detail: readErr.message }, 500);
   if (!recipes?.length) return json({ ok: true, total: 0, fed: 0 });
 
   for (const r of recipes) {
