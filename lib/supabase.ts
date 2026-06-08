@@ -44,9 +44,9 @@ export const supabase = createClient(
 // Enhanced OAuth sign in function
 export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   try {
-    const redirectTo = Platform.OS === 'web' 
+    const redirectTo = Platform.OS === 'web'
       ? `${window.location.origin}/(auth)/callback`
-      : 'aifoodpantry://auth/callback';
+      : 'stovd://auth/callback';
     
     console.log('🔗 OAuth redirect URL:', redirectTo);
 
@@ -84,20 +84,27 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
 
       if (result.type === 'success' && result.url) {
         const parsedUrl = Linking.parse(result.url);
-        const fragment = parsedUrl.hostname === 'auth' && parsedUrl.path === '/callback' 
-          ? parsedUrl.queryParams : {};
-        
-        if (fragment.access_token) {
+        const qp = parsedUrl.queryParams ?? {};
+        const code = qp.code as string | undefined;
+        const access_token = qp.access_token as string | undefined;
+
+        // flowType is 'pkce' → the callback carries ?code=… which must be
+        // exchanged for a session. (Older implicit flow returns ?access_token=…)
+        if (code) {
+          console.log('🔑 Exchanging code for session...');
+          const { error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else if (access_token) {
           console.log('🔑 Setting session...');
           await supabase.auth.setSession({
-            access_token: fragment.access_token as string,
-            refresh_token: (fragment.refresh_token as string) || '',
+            access_token,
+            refresh_token: (qp.refresh_token as string) || '',
           });
-          
-          // Session kontrolü
-          const { data: sessionData } = await supabase.auth.getSession();
-          console.log('📱 Session status:', sessionData.session ? 'Active' : 'None');
         }
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('📱 Session status:', sessionData.session ? 'Active' : 'None');
       }
 
       return { data, error: null };

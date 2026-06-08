@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChefHat } from 'lucide-react-native';
 
-import { supabase } from '../../lib/supabase';
+import { supabase, signInWithOAuth } from '../../lib/supabase';
 import { useCustomAlert } from '@/hooks/useCustomAlert';
 
 import FormInput from '../../components/auth/FormInput';
@@ -88,10 +88,7 @@ const SignUpPage = () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: makeRedirectUri() },
-      });
+      const { error } = await signInWithOAuth('google');
       if (error) throw error;
     } catch (error: any) {
       setErrorMessage(error.message);
@@ -105,10 +102,7 @@ const SignUpPage = () => {
     setErrorMessage(null);
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: { redirectTo: makeRedirectUri() },
-      });
+      const { error } = await signInWithOAuth('apple');
       if (error) throw error;
     } catch (error: any) {
       setErrorMessage(error.message);

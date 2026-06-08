@@ -4,8 +4,7 @@ import { useRouter } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { supabase } from '@/lib/supabase';
-import { makeRedirectUri } from 'expo-auth-session';
+import { supabase, signInWithOAuth } from '@/lib/supabase';
 import { ChefHat } from 'lucide-react-native';
 
 import FormInput from '@/components/auth/FormInput';
@@ -93,11 +92,7 @@ const LoginPage = () => {
     setErrorMessage(null);
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: makeRedirectUri() },
-      });
-
+      const { error } = await signInWithOAuth('google');
       if (error) throw error;
     } catch (error: any) {
       setErrorMessage(error.message);
@@ -111,10 +106,7 @@ const LoginPage = () => {
     setErrorMessage(null);
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: { redirectTo: makeRedirectUri() },
-      });
+      const { error } = await signInWithOAuth('apple');
       if (error) throw error;
     } catch (error: any) {
       setErrorMessage(error.message);
