@@ -2,7 +2,13 @@
 // Cook-from-pantry: pulls personalized recommendations from the recipe engine
 // and presents them in the Warm Kitchen editorial language.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import {
+  View,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ChefHat } from 'lucide-react-native';
@@ -104,11 +110,17 @@ export default function Home() {
         {/* header */}
         <View style={styles.headerRow}>
           <Eyebrow>{`${dayName(today)} ${t(`home.${partKey(today)}`)}`}</Eyebrow>
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            accessibilityRole="button"
+            accessibilityLabel={t('tabs.settings')}
+            hitSlop={8}
+            style={[styles.avatar, { backgroundColor: colors.primary }]}
+          >
             <Display size="sm" color="#fff" style={styles.avatarText}>
               {initial}
             </Display>
-          </View>
+          </Pressable>
         </View>
         <Display size="xl" style={styles.title}>
           {today.getHours() < 17 ? t('home.titleDay') : t('home.titleEvening')}

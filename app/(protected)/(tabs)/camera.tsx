@@ -1776,7 +1776,7 @@ const makeStyles = (colors: Colors) =>
     itemName: {
       fontSize: 15,
       fontFamily: 'Inter-Medium',
-      color: colors.text,
+      color: colors.textPrimary,
       flex: 1,
     },
 
@@ -1804,7 +1804,7 @@ const makeStyles = (colors: Colors) =>
     },
     extractedText: {
       fontSize: 13,
-      color: colors.text,
+      color: colors.textPrimary,
       lineHeight: 18,
       fontFamily: 'monospace',
     },
@@ -1925,7 +1925,7 @@ const makeStyles = (colors: Colors) =>
     modalItemName: {
       fontSize: 15,
       fontFamily: 'Inter-SemiBold',
-      color: colors.text,
+      color: colors.textPrimary,
       marginBottom: 4,
     },
     modalItemPrice: {

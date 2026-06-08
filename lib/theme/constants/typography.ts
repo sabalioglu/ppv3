@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 // ── Stovd brand font families (loaded in app/_layout.tsx) ──────────────
 // Fraunces = editorial display serif (headings); Inter = body / UI.
 // Fall back to platform system fonts if a face fails to load.
@@ -43,98 +41,96 @@ export type Typography = {
   captionTextBold: textprops;
 };
 
-const fontFamily = Platform.select({
-  ios: 'System',
-  android: 'Roboto-Bold',
-  web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  default: 'System',
-});
-const fontWeightRegular = 'normal';
-const fontWeightBold = '500';
+// Brand faces already carry their weight in the family name, so fontWeight
+// stays 'normal' (a weighted family + a bold fontWeight breaks on Android).
+const w = 'normal' as const;
 
 export const typography: Typography = {
+  // Editorial serif (Fraunces) — display + section headings ("cookbook" voice)
   headingText: {
-    fontFamily,
+    fontFamily: fonts.display,
     fontSize: 32,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
   headingTextBold: {
-    fontFamily,
+    fontFamily: fonts.displayBold,
     fontSize: 32,
     fontStyle: 'normal',
-    fontWeight: 'bold',
-  },
-  subheadingText: {
-    fontFamily,
-    fontSize: 18,
-    fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
-  },
-  subheadingTextBold: {
-    fontFamily,
-    fontSize: 18,
-    fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
   },
   title: {
-    fontFamily,
+    fontFamily: fonts.display,
     fontSize: 24,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
   titleBold: {
-    fontFamily,
+    fontFamily: fonts.displayBold,
     fontSize: 24,
     fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
   },
   subtitle: {
-    fontFamily,
+    fontFamily: fonts.display,
     fontSize: 20,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
   subtitleBold: {
-    fontFamily,
+    fontFamily: fonts.displayBold,
     fontSize: 20,
     fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
   },
-  labelText: {
-    fontFamily,
-    fontSize: 16,
+
+  // Sans (Inter) — body / UI / supporting copy
+  subheadingText: {
+    fontFamily: fonts.body,
+    fontSize: 18,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
-  labelTextBold: {
-    fontFamily,
-    fontSize: 16,
+  subheadingTextBold: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 18,
     fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
   },
   bodyText: {
-    fontFamily,
+    fontFamily: fonts.body,
     fontSize: 16,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
   bodyTextBold: {
-    fontFamily,
+    fontFamily: fonts.bodyBold,
     fontSize: 16,
     fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
+  },
+  labelText: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    fontStyle: 'normal',
+    fontWeight: w,
+  },
+  labelTextBold: {
+    fontFamily: fonts.bodySemibold,
+    fontSize: 16,
+    fontStyle: 'normal',
+    fontWeight: w,
   },
   captionText: {
-    fontFamily,
+    fontFamily: fonts.body,
     fontSize: 14,
     fontStyle: 'normal',
-    fontWeight: fontWeightRegular,
+    fontWeight: w,
   },
   captionTextBold: {
-    fontFamily,
+    fontFamily: fonts.bodySemibold,
     fontSize: 14,
     fontStyle: 'normal',
-    fontWeight: fontWeightBold,
+    fontWeight: w,
   },
 };

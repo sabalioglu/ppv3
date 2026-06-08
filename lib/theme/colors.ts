@@ -147,7 +147,7 @@ const lightColors: Colors = {
   info: colors.accent[500],
 
   // Text colors
-  text: colors.neutral[0],
+  text: colors.neutral[900],
   textPrimary: colors.neutral[900],
   textSecondary: colors.neutral[500],
   textOnPrimary: colors.neutral[0],

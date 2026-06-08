@@ -37,7 +37,7 @@ const ThemedButton = ({
       text: {
         type: 'body',
         bold: true,
-        style: { color: colors.text },
+        style: { color: colors.textOnPrimary },
       },
     },
     google: {

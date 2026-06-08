@@ -119,6 +119,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ size, color }) => (
             <Settings size={size} color={color} strokeWidth={2} />
           ),
+          href: null, // Erişim: mutfak sekmesi sağ-üst avatar (profil); alt bardan gizli
         }}
       />
       <Tabs.Screen
