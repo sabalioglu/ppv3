@@ -1123,11 +1123,15 @@ export default function AIMealPlan() {
     setModalVisible(true);
   };
 
-  // ✅ ÇÖZÜM 2: Navigate to recipe detail
-  const navigateToRecipe = (meal: Meal) => {
+  // ✅ Navigate to recipe detail. Register the meal in the AI-meal store first:
+  // setMealPlan auto-extracts ONLY the daily plan's meals, so weekly/monthly
+  // meals are never in aiMeals and recipe/[id] would show "Recipe Not Available".
+  // setAIMeal makes getAIMeal resolve any meal (idempotent for daily).
+  const navigateToRecipe = async (meal: Meal) => {
     try {
       setModalVisible(false);
       setSelectedMeal(null); // ✅ Reset selected meal
+      await setAIMeal(meal.id, meal);
       router.push(`/recipe/${meal.id}?source=meal_plan`);
     } catch (error) {
       console.error('Navigation error:', error);
