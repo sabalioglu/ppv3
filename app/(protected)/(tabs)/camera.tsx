@@ -353,22 +353,31 @@ export default function CameraScreen() {
           allResults.push(analysisResult);
         }
 
-        const combinedItems = allResults.flatMap((r) => r.detectedItems);
+        const combinedItems = allResults.flatMap((r) => r.detectedItems ?? []);
+        const hasItems = combinedItems.length > 0;
 
         result = {
           type: scanMode,
           data: {
-            name: `${imageUri.length} Images Analyzed`,
-            confidence: Math.round(
-              combinedItems.reduce((acc, item) => acc + item.confidence, 0) /
-                combinedItems.length,
-            ),
+            name: hasItems
+              ? `${imageUri.length} ${t('camera.imagesAnalyzed')}`
+              : t('camera.noItemsDetected'),
+            // Guard against empty -> avoids NaN confidence (blank-looking card).
+            confidence: hasItems
+              ? Math.round(
+                  combinedItems.reduce(
+                    (acc, item) => acc + (item.confidence ?? 0),
+                    0,
+                  ) / combinedItems.length,
+                )
+              : 0,
             items: combinedItems,
-            suggestions: [
-              `Found ${combinedItems.length} items`,
-              'Add all to pantry',
-              'Create meal plan',
-            ],
+            suggestions: hasItems
+              ? [
+                  `${t('camera.found')} ${combinedItems.length} ${t('camera.items')}`,
+                  t('camera.addAllToPantry'),
+                ]
+              : [t('camera.tryClearerPhotos')],
             imageType: 'ai-multiple-analysis',
           },
         };

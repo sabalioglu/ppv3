@@ -36,6 +36,12 @@ export default {
     // Multiple images counter
     photosCount: 'photos',
     analyze: 'Analyze',
+    imagesAnalyzed: 'Images Analyzed',
+    noItemsDetected: 'No items detected',
+    found: 'Found',
+    items: 'items',
+    addAllToPantry: 'Add all to pantry',
+    tryClearerPhotos: 'Try clearer photos',
 
     // Add-to-inventory modal
     inventoryEyebrow: 'Smart receipt',
@@ -108,6 +114,12 @@ export default {
     // Multiple images counter
     photosCount: 'fotoğraf',
     analyze: 'Analiz et',
+    imagesAnalyzed: 'Görsel Analiz Edildi',
+    noItemsDetected: 'Ürün algılanmadı',
+    found: 'Bulundu',
+    items: 'ürün',
+    addAllToPantry: 'Hepsini kilere ekle',
+    tryClearerPhotos: 'Daha net fotoğraf çekin',
 
     // Add-to-inventory modal
     inventoryEyebrow: 'Akıllı fiş',
