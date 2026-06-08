@@ -682,30 +682,18 @@ export const generateEnhancedMealPlan = async (
 
   const generator = new EnhancedMealGenerator(userId);
 
-  const breakfast = await generator.generateEnhancedMeal(
-    'breakfast',
-    pantryItems,
-    userProfile,
-    [],
-  );
-  const lunch = await generator.generateEnhancedMeal(
-    'lunch',
-    pantryItems,
-    userProfile,
-    [breakfast.meal],
-  );
-  const dinner = await generator.generateEnhancedMeal(
-    'dinner',
-    pantryItems,
-    userProfile,
-    [breakfast.meal, lunch.meal],
-  );
-  const snack = await generator.generateEnhancedMeal(
-    'snack',
-    pantryItems,
-    userProfile,
-    [breakfast.meal, lunch.meal, dinner.meal],
-  );
+  // Generate the four meals IN PARALLEL. They used to run sequentially (each
+  // awaiting the previous so it could avoid repeating earlier dishes), which
+  // meant up to 4 meals x 3 retry attempts = 12 sequential LLM round-trips —
+  // minutes on a slow connection (the "Preparing your plan…" freeze). Parallel
+  // makes wall-clock ~= the slowest single meal. Trade-off: meals no longer see
+  // each other for dedup, but meal type + pantry variety still differentiate.
+  const [breakfast, lunch, dinner, snack] = await Promise.all([
+    generator.generateEnhancedMeal('breakfast', pantryItems, userProfile, []),
+    generator.generateEnhancedMeal('lunch', pantryItems, userProfile, []),
+    generator.generateEnhancedMeal('dinner', pantryItems, userProfile, []),
+    generator.generateEnhancedMeal('snack', pantryItems, userProfile, []),
+  ]);
 
   const results = [breakfast, lunch, dinner, snack];
 

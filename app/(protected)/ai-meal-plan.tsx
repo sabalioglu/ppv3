@@ -754,11 +754,18 @@ export default function AIMealPlan() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const enhancedResult = await generateEnhancedMealPlan(
-        user.id,
-        pantryItems,
-        userProfile,
-      );
+      // Hard timeout: a hung edge-fn / LLM / quota call must never leave the
+      // user on an infinite "Preparing your plan" loader. On timeout we fall
+      // through to the catch below, which renders a fallback plan.
+      const enhancedResult = await Promise.race([
+        generateEnhancedMealPlan(user.id, pantryItems, userProfile),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('AI meal plan generation timed out')),
+            120000,
+          ),
+        ),
+      ]);
 
       // Convert enhanced results to standard meal plan format
       const aiMeals = {
@@ -838,16 +845,18 @@ export default function AIMealPlan() {
         } = await supabase.auth.getUser();
         if (user) {
           const generator = createEnhancedGenerator(user.id);
-          const fallbackResult = await generator.generateEnhancedMeal(
-            'lunch',
-            pantryItems,
-            userProfile,
-            [],
-            {
+          const fallbackResult = await Promise.race([
+            generator.generateEnhancedMeal('lunch', pantryItems, userProfile, [], {
               allowFallback: true,
               maxAttempts: 1,
-            },
-          );
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error('Fallback meal generation timed out')),
+                30000,
+              ),
+            ),
+          ]);
 
           const plan: MealPlan = {
             daily: {

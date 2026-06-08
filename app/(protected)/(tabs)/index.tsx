@@ -69,7 +69,14 @@ export default function Home() {
 
   const load = useCallback(async () => {
     try {
-      const res = await recommendRecipes({ count: 5 });
+      // Cap the wait so a slow/hung recipe-recommend edge fn can never leave the
+      // user stuck on "Reading your kitchen…" — fall back to an empty list.
+      const res = await Promise.race([
+        recommendRecipes({ count: 5 }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('recommendations timed out')), 25000),
+        ),
+      ]);
       setRecs(res.recommendations ?? []);
     } catch {
       setRecs([]);
