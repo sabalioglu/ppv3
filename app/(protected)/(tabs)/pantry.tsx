@@ -28,6 +28,18 @@ import {
   X,
   Clock,
   ChevronDown,
+  LayoutGrid,
+  Milk,
+  Beef,
+  Salad,
+  Apple,
+  Wheat,
+  Popcorn,
+  CupSoda,
+  Droplet,
+  Snowflake,
+  Archive,
+  Croissant,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -56,18 +68,18 @@ interface PantryItem {
 // Stored keys/values are unchanged (data layer); only the displayed `label`
 // is localized. Locale is fixed at startup, so labels resolve once at module load.
 const CATEGORIES = [
-  { key: 'all', label: t('common.all'), emoji: '📦' },
-  { key: 'dairy', label: t('pantry.cat.dairy'), emoji: '🥛' },
-  { key: 'meat', label: t('pantry.cat.meat'), emoji: '🥩' },
-  { key: 'vegetables', label: t('pantry.cat.vegetables'), emoji: '🥬' },
-  { key: 'fruits', label: t('pantry.cat.fruits'), emoji: '🍎' },
-  { key: 'grains', label: t('pantry.cat.grains'), emoji: '🌾' },
-  { key: 'snacks', label: t('pantry.cat.snacks'), emoji: '🍿' },
-  { key: 'beverages', label: t('pantry.cat.beverages'), emoji: '🥤' },
-  { key: 'condiments', label: t('pantry.cat.condiments'), emoji: '🧂' },
-  { key: 'frozen', label: t('pantry.cat.frozen'), emoji: '🧊' },
-  { key: 'canned', label: t('pantry.cat.canned'), emoji: '🥫' },
-  { key: 'bakery', label: t('pantry.cat.bakery'), emoji: '🥐' },
+  { key: 'all', label: t('common.all'), Icon: LayoutGrid },
+  { key: 'dairy', label: t('pantry.cat.dairy'), Icon: Milk },
+  { key: 'meat', label: t('pantry.cat.meat'), Icon: Beef },
+  { key: 'vegetables', label: t('pantry.cat.vegetables'), Icon: Salad },
+  { key: 'fruits', label: t('pantry.cat.fruits'), Icon: Apple },
+  { key: 'grains', label: t('pantry.cat.grains'), Icon: Wheat },
+  { key: 'snacks', label: t('pantry.cat.snacks'), Icon: Popcorn },
+  { key: 'beverages', label: t('pantry.cat.beverages'), Icon: CupSoda },
+  { key: 'condiments', label: t('pantry.cat.condiments'), Icon: Droplet },
+  { key: 'frozen', label: t('pantry.cat.frozen'), Icon: Snowflake },
+  { key: 'canned', label: t('pantry.cat.canned'), Icon: Archive },
+  { key: 'bakery', label: t('pantry.cat.bakery'), Icon: Croissant },
 ];
 
 const UNITS = [
@@ -609,7 +621,12 @@ export default function PantryScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.categoryContent}>
-                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                <category.Icon
+                  size={15}
+                  strokeWidth={2}
+                  color={isActive ? colors.textOnPrimary : colors.textSecondary}
+                  style={styles.categoryEmoji}
+                />
                 <Eyebrow
                   color={isActive ? colors.textOnPrimary : colors.textSecondary}
                   style={styles.categoryTabText}
@@ -920,7 +937,16 @@ export default function PantryScreen() {
                         setNewItem({ ...newItem, category: cat.key })
                       }
                     >
-                      <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
+                      <cat.Icon
+                        size={15}
+                        strokeWidth={2}
+                        color={
+                          newItem.category === cat.key
+                            ? colors.primary
+                            : colors.textSecondary
+                        }
+                        style={styles.categoryEmoji}
+                      />
                       <Eyebrow
                         color={
                           newItem.category === cat.key

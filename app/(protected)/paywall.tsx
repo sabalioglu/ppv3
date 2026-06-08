@@ -169,8 +169,21 @@ export default function PaywallScreen() {
                     backgroundColor: colors.surface,
                     borderColor: active ? colors.primary : colors.borderLight,
                   },
+                  active && styles.planCardActive,
+                  active && { shadowColor: colors.primary },
                 ]}
               >
+                <View
+                  style={[
+                    styles.planCheck,
+                    {
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.primary : 'transparent',
+                    },
+                  ]}
+                >
+                  {active ? <Check size={12} color="#fff" /> : null}
+                </View>
                 <Text style={[styles.planTitle, { color: colors.textPrimary }]}>
                   {p.title}
                 </Text>
@@ -275,8 +288,31 @@ const styles = StyleSheet.create({
   planCard: {
     marginTop: spacing.md,
     padding: spacing.md,
+    paddingRight: spacing.xl,
     borderRadius: radius.lg,
     borderWidth: 2,
+    shadowColor: '#3C2814',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  planCardActive: {
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 7,
+  },
+  planCheck: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   planTitle: { fontFamily: fonts.bodySemibold, fontSize: 16 },
   planPrice: { fontFamily: fonts.displayBold, fontSize: 22, marginTop: 4 },
@@ -291,6 +327,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#C8472B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    elevation: 6,
   },
   ctaText: { color: '#fff', fontFamily: fonts.bodyBold, fontSize: 17 },
   restore: {
