@@ -7,12 +7,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "ios": {
         "simulator": true
       }
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
       "ios": {
         "simulator": false
       },
@@ -22,6 +24,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "ios": {
         "distribution": "store"
       },
@@ -32,14 +35,7 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "REPLACE_WITH_APPLE_ID_EMAIL",
-        "ascAppId": "REPLACE_WITH_ASC_APP_ID",
-        "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID",
-        "ascApiKeyPath": "./asc-api-key.p8",
-        "ascApiKeyId": "REPLACE_WITH_ASC_API_KEY_ID",
-        "ascApiKeyIssuerId": "REPLACE_WITH_ASC_API_KEY_ISSUER_ID"
-      },
+      "ios": {},
       "android": {
         "serviceAccountKeyPath": "./play-service-account.json",
         "track": "internal"
