@@ -64,9 +64,6 @@ export default function RootLayout() {
           console.warn('⚠️ AI System Init Issues:', initResult.errors);
           // Continue app loading even if some features fail
         }
-
-        // Small delay to ensure smooth transition
-        await new Promise((resolve) => setTimeout(resolve, 200));
       } catch (error) {
         console.error('💥 App initialization error:', error);
         // Don't block app loading on errors
@@ -106,28 +103,28 @@ export default function RootLayout() {
         <LocaleProvider>
           <ThemeProvider>
             <AuthProvider>
-            <SplashController />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'fade', // Smooth screen transitions
-                animationDuration: 200,
-              }}
-            >
-              <Stack.Screen
-                name="(auth)"
-                options={{
+              <SplashController />
+              <Stack
+                screenOptions={{
                   headerShown: false,
-                  animation: 'slide_from_bottom', // Auth screens slide up
+                  animation: 'fade', // Smooth screen transitions
+                  animationDuration: 200,
                 }}
-              />
-              <Stack.Screen
-                name="(protected)"
-                options={{
-                  headerShown: false,
-                }}
-              />
-            </Stack>
+              >
+                <Stack.Screen
+                  name="(auth)"
+                  options={{
+                    headerShown: false,
+                    animation: 'slide_from_bottom', // Auth screens slide up
+                  }}
+                />
+                <Stack.Screen
+                  name="(protected)"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
             </AuthProvider>
           </ThemeProvider>
         </LocaleProvider>

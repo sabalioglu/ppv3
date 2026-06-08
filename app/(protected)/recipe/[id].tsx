@@ -120,6 +120,8 @@ export default function RecipeDetail() {
   const [recipe, setRecipe] = useState<Recipe | Meal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savingToLibrary, setSavingToLibrary] = useState(false);
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
   // Interactive step-by-step cooking mode (opened from the "Start cooking" CTA).
   const [cooking, setCooking] = useState(false);
   const [cookStep, setCookStep] = useState(0);
@@ -797,6 +799,61 @@ export default function RecipeDetail() {
     }
   };
 
+  // Persist an AI-generated recipe (from a recommendation / meal plan, held only
+  // in the in-memory store) into the user's library so it survives and can be
+  // favorited or added to cookbooks like any imported recipe.
+  const saveAIRecipeToLibrary = async () => {
+    if (!recipe || savedToLibrary || savingToLibrary) return;
+    setSavingToLibrary(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert(t('common.error'), t('recipeDetail.saveToLibraryError'));
+        return;
+      }
+      const m = recipe as any;
+      const payload = {
+        user_id: user.id,
+        title: m.name || m.title || 'Recipe',
+        description: m.description ?? '',
+        image_url: m.image_url ?? null,
+        prep_time: m.prepTime ?? m.prep_time ?? 0,
+        cook_time: m.cookTime ?? m.cook_time ?? 0,
+        servings: m.servings ?? 1,
+        difficulty: m.difficulty ?? 'Easy',
+        ingredients: m.ingredients ?? [],
+        instructions: m.instructions ?? [],
+        nutrition: m.nutrition ?? {
+          calories: m.calories ?? 0,
+          protein: m.protein ?? 0,
+          carbs: m.carbs ?? 0,
+          fat: m.fat ?? 0,
+          fiber: m.fiber ?? 0,
+          ...(m.sugar != null ? { sugar: m.sugar } : {}),
+          ...(m.sodium != null ? { sodium: m.sodium } : {}),
+        },
+        tags: m.tags ?? [],
+        category: m.category ?? 'General',
+        is_ai_generated: true,
+        ai_match_score: m.matchPercentage ?? m.ai_match_score ?? null,
+      };
+      const { error } = await supabase.from('user_recipes').insert(payload);
+      if (error) throw error;
+      setSavedToLibrary(true);
+      Alert.alert(
+        t('recipeDetail.savedToLibraryTitle'),
+        t('recipeDetail.savedToLibraryBody'),
+      );
+    } catch (e) {
+      console.error('Save to library failed', e);
+      Alert.alert(t('common.error'), t('recipeDetail.saveToLibraryError'));
+    } finally {
+      setSavingToLibrary(false);
+    }
+  };
+
   // Open source URL
   const handleOpenSource = async () => {
     const sourceUrl = (recipe as Recipe)?.source_url;
@@ -1117,7 +1174,20 @@ export default function RecipeDetail() {
           >
             <ArrowLeft size={20} color="#fff" />
           </TouchableOpacity>
-          {!isAIMealId(recipe.id) && (
+          {isAIMealId(recipe.id) ? (
+            <TouchableOpacity
+              onPress={saveAIRecipeToLibrary}
+              style={[styles.heroBtn, styles.heroBtnRight]}
+              hitSlop={8}
+              disabled={savingToLibrary}
+            >
+              <Bookmark
+                size={19}
+                color="#fff"
+                fill={savedToLibrary ? '#fff' : 'transparent'}
+              />
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity
               onPress={handleFavorite}
               style={[styles.heroBtn, styles.heroBtnRight]}

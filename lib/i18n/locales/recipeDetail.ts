@@ -59,6 +59,9 @@ export default {
     // Favorite / source errors
     favoriteError: 'Failed to update favorite status',
     openSourceError: 'Could not open source URL',
+    savedToLibraryTitle: 'Saved to library',
+    savedToLibraryBody: 'This recipe is now in your library.',
+    saveToLibraryError: 'Could not save to your library',
 
     // Pantry match section
     pantryMatchTitle: 'Pantry match',
@@ -155,6 +158,9 @@ export default {
     // Favorite / source errors
     favoriteError: 'Failed to update favorite status',
     openSourceError: 'Could not open source URL',
+    savedToLibraryTitle: 'Kütüphaneye eklendi',
+    savedToLibraryBody: 'Bu tarif artık kütüphanende.',
+    saveToLibraryError: 'Kütüphaneye kaydedilemedi',
 
     // Pantry match section
     pantryMatchTitle: 'Kiler eşleşmesi',
