@@ -13,7 +13,7 @@ import {
 } from 'lucide-react-native';
 import { spacing, radius } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
-import { t } from '@/lib/i18n';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 // Elevated terracotta center action (the "Scan" tab). Keeps native tab
 // navigation working by forwarding the Tabs-provided onPress/accessibility props.
@@ -44,6 +44,7 @@ function ScanTabButton({ onPress, accessibilityState, ...rest }: any) {
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   return (

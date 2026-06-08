@@ -40,6 +40,7 @@ import { SectionHeader } from '@/components/UI/SectionHeader';
 import { ShoppingRow } from '@/components/shopping/ShoppingRow';
 import { supabase } from '@/lib/supabase';
 import { t, i18n } from '@/lib/i18n';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { confirmDestructive } from '@/lib/ui/confirm';
 
 // Currency/percent formats differ by locale; compute once (locale fixed at startup).
@@ -161,6 +162,7 @@ const UNITS = ['piece', 'kg', 'g', 'l', 'ml', 'pack', 'bottle', 'box', 'case'];
 
 export default function ShoppingList() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // ✅ State Management

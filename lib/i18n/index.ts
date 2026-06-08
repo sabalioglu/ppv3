@@ -75,10 +75,9 @@ export function t(key: string, options?: Record<string, unknown>): string {
   return i18n.t(key, options);
 }
 
-/** Hook form for components. */
-export function useTranslation() {
-  return { t, locale: i18n.locale };
-}
+// The reactive hook lives in contexts/LocaleContext (useTranslation) so that a
+// language switch re-renders subscribers. Importing t directly stays valid but
+// is non-reactive (resolves at call time only).
 
 // ── Language selection (settings) ──────────────────────────────────────
 // Device locale is the default; a saved choice overrides it on next launch.

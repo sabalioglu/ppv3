@@ -28,6 +28,7 @@ import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
 import { FeatureCard, RecipeListCard } from '@/components/UI/RecipeCard';
 import { t, i18n } from '@/lib/i18n';
+import { useTranslation } from '@/contexts/LocaleContext';
 
 const SKILL_KEY: Record<string, string> = {
   beginner: 'home.skillBeginner',
@@ -59,6 +60,7 @@ function kickerFor(r: RecommendedRecipe) {
 
 export default function Home() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const { userProfile } = useUserProfile();
   const [today] = useState(() => new Date());
   const [recs, setRecs] = useState<RecommendedRecipe[]>([]);

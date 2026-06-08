@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { LocaleProvider } from '@/contexts/LocaleContext';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -102,8 +103,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
+        <LocaleProvider>
+          <ThemeProvider>
+            <AuthProvider>
             <SplashController />
             <Stack
               screenOptions={{
@@ -126,8 +128,9 @@ export default function RootLayout() {
                 }}
               />
             </Stack>
-          </AuthProvider>
-        </ThemeProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </LocaleProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -61,6 +61,20 @@ export default function ProtectedLayout() {
           animation: 'slide_from_right',
         }}
       />
+      <Stack.Screen
+        name="profile-edit"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="faq"
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }

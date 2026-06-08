@@ -9,9 +9,6 @@ import {
   Alert,
   Platform,
   Linking,
-  Modal,
-  TextInput,
-  ActivityIndicator,
 } from 'react-native';
 
 // Canonical web host serving the legal pages (public/*.html via _redirects).
@@ -34,11 +31,17 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeSwitcher } from '@/components/ThemeSwitcher';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { supabase } from '@/lib/supabase';
 import { spacing, radius, fonts } from '@/lib/theme/index';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Display, Eyebrow } from '@/components/UI/Display';
-import { t, getLocale, setLocale, type AppLocale } from '@/lib/i18n';
+import { useTranslation, useLocale } from '@/contexts/LocaleContext';
+import { type AppLocale } from '@/lib/i18n';
+
+// Persisted notification preference key.
+const NOTIF_KEY = '@stovd_notifications';
 
 // Support + store links for the help / feedback / rate rows.
 const SUPPORT_EMAIL = 'support@stovd.app';
@@ -57,20 +60,27 @@ interface SettingItem {
 
 export default function SettingsScreen() {
   const { colors, themeMode } = useTheme();
+  const { t } = useTranslation();
+  const { locale } = useLocale();
   const [showThemeSwitcher, setShowThemeSwitcher] = useState(false);
+  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [subscription, setSubscription] = useState<any>(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [locale, setLocaleState] = useState<AppLocale>(getLocale());
 
   React.useEffect(() => {
     loadUserData();
     loadSubscription();
+    AsyncStorage.getItem(NOTIF_KEY).then((v) => {
+      if (v != null) setNotifications(v === 'true');
+    });
   }, []);
+
+  const toggleNotifications = (value: boolean) => {
+    setNotifications(value);
+    AsyncStorage.setItem(NOTIF_KEY, String(value)).catch(() => {});
+  };
 
   const loadUserData = async () => {
     try {
@@ -191,61 +201,12 @@ export default function SettingsScreen() {
   const comingSoon = (msg: string) => () =>
     Alert.alert(t('settings.comingSoon'), msg);
 
-  const localeLabel = (l: AppLocale) =>
-    l === 'tr' ? 'Türkçe' : 'English';
+  const localeLabel = (l: AppLocale) => (l === 'tr' ? 'Türkçe' : 'English');
 
-  // Language picker (Alert-based). Module-level strings need an app restart to
-  // fully re-resolve, so we persist the choice and tell the user to restart.
-  const applyLocale = async (lang: AppLocale) => {
-    if (lang === locale) return;
-    await setLocale(lang);
-    setLocaleState(lang);
-    Alert.alert(t('settings.languageChanged'), t('settings.languageRestart'));
-  };
+  // The language picker lives in a bottom-sheet (LanguageSwitcher); selecting a
+  // language applies it reactively via LocaleContext — no restart needed.
 
-  const handleLanguage = () => {
-    Alert.alert(t('settings.language'), t('settings.languageChoose'), [
-      {
-        text: `English${locale === 'en' ? '  ✓' : ''}`,
-        onPress: () => applyLocale('en'),
-      },
-      {
-        text: `Türkçe${locale === 'tr' ? '  ✓' : ''}`,
-        onPress: () => applyLocale('tr'),
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  };
-
-  const openProfileEdit = () => {
-    setEditName(userName);
-    setShowProfileModal(true);
-  };
-
-  const saveProfile = async () => {
-    const name = editName.trim();
-    if (!name) return;
-    setSavingProfile(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error('no user');
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ full_name: name })
-        .eq('id', user.id);
-      if (error) throw error;
-      setUserName(name);
-      setShowProfileModal(false);
-    } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('settings.profileSaveError'));
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const openHelp = () => Linking.openURL(`${LEGAL_BASE}/faq`);
+  const openHelp = () => router.push('/faq');
   const sendFeedback = () =>
     Linking.openURL(
       `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Stovd Feedback')}`,
@@ -395,7 +356,7 @@ export default function SettingsScreen() {
             rightElement={
               <Switch
                 value={notifications}
-                onValueChange={setNotifications}
+                onValueChange={toggleNotifications}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={Platform.OS === 'ios' ? undefined : colors.surface}
               />
@@ -406,7 +367,7 @@ export default function SettingsScreen() {
             icon={Globe}
             title={t('settings.language')}
             subtitle={localeLabel(locale)}
-            onPress={handleLanguage}
+            onPress={() => setShowLanguageSwitcher(true)}
           />
         </SettingSection>
 
@@ -430,7 +391,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon={User}
             title={t('settings.editProfile')}
-            onPress={openProfileEdit}
+            onPress={() => router.push('/profile-edit')}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
@@ -503,84 +464,16 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Edit Profile Modal */}
-      <Modal
-        visible={showProfileModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowProfileModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
-            <Display
-              size="md"
-              color={colors.textPrimary}
-              style={styles.modalTitle}
-            >
-              {t('settings.editProfile')}
-            </Display>
-            <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-              {t('settings.profileNameLabel')}
-            </Text>
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              placeholder={t('settings.profileNamePlaceholder')}
-              placeholderTextColor={colors.textSecondary}
-              style={[
-                styles.modalInput,
-                {
-                  color: colors.textPrimary,
-                  borderColor: colors.borderLight,
-                  backgroundColor: colors.background,
-                },
-              ]}
-              autoFocus
-              maxLength={60}
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalBtn}
-                onPress={() => setShowProfileModal(false)}
-                disabled={savingProfile}
-              >
-                <Text
-                  style={[styles.modalBtnText, { color: colors.textSecondary }]}
-                >
-                  {t('common.cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  styles.modalBtnPrimary,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={saveProfile}
-                disabled={savingProfile || !editName.trim()}
-              >
-                {savingProfile ? (
-                  <ActivityIndicator color={colors.textOnPrimary} size="small" />
-                ) : (
-                  <Text
-                    style={[
-                      styles.modalBtnText,
-                      { color: colors.textOnPrimary },
-                    ]}
-                  >
-                    {t('common.save')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Theme Switcher Modal */}
       <ThemeSwitcher
         visible={showThemeSwitcher}
         onClose={() => setShowThemeSwitcher(false)}
+      />
+
+      {/* Language Switcher Modal */}
+      <LanguageSwitcher
+        visible={showLanguageSwitcher}
+        onClose={() => setShowLanguageSwitcher(false)}
       />
     </SafeAreaView>
   );
@@ -697,48 +590,5 @@ const styles = StyleSheet.create({
   appVersion: {
     fontSize: 13,
     fontFamily: fonts.body,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  modalCard: {
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-  },
-  modalTitle: { marginBottom: spacing.md },
-  modalLabel: {
-    fontSize: 13,
-    fontFamily: fonts.bodyMedium,
-    marginBottom: 6,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontFamily: fonts.body,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  modalBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 88,
-  },
-  modalBtnPrimary: {},
-  modalBtnText: {
-    fontSize: 15,
-    fontFamily: fonts.bodySemibold,
   },
 });

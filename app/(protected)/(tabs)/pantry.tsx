@@ -48,6 +48,7 @@ import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
 import { PantryItemCard } from '@/components/pantry/PantryItemCard';
 import { t } from '@/lib/i18n';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { confirmDestructive } from '@/lib/ui/confirm';
 
 interface PantryItem {
@@ -181,6 +182,7 @@ const getItemImageSource = (category: string) => {
 
 export default function PantryScreen() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState<PantryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<PantryItem[]>([]);

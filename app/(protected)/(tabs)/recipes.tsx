@@ -33,6 +33,7 @@ import { router } from 'expo-router';
 import { spacing, radius, fonts } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
 import { t } from '@/lib/i18n';
+import { useTranslation } from '@/contexts/LocaleContext';
 import { supabase } from '@/lib/supabase';
 import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
@@ -617,6 +618,7 @@ const EmptyState: React.FC<{
 
 export default function Recipes() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const [recipes, setRecipes] = React.useState<Recipe[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
