@@ -47,9 +47,18 @@ async function consumeQuota(): Promise<void> {
 }
 
 async function callMealGenerate(system: string, prompt: string): Promise<any> {
-  const { data, error } = await supabase.functions.invoke('meal-generate', {
-    body: { system, prompt, temperature: 0.3 },
-  });
+  // Cap the single weekly/monthly/day generation call so a hung edge fn can't
+  // freeze the multi-day view forever. Generous (a full week is one big call)
+  // but finite — on timeout the caller shows a "try again" error and clears its
+  // loader. This does NOT apply to the daily plan (that has its own 120s cap).
+  const { data, error } = await Promise.race([
+    supabase.functions.invoke('meal-generate', {
+      body: { system, prompt, temperature: 0.3 },
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('meal-generate timed out')), 90000),
+    ),
+  ]);
   if (error) throw new Error(`meal-generate failed: ${error.message}`);
   const text: string | undefined = data?.content;
   if (!text) throw new Error('meal-generate returned no content');
