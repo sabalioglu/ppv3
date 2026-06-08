@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { Crown, CircleAlert as AlertCircle } from 'lucide-react-native';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, type Colors } from '@/lib/theme/index';
 import { supabase } from '@/lib/supabase';
 
 interface SubscriptionData {
@@ -17,7 +13,11 @@ interface SubscriptionData {
 }
 
 export const SubscriptionStatus: React.FC = () => {
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,14 +58,14 @@ export const SubscriptionStatus: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return colors.success[500];
+        return colors.success;
       case 'trialing':
-        return colors.accent[500];
+        return colors.accent;
       case 'past_due':
       case 'canceled':
-        return colors.error[500];
+        return colors.error;
       default:
-        return colors.neutral[500];
+        return colors.textSecondary;
     }
   };
 
@@ -89,7 +89,7 @@ export const SubscriptionStatus: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={colors.primary[500]} />
+        <ActivityIndicator size="small" color={colors.primary} />
         <Text style={styles.loadingText}>Loading subscription...</Text>
       </View>
     );
@@ -98,7 +98,7 @@ export const SubscriptionStatus: React.FC = () => {
   if (!subscription || subscription.subscription_status === 'not_started') {
     return (
       <View style={styles.noSubscriptionContainer}>
-        <AlertCircle size={20} color={colors.neutral[400]} />
+        <AlertCircle size={20} color={colors.textSecondary} />
         <Text style={styles.noSubscriptionText}>No active subscription</Text>
       </View>
     );
@@ -107,12 +107,27 @@ export const SubscriptionStatus: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.statusHeader}>
-        <Crown size={20} color={getStatusColor(subscription.subscription_status)} />
+        <Crown
+          size={20}
+          color={getStatusColor(subscription.subscription_status)}
+        />
         <Text style={styles.planName}>
           {getSubscriptionName(subscription.price_id)}
         </Text>
-        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(subscription.subscription_status)}20` }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(subscription.subscription_status) }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: `${getStatusColor(subscription.subscription_status)}20`,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              { color: getStatusColor(subscription.subscription_status) },
+            ]}
+          >
             {getStatusText(subscription.subscription_status)}
           </Text>
         </View>
@@ -120,75 +135,75 @@ export const SubscriptionStatus: React.FC = () => {
 
       {subscription.current_period_end && (
         <Text style={styles.renewalText}>
-          {subscription.cancel_at_period_end 
+          {subscription.cancel_at_period_end
             ? `Expires on ${formatDate(subscription.current_period_end)}`
-            : `Renews on ${formatDate(subscription.current_period_end)}`
-          }
+            : `Renews on ${formatDate(subscription.current_period_end)}`}
         </Text>
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  loadingText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  noSubscriptionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  noSubscriptionText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  planName: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
-  },
-  statusText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  renewalText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[600],
-  },
-});
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    loadingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    loadingText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    noSubscriptionContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    noSubscriptionText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    statusHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
+    },
+    planName: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    statusBadge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 8,
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    renewalText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+  });

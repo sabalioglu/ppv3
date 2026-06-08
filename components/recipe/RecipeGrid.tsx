@@ -8,8 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { spacing, shadows } from '@/lib/theme/index';
-import { typography, colors } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, shadows, type Colors } from '@/lib/theme/index';
 import { Recipe } from '@/types/recipe';
 
 const { width } = Dimensions.get('window');
@@ -36,6 +36,9 @@ export function RecipeGrid({
   selectedRecipes = [],
   onRecipeSelect,
 }: RecipeGridProps) {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+
   const handleFavorite = (recipeId: string) => {
     if (onFavoritePress) {
       onFavoritePress(recipeId);
@@ -200,7 +203,7 @@ export function RecipeGrid({
               <Ionicons
                 name="time-outline"
                 size={12}
-                color={colors.neutral[500]}
+                color={colors.textSecondary}
               />
               <Text style={styles.metaText}>
                 {recipe.prep_time + recipe.cook_time}m
@@ -210,7 +213,7 @@ export function RecipeGrid({
               <Ionicons
                 name="people-outline"
                 size={12}
-                color={colors.neutral[500]}
+                color={colors.textSecondary}
               />
               <Text style={styles.metaText}>{recipe.servings}</Text>
             </View>
@@ -232,14 +235,14 @@ export function RecipeGrid({
               <Ionicons
                 name={recipe.is_favorite ? 'heart' : 'heart-outline'}
                 size={18}
-                color={recipe.is_favorite ? '#FF5252' : colors.neutral[400]}
+                color={recipe.is_favorite ? '#FF5252' : colors.textSecondary}
               />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => handleMore(recipe)}>
               <Ionicons
                 name="ellipsis-vertical"
                 size={18}
-                color={colors.neutral[400]}
+                color={colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -283,184 +286,185 @@ export function RecipeGrid({
   );
 }
 
-const styles = StyleSheet.create({
-  // Grid styles
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-  },
-  gridCard: {
-    width: CARD_WIDTH,
-    backgroundColor: colors.neutral[0],
-    borderRadius: 12,
-    marginBottom: spacing.lg,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  gridCheckbox: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    zIndex: 1,
-  },
-  gridImageContainer: {
-    width: '100%',
-    height: 120,
-    position: 'relative',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridAiBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  gridAiBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-  gridCardContent: {
-    padding: spacing.md,
-  },
-  gridCardTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.sm,
-    lineHeight: 20,
-  },
-  gridCardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  gridCardActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    // Grid styles
+    gridContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+    },
+    gridCard: {
+      width: CARD_WIDTH,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginBottom: spacing.lg,
+      overflow: 'hidden',
+      ...shadows.sm,
+    },
+    gridCheckbox: {
+      position: 'absolute',
+      top: spacing.sm,
+      left: spacing.sm,
+      zIndex: 1,
+    },
+    gridImageContainer: {
+      width: '100%',
+      height: 120,
+      position: 'relative',
+    },
+    gridImage: {
+      width: '100%',
+      height: '100%',
+    },
+    gridAiBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      backgroundColor: 'rgba(0,0,0,0.7)',
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    gridAiBadgeText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    gridCardContent: {
+      padding: spacing.md,
+    },
+    gridCardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+      lineHeight: 20,
+    },
+    gridCardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    gridCardActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+    },
 
-  // List styles
-  listContainer: {
-    paddingTop: spacing.sm,
-  },
-  listCard: {
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  listCardContent: {
-    flexDirection: 'row',
-    padding: 12,
-    alignItems: 'center',
-  },
-  listCheckbox: {
-    marginRight: 12,
-  },
-  listCardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  listCardInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  listCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  listCardDescription: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  listCardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  listCardActions: {
-    flexDirection: 'column',
-    gap: 16,
-    marginLeft: 12,
-  },
+    // List styles
+    listContainer: {
+      paddingTop: spacing.sm,
+    },
+    listCard: {
+      backgroundColor: 'white',
+      marginHorizontal: 16,
+      marginVertical: 4,
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: '#f0f0f0',
+    },
+    listCardContent: {
+      flexDirection: 'row',
+      padding: 12,
+      alignItems: 'center',
+    },
+    listCheckbox: {
+      marginRight: 12,
+    },
+    listCardImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: '#f5f5f5',
+    },
+    listCardInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    listCardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#1a1a1a',
+      marginBottom: 4,
+    },
+    listCardDescription: {
+      fontSize: 13,
+      color: '#666',
+      lineHeight: 18,
+      marginBottom: 8,
+    },
+    listCardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    listCardActions: {
+      flexDirection: 'column',
+      gap: 16,
+      marginLeft: 12,
+    },
 
-  // Common styles
-  selectedCard: {
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderWidth: 2,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  difficultyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  difficultyEasy: {
-    backgroundColor: '#E8F5E8',
-  },
-  difficultyMedium: {
-    backgroundColor: '#FFF3E0',
-  },
-  difficultyHard: {
-    backgroundColor: '#FFEBEE',
-  },
-  difficultyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#F57C00',
-  },
-  aiBadge: {
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  aiBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1976D2',
-  },
-});
+    // Common styles
+    selectedCard: {
+      borderWidth: 2,
+      borderColor: '#4CAF50',
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      borderWidth: 2,
+      borderColor: '#ddd',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxSelected: {
+      backgroundColor: '#4CAF50',
+      borderColor: '#4CAF50',
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 12,
+      color: '#666',
+    },
+    difficultyBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    difficultyEasy: {
+      backgroundColor: '#E8F5E8',
+    },
+    difficultyMedium: {
+      backgroundColor: '#FFF3E0',
+    },
+    difficultyHard: {
+      backgroundColor: '#FFEBEE',
+    },
+    difficultyText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#F57C00',
+    },
+    aiBadge: {
+      backgroundColor: '#E3F2FD',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    aiBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#1976D2',
+    },
+  });

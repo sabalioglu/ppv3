@@ -1,13 +1,15 @@
 // components/library/modals/CookbookBottomSheet.tsx
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import BottomSheet, { 
-  BottomSheetView, 
+import BottomSheet, {
+  BottomSheetView,
   BottomSheetScrollView,
-  BottomSheetBackdrop 
+  BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
 import { X, Plus, Check } from 'lucide-react-native';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, type Colors } from '@/lib/theme/index';
+import { colors as palette } from '@/lib/theme/index';
 import { useCookbookManager } from '../../../hooks/useCookbookManager';
 import { EditCookbookBottomSheet } from './EditCookbookBottomSheet';
 
@@ -24,10 +26,14 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
   recipeId,
   recipeTitle,
 }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['50%', '85%'], []);
-  
-  const { cookbooks, loadCookbooks, manageRecipeCookbooks } = useCookbookManager();
+
+  const { cookbooks, loadCookbooks, manageRecipeCookbooks } =
+    useCookbookManager();
   const [selectedCookbooks, setSelectedCookbooks] = useState<string[]>([]);
   const [showCreateCookbook, setShowCreateCookbook] = useState(false);
 
@@ -41,13 +47,13 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
         opacity={0.5}
       />
     ),
-    []
+    [],
   );
 
   const handleCookbookToggle = (cookbookId: string) => {
-    setSelectedCookbooks(prev => {
+    setSelectedCookbooks((prev) => {
       if (prev.includes(cookbookId)) {
-        return prev.filter(id => id !== cookbookId);
+        return prev.filter((id) => id !== cookbookId);
       }
       return [...prev, cookbookId];
     });
@@ -90,20 +96,22 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
           <View style={styles.header}>
             <View style={styles.titleContainer}>
               <Text style={styles.title}>Add to Cookbook</Text>
-              <Text style={styles.subtitle} numberOfLines={2}>{recipeTitle}</Text>
+              <Text style={styles.subtitle} numberOfLines={2}>
+                {recipeTitle}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={colors.neutral[600]} />
+              <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Scrollable Content */}
-          <BottomSheetScrollView 
+          <BottomSheetScrollView
             style={styles.content}
             showsVerticalScrollIndicator={false}
           >
             {/* Create New Cookbook */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.createOption}
               onPress={() => {
                 onClose();
@@ -111,11 +119,13 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
               }}
             >
               <View style={styles.createIconContainer}>
-                <Plus size={24} color={colors.primary[500]} />
+                <Plus size={24} color={colors.primary} />
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>Create New Cookbook</Text>
-                <Text style={styles.optionDescription}>Start a new collection</Text>
+                <Text style={styles.optionDescription}>
+                  Start a new collection
+                </Text>
               </View>
             </TouchableOpacity>
 
@@ -125,21 +135,28 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
                 key={cookbook.id}
                 style={[
                   styles.cookbookOption,
-                  selectedCookbooks.includes(cookbook.id) && styles.selectedOption
+                  selectedCookbooks.includes(cookbook.id) &&
+                    styles.selectedOption,
                 ]}
                 onPress={() => handleCookbookToggle(cookbook.id)}
               >
-                <View style={[styles.emojiContainer, { backgroundColor: `${cookbook.color}15` }]}>
+                <View
+                  style={[
+                    styles.emojiContainer,
+                    { backgroundColor: `${cookbook.color}15` },
+                  ]}
+                >
                   <Text style={styles.emoji}>{cookbook.emoji}</Text>
                 </View>
                 <View style={styles.optionContent}>
                   <Text style={styles.optionTitle}>{cookbook.name}</Text>
                   <Text style={styles.optionDescription}>
-                    {cookbook.recipe_count || 0} recipe{cookbook.recipe_count !== 1 ? 's' : ''}
+                    {cookbook.recipe_count || 0} recipe
+                    {cookbook.recipe_count !== 1 ? 's' : ''}
                   </Text>
                 </View>
                 {selectedCookbooks.includes(cookbook.id) && (
-                  <Check size={20} color={colors.primary[500]} />
+                  <Check size={20} color={colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -147,10 +164,7 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
 
           {/* Save Button */}
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSave}
-            >
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
               <Text style={styles.saveButtonText}>
                 Save ({selectedCookbooks.length})
               </Text>
@@ -168,7 +182,7 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
           name: '',
           description: '',
           emoji: '📚',
-          color: colors.primary[500]
+          color: colors.primary,
         }}
         onUpdate={() => {
           setShowCreateCookbook(false);
@@ -179,115 +193,116 @@ export const CookbookBottomSheet: React.FC<CookbookBottomSheetProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  handleIndicator: {
-    backgroundColor: colors.neutral[300],
-  },
-  bottomSheetBackground: {
-    backgroundColor: colors.neutral[0],
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  titleContainer: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  title: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  createOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  createIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  cookbookOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  selectedOption: {
-    backgroundColor: colors.primary[50],
-    marginHorizontal: -spacing.lg,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 12,
-  },
-  emojiContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  emoji: {
-    fontSize: 24,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[800],
-    marginBottom: spacing.xs,
-  },
-  optionDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-  },
-  footer: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  saveButton: {
-    backgroundColor: colors.primary[500],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.neutral[0],
-  },
-});
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    handleIndicator: {
+      backgroundColor: colors.border,
+    },
+    bottomSheetBackground: {
+      backgroundColor: colors.surface,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    titleContainer: {
+      flex: 1,
+      marginRight: spacing.md,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    closeButton: {
+      padding: spacing.xs,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    createOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    createIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: palette.primary[50],
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    cookbookOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    selectedOption: {
+      backgroundColor: palette.primary[50],
+      marginHorizontal: -spacing.lg,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 12,
+    },
+    emojiContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    emoji: {
+      fontSize: 24,
+    },
+    optionContent: {
+      flex: 1,
+    },
+    optionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    optionDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    footer: {
+      padding: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    saveButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textOnPrimary,
+    },
+  });

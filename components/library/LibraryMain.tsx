@@ -38,8 +38,14 @@ import {
   FileText,
   Book,
 } from 'lucide-react-native';
-import { colors, spacing, typography, shadows } from '../../lib/theme';
-import { fonts } from '../../lib/theme/constants/typography';
+import { useTheme } from '@/contexts/ThemeContext';
+import {
+  spacing,
+  shadows,
+  fonts,
+  colors as palette,
+  type Colors,
+} from '@/lib/theme/index';
 import { t } from '../../lib/i18n';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -187,28 +193,28 @@ const importCategories: ImportCategory[] = [
     id: 'web',
     name: 'Web',
     icon: Globe,
-    color: colors.primary[500],
+    color: palette.primary[500],
     description: 'Recipe websites & blogs',
   },
   {
     id: 'socials',
     name: 'Socials',
     icon: Video,
-    color: colors.secondary[500],
+    color: palette.secondary[500],
     description: 'Social media videos',
   },
   {
     id: 'camera',
     name: 'Camera',
     icon: Camera,
-    color: colors.accent[500],
+    color: palette.accent[500],
     description: 'Scan from cookbook',
   },
   {
     id: 'manual',
     name: 'Manual',
     icon: FileText,
-    color: colors.neutral[600],
+    color: palette.neutral[600],
     description: 'Type it yourself',
   },
 ];
@@ -220,6 +226,8 @@ const BulkActionsBottomSheet: React.FC<{
   selectedRecipeIds: string[];
   onCookbooksUpdated: () => void;
 }> = ({ visible, onClose, selectedRecipeIds, onCookbooksUpdated }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const [cookbooks, setCookbooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -306,7 +314,7 @@ const BulkActionsBottomSheet: React.FC<{
               Add {selectedRecipeIds.length} recipes to cookbook
             </Text>
             <TouchableOpacity onPress={onClose}>
-              <X size={24} color={colors.neutral[600]} />
+              <X size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -326,7 +334,7 @@ const BulkActionsBottomSheet: React.FC<{
                   </Text>
                 </View>
                 {loading && (
-                  <ActivityIndicator size="small" color={colors.primary[500]} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -343,6 +351,8 @@ const ImportCategoriesModal: React.FC<{
   onClose: () => void;
   onSelect: (categoryId: string) => void;
 }> = ({ visible, onClose, onSelect }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   if (!visible) return null;
 
   return (
@@ -361,7 +371,7 @@ const ImportCategoriesModal: React.FC<{
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={20} color={colors.neutral[600]} />
+              <X size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -414,6 +424,8 @@ const ManualRecipeModal: React.FC<{
   onClose: () => void;
   onSave: (recipe: any) => void;
 }> = ({ visible, onClose, onSave }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -518,14 +530,14 @@ const ManualRecipeModal: React.FC<{
       <View style={styles.manualRecipeContainer}>
         <View style={styles.manualRecipeHeader}>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color={colors.neutral[600]} />
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.manualRecipeTitle}>
             {t('library.addRecipeManually')}
           </Text>
           <TouchableOpacity onPress={handleSave} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color={colors.primary[500]} />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <Text style={styles.saveButtonText}>{t('library.save')}</Text>
             )}
@@ -550,7 +562,7 @@ const ManualRecipeModal: React.FC<{
                 onChangeText={(text) =>
                   setFormData((prev) => ({ ...prev, title: text }))
                 }
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.inputPlaceholder}
               />
             </View>
             <View style={styles.formGroup}>
@@ -562,7 +574,7 @@ const ManualRecipeModal: React.FC<{
                 onChangeText={(text) =>
                   setFormData((prev) => ({ ...prev, description: text }))
                 }
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.inputPlaceholder}
                 multiline
                 numberOfLines={3}
               />
@@ -581,7 +593,7 @@ const ManualRecipeModal: React.FC<{
                   onChangeText={(text) =>
                     setFormData((prev) => ({ ...prev, prep_time: text }))
                   }
-                  placeholderTextColor={colors.neutral[400]}
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="numeric"
                 />
               </View>
@@ -598,7 +610,7 @@ const ManualRecipeModal: React.FC<{
                   onChangeText={(text) =>
                     setFormData((prev) => ({ ...prev, cook_time: text }))
                   }
-                  placeholderTextColor={colors.neutral[400]}
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="numeric"
                 />
               </View>
@@ -615,7 +627,7 @@ const ManualRecipeModal: React.FC<{
                   onChangeText={(text) =>
                     setFormData((prev) => ({ ...prev, servings: text }))
                   }
-                  placeholderTextColor={colors.neutral[400]}
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="numeric"
                 />
               </View>
@@ -700,7 +712,7 @@ const ManualRecipeModal: React.FC<{
               onChangeText={(text) =>
                 setFormData((prev) => ({ ...prev, ingredients: text }))
               }
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.inputPlaceholder}
               multiline
               textAlignVertical="top"
             />
@@ -715,7 +727,7 @@ const ManualRecipeModal: React.FC<{
               onChangeText={(text) =>
                 setFormData((prev) => ({ ...prev, instructions: text }))
               }
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.inputPlaceholder}
               multiline
               textAlignVertical="top"
             />
@@ -730,7 +742,7 @@ const ManualRecipeModal: React.FC<{
               onChangeText={(text) =>
                 setFormData((prev) => ({ ...prev, tags: text }))
               }
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.inputPlaceholder}
             />
           </View>
         </ScrollView>
@@ -759,6 +771,8 @@ const FilterModal: React.FC<{
   selectedCookbook,
   onCookbookChange,
 }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const [localFilters, setLocalFilters] = useState(filters);
   const [expandedCategories, setExpandedCategories] = useState<{
     [key: string]: boolean;
@@ -809,7 +823,7 @@ const FilterModal: React.FC<{
       <View style={styles.filterModalContainer}>
         <View style={styles.filterModalHeader}>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color={colors.neutral[600]} />
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.filterModalTitle}>
             {t('library.filterRecipes')}
@@ -833,7 +847,7 @@ const FilterModal: React.FC<{
               </Text>
               <ChevronDown
                 size={20}
-                color={colors.neutral[600]}
+                color={colors.textSecondary}
                 style={[
                   styles.chevronIcon,
                   expandedCategories.cookbook && styles.chevronIconExpanded,
@@ -859,7 +873,7 @@ const FilterModal: React.FC<{
                     {t('library.allRecipes')}
                   </Text>
                   {selectedCookbook === 'all' && (
-                    <Check size={16} color={colors.primary[500]} />
+                    <Check size={16} color={colors.primary} />
                   )}
                 </TouchableOpacity>
                 {userCookbooks.map((cookbook) => (
@@ -885,7 +899,7 @@ const FilterModal: React.FC<{
                       </Text>
                     </View>
                     {selectedCookbook === cookbook.id && (
-                      <Check size={16} color={colors.primary[500]} />
+                      <Check size={16} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -906,7 +920,7 @@ const FilterModal: React.FC<{
                 <Text style={styles.filterCategoryTitle}>{category.title}</Text>
                 <ChevronDown
                   size={20}
-                  color={colors.neutral[600]}
+                  color={colors.textSecondary}
                   style={[
                     styles.chevronIcon,
                     expandedCategories[category.id] &&
@@ -936,7 +950,7 @@ const FilterModal: React.FC<{
                           {option.label}
                         </Text>
                         {isSelected && (
-                          <Check size={16} color={colors.primary[500]} />
+                          <Check size={16} color={colors.primary} />
                         )}
                       </TouchableOpacity>
                     );
@@ -969,6 +983,8 @@ const URLImportModal: React.FC<{
   selectedSource?: string;
   loading: boolean;
 }> = ({ visible, onClose, onImport, selectedSource, loading }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const [url, setUrl] = useState('');
   const [currentLoadingMessage, setCurrentLoadingMessage] = useState(
     'Our AI chef is cooking up your recipe...',
@@ -1055,20 +1071,20 @@ const URLImportModal: React.FC<{
     if (selectedSource === 'web') {
       return {
         name: 'Website',
-        color: colors.primary[500],
+        color: colors.primary,
         description: 'Any recipe website',
       };
     }
     if (selectedSource === 'socials') {
       return {
         name: 'Social Media',
-        color: colors.secondary[500],
+        color: colors.secondary,
         description: 'TikTok, Instagram, YouTube, Facebook',
       };
     }
     return {
       name: 'Website',
-      color: colors.primary[500],
+      color: colors.primary,
       description: 'Any recipe website',
     };
   };
@@ -1127,7 +1143,7 @@ const URLImportModal: React.FC<{
               onPress={onClose}
               style={styles.urlModalCloseButton}
             >
-              <X size={20} color={colors.neutral[600]} />
+              <X size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -1144,7 +1160,7 @@ const URLImportModal: React.FC<{
                 placeholder={getPlaceholderUrl()}
                 value={url}
                 onChangeText={setUrl}
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.inputPlaceholder}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
@@ -1156,7 +1172,7 @@ const URLImportModal: React.FC<{
                   onPress={clearInput}
                   style={styles.clearInputButton}
                 >
-                  <X size={16} color={colors.neutral[400]} />
+                  <X size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1192,14 +1208,17 @@ const URLImportModal: React.FC<{
             >
               {loading ? (
                 <View style={styles.loadingContent}>
-                  <ActivityIndicator size="small" color={colors.neutral[0]} />
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.textOnPrimary}
+                  />
                   <Text style={styles.urlImportButtonText} numberOfLines={2}>
                     {currentLoadingMessage}
                   </Text>
                 </View>
               ) : (
                 <>
-                  <Link size={16} color={colors.neutral[0]} />
+                  <Link size={16} color={colors.textOnPrimary} />
                   <Text style={styles.urlImportButtonText}>
                     {t('library.importRecipe')}
                   </Text>
@@ -1239,16 +1258,18 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   isSelected,
   onSelect,
 }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy':
-        return colors.success[500];
+        return colors.success;
       case 'Medium':
-        return colors.warning[500];
+        return colors.warning;
       case 'Hard':
-        return colors.error[500];
+        return colors.error;
       default:
-        return colors.neutral[500];
+        return colors.textSecondary;
     }
   };
 
@@ -1297,13 +1318,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               style={[
                 styles.listCardImage,
                 {
-                  backgroundColor: colors.neutral[100],
+                  backgroundColor: colors.surfaceVariant,
                   justifyContent: 'center',
                   alignItems: 'center',
                 },
               ]}
             >
-              <ChefHat size={24} color={colors.neutral[400]} />
+              <ChefHat size={24} color={colors.textSecondary} />
             </View>
           )}
 
@@ -1396,15 +1417,17 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           />
         ) : (
           <View style={styles.gridPlaceholder}>
-            <ChefHat size={32} color={colors.neutral[400]} />
+            <ChefHat size={32} color={colors.textSecondary} />
           </View>
         )}
         {!isEditMode && (
           <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
             <Heart
               size={18}
-              color={recipe.is_favorite ? colors.error[500] : colors.neutral[0]}
-              fill={recipe.is_favorite ? colors.error[500] : 'transparent'}
+              color={
+                recipe.is_favorite ? colors.error : colors.textOnPrimary
+              }
+              fill={recipe.is_favorite ? colors.error : 'transparent'}
             />
           </TouchableOpacity>
         )}
@@ -1423,7 +1446,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         )}
         {recipe.source_url && (
           <View style={styles.sourceBadge}>
-            <ExternalLink size={12} color={colors.neutral[0]} />
+            <ExternalLink size={12} color={colors.textOnPrimary} />
           </View>
         )}
       </View>
@@ -1436,18 +1459,18 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
         </Text>
         <View style={styles.gridMeta}>
           <View style={styles.gridMetaItem}>
-            <Clock size={12} color={colors.neutral[500]} />
+            <Clock size={12} color={colors.textSecondary} />
             <Text style={styles.gridMetaText}>
               {recipe.prep_time + recipe.cook_time}m
             </Text>
           </View>
           <View style={styles.gridMetaItem}>
-            <Users size={12} color={colors.neutral[500]} />
+            <Users size={12} color={colors.textSecondary} />
             <Text style={styles.gridMetaText}>{recipe.servings}</Text>
           </View>
           {recipe.nutrition?.calories && (
             <View style={styles.gridMetaItem}>
-              <Flame size={12} color={colors.neutral[500]} />
+              <Flame size={12} color={colors.textSecondary} />
               <Text style={styles.gridMetaText}>
                 {recipe.nutrition.calories} cal
               </Text>
@@ -1460,16 +1483,16 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
               onPress={onAddToCookbook}
               style={styles.gridActionButton}
             >
-              <Book size={14} color={colors.secondary[500]} />
+              <Book size={14} color={colors.secondary} />
             </TouchableOpacity>
             <TouchableOpacity onPress={onEdit} style={styles.gridActionButton}>
-              <Edit3 size={14} color={colors.primary[500]} />
+              <Edit3 size={14} color={colors.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onDelete}
               style={styles.gridActionButton}
             >
-              <Trash2 size={14} color={colors.error[500]} />
+              <Trash2 size={14} color={colors.error} />
             </TouchableOpacity>
           </View>
         )}
@@ -1484,10 +1507,12 @@ const EmptyState: React.FC<{
   onAddRecipe: () => void;
   onClearFilters: () => void;
 }> = ({ hasFilters, onAddRecipe, onClearFilters }) => {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   if (hasFilters) {
     return (
       <View style={styles.emptyStateContainer}>
-        <Filter size={64} color={colors.neutral[400]} />
+        <Filter size={64} color={colors.textSecondary} />
         <Text style={styles.emptyStateTitle}>
           {t('library.noRecipesFoundTitle')}
         </Text>
@@ -1499,7 +1524,7 @@ const EmptyState: React.FC<{
             style={styles.emptyActionButton}
             onPress={onClearFilters}
           >
-            <X size={20} color={colors.primary[500]} />
+            <X size={20} color={colors.primary} />
             <Text style={styles.emptyActionText}>
               {t('library.clearFilters')}
             </Text>
@@ -1508,7 +1533,7 @@ const EmptyState: React.FC<{
             style={styles.emptyActionButtonSecondary}
             onPress={onAddRecipe}
           >
-            <Plus size={20} color={colors.neutral[600]} />
+            <Plus size={20} color={colors.textSecondary} />
             <Text style={styles.emptyActionTextSecondary}>
               {t('library.addRecipe')}
             </Text>
@@ -1520,7 +1545,7 @@ const EmptyState: React.FC<{
 
   return (
     <View style={styles.emptyStateContainer}>
-      <BookOpen size={64} color={colors.primary[500]} />
+      <BookOpen size={64} color={colors.primary} />
       <Text style={styles.emptyStateTitle}>
         {t('library.emptyLibraryTitle')}
       </Text>
@@ -1532,7 +1557,7 @@ const EmptyState: React.FC<{
           style={styles.emptyActionButton}
           onPress={onAddRecipe}
         >
-          <Plus size={20} color={colors.primary[500]} />
+          <Plus size={20} color={colors.primary} />
           <Text style={styles.emptyActionText}>{t('library.addRecipe')}</Text>
         </TouchableOpacity>
       </View>
@@ -1542,6 +1567,8 @@ const EmptyState: React.FC<{
 
 // **Main Library Component**
 export default function Library() {
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [recipesLoading, setRecipesLoading] = useState(false);
@@ -2133,7 +2160,7 @@ export default function Library() {
   if (loading || cookbooksLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>{t('library.loading')}</Text>
       </View>
     );
@@ -2201,13 +2228,13 @@ export default function Library() {
 
       <View style={styles.controls}>
         <View style={styles.searchContainer}>
-          <Search size={20} color={colors.neutral[400]} />
+          <Search size={20} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search your recipes..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={colors.neutral[400]}
+            placeholderTextColor={colors.inputPlaceholder}
           />
         </View>
         <TouchableOpacity
@@ -2219,7 +2246,7 @@ export default function Library() {
         >
           <Filter
             size={20}
-            color={hasActiveFilters ? colors.primary[500] : colors.neutral[600]}
+            color={hasActiveFilters ? colors.primary : colors.textSecondary}
           />
           {getActiveFilterCount() > 0 && (
             <View style={styles.filterBadge}>
@@ -2236,7 +2263,7 @@ export default function Library() {
           style={styles.addActionButton}
           onPress={() => setShowImportModal(true)}
         >
-          <Plus size={18} color={colors.primary[500]} />
+          <Plus size={18} color={colors.primary} />
           <Text style={styles.addActionText}>{t('library.addRecipe')}</Text>
         </TouchableOpacity>
 
@@ -2251,12 +2278,10 @@ export default function Library() {
             size={18}
             color={
               filterMode === 'favorites'
-                ? colors.error[500]
-                : colors.neutral[600]
+                ? colors.error
+                : colors.textSecondary
             }
-            fill={
-              filterMode === 'favorites' ? colors.error[500] : 'transparent'
-            }
+            fill={filterMode === 'favorites' ? colors.error : 'transparent'}
           />
           <Text
             style={[
@@ -2283,7 +2308,7 @@ export default function Library() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('library.myCookbooks')}</Text>
             <TouchableOpacity onPress={() => setShowCreateCookbook(true)}>
-              <Plus size={20} color={colors.primary[500]} />
+              <Plus size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
 
@@ -2298,7 +2323,7 @@ export default function Library() {
               onPress={() => setShowCreateCookbook(true)}
             >
               <View style={styles.newCookbookIcon}>
-                <Plus size={24} color={colors.primary[500]} />
+                <Plus size={24} color={colors.primary} />
               </View>
               <Text style={styles.newCookbookText}>
                 {t('library.newCookbook')}
@@ -2483,7 +2508,7 @@ export default function Library() {
           name: '',
           description: '',
           emoji: '📚',
-          color: colors.primary[500],
+          color: colors.primary,
         }}
         onUpdate={() => {
           setShowCreateCookbook(false);
@@ -2505,21 +2530,22 @@ export default function Library() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
   },
   loadingText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginTop: spacing.md,
   },
   header: {
@@ -2528,15 +2554,15 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     flex: 1,
-    fontSize: typography.fontSize['2xl'],
+    fontSize: 24,
     fontFamily: fonts.displayBold,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     marginLeft: spacing.md,
   },
   headerActions: {
@@ -2582,14 +2608,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     gap: spacing.md,
   },
   searchContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     height: 48,
@@ -2597,21 +2623,21 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     marginLeft: spacing.sm,
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   filterButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   filterButtonActive: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: palette.primary[50],
   },
   filterBadge: {
     position: 'absolute',
@@ -2620,22 +2646,22 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   filterBadgeText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: colors.neutral[0],
+    color: colors.surface,
   },
   addActions: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
     gap: spacing.sm,
   },
   addActionButton: {
@@ -2643,7 +2669,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: palette.primary[50],
     borderRadius: 12,
     paddingVertical: spacing.md,
     gap: spacing.sm,
@@ -2653,28 +2679,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     borderRadius: 12,
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
   addActionButtonSecondaryActive: {
-    backgroundColor: colors.error[50],
+    backgroundColor: palette.error[50],
   },
   addActionText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.primary[600],
+    color: palette.primary[600],
   },
   addActionTextSecondary: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   addActionTextSecondaryActive: {
-    color: colors.error[600],
+    color: palette.error[600],
   },
   recipesContainer: {
     flex: 1,
@@ -2706,9 +2732,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   recipesSection: {
     flex: 1,
@@ -2719,11 +2745,11 @@ const styles = StyleSheet.create({
   newCookbookCard: {
     width: 140,
     height: 180,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.neutral[300],
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -2732,20 +2758,20 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary[50],
+    backgroundColor: palette.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
   newCookbookText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.primary[600],
+    color: palette.primary[600],
   },
   cookbookCard: {
     width: 140,
     height: 180,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: spacing.md,
     marginRight: spacing.md,
@@ -2758,15 +2784,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   cookbookName: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   cookbookCount: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 
   // Filter Option with Emoji
@@ -2903,7 +2929,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   bulkModalContainer: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
@@ -2914,12 +2940,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
   },
   bulkModalTitle: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   bulkModalContent: {
     maxHeight: 400,
@@ -2931,7 +2957,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
     marginBottom: spacing.sm,
   },
   bulkCookbookEmoji: {
@@ -2942,14 +2968,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bulkCookbookName: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     marginBottom: spacing.xs / 2,
   },
   bulkCookbookDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 
   // Edit mode styles
@@ -2990,7 +3016,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   importModalContainer: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderRadius: 16,
     width: '85%',
     maxWidth: 350,
@@ -3002,12 +3028,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
   },
   importModalTitle: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   importModalContent: {
     paddingVertical: spacing.sm,
@@ -3017,7 +3043,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.surfaceVariant,
   },
   importModalIcon: {
     width: 48,
@@ -3031,20 +3057,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   importModalItemTitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     marginBottom: spacing.xs / 2,
   },
   importModalItemDescription: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 
   // Manual Recipe Modal Styles
   manualRecipeContainer: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
   },
   manualRecipeHeader: {
     flexDirection: 'row',
@@ -3054,19 +3080,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
   },
   manualRecipeTitle: {
-    fontSize: typography.fontSize.xl,
+    fontSize: 20,
     fontFamily: fonts.display,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   saveButtonText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.primary[500],
+    color: colors.primary,
   },
   manualRecipeContent: {
     flex: 1,
@@ -3076,32 +3102,32 @@ const styles = StyleSheet.create({
     marginVertical: spacing.lg,
   },
   formSectionTitle: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
   formGroup: {
     marginBottom: spacing.md,
   },
   formLabel: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[700],
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   formInput: {
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border,
   },
   textArea: {
     textAlignVertical: 'top',
@@ -3111,38 +3137,38 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   formHint: {
-    fontSize: typography.fontSize.xs,
+    fontSize: 12,
     fontFamily: fonts.body,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
   pickerContainer: {
     marginTop: spacing.xs,
   },
   pickerOption: {
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     borderRadius: 20,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginRight: spacing.sm,
   },
   pickerOptionSelected: {
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
   },
   pickerOptionText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.bodyMedium,
     fontWeight: '500',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   pickerOptionTextSelected: {
-    color: colors.neutral[0],
+    color: colors.surface,
   },
 
   // Filter Modal Styles
   filterModalContainer: {
     flex: 1,
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
   },
   filterModalHeader: {
     flexDirection: 'row',
@@ -3152,19 +3178,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    borderBottomColor: colors.border,
   },
   filterModalTitle: {
-    fontSize: typography.fontSize.xl,
+    fontSize: 20,
     fontFamily: fonts.display,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   clearAllText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.primary[500],
+    color: colors.primary,
   },
   filterModalContent: {
     flex: 1,
@@ -3173,7 +3199,7 @@ const styles = StyleSheet.create({
   filterCategoryContainer: {
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: colors.surfaceVariant,
   },
   filterCategoryHeader: {
     flexDirection: 'row',
@@ -3182,10 +3208,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   filterCategoryTitle: {
-    fontSize: typography.fontSize.lg,
+    fontSize: 18,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   chevronIcon: {
     transform: [{ rotate: '0deg' }],
@@ -3206,17 +3232,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   filterOptionSelected: {
-    backgroundColor: colors.primary[50],
+    backgroundColor: palette.primary[50],
   },
   filterOptionText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[700],
+    color: colors.textPrimary,
   },
   filterOptionTextSelected: {
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.primary[600],
+    color: palette.primary[600],
   },
   cookbookEmoji: {
     fontSize: 16,
@@ -3225,19 +3251,19 @@ const styles = StyleSheet.create({
   filterModalFooter: {
     padding: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
+    borderTopColor: colors.border,
   },
   applyFiltersButton: {
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   applyFiltersText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[0],
+    color: colors.surface,
   },
 
   // URL Import Modal Styles
@@ -3247,7 +3273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   urlModalContainer: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: spacing.lg,
@@ -3274,28 +3300,28 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   urlModalTitle: {
-    fontSize: typography.fontSize.xl,
+    fontSize: 20,
     fontFamily: fonts.display,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
   },
   urlModalSubtitle: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.body,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
   },
   urlModalCloseButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
   urlModalDescription: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     lineHeight: 22,
     marginBottom: spacing.xl,
   },
@@ -3305,25 +3331,25 @@ const styles = StyleSheet.create({
   urlInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[50],
+    backgroundColor: colors.background,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: colors.neutral[200],
+    borderColor: colors.border,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
   urlInput: {
     flex: 1,
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     paddingVertical: spacing.md,
   },
   clearInputButton: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.neutral[200],
+    backgroundColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -3331,16 +3357,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   exampleUrlsTitle: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
   exampleUrlsText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.body,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   urlModalActions: {
@@ -3349,21 +3375,21 @@ const styles = StyleSheet.create({
   },
   urlCancelButton: {
     flex: 1,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     borderRadius: 12,
     paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   urlCancelButtonText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   urlImportButton: {
     flex: 2,
     flexDirection: 'row',
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: spacing.lg,
     alignItems: 'center',
@@ -3371,13 +3397,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   urlImportButtonDisabled: {
-    backgroundColor: colors.neutral[300],
+    backgroundColor: colors.border,
   },
   urlImportButtonText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[0],
+    color: colors.surface,
   },
   loadingContent: {
     flexDirection: 'row',
@@ -3389,7 +3415,7 @@ const styles = StyleSheet.create({
 
   // Recipe Card Styles
   gridCard: {
-    backgroundColor: colors.neutral[0],
+    backgroundColor: colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
     ...shadows.md,
@@ -3397,7 +3423,7 @@ const styles = StyleSheet.create({
   gridImageContainer: {
     position: 'relative',
     height: 140,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
   },
   gridImage: {
     width: '100%',
@@ -3408,7 +3434,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
   },
   favoriteButton: {
     position: 'absolute',
@@ -3433,13 +3459,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: fonts.bodyBold,
     fontWeight: 'bold',
-    color: colors.neutral[0],
+    color: colors.surface,
   },
   aiBadge: {
     position: 'absolute',
     top: spacing.sm + 24,
     left: spacing.sm,
-    backgroundColor: colors.secondary[500],
+    backgroundColor: colors.secondary,
     borderRadius: 6,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
@@ -3448,13 +3474,13 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: fonts.bodyBold,
     fontWeight: 'bold',
-    color: colors.neutral[0],
+    color: colors.surface,
   },
   sourceBadge: {
     position: 'absolute',
     bottom: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.accent[500],
+    backgroundColor: colors.accent,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -3465,16 +3491,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   gridTitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[800],
+    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   gridDescription: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 14,
     fontFamily: fonts.body,
-    color: colors.neutral[600],
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
   gridMeta: {
@@ -3489,10 +3515,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   gridMetaText: {
-    fontSize: typography.fontSize.xs,
+    fontSize: 12,
     fontFamily: fonts.bodyMedium,
     fontWeight: '500',
-    color: colors.neutral[500],
+    color: colors.textSecondary,
   },
   gridActions: {
     flexDirection: 'row',
@@ -3503,7 +3529,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -3515,18 +3541,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   emptyStateTitle: {
-    fontSize: typography.fontSize.xl,
+    fontSize: 20,
     fontFamily: fonts.display,
     fontWeight: '600',
-    color: colors.neutral[700],
+    color: colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.body,
-    color: colors.neutral[500],
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -3537,7 +3563,7 @@ const styles = StyleSheet.create({
   emptyActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary[50],
+    backgroundColor: palette.primary[50],
     borderRadius: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -3546,23 +3572,23 @@ const styles = StyleSheet.create({
   emptyActionButtonSecondary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.surfaceVariant,
     borderRadius: 12,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     gap: spacing.sm,
   },
   emptyActionText: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.primary[600],
+    color: palette.primary[600],
   },
   emptyActionTextSecondary: {
-    fontSize: typography.fontSize.base,
+    fontSize: 16,
     fontFamily: fonts.bodySemibold,
     fontWeight: '600',
-    color: colors.neutral[600],
+    color: colors.textSecondary,
   },
   fab: {
     position: 'absolute',
@@ -3571,7 +3597,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: colors.primary[500],
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...shadows.lg,

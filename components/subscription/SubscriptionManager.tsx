@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { colors, spacing, typography } from '@/lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, type Colors } from '@/lib/theme/index';
 import { supabase } from '@/lib/supabase';
 import { products } from '@/src/stripe-config';
 import { SubscriptionCard } from './SubscriptionCard';
@@ -22,10 +23,14 @@ interface SubscriptionData {
 }
 
 export const SubscriptionManager: React.FC = () => {
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     loadSubscription();
@@ -55,16 +60,20 @@ export const SubscriptionManager: React.FC = () => {
     try {
       setCheckoutLoading(priceId);
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
       if (sessionError || !session) {
         Alert.alert('Authentication Required', 'Please log in to subscribe');
         return;
       }
 
-      const baseUrl = Platform.OS === 'web' 
-        ? window.location.origin 
-        : 'https://your-app-domain.com'; // Replace with your actual domain
+      const baseUrl =
+        Platform.OS === 'web'
+          ? window.location.origin
+          : 'https://your-app-domain.com'; // Replace with your actual domain
 
       const response = await supabase.functions.invoke('stripe-checkout', {
         body: {
@@ -79,7 +88,9 @@ export const SubscriptionManager: React.FC = () => {
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to create checkout session');
+        throw new Error(
+          response.error.message || 'Failed to create checkout session',
+        );
       }
 
       const { url } = response.data;
@@ -95,7 +106,10 @@ export const SubscriptionManager: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Subscription error:', error);
-      Alert.alert('Error', error.message || 'Failed to start subscription process');
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to start subscription process',
+      );
     } finally {
       setCheckoutLoading(null);
     }
@@ -104,7 +118,7 @@ export const SubscriptionManager: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading subscription details...</Text>
       </View>
     );
@@ -126,7 +140,10 @@ export const SubscriptionManager: React.FC = () => {
           <SubscriptionCard
             key={product.priceId}
             product={product}
-            isActive={subscription?.price_id === product.priceId && subscription?.subscription_status === 'active'}
+            isActive={
+              subscription?.price_id === product.priceId &&
+              subscription?.subscription_status === 'active'
+            }
             onSubscribe={handleSubscribe}
             loading={checkoutLoading === product.priceId}
           />
@@ -142,47 +159,48 @@ export const SubscriptionManager: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[50],
-  },
-  loadingText: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-    marginTop: spacing.md,
-  },
-  header: {
-    padding: spacing.xl,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: typography.fontSize['3xl'],
-    fontWeight: 'bold',
-    color: colors.neutral[800],
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[600],
-  },
-  plansContainer: {
-    paddingHorizontal: spacing.xl,
-  },
-  footer: {
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginTop: spacing.md,
+    },
+    header: {
+      padding: spacing.xl,
+      paddingTop: 60,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: 'bold',
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+    },
+    plansContainer: {
+      paddingHorizontal: spacing.xl,
+    },
+    footer: {
+      padding: spacing.xl,
+      alignItems: 'center',
+    },
+    footerText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+  });

@@ -1,5 +1,11 @@
 // components/library/modals/EditCookbookBottomSheet.tsx
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -10,14 +16,16 @@ import {
   Alert,
   ScrollView as RNScrollView,
 } from 'react-native';
-import BottomSheet, { 
-  BottomSheetView, 
+import BottomSheet, {
+  BottomSheetView,
   BottomSheetScrollView,
   BottomSheetBackdrop,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import { X } from 'lucide-react-native';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, type Colors } from '@/lib/theme/index';
+import { colors as palette } from '@/lib/theme/index';
 import { supabase } from '../../../lib/supabase';
 
 interface EditCookbookBottomSheetProps {
@@ -33,29 +41,40 @@ interface EditCookbookBottomSheetProps {
   onUpdate: () => void;
 }
 
-const EMOJI_OPTIONS = ['📚', '🍳', '🥘', '🍰', '🥗', '🍕', '🍜', '🥐', '🍱', '🌮'];
+const EMOJI_OPTIONS = [
+  '📚',
+  '🍳',
+  '🥘',
+  '🍰',
+  '🥗',
+  '🍕',
+  '🍜',
+  '🥐',
+  '🍱',
+  '🌮',
+];
 const COLOR_OPTIONS = [
-  colors.primary[500],
-  colors.secondary[500],
-  colors.accent[500],
-  colors.success[500],
-  colors.warning[500],
-  colors.error[500],
+  palette.primary[500],
+  palette.secondary[500],
+  palette.accent[500],
+  palette.success[500],
+  palette.warning[500],
+  palette.error[500],
   '#8B5CF6',
   '#EC4899',
   '#F59E0B',
   '#10B981',
 ];
 
-export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = ({
-  visible,
-  onClose,
-  cookbook,
-  onUpdate,
-}) => {
+export const EditCookbookBottomSheet: React.FC<
+  EditCookbookBottomSheetProps
+> = ({ visible, onClose, cookbook, onUpdate }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['75%', '90%'], []);
-  
+
   const [name, setName] = useState(cookbook.name);
   const [description, setDescription] = useState(cookbook.description || '');
   const [selectedEmoji, setSelectedEmoji] = useState(cookbook.emoji);
@@ -86,7 +105,7 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
         opacity={0.5}
       />
     ),
-    []
+    [],
   );
 
   const handleUpdate = async () => {
@@ -99,21 +118,21 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
     try {
       if (isNewCookbook) {
         // Create new cookbook
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           Alert.alert('Error', 'Please log in to create cookbooks');
           return;
         }
 
-        const { error } = await supabase
-          .from('cookbooks')
-          .insert({
-            user_id: user.id,
-            name: name.trim(),
-            description: description.trim() || null,
-            emoji: selectedEmoji,
-            color: selectedColor,
-          });
+        const { error } = await supabase.from('cookbooks').insert({
+          user_id: user.id,
+          name: name.trim(),
+          description: description.trim() || null,
+          emoji: selectedEmoji,
+          color: selectedColor,
+        });
 
         if (error) throw error;
         Alert.alert('Success!', 'Cookbook created successfully');
@@ -137,8 +156,14 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
       onUpdate();
       onClose();
     } catch (error) {
-      console.error(`Error ${isNewCookbook ? 'creating' : 'updating'} cookbook:`, error);
-      Alert.alert('Error', `Failed to ${isNewCookbook ? 'create' : 'update'} cookbook`);
+      console.error(
+        `Error ${isNewCookbook ? 'creating' : 'updating'} cookbook:`,
+        error,
+      );
+      Alert.alert(
+        'Error',
+        `Failed to ${isNewCookbook ? 'create' : 'update'} cookbook`,
+      );
     } finally {
       setLoading(false);
     }
@@ -161,14 +186,14 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color={colors.neutral[600]} />
+            <X size={24} color={colors.textSecondary} />
           </TouchableOpacity>
           <Text style={styles.title}>
             {isNewCookbook ? 'Create Cookbook' : 'Edit Cookbook'}
           </Text>
           <TouchableOpacity onPress={handleUpdate} disabled={loading}>
             {loading ? (
-              <ActivityIndicator size="small" color={colors.primary[500]} />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
               <Text style={styles.saveText}>
                 {isNewCookbook ? 'Create' : 'Save'}
@@ -178,7 +203,7 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
         </View>
 
         {/* Content */}
-        <BottomSheetScrollView 
+        <BottomSheetScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
         >
@@ -189,7 +214,7 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
               value={name}
               onChangeText={setName}
               placeholder="My Cookbook"
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.inputPlaceholder}
             />
           </View>
 
@@ -200,7 +225,7 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
               value={description}
               onChangeText={setDescription}
               placeholder="A collection of my favorite recipes..."
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.inputPlaceholder}
               multiline
               numberOfLines={3}
             />
@@ -251,100 +276,101 @@ export const EditCookbookBottomSheet: React.FC<EditCookbookBottomSheetProps> = (
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[0],
-  },
-  handleIndicator: {
-    backgroundColor: colors.neutral[300],
-  },
-  bottomSheetBackground: {
-    backgroundColor: colors.neutral[0],
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
-  },
-  title: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: '600',
-    color: colors.neutral[800],
-  },
-  saveText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: '600',
-    color: colors.primary[500],
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  formGroup: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: '600',
-    color: colors.neutral[700],
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.neutral[50],
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize.base,
-    color: colors.neutral[800],
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  emojiContainer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingRight: spacing.lg,
-  },
-  emojiOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  emojiOptionSelected: {
-    borderColor: colors.primary[500],
-    backgroundColor: colors.primary[50],
-  },
-  emojiText: {
-    fontSize: 24,
-  },
-  colorContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  colorOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  colorOptionSelected: {
-    borderColor: colors.neutral[800],
-  },
-});
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    handleIndicator: {
+      backgroundColor: colors.border,
+    },
+    bottomSheetBackground: {
+      backgroundColor: colors.surface,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    saveText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    formGroup: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    input: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontSize: 16,
+      color: colors.textPrimary,
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    textArea: {
+      height: 80,
+      textAlignVertical: 'top',
+    },
+    emojiContainer: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingRight: spacing.lg,
+    },
+    emojiOption: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    emojiOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: palette.primary[50],
+    },
+    emojiText: {
+      fontSize: 24,
+    },
+    colorContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    colorOption: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 3,
+      borderColor: 'transparent',
+    },
+    colorOptionSelected: {
+      borderColor: colors.textPrimary,
+    },
+  });

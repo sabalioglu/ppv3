@@ -1,7 +1,14 @@
 // components/RecipeImportLoader.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
-import { colors, spacing, typography } from '@/lib/theme';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
+import { spacing, type Colors } from '@/lib/theme/index';
 import { getLoadingMessages, LoadingMessage } from '@/lib/loadingMessages';
 
 interface RecipeImportLoaderProps {
@@ -13,11 +20,16 @@ interface RecipeImportLoaderProps {
 export const RecipeImportLoader: React.FC<RecipeImportLoaderProps> = ({
   visible,
   url,
-  onComplete
+  onComplete,
 }) => {
-  const [currentMessage, setCurrentMessage] = useState<LoadingMessage | null>(null);
+  const [currentMessage, setCurrentMessage] = useState<LoadingMessage | null>(
+    null,
+  );
   const [messageIndex, setMessageIndex] = useState(0);
   const [messages, setMessages] = useState<LoadingMessage[]>([]);
+
+  const { colors } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
 
   useEffect(() => {
     if (visible && url) {
@@ -35,7 +47,7 @@ export const RecipeImportLoader: React.FC<RecipeImportLoaderProps> = ({
       const nextIndex = (messageIndex + 1) % messages.length;
       setMessageIndex(nextIndex);
       setCurrentMessage(messages[nextIndex]);
-      
+
       // If we've cycled through all messages, call onComplete
       if (nextIndex === 0 && messageIndex > 0) {
         onComplete?.();
@@ -50,15 +62,15 @@ export const RecipeImportLoader: React.FC<RecipeImportLoaderProps> = ({
   return (
     <View style={styles.overlay}>
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={colors.primary[500]} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.message}>{currentMessage.text}</Text>
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
-                { width: `${((messageIndex + 1) / messages.length) * 100}%` }
-              ]} 
+                styles.progressFill,
+                { width: `${((messageIndex + 1) / messages.length) * 100}%` },
+              ]}
             />
           </View>
           <Text style={styles.progressText}>
@@ -70,56 +82,57 @@ export const RecipeImportLoader: React.FC<RecipeImportLoaderProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  container: {
-    backgroundColor: colors.neutral[0],
-    borderRadius: 20,
-    padding: spacing.xl,
-    alignItems: 'center',
-    maxWidth: '80%',
-    minWidth: 280,
-  },
-  message: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
-    fontWeight: '500',
-    color: colors.neutral[800],
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-    lineHeight: 24,
-  },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 4,
-    backgroundColor: colors.neutral[200],
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary[500],
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
-    color: colors.neutral[500],
-  },
-});
+const getStyles = (colors: Colors) =>
+  StyleSheet.create({
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    container: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: spacing.xl,
+      alignItems: 'center',
+      maxWidth: '80%',
+      minWidth: 280,
+    },
+    message: {
+      fontSize: 18,
+      fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Medium',
+      fontWeight: '500',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
+      lineHeight: 24,
+    },
+    progressContainer: {
+      width: '100%',
+      alignItems: 'center',
+    },
+    progressBar: {
+      width: '100%',
+      height: 4,
+      backgroundColor: colors.borderLight,
+      borderRadius: 2,
+      overflow: 'hidden',
+      marginBottom: spacing.sm,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+    },
+    progressText: {
+      fontSize: 12,
+      fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'Inter-Regular',
+      color: colors.textSecondary,
+    },
+  });
