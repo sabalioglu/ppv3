@@ -17,7 +17,13 @@ const isWeb = Platform.OS === 'web';
 export type RewardOutcome = 'earned' | 'dismissed' | 'unavailable';
 
 // Lazily require so web bundles never pull in the native module.
-function ads() {
+//
+// react-native-google-mobile-ads is NOT installed in v1.0 (ads deferred to
+// v1.1). metro.config.js aliases it to stubs/react-native-google-mobile-ads.js
+// so the production bundle resolves. This function is never called while
+// ADS_ENABLED is false (see quota-recovery). v1.1 re-enable: install the package
+// and remove the Metro alias.
+function ads(): any {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require('react-native-google-mobile-ads');
 }
