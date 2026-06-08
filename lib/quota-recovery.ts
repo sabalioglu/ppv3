@@ -12,6 +12,11 @@ import { supabase } from '@/lib/supabase';
 import { showRewardedForQuota } from '@/lib/ads';
 import { t } from '@/lib/i18n';
 
+// Rewarded ads are deferred to v1.1 (ad-free v1.0 launch). While disabled, a
+// quota limit goes straight to the paywall. Flip to true + install
+// react-native-google-mobile-ads + expo-tracking-transparency to re-enable.
+const ADS_ENABLED = false;
+
 async function watchAd(feature: string, onGranted: () => void) {
   const {
     data: { user },
@@ -34,12 +39,15 @@ async function watchAd(feature: string, onGranted: () => void) {
 // metering key ('ai_meal_plan' | 'photo_scan' | 'recipe_import'). onGranted is
 // run after a successful ad reward (retry the gated action).
 export function offerAdOrPaywall(feature: string, onGranted: () => void): void {
-  if (Platform.OS === 'web') {
+  if (!ADS_ENABLED || Platform.OS === 'web') {
     router.push('/paywall');
     return;
   }
   Alert.alert(t('ads.limitTitle'), t('ads.limitMessage'), [
-    { text: t('ads.watchCta'), onPress: () => void watchAd(feature, onGranted) },
+    {
+      text: t('ads.watchCta'),
+      onPress: () => void watchAd(feature, onGranted),
+    },
     { text: t('ads.upgradeCta'), onPress: () => router.push('/paywall') },
     { text: t('common.cancel'), style: 'cancel' },
   ]);

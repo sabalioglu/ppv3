@@ -80,6 +80,7 @@ export interface PackageLite {
   identifier: string;
   priceString: string;
   title: string;
+  packageType?: string; // RC packageType (MONTHLY/ANNUAL/...) for billing-period disclosure
   rcPackage: any; // the raw RC package, passed back to purchasePackage
 }
 
@@ -93,6 +94,7 @@ export async function getOfferingPackages(): Promise<PackageLite[]> {
       identifier: p.identifier,
       priceString: p.product?.priceString ?? '',
       title: p.product?.title ?? p.identifier,
+      packageType: p.packageType,
       rcPackage: p,
     }));
   } catch (e) {

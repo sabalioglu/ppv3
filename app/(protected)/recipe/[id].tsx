@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -118,6 +120,9 @@ export default function RecipeDetail() {
   const [recipe, setRecipe] = useState<Recipe | Meal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Interactive step-by-step cooking mode (opened from the "Start cooking" CTA).
+  const [cooking, setCooking] = useState(false);
+  const [cookStep, setCookStep] = useState(0);
 
   // ✅ FIXED: Added missing state variables
   const [loadingPantry, setLoadingPantry] = useState(false);
@@ -847,12 +852,10 @@ export default function RecipeDetail() {
     );
   };
 
-  // Placeholder functions for non-meal-plan recipes
+  // Opens the step-by-step cooking mode from the recipe's instructions.
   const handleCookNow = () => {
-    Alert.alert(
-      t('recipeDetail.cookComingSoonTitle'),
-      t('recipeDetail.cookComingSoonMessage'),
-    );
+    setCookStep(0);
+    setCooking(true);
   };
 
   const handleShare = () => {
@@ -887,6 +890,23 @@ export default function RecipeDetail() {
     if (percentage >= 60) return colors.accent;
     return colors.error;
   };
+
+  // Normalized step list for cooking mode (handles string | {instruction} shapes).
+  const cookingSteps = (
+    Array.isArray((recipe as Recipe | null)?.instructions)
+      ? ((recipe as Recipe).instructions as Recipe['instructions'])
+      : []
+  )
+    .map((ins) =>
+      typeof ins === 'string'
+        ? { text: ins, duration: undefined as number | undefined }
+        : {
+            text: ins?.instruction ?? '',
+            duration: ins?.duration_mins as number | undefined,
+          },
+    )
+    .filter((s) => s.text.trim().length > 0);
+  const lastStep = cookingSteps.length - 1;
 
   // Star rating row (saffron stars). Uses ai_match_score / pantry match as the
   // signal when present, otherwise defaults to a confident 4-star presentation.
@@ -1471,6 +1491,101 @@ export default function RecipeDetail() {
           </ThemedText>
         </TouchableOpacity>
       </View>
+
+      {/* Step-by-step cooking mode */}
+      <Modal
+        visible={cooking}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCooking(false)}
+      >
+        <View style={[styles.cookRoot, { backgroundColor: colors.background }]}>
+          <View style={styles.cookHeader}>
+            <ThemedText
+              style={[styles.cookHeaderText, { color: colors.textSecondary }]}
+            >
+              {`${TR ? 'Adım' : 'Step'} ${Math.min(
+                cookStep + 1,
+                Math.max(cookingSteps.length, 1),
+              )}/${cookingSteps.length || 1}`}
+            </ThemedText>
+            <TouchableOpacity onPress={() => setCooking(false)} hitSlop={12}>
+              <XCircle size={26} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.cookBody}>
+            <View
+              style={[
+                styles.cookStepBadge,
+                { backgroundColor: colors.primary },
+              ]}
+            >
+              <ThemedText style={styles.cookStepBadgeText}>
+                {cookStep + 1}
+              </ThemedText>
+            </View>
+            <ThemedText
+              style={[styles.cookStepText, { color: colors.textPrimary }]}
+            >
+              {cookingSteps[cookStep]?.text || t('recipeDetail.noInstructions')}
+            </ThemedText>
+            {cookingSteps[cookStep]?.duration ? (
+              <View style={styles.cookDurRow}>
+                <Clock size={14} color={colors.textSecondary} />
+                <ThemedText
+                  style={[styles.cookDurText, { color: colors.textSecondary }]}
+                >
+                  {minLabel(cookingSteps[cookStep]!.duration!)}
+                </ThemedText>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          <View
+            style={[styles.cookFooter, { borderTopColor: colors.borderLight }]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.cookNavBtn,
+                {
+                  borderColor: colors.borderLight,
+                  opacity: cookStep === 0 ? 0.4 : 1,
+                },
+              ]}
+              disabled={cookStep === 0}
+              onPress={() => setCookStep((s) => Math.max(0, s - 1))}
+            >
+              <ThemedText
+                style={[styles.cookNavText, { color: colors.textPrimary }]}
+              >
+                {TR ? 'Geri' : 'Back'}
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.cookNavBtn,
+                styles.cookNavPrimary,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={() => {
+                if (cookStep >= lastStep) setCooking(false);
+                else setCookStep((s) => s + 1);
+              }}
+            >
+              <ThemedText style={[styles.cookNavText, { color: '#fff' }]}>
+                {cookStep >= lastStep
+                  ? TR
+                    ? 'Bitir'
+                    : 'Finish'
+                  : TR
+                    ? 'Sonraki'
+                    : 'Next'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1820,4 +1935,52 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   cookCtaText: { fontFamily: fonts.bodyBold, fontSize: 15, color: '#fff' },
+  cookRoot: { flex: 1, paddingTop: Platform.OS === 'ios' ? 56 : 28 },
+  cookHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  cookHeaderText: { fontFamily: fonts.bodySemibold, fontSize: 14 },
+  cookBody: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  cookStepBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cookStepBadgeText: {
+    fontFamily: fonts.displayBold,
+    fontSize: 20,
+    color: '#fff',
+  },
+  cookStepText: { fontFamily: fonts.body, fontSize: 22, lineHeight: 32 },
+  cookDurRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cookDurText: { fontFamily: fonts.bodyMedium, fontSize: 14 },
+  cookFooter: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  cookNavBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cookNavPrimary: { borderWidth: 0 },
+  cookNavText: { fontFamily: fonts.bodyBold, fontSize: 16 },
 });

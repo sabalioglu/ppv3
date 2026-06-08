@@ -523,7 +523,9 @@ export default function ShoppingList() {
 
     confirmDestructive({
       title: t('shopping.clearConfirmTitle'),
-      message: t('shopping.clearConfirmMessage', { count: completedItems.length }),
+      message: t('shopping.clearConfirmMessage', {
+        count: completedItems.length,
+      }),
       confirmText: t('common.delete'),
       cancelText: t('common.cancel'),
       onConfirm: async () => {

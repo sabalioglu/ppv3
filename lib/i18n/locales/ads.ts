@@ -7,7 +7,8 @@ export default {
     watchCta: 'Watch ad (+1)',
     upgradeCta: 'Go Premium',
     unavailableTitle: 'No ad available',
-    unavailableMessage: 'Couldn’t load an ad right now. Please try again later.',
+    unavailableMessage:
+      'Couldn’t load an ad right now. Please try again later.',
   },
   tr: {
     limitTitle: 'Aylık limit doldu',

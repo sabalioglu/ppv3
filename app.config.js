@@ -4,6 +4,7 @@ export default {
   expo: {
     name: 'Stovd',
     slug: 'stovd',
+    owner: 'sabalioglu',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
@@ -16,6 +17,9 @@ export default {
       bundleIdentifier: 'com.stovd.app',
       usesAppleSignIn: true,
       infoPlist: {
+        // Standard HTTPS/TLS only — no non-exempt encryption. Avoids the
+        // export-compliance prompt on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false,
         CFBundleURLTypes: [
           {
             CFBundleURLName: 'stovd',
@@ -54,35 +58,25 @@ export default {
       'expo-font',
       'expo-web-browser',
       'expo-localization',
+      './plugins/withAppleSignInEntitlement',
     ],
     experiments: {
       typedRoutes: true,
     },
     extra: {
+      eas: {
+        projectId: '652f6d3d-3bdc-42a7-b810-785ae0963b71',
+      },
       rapidApiKey: process.env.EXPO_PUBLIC_RAPIDAPI_KEY,
       // RevenueCat public SDK keys (NOT secrets — ship in bundle by design).
       rcIosKey: process.env.EXPO_PUBLIC_RC_IOS_KEY,
       rcAndroidKey: process.env.EXPO_PUBLIC_RC_ANDROID_KEY,
-      // AdMob rewarded ad unit IDs (public — ship in the bundle). iOS is the
-      // real Stovd unit (pub-5168576951873280); Android still uses Google's
-      // test unit until the Android AdMob app is created.
-      admobRewardedIos:
-        process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS ||
-        'ca-app-pub-5168576951873280/3035283486',
-      admobRewardedAndroid:
-        process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID ||
-        'ca-app-pub-3940256099942544/5224354917',
+      // AdMob rewarded-ad config is deferred to v1.1 (ad-free v1.0 launch).
+      // To re-enable: restore `admobRewardedIos`/`admobRewardedAndroid` here +
+      // a root-level 'react-native-google-mobile-ads': { iosAppId, androidAppId }
+      // block, then `npx expo install react-native-google-mobile-ads
+      // expo-tracking-transparency`. Real iOS IDs are in project memory
+      // (pub-5168576951873280 / app ~3346578594 / unit /3035283486).
     },
-  },
-  // react-native-google-mobile-ads reads app IDs from this root key (config
-  // plugin). iOS = real Stovd App ID; Android = Google test ID until the
-  // Android AdMob app exists.
-  'react-native-google-mobile-ads': {
-    androidAppId:
-      process.env.EXPO_PUBLIC_ADMOB_APP_ID_ANDROID ||
-      'ca-app-pub-3940256099942544~3347511713',
-    iosAppId:
-      process.env.EXPO_PUBLIC_ADMOB_APP_ID_IOS ||
-      'ca-app-pub-5168576951873280~3346578594',
   },
 };

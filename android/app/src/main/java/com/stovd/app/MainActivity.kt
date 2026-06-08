@@ -1,4 +1,4 @@
-package com.aifoodpantry.app
+package com.stovd.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

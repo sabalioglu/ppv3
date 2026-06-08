@@ -1,4 +1,4 @@
-// app/ai-meal-plan.tsx - AI Meal Planner (Coming Soon Version)
+// app/ai-meal-plan.tsx - AI Meal Planner (daily / weekly / monthly)
 import React, { useState, useEffect } from 'react';
 import {
   View,

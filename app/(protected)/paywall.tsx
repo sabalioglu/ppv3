@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Check, X, Sparkles } from 'lucide-react-native';
@@ -28,6 +29,18 @@ import {
   restorePurchases,
   type PackageLite,
 } from '@/lib/purchases';
+
+// Canonical web host serving the legal pages (public/*.html via _redirects).
+const LEGAL_BASE = 'https://stovd.app';
+
+// RC packageType -> paywall i18n period key (App Store 3.1.2 billing-period
+// disclosure: each plan must show its billing length, not just the price).
+const PERIOD_KEY: Record<string, string> = {
+  WEEKLY: 'periodWeekly',
+  MONTHLY: 'periodMonthly',
+  ANNUAL: 'periodAnnual',
+  LIFETIME: 'periodLifetime',
+};
 
 export default function PaywallScreen() {
   const { colors } = useTheme();
@@ -164,6 +177,13 @@ export default function PaywallScreen() {
                 <Text style={[styles.planPrice, { color: colors.primary }]}>
                   {p.priceString}
                 </Text>
+                {p.packageType && PERIOD_KEY[p.packageType] ? (
+                  <Text
+                    style={[styles.planPeriod, { color: colors.textSecondary }]}
+                  >
+                    {t(`paywall.${PERIOD_KEY[p.packageType]}` as any)}
+                  </Text>
+                ) : null}
               </TouchableOpacity>
             );
           })
@@ -192,6 +212,26 @@ export default function PaywallScreen() {
         <Text style={[styles.legal, { color: colors.textSecondary }]}>
           {t('paywall.legal')}
         </Text>
+
+        <View style={styles.legalLinks}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`${LEGAL_BASE}/terms`)}
+            hitSlop={8}
+          >
+            <Text style={[styles.legalLink, { color: colors.textSecondary }]}>
+              {t('paywall.terms')}
+            </Text>
+          </TouchableOpacity>
+          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>·</Text>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`${LEGAL_BASE}/privacy`)}
+            hitSlop={8}
+          >
+            <Text style={[styles.legalLink, { color: colors.textSecondary }]}>
+              {t('paywall.privacy')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -240,6 +280,7 @@ const styles = StyleSheet.create({
   },
   planTitle: { fontFamily: fonts.bodySemibold, fontSize: 16 },
   planPrice: { fontFamily: fonts.displayBold, fontSize: 22, marginTop: 4 },
+  planPeriod: { fontFamily: fonts.bodyMedium, fontSize: 13, marginTop: 2 },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
@@ -263,5 +304,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 11,
     lineHeight: 16,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  legalLink: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
