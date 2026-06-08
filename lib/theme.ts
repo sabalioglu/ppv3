@@ -144,32 +144,14 @@ export const typography = {
   fontWeights,
   getFontFamily,
 
-  // ✅ UPDATED: Platform-aware font family definitions
+  // Stovd brand body faces (Inter, loaded in app/_layout.tsx). Lets the
+  // legacy theme.ts consumers (subscription/* + meal-plan/*) inherit the
+  // brand font without a full useTheme migration. Full merge is deferred.
   fontFamily: {
-    regular: Platform.select({
-      ios: 'System',
-      android: 'Roboto',
-      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      default: 'System',
-    }),
-    medium: Platform.select({
-      ios: 'System',
-      android: 'Roboto-Medium',
-      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      default: 'System',
-    }),
-    semiBold: Platform.select({
-      ios: 'System',
-      android: 'Roboto-Medium',
-      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      default: 'System',
-    }),
-    bold: Platform.select({
-      ios: 'System',
-      android: 'Roboto-Bold',
-      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      default: 'System',
-    }),
+    regular: 'Inter-Regular',
+    medium: 'Inter-Medium',
+    semiBold: 'Inter-SemiBold',
+    bold: 'Inter-Bold',
   },
 
   // Font sizes
