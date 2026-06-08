@@ -49,6 +49,12 @@ export default {
     // coming soon
     comingSoon: 'Coming soon',
     languageComingSoon: 'Language selection is coming soon.',
+    languageChoose: 'Choose your language',
+    languageChanged: 'Language updated',
+    languageRestart: 'Restart the app to fully apply the new language.',
+    profileNameLabel: 'Full name',
+    profileNamePlaceholder: 'Your name',
+    profileSaveError: 'Could not save profile',
     profileComingSoon: 'Profile editing is coming soon.',
     privacyComingSoon: 'Privacy settings are coming soon.',
     helpComingSoon: 'The help section is coming soon.',
@@ -109,6 +115,13 @@ export default {
     // coming soon
     comingSoon: 'Yakında',
     languageComingSoon: 'Dil seçimi yakında eklenecek.',
+    languageChoose: 'Dilini seç',
+    languageChanged: 'Dil güncellendi',
+    languageRestart:
+      'Yeni dilin tam uygulanması için uygulamayı yeniden başlat.',
+    profileNameLabel: 'Ad soyad',
+    profileNamePlaceholder: 'Adınız',
+    profileSaveError: 'Profil kaydedilemedi',
     profileComingSoon: 'Profil düzenleme yakında eklenecek.',
     privacyComingSoon: 'Gizlilik ayarları yakında eklenecek.',
     helpComingSoon: 'Yardım bölümü yakında eklenecek.',

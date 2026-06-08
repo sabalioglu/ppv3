@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { mealPlanInitializer } from '../lib/meal-plan/initialize';
 import { AuthProvider } from '@/contexts/AuthContext';
 import SplashController from '@/components/SplashController';
+import { loadSavedLocale } from '@/lib/i18n';
 import { useFonts } from 'expo-font';
 import {
   Inter_400Regular,
@@ -42,6 +43,9 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepareApp() {
       try {
+        // Apply the user's saved language before the first render.
+        await loadSavedLocale();
+
         // Initialize AI Meal Plan System
         const initResult = await mealPlanInitializer.initialize({
           enableLogging: __DEV__, // Use React Native's __DEV__ flag

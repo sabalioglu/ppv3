@@ -9,6 +9,9 @@ import {
   Alert,
   Platform,
   Linking,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 
 // Canonical web host serving the legal pages (public/*.html via _redirects).
@@ -35,7 +38,12 @@ import { supabase } from '@/lib/supabase';
 import { spacing, radius, fonts } from '@/lib/theme/index';
 import { router } from 'expo-router';
 import { Display, Eyebrow } from '@/components/UI/Display';
-import { t } from '@/lib/i18n';
+import { t, getLocale, setLocale, type AppLocale } from '@/lib/i18n';
+
+// Support + store links for the help / feedback / rate rows.
+const SUPPORT_EMAIL = 'support@stovd.app';
+const RATE_URL =
+  'itms-apps://itunes.apple.com/app/id6777703441?action=write-review';
 
 interface SettingItem {
   icon: any;
@@ -54,6 +62,10 @@ export default function SettingsScreen() {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [subscription, setSubscription] = useState<any>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [locale, setLocaleState] = useState<AppLocale>(getLocale());
 
   React.useEffect(() => {
     loadUserData();
@@ -178,6 +190,70 @@ export default function SettingsScreen() {
 
   const comingSoon = (msg: string) => () =>
     Alert.alert(t('settings.comingSoon'), msg);
+
+  const localeLabel = (l: AppLocale) =>
+    l === 'tr' ? 'Türkçe' : 'English';
+
+  // Language picker (Alert-based). Module-level strings need an app restart to
+  // fully re-resolve, so we persist the choice and tell the user to restart.
+  const applyLocale = async (lang: AppLocale) => {
+    if (lang === locale) return;
+    await setLocale(lang);
+    setLocaleState(lang);
+    Alert.alert(t('settings.languageChanged'), t('settings.languageRestart'));
+  };
+
+  const handleLanguage = () => {
+    Alert.alert(t('settings.language'), t('settings.languageChoose'), [
+      {
+        text: `English${locale === 'en' ? '  ✓' : ''}`,
+        onPress: () => applyLocale('en'),
+      },
+      {
+        text: `Türkçe${locale === 'tr' ? '  ✓' : ''}`,
+        onPress: () => applyLocale('tr'),
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
+  const openProfileEdit = () => {
+    setEditName(userName);
+    setShowProfileModal(true);
+  };
+
+  const saveProfile = async () => {
+    const name = editName.trim();
+    if (!name) return;
+    setSavingProfile(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('no user');
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ full_name: name })
+        .eq('id', user.id);
+      if (error) throw error;
+      setUserName(name);
+      setShowProfileModal(false);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message ?? t('settings.profileSaveError'));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const openHelp = () => Linking.openURL(`${LEGAL_BASE}/faq`);
+  const sendFeedback = () =>
+    Linking.openURL(
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Stovd Feedback')}`,
+    );
+  const rateApp = () =>
+    Linking.openURL(RATE_URL).catch(() =>
+      Linking.openURL('https://apps.apple.com/app/id6777703441'),
+    );
 
   const SettingSection: React.FC<{
     title: string;
@@ -329,9 +405,8 @@ export default function SettingsScreen() {
           <SettingRow
             icon={Globe}
             title={t('settings.language')}
-            subtitle={t('settings.languageValue')}
-            muted
-            onPress={comingSoon(t('settings.languageComingSoon'))}
+            subtitle={localeLabel(locale)}
+            onPress={handleLanguage}
           />
         </SettingSection>
 
@@ -355,8 +430,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon={User}
             title={t('settings.editProfile')}
-            muted
-            onPress={comingSoon(t('settings.profileComingSoon'))}
+            onPress={openProfileEdit}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
@@ -384,22 +458,19 @@ export default function SettingsScreen() {
           <SettingRow
             icon={HelpCircle}
             title={t('settings.helpFaq')}
-            muted
-            onPress={comingSoon(t('settings.helpComingSoon'))}
+            onPress={openHelp}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Heart}
             title={t('settings.sendFeedback')}
-            muted
-            onPress={comingSoon(t('settings.feedbackComingSoon'))}
+            onPress={sendFeedback}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
             icon={Star}
             title={t('settings.rateApp')}
-            muted
-            onPress={comingSoon(t('settings.rateComingSoon'))}
+            onPress={rateApp}
           />
         </SettingSection>
 
@@ -431,6 +502,80 @@ export default function SettingsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showProfileModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowProfileModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
+            <Display
+              size="md"
+              color={colors.textPrimary}
+              style={styles.modalTitle}
+            >
+              {t('settings.editProfile')}
+            </Display>
+            <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+              {t('settings.profileNameLabel')}
+            </Text>
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              placeholder={t('settings.profileNamePlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={[
+                styles.modalInput,
+                {
+                  color: colors.textPrimary,
+                  borderColor: colors.borderLight,
+                  backgroundColor: colors.background,
+                },
+              ]}
+              autoFocus
+              maxLength={60}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={() => setShowProfileModal(false)}
+                disabled={savingProfile}
+              >
+                <Text
+                  style={[styles.modalBtnText, { color: colors.textSecondary }]}
+                >
+                  {t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={saveProfile}
+                disabled={savingProfile || !editName.trim()}
+              >
+                {savingProfile ? (
+                  <ActivityIndicator color={colors.textOnPrimary} size="small" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.modalBtnText,
+                      { color: colors.textOnPrimary },
+                    ]}
+                  >
+                    {t('common.save')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Theme Switcher Modal */}
       <ThemeSwitcher
@@ -552,5 +697,48 @@ const styles = StyleSheet.create({
   appVersion: {
     fontSize: 13,
     fontFamily: fonts.body,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalCard: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  modalTitle: { marginBottom: spacing.md },
+  modalLabel: {
+    fontSize: 13,
+    fontFamily: fonts.bodyMedium,
+    marginBottom: 6,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontFamily: fonts.body,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  modalBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 88,
+  },
+  modalBtnPrimary: {},
+  modalBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.bodySemibold,
   },
 });

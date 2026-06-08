@@ -10,6 +10,7 @@
 // in the AREAS map below.
 import { I18n } from 'i18n-js';
 import { getLocales } from 'expo-localization';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import common from './locales/common';
 import tabs from './locales/tabs';
@@ -74,7 +75,38 @@ export function t(key: string, options?: Record<string, unknown>): string {
   return i18n.t(key, options);
 }
 
-/** Hook form for components. Locale is fixed at startup (device-driven). */
+/** Hook form for components. */
 export function useTranslation() {
   return { t, locale: i18n.locale };
+}
+
+// ── Language selection (settings) ──────────────────────────────────────
+// Device locale is the default; a saved choice overrides it on next launch.
+// Module-level strings (e.g. pantry CATEGORIES) resolve once, so a full
+// language switch applies after an app restart.
+const LOCALE_STORAGE_KEY = '@stovd_locale';
+export type AppLocale = 'en' | 'tr';
+
+export function getLocale(): AppLocale {
+  return i18n.locale === 'tr' ? 'tr' : 'en';
+}
+
+/** Read the user's saved locale (call in app bootstrap before first render). */
+export async function loadSavedLocale(): Promise<void> {
+  try {
+    const saved = await AsyncStorage.getItem(LOCALE_STORAGE_KEY);
+    if (saved === 'en' || saved === 'tr') i18n.locale = saved;
+  } catch {
+    // fall back to the device-driven locale
+  }
+}
+
+/** Set + persist the app locale. */
+export async function setLocale(lang: AppLocale): Promise<void> {
+  i18n.locale = lang;
+  try {
+    await AsyncStorage.setItem(LOCALE_STORAGE_KEY, lang);
+  } catch {
+    // non-fatal: choice still applies for this session
+  }
 }
