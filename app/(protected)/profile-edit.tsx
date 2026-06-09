@@ -86,9 +86,7 @@ export default function ProfileEditScreen() {
     value: string,
   ) => {
     setList(
-      list.includes(value)
-        ? list.filter((v) => v !== value)
-        : [...list, value],
+      list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
     );
   };
 
@@ -304,7 +302,10 @@ export default function ProfileEditScreen() {
         <View
           style={[
             styles.footer,
-            { backgroundColor: colors.surface, borderColor: colors.borderLight },
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.borderLight,
+            },
           ]}
         >
           <Pressable
@@ -362,7 +363,9 @@ const ChipGroup: React.FC<{
             },
           ]}
         >
-          {on && <Check size={13} color={colors.textOnPrimary} strokeWidth={3} />}
+          {on && (
+            <Check size={13} color={colors.textOnPrimary} strokeWidth={3} />
+          )}
           <Text
             style={[
               styles.chipText,

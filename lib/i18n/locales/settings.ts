@@ -146,7 +146,8 @@ export default {
     profileComingSoon: 'Profil düzenleme yakında eklenecek.',
     // profile editor screen
     profileEditKicker: 'Profilin',
-    profileEditSubtitle: 'Tarifleri ve öğün planlarını sana göre ayarlamak için',
+    profileEditSubtitle:
+      'Tarifleri ve öğün planlarını sana göre ayarlamak için',
     profileSectionBasics: 'TEMEL',
     profileSectionDiet: 'DİYET & DAMAK',
     profileSectionBody: 'VÜCUT & AKTİVİTE',

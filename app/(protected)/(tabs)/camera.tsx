@@ -39,6 +39,7 @@ import { ReceiptLearningService } from '@/lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '@/types/learning';
 import { showPrompt } from '@/lib/crossPlatformUtils';
 import { t, i18n } from '@/lib/i18n';
+import { confirmDestructive } from '@/lib/ui/confirm';
 
 // Locale is fixed at startup (device-driven). "%96 tamam" (tr) vs "96% done" (en).
 const progressLabel = (pct: number) =>
@@ -1329,43 +1330,34 @@ export default function CameraScreen() {
                           // Add all detected items to pantry
                           const detected = scanResult.data.items;
                           if (!detected) return;
-                          Alert.alert(
-                            t('camera.addAll'),
-                            t('camera.addAllConfirmMessage', {
+                          confirmDestructive({
+                            title: t('camera.addAll'),
+                            message: t('camera.addAllConfirmMessage', {
                               count: detected.length,
                             }),
-                            [
-                              {
-                                text: t('camera.addAllCancel'),
-                                style: 'cancel',
-                              },
-                              {
-                                text: t('camera.addAll'),
-                                onPress: () => {
-                                  // Convert to EnhancedParsedItem format
-                                  const items: EnhancedParsedItem[] =
-                                    detected.map(
-                                      (item: any, index: number) => ({
-                                        id: `scan_${Date.now()}_${index}`,
-                                        name:
-                                          item.name ||
-                                          item.item ||
-                                          'Unknown Item',
-                                        price: item.price || 0,
-                                        quantity: item.quantity || 1,
-                                        category: 'food',
-                                        confidence: item.confidence || 70,
-                                        is_food: true,
-                                        user_action: 'confirmed',
-                                      }),
-                                    );
+                            confirmText: t('camera.addAll'),
+                            cancelText: t('camera.addAllCancel'),
+                            destructive: false,
+                            onConfirm: () => {
+                              // Convert to EnhancedParsedItem format
+                              const items: EnhancedParsedItem[] = detected.map(
+                                (item: any, index: number) => ({
+                                  id: `scan_${Date.now()}_${index}`,
+                                  name:
+                                    item.name || item.item || 'Unknown Item',
+                                  price: item.price || 0,
+                                  quantity: item.quantity || 1,
+                                  category: 'food',
+                                  confidence: item.confidence || 70,
+                                  is_food: true,
+                                  user_action: 'confirmed',
+                                }),
+                              );
 
-                                  addToInventory(items);
-                                  clearResults();
-                                },
-                              },
-                            ],
-                          );
+                              addToInventory(items);
+                              clearResults();
+                            },
+                          });
                         }}
                       >
                         <Plus size={18} color="#FFFFFF" />

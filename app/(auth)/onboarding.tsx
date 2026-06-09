@@ -165,9 +165,9 @@ export default function Onboarding() {
         height_cm: parseInt(data.height),
         weight_kg: parseFloat(data.weight),
         activity_level: data.activityLevel,
-        // clinical macro/micro goals no longer collected; columns kept, written null
-        health_goals_macros: null,
-        health_goals_micros: null,
+        // clinical macro/micro goals no longer collected; columns kept, written empty
+        health_goals_macros: [],
+        health_goals_micros: [],
         dietary_restrictions: data.dietaryRestrictions,
         dietary_preferences: data.dietaryPreferences,
         cuisine_preferences: data.cuisinePreferences,

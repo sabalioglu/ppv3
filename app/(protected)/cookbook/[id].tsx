@@ -12,6 +12,7 @@ import {
   Alert,
   Image,
   Pressable,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -232,6 +233,18 @@ export default function CookbookDetail() {
   };
 
   const handleRecipeLongPress = (recipe: CookbookRecipe) => {
+    // Web can't render the native action sheet (and Alert buttons no-op there);
+    // tapping the card already opens the recipe, so go straight to remove-confirm.
+    if (Platform.OS === 'web') {
+      confirmDestructive({
+        title: t('cookbook.removeRecipeTitle'),
+        message: t('cookbook.removeRecipeConfirm'),
+        confirmText: t('cookbook.remove'),
+        cancelText: t('common.cancel'),
+        onConfirm: () => handleRemoveRecipe(recipe.id),
+      });
+      return;
+    }
     Alert.alert(recipe.title, t('cookbook.longPressMessage'), [
       {
         text: t('cookbook.viewRecipe'),

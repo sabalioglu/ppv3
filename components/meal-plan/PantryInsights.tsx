@@ -51,7 +51,7 @@ export default function PantryInsights({
   if (insights.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>🎉 Great Job!</Text>
+        <Text style={styles.emptyTitle}>Great Job!</Text>
         <Text style={styles.emptyMessage}>
           Your pantry is well-organized with no urgent issues.
         </Text>

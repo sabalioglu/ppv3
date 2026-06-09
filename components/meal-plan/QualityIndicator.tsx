@@ -131,7 +131,7 @@ export const QualityIndicator: React.FC<QualityIndicatorProps> = ({
 
                     {issue.suggestion && (
                       <Text style={styles.issueSuggestion}>
-                        💡 {issue.suggestion}
+                        {issue.suggestion}
                       </Text>
                     )}
                   </View>

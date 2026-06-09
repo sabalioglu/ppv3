@@ -26,6 +26,14 @@ import {
   X,
   Save,
   AlertCircle,
+  Apple,
+  Carrot,
+  Milk,
+  Beef,
+  Wheat,
+  Cookie,
+  CupSoda,
+  type LucideIcon,
 } from 'lucide-react-native';
 
 import {
@@ -93,63 +101,77 @@ interface AddItemForm {
   organic_preference: boolean;
 }
 
-// ✅ Categories ve Priorities tanımları
+// ✅ Categories ve Priorities tanımları (lucide ikonlar — Warm Editorial, emoji yok)
 const CATEGORIES = [
   {
     id: 'all',
     labelKey: 'shopping.catAll',
-    icon: '🛒',
+    icon: ShoppingCart,
     color: palette.neutral[500],
   },
   {
     id: 'fruits',
     labelKey: 'shopping.catFruits',
-    icon: '🍎',
+    icon: Apple,
     color: palette.success[500],
   },
   {
     id: 'vegetables',
     labelKey: 'shopping.catVegetables',
-    icon: '🥕',
+    icon: Carrot,
     color: palette.success[600],
   },
   {
     id: 'dairy',
     labelKey: 'shopping.catDairy',
-    icon: '🥛',
+    icon: Milk,
     color: palette.primary[500],
   },
   {
     id: 'meat',
     labelKey: 'shopping.catMeat',
-    icon: '🥩',
+    icon: Beef,
     color: palette.error[500],
   },
   {
     id: 'grains',
     labelKey: 'shopping.catGrains',
-    icon: '🌾',
+    icon: Wheat,
     color: palette.warning[500],
   },
   {
     id: 'snacks',
     labelKey: 'shopping.catSnacks',
-    icon: '🍪',
+    icon: Cookie,
     color: palette.secondary[500],
   },
   {
     id: 'beverages',
     labelKey: 'shopping.catBeverages',
-    icon: '🥤',
+    icon: CupSoda,
     color: palette.accent[500],
   },
   {
     id: 'general',
     labelKey: 'shopping.catGeneral',
-    icon: '📦',
+    icon: Package,
     color: palette.neutral[400],
   },
 ];
+
+type ShoppingCategory = (typeof CATEGORIES)[number];
+
+// Renders a category's lucide glyph in its accent color (replaces emoji icons).
+function CategoryIcon({
+  category,
+  size = 16,
+}: {
+  category: ShoppingCategory;
+  size?: number;
+}) {
+  const Icon: LucideIcon = category.icon;
+  return <Icon size={size} color={category.color} />;
+}
 
 const PRIORITIES = [
   { id: 'low', labelKey: 'shopping.prioLow', color: palette.secondary[500] },
@@ -824,9 +846,7 @@ export default function ShoppingList() {
                   ]}
                   onPress={() => setSelectedCategory(category.id)}
                 >
-                  <Text style={styles.dropdownCategoryEmoji}>
-                    {category.icon}
-                  </Text>
+                  <CategoryIcon category={category} size={18} />
                   <Text
                     style={[
                       styles.dropdownCategoryText,
@@ -1049,10 +1069,13 @@ export default function ShoppingList() {
                 }
               >
                 <View style={styles.categoryDropdownSelected}>
-                  <Text style={styles.categoryDropdownEmoji}>
-                    {CATEGORIES.find((c) => c.id === addItemForm.category)
-                      ?.icon || '📦'}
-                  </Text>
+                  <CategoryIcon
+                    category={
+                      CATEGORIES.find((c) => c.id === addItemForm.category) ??
+                      CATEGORIES[CATEGORIES.length - 1]
+                    }
+                    size={18}
+                  />
                   <Text style={styles.categoryDropdownButtonText}>
                     {t(
                       CATEGORIES.find((c) => c.id === addItemForm.category)
@@ -1086,9 +1109,7 @@ export default function ShoppingList() {
                         }}
                       >
                         <View style={styles.categoryDropdownItemContent}>
-                          <Text style={styles.categoryDropdownItemEmoji}>
-                            {category.icon}
-                          </Text>
+                          <CategoryIcon category={category} size={18} />
                           <Text
                             style={[
                               styles.categoryDropdownItemText,
@@ -1340,10 +1361,13 @@ export default function ShoppingList() {
                 onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
               >
                 <View style={styles.categoryDropdownSelected}>
-                  <Text style={styles.categoryDropdownEmoji}>
-                    {CATEGORIES.find((c) => c.id === editForm.category)?.icon ||
-                      '📦'}
-                  </Text>
+                  <CategoryIcon
+                    category={
+                      CATEGORIES.find((c) => c.id === editForm.category) ??
+                      CATEGORIES[CATEGORIES.length - 1]
+                    }
+                    size={18}
+                  />
                   <Text style={styles.categoryDropdownButtonText}>
                     {t(
                       CATEGORIES.find((c) => c.id === editForm.category)
@@ -1377,9 +1401,7 @@ export default function ShoppingList() {
                         }}
                       >
                         <View style={styles.categoryDropdownItemContent}>
-                          <Text style={styles.categoryDropdownItemEmoji}>
-                            {category.icon}
-                          </Text>
+                          <CategoryIcon category={category} size={18} />
                           <Text
                             style={[
                               styles.categoryDropdownItemText,
@@ -1760,7 +1782,6 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primary + '14',
       borderColor: colors.primary,
     },
-    dropdownCategoryEmoji: { fontSize: 14 },
     dropdownCategoryText: {
       fontFamily: 'Inter-Medium',
       fontSize: 13,
@@ -1965,7 +1986,6 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: spacing.sm,
     },
-    categoryDropdownEmoji: { fontSize: 18 },
     categoryDropdownButtonText: {
       fontFamily: 'Inter-Medium',
       fontSize: 15,
@@ -2004,7 +2024,6 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       gap: spacing.sm,
     },
-    categoryDropdownItemEmoji: { fontSize: 18 },
     categoryDropdownItemText: {
       fontFamily: 'Inter-Regular',
       fontSize: 15,

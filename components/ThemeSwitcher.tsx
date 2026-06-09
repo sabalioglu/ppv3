@@ -7,7 +7,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { Sun, Moon, Smartphone } from 'lucide-react-native';
+import { Sun, Moon, Smartphone, Check } from 'lucide-react-native';
 import { useTheme, ThemeMode } from '@/contexts/ThemeContext';
 import { spacing, radius } from '../lib/theme/index';
 
@@ -126,7 +126,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({
                     { backgroundColor: colors.primary },
                   ]}
                 >
-                  <Text style={styles.checkmarkText}>✓</Text>
+                  <Check size={12} color="#fff" strokeWidth={3} />
                 </View>
               )}
             </TouchableOpacity>
@@ -193,10 +193,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkmarkText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   button: {
     width: 40,

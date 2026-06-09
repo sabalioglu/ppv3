@@ -47,6 +47,7 @@ import {
   type Colors,
 } from '@/lib/theme/index';
 import { t } from '../../lib/i18n';
+import { confirmDestructive, notify } from '@/lib/ui/confirm';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -1006,34 +1007,34 @@ const URLImportModal: React.FC<{
 
     const platformMessages: { [key: string]: string[] } = {
       tiktok: [
-        '🎬 Analyzing TikTok...',
-        '👨‍🍳 Following chef...',
-        '📝 Taking notes...',
-        '🔥 Learning techniques...',
+        'Analyzing TikTok...',
+        'Following chef...',
+        'Taking notes...',
+        'Learning techniques...',
       ],
       instagram: [
-        '📸 Processing Reel...',
-        '✨ Extracting recipe...',
-        '🥘 Preparing list...',
-        '📱 Reading notes...',
+        'Processing Reel...',
+        'Extracting recipe...',
+        'Preparing list...',
+        'Reading notes...',
       ],
       youtube: [
-        '🎥 Examining video...',
-        '📊 Scanning description...',
-        '⏱️ Recording steps...',
-        '🎯 Analyzing quality...',
+        'Examining video...',
+        'Scanning description...',
+        'Recording steps...',
+        'Analyzing quality...',
       ],
       facebook: [
-        '📘 Processing video...',
-        '👥 Collecting tips...',
-        '📹 Optimizing quality...',
-        '🍳 Combining details...',
+        'Processing video...',
+        'Collecting tips...',
+        'Optimizing quality...',
+        'Combining details...',
       ],
       web: [
-        '🌐 Scanning website...',
-        '📖 Reading ingredients...',
-        '👩‍🍳 Extracting steps...',
-        '🎨 Finding image...',
+        'Scanning website...',
+        'Reading ingredients...',
+        'Extracting steps...',
+        'Finding image...',
       ],
     };
 
@@ -1424,9 +1425,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           <TouchableOpacity style={styles.favoriteButton} onPress={onFavorite}>
             <Heart
               size={18}
-              color={
-                recipe.is_favorite ? colors.error : colors.textOnPrimary
-              }
+              color={recipe.is_favorite ? colors.error : colors.textOnPrimary}
               fill={recipe.is_favorite ? colors.error : 'transparent'}
             />
           </TouchableOpacity>
@@ -1881,38 +1880,30 @@ export default function Library() {
   };
 
   const handleBulkDelete = () => {
-    Alert.alert(
-      'Delete Recipes',
-      `Are you sure you want to delete ${selectedRecipes.length} recipes?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('user_recipes')
-                .delete()
-                .in('id', selectedRecipes);
+    confirmDestructive({
+      title: 'Delete Recipes',
+      message: `Are you sure you want to delete ${selectedRecipes.length} recipes?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('user_recipes')
+            .delete()
+            .in('id', selectedRecipes);
 
-              if (error) throw error;
+          if (error) throw error;
 
-              Alert.alert(
-                'Success',
-                `${selectedRecipes.length} recipes deleted`,
-              );
-              setIsEditMode(false);
-              setSelectedRecipes([]);
-              loadLibraryData();
-            } catch (error) {
-              console.error('Error deleting recipes:', error);
-              Alert.alert('Error', 'Failed to delete recipes');
-            }
-          },
-        },
-      ],
-    );
+          Alert.alert('Success', `${selectedRecipes.length} recipes deleted`);
+          setIsEditMode(false);
+          setSelectedRecipes([]);
+          loadLibraryData();
+        } catch (error) {
+          console.error('Error deleting recipes:', error);
+          Alert.alert('Error', 'Failed to delete recipes');
+        }
+      },
+    });
   };
 
   const handleImportCategorySelect = (categoryId: string) => {
@@ -1992,33 +1983,28 @@ export default function Library() {
   const handleDelete = async (recipeId: string) => {
     const recipe = recipes.find((r) => r.id === recipeId);
     if (!recipe) return;
-    Alert.alert(
-      'Delete Recipe',
-      `Are you sure you want to delete "${recipe.title}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from('user_recipes')
-                .delete()
-                .eq('id', recipeId);
-              if (error) {
-                Alert.alert('Error', 'Failed to delete recipe');
-                return;
-              }
-              setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
-            } catch (error) {
-              console.error('Error deleting recipe:', error);
-              Alert.alert('Error', 'Failed to delete recipe');
-            }
-          },
-        },
-      ],
-    );
+    confirmDestructive({
+      title: 'Delete Recipe',
+      message: `Are you sure you want to delete "${recipe.title}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('user_recipes')
+            .delete()
+            .eq('id', recipeId);
+          if (error) {
+            Alert.alert('Error', 'Failed to delete recipe');
+            return;
+          }
+          setRecipes((prev) => prev.filter((r) => r.id !== recipeId));
+        } catch (error) {
+          console.error('Error deleting recipe:', error);
+          Alert.alert('Error', 'Failed to delete recipe');
+        }
+      },
+    });
   };
 
   const handleURLImport = async (url: string) => {
@@ -2082,10 +2068,10 @@ export default function Library() {
           return;
         }
 
-        Alert.alert(
-          'Success! 🎉',
+        notify(
+          'Success!',
           `"${result.recipe.title}" has been extracted from the video and saved to your library!`,
-          [{ text: 'Great!', onPress: () => setShowURLImport(false) }],
+          () => setShowURLImport(false),
         );
 
         await loadLibraryData();
@@ -2132,10 +2118,10 @@ export default function Library() {
           return;
         }
 
-        Alert.alert(
+        notify(
           'Success!',
           `"${newRecipe.title}" has been successfully imported to your library!`,
-          [{ text: 'Great!', onPress: () => setShowURLImport(false) }],
+          () => setShowURLImport(false),
         );
 
         await loadLibraryData();
@@ -2277,9 +2263,7 @@ export default function Library() {
           <Heart
             size={18}
             color={
-              filterMode === 'favorites'
-                ? colors.error
-                : colors.textSecondary
+              filterMode === 'favorites' ? colors.error : colors.textSecondary
             }
             fill={filterMode === 'favorites' ? colors.error : 'transparent'}
           />
@@ -2536,1070 +2520,1070 @@ const getStyles = (colors: Colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 24,
-    fontFamily: fonts.displayBold,
-    color: colors.textPrimary,
-    marginLeft: spacing.md,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  editButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 16,
-  },
-  editButtonText: {
-    color: '#4CAF50',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  viewModeButton: {
-    padding: 4,
-  },
-  selectionBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  selectionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-  },
-  selectAllText: {
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    gap: spacing.md,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textPrimary,
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceVariant,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  filterButtonActive: {
-    backgroundColor: palette.primary[50],
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.surface,
-  },
-  addActions: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.sm,
-  },
-  addActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.primary[50],
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  addActionButtonSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  addActionButtonSecondaryActive: {
-    backgroundColor: palette.error[50],
-  },
-  addActionText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: palette.primary[600],
-  },
-  addActionTextSecondary: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  addActionTextSecondaryActive: {
-    color: palette.error[600],
-  },
-  recipesContainer: {
-    flex: 1,
-  },
-  recipesContent: {
-    padding: spacing.lg,
-  },
-  recipesGridContent: {
-    paddingBottom: 100,
-  },
-  recipesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  gridCardContainer: {
-    width: (width - spacing.lg * 2 - spacing.sm) / 2,
-  },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      marginTop: spacing.md,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 24,
+      fontFamily: fonts.displayBold,
+      color: colors.textPrimary,
+      marginLeft: spacing.md,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    editButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      backgroundColor: '#E8F5E9',
+      borderRadius: 16,
+    },
+    editButtonText: {
+      color: '#4CAF50',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    viewModeButton: {
+      padding: 4,
+    },
+    selectionBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: '#f8f8f8',
+      borderBottomWidth: 1,
+      borderBottomColor: '#e0e0e0',
+    },
+    selectionText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#1a1a1a',
+    },
+    selectAllText: {
+      color: '#4CAF50',
+      fontWeight: '500',
+    },
+    controls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surface,
+      gap: spacing.md,
+    },
+    searchContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      height: 48,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: spacing.sm,
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textPrimary,
+    },
+    filterButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+    },
+    filterButtonActive: {
+      backgroundColor: palette.primary[50],
+    },
+    filterBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    filterBadgeText: {
+      fontSize: 10,
+      fontWeight: 'bold',
+      color: colors.surface,
+    },
+    addActions: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.sm,
+    },
+    addActionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: palette.primary[50],
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    addActionButtonSecondary: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    addActionButtonSecondaryActive: {
+      backgroundColor: palette.error[50],
+    },
+    addActionText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: palette.primary[600],
+    },
+    addActionTextSecondary: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    addActionTextSecondaryActive: {
+      color: palette.error[600],
+    },
+    recipesContainer: {
+      flex: 1,
+    },
+    recipesContent: {
+      padding: spacing.lg,
+    },
+    recipesGridContent: {
+      paddingBottom: 100,
+    },
+    recipesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    gridCardContainer: {
+      width: (width - spacing.lg * 2 - spacing.sm) / 2,
+    },
 
-  // Cookbook Section Styles
-  cookbooksSection: {
-    marginBottom: spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  recipesSection: {
-    flex: 1,
-  },
-  cookbooksScroll: {
-    flexDirection: 'row',
-  },
-  newCookbookCard: {
-    width: 140,
-    height: 180,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  newCookbookIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: palette.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  newCookbookText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: palette.primary[600],
-  },
-  cookbookCard: {
-    width: 140,
-    height: 180,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.md,
-  },
-  cookbookEmoji: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  cookbookName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  cookbookCount: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
+    // Cookbook Section Styles
+    cookbooksSection: {
+      marginBottom: spacing.xl,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    recipesSection: {
+      flex: 1,
+    },
+    cookbooksScroll: {
+      flexDirection: 'row',
+    },
+    newCookbookCard: {
+      width: 140,
+      height: 180,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    newCookbookIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: palette.primary[50],
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    newCookbookText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: palette.primary[600],
+    },
+    cookbookCard: {
+      width: 140,
+      height: 180,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: spacing.md,
+      marginRight: spacing.md,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...shadows.md,
+    },
+    cookbookEmoji: {
+      fontSize: 32,
+      marginBottom: spacing.sm,
+    },
+    cookbookName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      textAlign: 'center',
+      marginBottom: spacing.xs,
+    },
+    cookbookCount: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
 
-  // Filter Option with Emoji
-  filterOptionWithEmoji: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    // Filter Option with Emoji
+    filterOptionWithEmoji: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
 
-  // List view styles
-  listCard: {
-    backgroundColor: 'white',
-    marginBottom: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-    ...shadows.sm,
-  },
-  listCardContent: {
-    flexDirection: 'row',
-    padding: 12,
-    alignItems: 'center',
-  },
-  listCheckbox: {
-    marginRight: 12,
-  },
-  listCardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  listCardInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  listCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 4,
-  },
-  listCardDescription: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  listCardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  difficultyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  difficultyMedium: {
-    backgroundColor: '#FFF3E0',
-  },
-  difficultyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#F57C00',
-  },
-  aiBadge: {
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  aiBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1976D2',
-  },
-  listCardActions: {
-    flexDirection: 'column',
-    gap: 16,
-    marginLeft: 12,
-  },
+    // List view styles
+    listCard: {
+      backgroundColor: 'white',
+      marginBottom: 8,
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: '#f0f0f0',
+      ...shadows.sm,
+    },
+    listCardContent: {
+      flexDirection: 'row',
+      padding: 12,
+      alignItems: 'center',
+    },
+    listCheckbox: {
+      marginRight: 12,
+    },
+    listCardImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: '#f5f5f5',
+    },
+    listCardInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    listCardTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#1a1a1a',
+      marginBottom: 4,
+    },
+    listCardDescription: {
+      fontSize: 13,
+      color: '#666',
+      lineHeight: 18,
+      marginBottom: 8,
+    },
+    listCardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 12,
+      color: '#666',
+    },
+    difficultyBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    difficultyMedium: {
+      backgroundColor: '#FFF3E0',
+    },
+    difficultyText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#F57C00',
+    },
+    aiBadge: {
+      backgroundColor: '#E3F2FD',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    aiBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#1976D2',
+    },
+    listCardActions: {
+      flexDirection: 'column',
+      gap: 16,
+      marginLeft: 12,
+    },
 
-  // Bulk Actions Styles
-  bulkActionsBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    justifyContent: 'space-around',
-    paddingBottom: 32,
-    zIndex: 100,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  bulkAction: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  bulkActionText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  bulkActionDelete: {
-    // Delete için özel stil
-  },
-  bulkActionTextDelete: {
-    color: '#FF5252',
-  },
+    // Bulk Actions Styles
+    bulkActionsBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      backgroundColor: 'white',
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      borderTopWidth: 1,
+      borderTopColor: '#e0e0e0',
+      justifyContent: 'space-around',
+      paddingBottom: 32,
+      zIndex: 100,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    bulkAction: {
+      alignItems: 'center',
+      gap: 4,
+    },
+    bulkActionText: {
+      fontSize: 12,
+      color: '#4CAF50',
+      fontWeight: '500',
+    },
+    bulkActionDelete: {
+      // Delete için özel stil
+    },
+    bulkActionTextDelete: {
+      color: '#FF5252',
+    },
 
-  // Bulk Modal Styles
-  bulkModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  bulkModalContainer: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '70%',
-  },
-  bulkModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  bulkModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  bulkModalContent: {
-    maxHeight: 400,
-    padding: spacing.lg,
-  },
-  bulkCookbookItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    marginBottom: spacing.sm,
-  },
-  bulkCookbookEmoji: {
-    fontSize: 24,
-    marginRight: spacing.md,
-  },
-  bulkCookbookInfo: {
-    flex: 1,
-  },
-  bulkCookbookName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs / 2,
-  },
-  bulkCookbookDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
+    // Bulk Modal Styles
+    bulkModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    bulkModalContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: '70%',
+    },
+    bulkModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    bulkModalTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    bulkModalContent: {
+      maxHeight: 400,
+      padding: spacing.lg,
+    },
+    bulkCookbookItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: 12,
+      backgroundColor: colors.background,
+      marginBottom: spacing.sm,
+    },
+    bulkCookbookEmoji: {
+      fontSize: 24,
+      marginRight: spacing.md,
+    },
+    bulkCookbookInfo: {
+      flex: 1,
+    },
+    bulkCookbookName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs / 2,
+    },
+    bulkCookbookDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
 
-  // Edit mode styles
-  selectedCard: {
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-  },
-  checkboxContainer: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    zIndex: 1,
-  },
-  gridCheckboxContainer: {
-    top: 8,
-    left: 8,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderWidth: 2,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
+    // Edit mode styles
+    selectedCard: {
+      borderWidth: 2,
+      borderColor: '#4CAF50',
+    },
+    checkboxContainer: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+      zIndex: 1,
+    },
+    gridCheckboxContainer: {
+      top: 8,
+      left: 8,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      borderWidth: 2,
+      borderColor: '#ddd',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxSelected: {
+      backgroundColor: '#4CAF50',
+      borderColor: '#4CAF50',
+    },
 
-  // Import Modal Styles
-  importModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  importModalContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    width: '85%',
-    maxWidth: 350,
-    ...shadows.lg,
-  },
-  importModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  importModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  importModalContent: {
-    paddingVertical: spacing.sm,
-  },
-  importModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceVariant,
-  },
-  importModalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  importModalTextContainer: {
-    flex: 1,
-  },
-  importModalItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs / 2,
-  },
-  importModalItemDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
+    // Import Modal Styles
+    importModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    importModalContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      width: '85%',
+      maxWidth: 350,
+      ...shadows.lg,
+    },
+    importModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    importModalTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    importModalContent: {
+      paddingVertical: spacing.sm,
+    },
+    importModalItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.surfaceVariant,
+    },
+    importModalIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    importModalTextContainer: {
+      flex: 1,
+    },
+    importModalItemTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs / 2,
+    },
+    importModalItemDescription: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
 
-  // Manual Recipe Modal Styles
-  manualRecipeContainer: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  manualRecipeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  manualRecipeTitle: {
-    fontSize: 20,
-    fontFamily: fonts.display,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  manualRecipeContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  formSection: {
-    marginVertical: spacing.lg,
-  },
-  formSectionTitle: {
-    fontSize: 18,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  formGroup: {
-    marginBottom: spacing.md,
-  },
-  formLabel: {
-    fontSize: 14,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  formInput: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  textArea: {
-    textAlignVertical: 'top',
-  },
-  formRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  formHint: {
-    fontSize: 12,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  pickerContainer: {
-    marginTop: spacing.xs,
-  },
-  pickerOption: {
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.sm,
-  },
-  pickerOptionSelected: {
-    backgroundColor: colors.primary,
-  },
-  pickerOptionText: {
-    fontSize: 14,
-    fontFamily: fonts.bodyMedium,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  pickerOptionTextSelected: {
-    color: colors.surface,
-  },
+    // Manual Recipe Modal Styles
+    manualRecipeContainer: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    manualRecipeHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    manualRecipeTitle: {
+      fontSize: 20,
+      fontFamily: fonts.display,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    saveButtonText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    manualRecipeContent: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    formSection: {
+      marginVertical: spacing.lg,
+    },
+    formSectionTitle: {
+      fontSize: 18,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    formGroup: {
+      marginBottom: spacing.md,
+    },
+    formLabel: {
+      fontSize: 14,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    formInput: {
+      backgroundColor: colors.background,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textPrimary,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    textArea: {
+      textAlignVertical: 'top',
+    },
+    formRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+    },
+    formHint: {
+      fontSize: 12,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    pickerContainer: {
+      marginTop: spacing.xs,
+    },
+    pickerOption: {
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 20,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.sm,
+    },
+    pickerOptionSelected: {
+      backgroundColor: colors.primary,
+    },
+    pickerOptionText: {
+      fontSize: 14,
+      fontFamily: fonts.bodyMedium,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    pickerOptionTextSelected: {
+      color: colors.surface,
+    },
 
-  // Filter Modal Styles
-  filterModalContainer: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  filterModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  filterModalTitle: {
-    fontSize: 20,
-    fontFamily: fonts.display,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  clearAllText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  filterModalContent: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  filterCategoryContainer: {
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceVariant,
-  },
-  filterCategoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  filterCategoryTitle: {
-    fontSize: 18,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  chevronIcon: {
-    transform: [{ rotate: '0deg' }],
-  },
-  chevronIconExpanded: {
-    transform: [{ rotate: '180deg' }],
-  },
-  filterOptionsContainer: {
-    paddingTop: spacing.sm,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginVertical: 2,
-    borderRadius: 8,
-  },
-  filterOptionSelected: {
-    backgroundColor: palette.primary[50],
-  },
-  filterOptionText: {
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textPrimary,
-  },
-  filterOptionTextSelected: {
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: palette.primary[600],
-  },
-  cookbookEmoji: {
-    fontSize: 16,
-    marginRight: spacing.sm,
-  },
-  filterModalFooter: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  applyFiltersButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  applyFiltersText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.surface,
-  },
+    // Filter Modal Styles
+    filterModalContainer: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    filterModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    filterModalTitle: {
+      fontSize: 20,
+      fontFamily: fonts.display,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    clearAllText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    filterModalContent: {
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+    },
+    filterCategoryContainer: {
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.surfaceVariant,
+    },
+    filterCategoryHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    filterCategoryTitle: {
+      fontSize: 18,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    chevronIcon: {
+      transform: [{ rotate: '0deg' }],
+    },
+    chevronIconExpanded: {
+      transform: [{ rotate: '180deg' }],
+    },
+    filterOptionsContainer: {
+      paddingTop: spacing.sm,
+    },
+    filterOption: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      marginVertical: 2,
+      borderRadius: 8,
+    },
+    filterOptionSelected: {
+      backgroundColor: palette.primary[50],
+    },
+    filterOptionText: {
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textPrimary,
+    },
+    filterOptionTextSelected: {
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: palette.primary[600],
+    },
+    cookbookEmoji: {
+      fontSize: 16,
+      marginRight: spacing.sm,
+    },
+    filterModalFooter: {
+      padding: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    applyFiltersButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: spacing.lg,
+      alignItems: 'center',
+    },
+    applyFiltersText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.surface,
+    },
 
-  // URL Import Modal Styles
-  urlModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  urlModalContainer: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-    maxHeight: '80%',
-  },
-  urlModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg,
-  },
-  urlModalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  urlModalIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  urlModalTitle: {
-    fontSize: 20,
-    fontFamily: fonts.display,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  urlModalSubtitle: {
-    fontSize: 14,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-  },
-  urlModalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceVariant,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  urlModalDescription: {
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: spacing.xl,
-  },
-  urlInputWrapper: {
-    marginBottom: spacing.lg,
-  },
-  urlInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  urlInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textPrimary,
-    paddingVertical: spacing.md,
-  },
-  clearInputButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exampleUrlsContainer: {
-    marginBottom: spacing.xl,
-  },
-  exampleUrlsTitle: {
-    fontSize: 14,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  exampleUrlsText: {
-    fontSize: 14,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  urlModalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  urlCancelButton: {
-    flex: 1,
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  urlCancelButtonText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  urlImportButton: {
-    flex: 2,
-    flexDirection: 'row',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  urlImportButtonDisabled: {
-    backgroundColor: colors.border,
-  },
-  urlImportButtonText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.surface,
-  },
-  loadingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
+    // URL Import Modal Styles
+    urlModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    urlModalContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: spacing.lg,
+      paddingTop: spacing.xl,
+      maxHeight: '80%',
+    },
+    urlModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: spacing.lg,
+    },
+    urlModalTitleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    urlModalIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    urlModalTitle: {
+      fontSize: 20,
+      fontFamily: fonts.display,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    urlModalSubtitle: {
+      fontSize: 14,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+    },
+    urlModalCloseButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    urlModalDescription: {
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      lineHeight: 22,
+      marginBottom: spacing.xl,
+    },
+    urlInputWrapper: {
+      marginBottom: spacing.lg,
+    },
+    urlInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      borderWidth: 2,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    urlInput: {
+      flex: 1,
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textPrimary,
+      paddingVertical: spacing.md,
+    },
+    clearInputButton: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    exampleUrlsContainer: {
+      marginBottom: spacing.xl,
+    },
+    exampleUrlsTitle: {
+      fontSize: 14,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.md,
+    },
+    exampleUrlsText: {
+      fontSize: 14,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    urlModalActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    urlCancelButton: {
+      flex: 1,
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 12,
+      paddingVertical: spacing.lg,
+      alignItems: 'center',
+    },
+    urlCancelButtonText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    urlImportButton: {
+      flex: 2,
+      flexDirection: 'row',
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    urlImportButtonDisabled: {
+      backgroundColor: colors.border,
+    },
+    urlImportButtonText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.surface,
+    },
+    loadingContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+    },
 
-  // Recipe Card Styles
-  gridCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    overflow: 'hidden',
-    ...shadows.md,
-  },
-  gridImageContainer: {
-    position: 'relative',
-    height: 140,
-    backgroundColor: colors.surfaceVariant,
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gridPlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  difficultyBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    borderRadius: 8,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  difficultyText: {
-    fontSize: 10,
-    fontFamily: fonts.bodyBold,
-    fontWeight: 'bold',
-    color: colors.surface,
-  },
-  aiBadge: {
-    position: 'absolute',
-    top: spacing.sm + 24,
-    left: spacing.sm,
-    backgroundColor: colors.secondary,
-    borderRadius: 6,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-  },
-  aiText: {
-    fontSize: 9,
-    fontFamily: fonts.bodyBold,
-    fontWeight: 'bold',
-    color: colors.surface,
-  },
-  sourceBadge: {
-    position: 'absolute',
-    bottom: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridContent: {
-    padding: spacing.md,
-  },
-  gridTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  gridDescription: {
-    fontSize: 14,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  gridMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  gridMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  gridMetaText: {
-    fontSize: 12,
-    fontFamily: fonts.bodyMedium,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  gridActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
-  gridActionButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceVariant,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+    // Recipe Card Styles
+    gridCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      overflow: 'hidden',
+      ...shadows.md,
+    },
+    gridImageContainer: {
+      position: 'relative',
+      height: 140,
+      backgroundColor: colors.surfaceVariant,
+    },
+    gridImage: {
+      width: '100%',
+      height: '100%',
+    },
+    gridPlaceholder: {
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceVariant,
+    },
+    favoriteButton: {
+      position: 'absolute',
+      top: spacing.sm,
+      right: spacing.sm,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    difficultyBadge: {
+      position: 'absolute',
+      top: spacing.sm,
+      left: spacing.sm,
+      borderRadius: 8,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+    },
+    difficultyText: {
+      fontSize: 10,
+      fontFamily: fonts.bodyBold,
+      fontWeight: 'bold',
+      color: colors.surface,
+    },
+    aiBadge: {
+      position: 'absolute',
+      top: spacing.sm + 24,
+      left: spacing.sm,
+      backgroundColor: colors.secondary,
+      borderRadius: 6,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+    },
+    aiText: {
+      fontSize: 9,
+      fontFamily: fonts.bodyBold,
+      fontWeight: 'bold',
+      color: colors.surface,
+    },
+    sourceBadge: {
+      position: 'absolute',
+      bottom: spacing.sm,
+      left: spacing.sm,
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    gridContent: {
+      padding: spacing.md,
+    },
+    gridTitle: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    gridDescription: {
+      fontSize: 14,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    gridMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+      gap: spacing.md,
+    },
+    gridMetaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    gridMetaText: {
+      fontSize: 12,
+      fontFamily: fonts.bodyMedium,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    gridActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: spacing.sm,
+    },
+    gridActionButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceVariant,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
 
-  // Empty State Styles
-  emptyStateContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl * 2,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontFamily: fonts.display,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: 16,
-    fontFamily: fonts.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  emptyStateActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  emptyActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: palette.primary[50],
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  emptyActionButtonSecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  emptyActionText: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: palette.primary[600],
-  },
-  emptyActionTextSecondary: {
-    fontSize: 16,
-    fontFamily: fonts.bodySemibold,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: spacing.xl,
-    right: spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.lg,
-  },
-});
+    // Empty State Styles
+    emptyStateContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.xl * 2,
+      paddingHorizontal: spacing.lg,
+    },
+    emptyStateTitle: {
+      fontSize: 20,
+      fontFamily: fonts.display,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: 16,
+      fontFamily: fonts.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    emptyStateActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    emptyActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: palette.primary[50],
+      borderRadius: 12,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    emptyActionButtonSecondary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 12,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+    },
+    emptyActionText: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: palette.primary[600],
+    },
+    emptyActionTextSecondary: {
+      fontSize: 16,
+      fontFamily: fonts.bodySemibold,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    fab: {
+      position: 'absolute',
+      bottom: spacing.xl,
+      right: spacing.lg,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...shadows.lg,
+    },
+  });

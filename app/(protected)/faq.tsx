@@ -48,7 +48,10 @@ export default function FaqScreen() {
         <View
           style={[
             styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.borderLight },
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.borderLight,
+            },
           ]}
         >
           {items.map((item, idx) => {
@@ -57,7 +60,10 @@ export default function FaqScreen() {
               <View key={idx}>
                 {idx > 0 && (
                   <View
-                    style={[styles.divider, { backgroundColor: colors.divider }]}
+                    style={[
+                      styles.divider,
+                      { backgroundColor: colors.divider },
+                    ]}
                   />
                 )}
                 <Pressable

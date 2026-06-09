@@ -44,6 +44,7 @@ import { supabase } from '@/lib/supabase';
 import { useMealPlanStore } from '@/lib/meal-plan/store';
 import { Meal } from '@/lib/meal-plan/types';
 import { t, i18n } from '@/lib/i18n';
+import { confirmDestructive, alertWithAction } from '@/lib/ui/confirm';
 
 // Locale is fixed at startup (device-driven), so compute label formats once.
 const TR = i18n.locale === 'tr';
@@ -189,23 +190,18 @@ export default function RecipeDetail() {
       setError(err instanceof Error ? err.message : 'Failed to load AI meal');
 
       // Show user-friendly error
-      Alert.alert(
-        t('recipeDetail.aiUnavailableTitle'),
-        t('recipeDetail.aiUnavailableMessage'),
-        [
-          {
-            text: t('recipeDetail.aiUnavailableGoBack'),
-            onPress: () => router.back(),
-          },
-          {
-            text: t('recipeDetail.aiUnavailableGenerate'),
-            onPress: () => {
-              router.dismiss();
-              router.push('/ai-meal-plan');
-            },
-          },
-        ],
-      );
+      confirmDestructive({
+        title: t('recipeDetail.aiUnavailableTitle'),
+        message: t('recipeDetail.aiUnavailableMessage'),
+        confirmText: t('recipeDetail.aiUnavailableGenerate'),
+        cancelText: t('recipeDetail.aiUnavailableGoBack'),
+        destructive: false,
+        onConfirm: () => {
+          router.dismiss();
+          router.push('/ai-meal-plan');
+        },
+        onCancel: () => router.back(),
+      });
     }
   };
 
@@ -492,19 +488,14 @@ export default function RecipeDetail() {
 
         console.log('✅ Successfully added missing ingredients:', data);
 
-        Alert.alert(
-          t('recipeDetail.addedMissingTitle'),
-          t('recipeDetail.addedMissingMessage', {
+        alertWithAction({
+          title: t('recipeDetail.addedMissingTitle'),
+          message: t('recipeDetail.addedMissingMessage', {
             count: pantryMatch.missingIngredients.length,
           }),
-          [
-            {
-              text: t('recipeDetail.viewShoppingList'),
-              onPress: () => router.push('/(tabs)/shopping-list'),
-            },
-            { text: t('common.ok') },
-          ],
-        );
+          actionText: t('recipeDetail.viewShoppingList'),
+          onAction: () => router.push('/(tabs)/shopping-list'),
+        });
       } else {
         // Normal recipes veya pantry analizi yoksa tüm ingredients'ları smart parse ile ekle
         if (!recipe.ingredients || recipe.ingredients.length === 0) {
@@ -554,19 +545,14 @@ export default function RecipeDetail() {
 
         console.log('✅ Successfully added ingredients:', data);
 
-        Alert.alert(
-          t('recipeDetail.addedAllTitle'),
-          t('recipeDetail.addedAllMessage', {
+        alertWithAction({
+          title: t('recipeDetail.addedAllTitle'),
+          message: t('recipeDetail.addedAllMessage', {
             count: recipe.ingredients.length,
           }),
-          [
-            {
-              text: t('recipeDetail.viewShoppingList'),
-              onPress: () => router.push('/(tabs)/shopping-list'),
-            },
-            { text: t('common.ok') },
-          ],
-        );
+          actionText: t('recipeDetail.viewShoppingList'),
+          onAction: () => router.push('/(tabs)/shopping-list'),
+        });
       }
     } catch (error) {
       console.error('❌ Error adding to shopping list:', error);

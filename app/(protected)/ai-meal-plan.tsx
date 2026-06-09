@@ -23,6 +23,7 @@ import {
   RefreshCw,
   Sparkles,
   Flame,
+  ChefHat,
 } from 'lucide-react-native';
 import { spacing, radius, fonts } from '@/lib/theme/index';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -32,6 +33,7 @@ import { RecipeListCard } from '@/components/UI/RecipeCard';
 import { SectionHeader } from '@/components/UI/SectionHeader';
 import { supabase } from '@/lib/supabase';
 import { t } from '@/lib/i18n';
+import { confirmDestructive, alertWithAction } from '@/lib/ui/confirm';
 import { useMealPlanStore, useMealPlanAutoLoad } from '@/lib/meal-plan/store';
 
 // ✅ DÜZELTME: types.ts'den import (api-clients/types değil)
@@ -846,10 +848,16 @@ export default function AIMealPlan() {
         if (user) {
           const generator = createEnhancedGenerator(user.id);
           const fallbackResult = await Promise.race([
-            generator.generateEnhancedMeal('lunch', pantryItems, userProfile, [], {
-              allowFallback: true,
-              maxAttempts: 1,
-            }),
+            generator.generateEnhancedMeal(
+              'lunch',
+              pantryItems,
+              userProfile,
+              [],
+              {
+                allowFallback: true,
+                maxAttempts: 1,
+              },
+            ),
             new Promise<never>((_, reject) =>
               setTimeout(
                 () => reject(new Error('Fallback meal generation timed out')),
@@ -982,23 +990,17 @@ export default function AIMealPlan() {
           ? t('mealPlan.generationPersonalized')
           : t('mealPlan.generationCultural');
 
-      Alert.alert(
-        t('mealPlan.mealUpdatedTitle'),
-        t('mealPlan.mealUpdatedMessage', {
+      alertWithAction({
+        title: t('mealPlan.mealUpdatedTitle'),
+        message: t('mealPlan.mealUpdatedMessage', {
           mealType,
           diversity: diversityInfo,
           generation: generationInfo,
         }),
-        [
-          {
-            text: t('mealPlan.seeInsights'),
-            onPress: () => setShowInsights(true),
-          },
-          {
-            text: t('mealPlan.great'),
-          },
-        ],
-      );
+        actionText: t('mealPlan.seeInsights'),
+        onAction: () => setShowInsights(true),
+        okText: t('mealPlan.great'),
+      });
     } catch (error) {
       console.error(`Failed to regenerate ${mealType}:`, error);
       Alert.alert(
@@ -1020,62 +1022,57 @@ export default function AIMealPlan() {
       setSelectedMeal(null);
     }
 
-    Alert.alert(
-      t('mealPlan.regenerateAllTitle'),
-      t('mealPlan.regenerateAllMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('mealPlan.regenerateAllConfirm'),
-          style: 'default',
-          onPress: async () => {
-            // ✅ Reset any previous selection
-            setSelectedMeal(null);
+    confirmDestructive({
+      title: t('mealPlan.regenerateAllTitle'),
+      message: t('mealPlan.regenerateAllMessage'),
+      confirmText: t('mealPlan.regenerateAllConfirm'),
+      destructive: false,
+      onConfirm: async () => {
+        // ✅ Reset any previous selection
+        setSelectedMeal(null);
 
-            setLoadingStates({
-              breakfast: true,
-              lunch: true,
-              dinner: true,
-              snacks: true,
-              initial: false,
-            });
+        setLoadingStates({
+          breakfast: true,
+          lunch: true,
+          dinner: true,
+          snacks: true,
+          initial: false,
+        });
 
-            try {
-              await generateInitialMealPlan(pantryItems, userProfile);
+        try {
+          await generateInitialMealPlan(pantryItems, userProfile);
 
-              // Reset regeneration attempts
-              setRegenerationAttempts({
-                breakfast: 0,
-                lunch: 0,
-                dinner: 0,
-                snacks: 0,
-              });
+          // Reset regeneration attempts
+          setRegenerationAttempts({
+            breakfast: 0,
+            lunch: 0,
+            dinner: 0,
+            snacks: 0,
+          });
 
-              Alert.alert(
-                t('mealPlan.allMealsUpdatedTitle'),
-                t('mealPlan.allMealsUpdatedMessage'),
-                [{ text: t('mealPlan.awesome') }],
-              );
-            } catch (error) {
-              console.error('Regenerate all meals error:', error);
-              Alert.alert(
-                t('mealPlan.generationFailedTitle'),
-                t('mealPlan.regenerateAllFailedMessage'),
-                [{ text: t('common.ok') }],
-              );
-            } finally {
-              setLoadingStates({
-                breakfast: false,
-                lunch: false,
-                dinner: false,
-                snacks: false,
-                initial: false,
-              });
-            }
-          },
-        },
-      ],
-    );
+          Alert.alert(
+            t('mealPlan.allMealsUpdatedTitle'),
+            t('mealPlan.allMealsUpdatedMessage'),
+            [{ text: t('mealPlan.awesome') }],
+          );
+        } catch (error) {
+          console.error('Regenerate all meals error:', error);
+          Alert.alert(
+            t('mealPlan.generationFailedTitle'),
+            t('mealPlan.regenerateAllFailedMessage'),
+            [{ text: t('common.ok') }],
+          );
+        } finally {
+          setLoadingStates({
+            breakfast: false,
+            lunch: false,
+            dinner: false,
+            snacks: false,
+            initial: false,
+          });
+        }
+      },
+    });
   };
 
   // Enhanced shopping list integration
@@ -1109,17 +1106,12 @@ export default function AIMealPlan() {
 
       if (error) throw error;
 
-      Alert.alert(
-        t('common.success'),
-        t('mealPlan.itemsAdded', { count: missingIngredients.length }),
-        [
-          {
-            text: t('mealPlan.viewList'),
-            onPress: () => router.push('/(tabs)/shopping-list'),
-          },
-          { text: t('common.ok') },
-        ],
-      );
+      alertWithAction({
+        title: t('common.success'),
+        message: t('mealPlan.itemsAdded', { count: missingIngredients.length }),
+        actionText: t('mealPlan.viewList'),
+        onAction: () => router.push('/(tabs)/shopping-list'),
+      });
     } catch (error) {
       console.error('Add to shopping list error:', error);
       Alert.alert(t('common.error'), t('mealPlan.addToShoppingFailed'));
@@ -1460,13 +1452,23 @@ export default function AIMealPlan() {
           { backgroundColor: colors.background },
         ]}
       >
-        <ActivityIndicator size="large" color={colors.primary} />
+        <View style={[styles.loadingMark, { backgroundColor: colors.primary }]}>
+          <ChefHat size={26} color="#fff" />
+        </View>
+        <Display size="lg" style={styles.loadingWordmark}>
+          Stovd
+        </Display>
         <Display size="md" style={styles.loadingTitle}>
           {t('mealPlan.loadingTitle')}
         </Display>
         <Text style={[styles.loadingSubtext, { color: colors.textSecondary }]}>
           {t('mealPlan.loadingSubtitle')}
         </Text>
+        <ActivityIndicator
+          size="small"
+          color={colors.primary}
+          style={styles.loadingSpinner}
+        />
         {loadingError && (
           <Text style={[styles.errorText, { color: colors.error }]}>
             {t('mealPlan.storage', { error: loadingError })}
@@ -1721,9 +1723,23 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.sm,
   },
+  loadingMark: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  loadingWordmark: {
+    marginBottom: spacing.xs,
+  },
   loadingTitle: {
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
     textAlign: 'center',
+  },
+  loadingSpinner: {
+    marginTop: spacing.md,
   },
   loadingSubtext: {
     fontSize: 14,

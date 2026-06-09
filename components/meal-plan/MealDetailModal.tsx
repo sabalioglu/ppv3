@@ -124,7 +124,7 @@ export default function MealDetailModal({
             {meal.ingredients && (
               <View style={styles.ingredientSection}>
                 <Text style={styles.ingredientSectionTitle}>
-                  📦 All Ingredients:
+                  All Ingredients:
                 </Text>
                 <View style={styles.ingredientsList}>
                   {meal.ingredients.map((ingredient, index) => (
@@ -155,7 +155,7 @@ export default function MealDetailModal({
             {/* Missing Ingredients */}
             {meal.missingIngredients && meal.missingIngredients.length > 0 && (
               <View style={styles.missingSection}>
-                <Text style={styles.missingSectionTitle}>🛒 Need to Buy:</Text>
+                <Text style={styles.missingSectionTitle}>Need to Buy:</Text>
                 <View style={styles.missingList}>
                   {meal.missingIngredients.map((ingredient, index) => (
                     <View key={index} style={styles.missingItem}>

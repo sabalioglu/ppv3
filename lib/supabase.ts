@@ -16,8 +16,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Required variables:');
   console.error('- EXPO_PUBLIC_SUPABASE_URL:', !!supabaseUrl);
   console.error('- EXPO_PUBLIC_SUPABASE_ANON_KEY:', !!supabaseAnonKey);
-  
-  throw new Error('Missing Supabase environment variables. Please check your .env file.');
+
+  throw new Error(
+    'Missing Supabase environment variables. Please check your .env file.',
+  );
 }
 
 console.log('✅ Supabase environment variables loaded');
@@ -27,27 +29,24 @@ console.log('- Key prefix:', supabaseAnonKey.substring(0, 20) + '...');
 // Cross-platform storage
 const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
 
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey,
-  {
-    auth: {
-      storage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: Platform.OS === 'web',
-      flowType: 'pkce',
-    },
-  }
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: Platform.OS === 'web',
+    flowType: 'pkce',
+  },
+});
 
 // Enhanced OAuth sign in function
 export const signInWithOAuth = async (provider: 'google' | 'apple') => {
   try {
-    const redirectTo = Platform.OS === 'web'
-      ? `${window.location.origin}/(auth)/callback`
-      : 'stovd://auth/callback';
-    
+    const redirectTo =
+      Platform.OS === 'web'
+        ? `${window.location.origin}/(auth)/callback`
+        : 'stovd://auth/callback';
+
     console.log('🔗 OAuth redirect URL:', redirectTo);
 
     if (Platform.OS === 'web') {
@@ -77,7 +76,7 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
         redirectTo,
-        { showInRecents: true, createTask: false }
+        { showInRecents: true, createTask: false },
       );
 
       console.log('📱 OAuth result:', result.type);
@@ -104,7 +103,10 @@ export const signInWithOAuth = async (provider: 'google' | 'apple') => {
         }
 
         const { data: sessionData } = await supabase.auth.getSession();
-        console.log('📱 Session status:', sessionData.session ? 'Active' : 'None');
+        console.log(
+          '📱 Session status:',
+          sessionData.session ? 'Active' : 'None',
+        );
       }
 
       return { data, error: null };
@@ -127,7 +129,10 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
   return { data, error };
 };
 
@@ -137,22 +142,43 @@ export const signOut = async () => {
 };
 
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
   return { user, error };
 };
 
 // Database helper functions
-export const createUserProfile = async (profile: Database['public']['Tables']['user_profiles']['Insert']) => {
-  const { data, error } = await supabase.from('user_profiles').insert(profile).select().single();
+export const createUserProfile = async (
+  profile: Database['public']['Tables']['user_profiles']['Insert'],
+) => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .insert(profile)
+    .select()
+    .single();
   return { data, error };
 };
 
 export const getUserProfile = async (userId: string) => {
-  const { data, error } = await supabase.from('user_profiles').select('*').eq('id', userId).single();
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
   return { data, error };
 };
 
-export const updateUserProfile = async (userId: string, updates: Database['public']['Tables']['user_profiles']['Update']) => {
-  const { data, error } = await supabase.from('user_profiles').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', userId).select().single();
+export const updateUserProfile = async (
+  userId: string,
+  updates: Database['public']['Tables']['user_profiles']['Update'],
+) => {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select()
+    .single();
   return { data, error };
 };

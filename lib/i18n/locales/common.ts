@@ -25,6 +25,12 @@ export default {
     clear: 'Clear',
     apply: 'Apply',
     addToList: 'Add to list',
+    loaderTips: [
+      'What’s cooking today?',
+      'Scan your pantry, leave the rest to us.',
+      'Great recipes take a moment.',
+      'Reading your kitchen…',
+    ],
   },
   tr: {
     save: 'Kaydet',
@@ -51,5 +57,11 @@ export default {
     clear: 'Temizle',
     apply: 'Uygula',
     addToList: 'Listeye ekle',
+    loaderTips: [
+      'Bugün ne pişiyor?',
+      'Kilerini tara, gerisini bize bırak.',
+      'En iyi tarifler bir an ister.',
+      'Mutfağını okuyorum…',
+    ],
   },
 };

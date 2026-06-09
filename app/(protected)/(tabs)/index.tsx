@@ -22,7 +22,7 @@ import {
   type RecommendedRecipe,
 } from '@/lib/recipe-engine';
 
-import LoadingCard from '@/components/UI/LoadingCard';
+import { HomeSkeleton } from '@/components/UI/SkeletonCard';
 import EmptyState from '@/components/dashboard/EmptyState';
 import { Display, Eyebrow } from '@/components/UI/Display';
 import { SectionHeader } from '@/components/UI/SectionHeader';
@@ -74,7 +74,10 @@ export default function Home() {
       const res = await Promise.race([
         recommendRecipes({ count: 5 }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('recommendations timed out')), 25000),
+          setTimeout(
+            () => reject(new Error('recommendations timed out')),
+            25000,
+          ),
         ),
       ]);
       setRecs(res.recommendations ?? []);
@@ -96,7 +99,7 @@ export default function Home() {
   }, [load]);
 
   if (loading) {
-    return <LoadingCard statusText={t('home.loading')} />;
+    return <HomeSkeleton />;
   }
 
   const [hero, ...rest] = recs;

@@ -3,16 +3,9 @@
 // Display headline ("have." in terracotta), subtitle, terracotta CTA + sign-in link.
 // Visual restyle of the approved mockup (screen A). Logic: onStart → form phase.
 import React from 'react';
-import {
-  View,
-  Image,
-  StyleSheet,
-  Pressable,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { ChefHat } from 'lucide-react-native';
 
 import { Display } from '@/components/UI/Display';
@@ -88,23 +81,6 @@ export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
             text={t('auth.onboarding.welcome.getStarted')}
             onPress={onStart}
           />
-
-          <Pressable
-            onPress={() => router.replace('/login')}
-            hitSlop={8}
-            style={styles.signinRow}
-          >
-            <ThemedText
-              style={[styles.signinText, { color: colors.textSecondary }]}
-            >
-              {t('auth.onboarding.welcome.haveAccount')}
-              <ThemedText
-                style={[styles.signinLink, { color: colors.primary }]}
-              >
-                {t('auth.onboarding.welcome.signIn')}
-              </ThemedText>
-            </ThemedText>
-          </Pressable>
         </View>
       </SafeAreaView>
     </View>
@@ -149,17 +125,5 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: spacing.lg,
     maxWidth: '90%',
-  },
-  signinRow: {
-    alignSelf: 'center',
-    marginTop: spacing.md,
-  },
-  signinText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 13,
-  },
-  signinLink: {
-    fontFamily: fonts.bodyBold,
-    fontSize: 13,
   },
 });
