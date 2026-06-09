@@ -34,7 +34,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { spacing, radius, type Colors } from '@/lib/theme/index';
 import { Display, Eyebrow } from '@/components/UI/Display';
 import { OpenAIVisionService } from '@/lib/openaiVisionService';
-import { convertImageToBase64, validateImageSize } from '@/lib/imageUtils';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { ReceiptLearningService } from '@/lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '@/types/learning';
 import { showPrompt } from '@/lib/crossPlatformUtils';
@@ -79,6 +79,20 @@ interface EnhancedParsedItem extends ParsedItem {
   is_food: boolean;
   pattern_matched?: string;
   user_action?: 'pending' | 'confirmed' | 'rejected' | 'edited';
+}
+
+// Resize + compress the captured JPEG and return base64 directly. Cameras shoot
+// multi-MB JPEGs; sending that as a base64 JSON body is heavy/fragile (the call
+// could fail before ever reaching the edge fn). A ~1024px q0.6 JPEG is ~200KB →
+// small, reliable payload. (Gemini vision needs base64 anyway — we just shrink first.)
+async function shrinkToBase64(uri: string): Promise<string> {
+  const out = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1024 } }],
+    { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+  );
+  if (!out.base64) throw new Error('Image processing returned no data');
+  return out.base64;
 }
 
 export default function CameraScreen() {
@@ -342,10 +356,7 @@ export default function CameraScreen() {
         const allResults = [];
 
         for (const uri of imageUri) {
-          const base64 = await convertImageToBase64(uri);
-          if (!validateImageSize(base64, 15000)) {
-            throw new Error('One or more images are too large.');
-          }
+          const base64 = await shrinkToBase64(uri);
 
           const analysisResult = await OpenAIVisionService.analyzeImage(
             base64,
@@ -384,13 +395,9 @@ export default function CameraScreen() {
         };
       } else {
         // Single image processing
-        const base64 = await convertImageToBase64(
+        const base64 = await shrinkToBase64(
           Array.isArray(imageUri) ? imageUri[0] : imageUri,
         );
-
-        if (!validateImageSize(base64, 15000)) {
-          throw new Error('Image too large. Please use a smaller image.');
-        }
 
         const analysisResult = await OpenAIVisionService.analyzeImage(
           base64,
@@ -451,15 +458,18 @@ export default function CameraScreen() {
         );
       }
     } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('AI Vision processing failed:', error);
+      // Never fail silently: surface the real reason so the user (and we) can see it.
+      Alert.alert(t('common.error'), errMsg);
 
       setScanResult({
         type: scanMode,
         data: {
           name: 'Processing Failed',
           confidence: 0,
-          error:
-            error instanceof Error ? error.message : 'Unknown error occurred',
+          error: errMsg,
         },
       });
 

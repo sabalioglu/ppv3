@@ -21,6 +21,7 @@ import {
   logRecipeFeedback,
   type RecommendedRecipe,
 } from '@/lib/recipe-engine';
+import { useMealPlanStore } from '@/lib/meal-plan/store';
 
 import { HomeSkeleton } from '@/components/UI/SkeletonCard';
 import EmptyState from '@/components/dashboard/EmptyState';
@@ -62,6 +63,7 @@ export default function Home() {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { userProfile } = useUserProfile();
+  const setAIMeal = useMealPlanStore((s) => s.setAIMeal);
   const [today] = useState(() => new Date());
   const [recs, setRecs] = useState<RecommendedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,30 @@ export default function Home() {
     setRefreshing(true);
     load();
   }, [load]);
+
+  // Open a recommendation in the recipe detail screen. Recs aren't DB rows, so
+  // register the recipe in the AI-meal store first (ai_ id => recipe/[id] treats
+  // it as an AI meal), mirroring the meal-plan -> recipe navigation.
+  const openRecipe = useCallback(
+    async (rec: RecommendedRecipe) => {
+      const slug = rec.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48);
+      const id = `ai_rec_${slug || 'recipe'}`;
+      const meal = {
+        ...rec,
+        id,
+        name: rec.title,
+        instructions: (rec as { steps?: string[] }).steps ?? [],
+        prepTime: rec.total_time_min ?? 0,
+      };
+      await setAIMeal(id, meal as never);
+      router.push(`/recipe/${id}?source=meal_plan`);
+    },
+    [setAIMeal],
+  );
 
   if (loading) {
     return <HomeSkeleton />;
@@ -151,7 +177,7 @@ export default function Home() {
             matchPct={matchPct(hero)}
             timeMin={hero.total_time_min || undefined}
             missingCount={hero.missing_ingredients?.length}
-            onPress={() => router.push('/recipes')}
+            onPress={() => openRecipe(hero)}
             onToggleSave={() =>
               logRecipeFeedback('saved', {
                 title: hero.title,
@@ -192,7 +218,7 @@ export default function Home() {
                 imageUrl={null}
                 matchPct={matchPct(r)}
                 timeMin={r.total_time_min || undefined}
-                onPress={() => router.push('/recipes')}
+                onPress={() => openRecipe(r)}
               />
             ))}
           </View>
