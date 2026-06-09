@@ -20,6 +20,9 @@ export default {
     emptyTitle: 'No suggestions yet',
     emptyMessage: 'Scan your pantry and I’ll show you what you can make.',
     emptyAction: 'Scan pantry',
+    errorTitle: 'Couldn’t load suggestions',
+    errorMessage:
+      'This can take a moment. Check your connection and pull to refresh.',
     skillBeginner: 'Easy',
     skillIntermediate: 'Medium',
     skillAdvanced: 'Hard',
@@ -45,6 +48,9 @@ export default {
     emptyMessage:
       'Kilerini tara, elindekilerle ne pişirebileceğini sana çıkarayım.',
     emptyAction: 'Kileri tara',
+    errorTitle: 'Öneriler yüklenemedi',
+    errorMessage:
+      'Bu biraz sürebilir. Bağlantını kontrol et, aşağı çekip yenile.',
     skillBeginner: 'Kolay',
     skillIntermediate: 'Orta',
     skillAdvanced: 'Zor',

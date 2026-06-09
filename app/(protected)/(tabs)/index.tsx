@@ -66,23 +66,28 @@ export default function Home() {
   const [recs, setRecs] = useState<RecommendedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      // Cap the wait so a slow/hung recipe-recommend edge fn can never leave the
-      // user stuck on "Reading your kitchen…" — fall back to an empty list.
+      // The recipe engine runs an LLM pass and can take ~40s cold. Cap the wait
+      // generously so a real (slow) result still lands, but never hang forever.
       const res = await Promise.race([
         recommendRecipes({ count: 5 }),
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error('recommendations timed out')),
-            25000,
+            45000,
           ),
         ),
       ]);
       setRecs(res.recommendations ?? []);
+      setLoadError(false);
     } catch {
+      // A timeout/network failure is NOT an empty pantry — flag it so the UI
+      // shows "couldn't load / retry" instead of the misleading "scan pantry".
       setRecs([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -153,6 +158,14 @@ export default function Home() {
                 cuisine: hero.cuisine,
               })
             }
+          />
+        ) : loadError ? (
+          <EmptyState
+            icon={ChefHat}
+            title={t('home.errorTitle')}
+            message={t('home.errorMessage')}
+            actionText={t('common.retry')}
+            onAction={onRefresh}
           />
         ) : (
           <EmptyState
