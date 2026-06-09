@@ -23,29 +23,22 @@ export default {
     authRequiredTitle: 'Authentication Required',
     authRequiredShopping: 'Please log in to add items to shopping list.',
     authRequiredCooking: 'Please log in to track cooking.',
-    authRequiredNutrition: 'Please log in to track nutrition.',
 
     // Shopping list results
     noIngredientsTitle: 'Info',
     noIngredientsMessage: 'This recipe has no ingredients to add.',
-    addedMissingTitle: 'Success! 🛒',
+    addedMissingTitle: 'Success!',
     addedMissingMessage:
       'Added %{count} missing ingredients to your shopping list',
-    addedAllTitle: 'Success! 🛒',
+    addedAllTitle: 'Success!',
     addedAllMessage: 'Added %{count} ingredients to your shopping list',
     viewShoppingList: 'View Shopping List',
     addToShoppingError: 'Failed to add items to shopping list',
 
     // Recipe completion
-    completedTitle: 'Great Job! 👨‍🍳',
-    completedMessage:
-      'Recipe marked as cooked and added to your nutrition log.',
-    viewNutrition: 'View Nutrition',
+    completedTitle: 'Great job!',
+    completedMessage: 'Recipe marked as cooked.',
     completionError: 'Failed to complete recipe tracking',
-
-    // Add to today's nutrition
-    addedToNutritionMessage: "Recipe added to today's nutrition log",
-    addToNutritionError: 'Failed to add to nutrition log',
 
     // Coming-soon placeholders
     cookComingSoonTitle: 'Coming Soon! 👨‍🍳',
@@ -92,7 +85,6 @@ export default {
 
     // Secondary actions
     iMadeThis: 'I made this',
-    addToNutrition: 'Add to nutrition',
 
     // Footer
     addMissingToList: 'add missing ingredients to list',
@@ -122,29 +114,22 @@ export default {
     authRequiredTitle: 'Authentication Required',
     authRequiredShopping: 'Please log in to add items to shopping list.',
     authRequiredCooking: 'Please log in to track cooking.',
-    authRequiredNutrition: 'Please log in to track nutrition.',
 
     // Shopping list results
     noIngredientsTitle: 'Info',
     noIngredientsMessage: 'This recipe has no ingredients to add.',
-    addedMissingTitle: 'Success! 🛒',
+    addedMissingTitle: 'Success!',
     addedMissingMessage:
       'Added %{count} missing ingredients to your shopping list',
-    addedAllTitle: 'Success! 🛒',
+    addedAllTitle: 'Success!',
     addedAllMessage: 'Added %{count} ingredients to your shopping list',
     viewShoppingList: 'View Shopping List',
     addToShoppingError: 'Failed to add items to shopping list',
 
     // Recipe completion
-    completedTitle: 'Great Job! 👨‍🍳',
-    completedMessage:
-      'Recipe marked as cooked and added to your nutrition log.',
-    viewNutrition: 'View Nutrition',
+    completedTitle: 'Great job!',
+    completedMessage: 'Recipe marked as cooked.',
     completionError: 'Failed to complete recipe tracking',
-
-    // Add to today's nutrition
-    addedToNutritionMessage: "Recipe added to today's nutrition log",
-    addToNutritionError: 'Failed to add to nutrition log',
 
     // Coming-soon placeholders
     cookComingSoonTitle: 'Coming Soon! 👨‍🍳',
@@ -191,7 +176,6 @@ export default {
 
     // Secondary actions
     iMadeThis: 'Yaptım',
-    addToNutrition: 'Besine ekle',
 
     // Footer
     addMissingToList: 'eksik malzemeleri listeye ekle',

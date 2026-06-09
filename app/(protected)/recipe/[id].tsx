@@ -26,7 +26,6 @@ import {
   ShoppingCart,
   CircleCheck as CheckCircle,
   Circle as XCircle,
-  TrendingUp,
   Package,
   ChefHat,
   Plus,
@@ -43,6 +42,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useMealPlanStore } from '@/lib/meal-plan/store';
 import { Meal } from '@/lib/meal-plan/types';
+import { logRecipeFeedback } from '@/lib/recipe-engine';
 import { t, i18n } from '@/lib/i18n';
 import { confirmDestructive, alertWithAction } from '@/lib/ui/confirm';
 
@@ -463,10 +463,7 @@ export default function RecipeDetail() {
               nutrition_goal: null,
               is_completed: false,
               completed_at: null,
-              recipe_id: recipe.id,
-              ingredient_name: itemName,
               notes: `Missing from pantry - Recipe: ${recipe.name || (recipe as Recipe).title}`,
-              purchased_at: null,
               brand: null,
               coupons_available: false,
               seasonal_availability: true,
@@ -521,10 +518,7 @@ export default function RecipeDetail() {
             nutrition_goal: null,
             is_completed: false,
             completed_at: null,
-            recipe_id: recipe.id,
-            ingredient_name: itemName,
             notes: `From recipe: ${recipe.name || (recipe as Recipe).title}`,
-            purchased_at: null,
             brand: null,
             coupons_available: false,
             seasonal_availability: true,
@@ -556,7 +550,11 @@ export default function RecipeDetail() {
       }
     } catch (error) {
       console.error('❌ Error adding to shopping list:', error);
-      Alert.alert(t('common.error'), t('recipeDetail.addToShoppingError'));
+      const msg = (error as { message?: string })?.message;
+      Alert.alert(
+        t('common.error'),
+        msg || t('recipeDetail.addToShoppingError'),
+      );
     }
   };
 
@@ -653,37 +651,24 @@ export default function RecipeDetail() {
     }
   };
 
-  // Universal completion handler
+  // Universal completion handler. Feeds the taste profile instead of the old
+  // nutrition_logs write — the nutrition diary was cut from v1, and that
+  // table's meal_type CHECK rejected recipe categories ('General'), so the
+  // old insert failed on every press.
   const handleRecipeCompletion = async () => {
     try {
       if (!recipe) return;
 
-      console.log('🍳 Starting universal recipe completion...');
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert(
-          t('recipeDetail.authRequiredTitle'),
-          t('recipeDetail.authRequiredCooking'),
-        );
-        return;
-      }
-
-      // Determine if this is from meal plan
-      const isFromMealPlan = source === 'meal_plan' || isAIMealId(recipe.id);
-
-      // Add to nutrition logs
-      await addToNutritionLog(recipe, user.id);
+      await logRecipeFeedback('cooked', {
+        id: isAIMealId(recipe.id) ? null : recipe.id,
+        title: recipe.name || (recipe as Recipe).title,
+      });
 
       // Update statistics if it's a database recipe
       if (!isAIMealId(recipe.id)) {
         await updateRecipeStatistics(recipe.id);
       }
 
-      // Show success message
-      console.log('✅ Recipe completion successful!');
       Alert.alert(
         t('recipeDetail.completedTitle'),
         t('recipeDetail.completedMessage'),
@@ -693,34 +678,6 @@ export default function RecipeDetail() {
       console.error('❌ Recipe completion failed:', err);
       Alert.alert(t('common.error'), t('recipeDetail.completionError'));
     }
-  };
-
-  // Helper functions for completion
-  const addToNutritionLog = async (recipe: Recipe | Meal, userId: string) => {
-    console.log(
-      '📊 Adding to nutrition log:',
-      recipe.name || (recipe as Recipe).title,
-    );
-
-    const nutritionEntry = {
-      user_id: userId,
-      date: new Date().toISOString().split('T')[0],
-      meal_type: recipe.category || 'General',
-      food_name: recipe.name || (recipe as Recipe).title,
-      quantity: 1,
-      unit: 'serving',
-      calories: recipe.nutrition?.calories || 0,
-      protein: recipe.nutrition?.protein || 0,
-      carbs: recipe.nutrition?.carbs || 0,
-      fat: recipe.nutrition?.fat || 0,
-      fiber: recipe.nutrition?.fiber || 0,
-    };
-
-    const { error } = await supabase
-      .from('nutrition_logs')
-      .insert([nutritionEntry]);
-
-    if (error) throw error;
   };
 
   const updateRecipeStatistics = async (recipeId: string) => {
@@ -823,7 +780,6 @@ export default function RecipeDetail() {
         tags: m.tags ?? [],
         category: m.category ?? 'General',
         is_ai_generated: true,
-        ai_match_score: m.matchPercentage ?? m.ai_match_score ?? null,
       };
       const { error } = await supabase.from('user_recipes').insert(payload);
       if (error) throw error;
@@ -834,7 +790,10 @@ export default function RecipeDetail() {
       );
     } catch (e) {
       console.error('Save to library failed', e);
-      Alert.alert(t('common.error'), t('recipeDetail.saveToLibraryError'));
+      // Supabase errors are plain objects, not Error instances — surface the
+      // real message so failures are debuggable from the device.
+      const msg = (e as { message?: string })?.message;
+      Alert.alert(t('common.error'), msg || t('recipeDetail.saveToLibraryError'));
     } finally {
       setSavingToLibrary(false);
     }
@@ -855,32 +814,6 @@ export default function RecipeDetail() {
   // Enhanced action handlers for meal plan recipes
   const handleIMadeThis = async () => {
     await handleRecipeCompletion();
-  };
-
-  const handleAddToTodaysNutrition = async () => {
-    if (!recipe) return;
-
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert(
-          t('recipeDetail.authRequiredTitle'),
-          t('recipeDetail.authRequiredNutrition'),
-        );
-        return;
-      }
-
-      await addToNutritionLog(recipe, user.id);
-      Alert.alert(
-        t('common.success'),
-        t('recipeDetail.addedToNutritionMessage'),
-      );
-    } catch (error) {
-      console.error('Error adding to nutrition log:', error);
-      Alert.alert(t('common.error'), t('recipeDetail.addToNutritionError'));
-    }
   };
 
   const handleFindSimilarRecipes = () => {
@@ -1492,23 +1425,6 @@ export default function RecipeDetail() {
                   {t('recipeDetail.iMadeThis')}
                 </ThemedText>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.ghostButton,
-                  { borderColor: colors.borderLight },
-                ]}
-                onPress={handleAddToTodaysNutrition}
-              >
-                <TrendingUp size={17} color={colors.textSecondary} />
-                <ThemedText
-                  style={[
-                    styles.ghostButtonText,
-                    { color: colors.textPrimary },
-                  ]}
-                >
-                  {t('recipeDetail.addToNutrition')}
-                </ThemedText>
-              </TouchableOpacity>
             </View>
           ) : null}
         </View>
@@ -1537,13 +1453,20 @@ export default function RecipeDetail() {
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.cookCta, { backgroundColor: colors.primary }]}
-          onPress={isFromMealPlan ? handleIMadeThis : handleCookNow}
+          style={[
+            styles.cookCta,
+            { backgroundColor: colors.primary },
+            cookingSteps.length === 0 && { opacity: 0.5 },
+          ]}
+          onPress={handleCookNow}
+          disabled={cookingSteps.length === 0}
           activeOpacity={0.9}
         >
           <Flame size={19} color="#fff" />
           <ThemedText style={styles.cookCtaText}>
-            {t('recipeDetail.startCooking')}
+            {cookingSteps.length === 0
+              ? t('recipeDetail.noInstructions')
+              : t('recipeDetail.startCooking')}
           </ThemedText>
         </TouchableOpacity>
       </View>
