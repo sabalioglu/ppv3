@@ -22,16 +22,19 @@ export default {
     tutorialMultiple: 'Processes photos in bulk',
     tutorialReceipt: 'Smartly fills your pantry',
 
-    // Loading
-    loadingReceipt1: 'Reading your receipt…',
-    loadingReceipt2: 'Analyzing with AI…',
-    loadingReceipt3: 'Finding foods…',
-    loadingReceipt4: 'Almost ready…',
+    // Scan pipeline steps
+    stepCapturing: 'Capturing…',
+    stepOptimizing: 'Optimizing photo…',
     loadingFood: 'Analyzing food…',
     loadingCalorie: 'Calculating nutrition…',
     loadingMultiple: 'Processing photos…',
-    loadingDefault: 'AI is working…',
-    progressDoneWord: 'done',
+    loadingReceipt: 'Reading your receipt…',
+    analyzingCount: 'Analyzing %{done}/%{total}…',
+    analysisTimeout:
+      'Analysis timed out. Check your connection and try again.',
+    scanFailedTitle: 'Scan failed',
+    noPhotosTitle: 'No photos',
+    noPhotosMessage: 'Take a few photos first',
 
     // Multiple images counter
     photosCount: 'photos',
@@ -100,16 +103,19 @@ export default {
     tutorialMultiple: 'Toplu fotoğraf işler',
     tutorialReceipt: 'Kilerini akıllıca doldurur',
 
-    // Loading
-    loadingReceipt1: 'Fişin okunuyor…',
-    loadingReceipt2: 'Yapay zekâ ile inceleniyor…',
-    loadingReceipt3: 'Yiyecekler bulunuyor…',
-    loadingReceipt4: 'Neredeyse hazır…',
+    // Scan pipeline steps
+    stepCapturing: 'Fotoğraf çekiliyor…',
+    stepOptimizing: 'Fotoğraf hazırlanıyor…',
     loadingFood: 'Yemek inceleniyor…',
     loadingCalorie: 'Besin değeri hesaplanıyor…',
     loadingMultiple: 'Fotoğraflar işleniyor…',
-    loadingDefault: 'Yapay zekâ çalışıyor…',
-    progressDoneWord: 'tamam',
+    loadingReceipt: 'Fişin okunuyor…',
+    analyzingCount: '%{done}/%{total} analiz ediliyor…',
+    analysisTimeout:
+      'Analiz zaman aşımına uğradı. Bağlantını kontrol edip tekrar dene.',
+    scanFailedTitle: 'Tarama başarısız',
+    noPhotosTitle: 'Fotoğraf yok',
+    noPhotosMessage: 'Önce birkaç fotoğraf çek',
 
     // Multiple images counter
     photosCount: 'fotoğraf',

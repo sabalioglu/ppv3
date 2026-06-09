@@ -18,7 +18,6 @@ import {
   Receipt,
   Image,
   FlipHorizontal,
-  TriangleAlert as AlertTriangle,
   Images,
   Calculator,
   X,
@@ -26,26 +25,23 @@ import {
   Plus,
   CreditCard as Edit,
   ChefHat,
-  Sparkles,
-  Lightbulb,
-  FileText,
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { spacing, radius, type Colors } from '@/lib/theme/index';
 import { Display, Eyebrow } from '@/components/UI/Display';
-import { OpenAIVisionService } from '@/lib/openaiVisionService';
+import {
+  OpenAIVisionService,
+  type OpenAIVisionResult,
+} from '@/lib/openaiVisionService';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { ReceiptLearningService } from '@/lib/learningService';
 import { ReceiptLearning, UserFeedback, ParsedItem } from '@/types/learning';
 import { showPrompt } from '@/lib/crossPlatformUtils';
-import { t, i18n } from '@/lib/i18n';
+import { t } from '@/lib/i18n';
 import { confirmDestructive } from '@/lib/ui/confirm';
-
-// Locale is fixed at startup (device-driven). "%96 tamam" (tr) vs "96% done" (en).
-const progressLabel = (pct: number) =>
-  i18n.locale === 'tr'
-    ? `%${pct} ${t('camera.progressDoneWord')}`
-    : `${pct}% ${t('camera.progressDoneWord')}`;
+import ScanSurface, {
+  type ScanResultData,
+} from '@/components/camera/ScanSurface';
 
 type ScanMode =
   | 'food-recognition'
@@ -53,24 +49,15 @@ type ScanMode =
   | 'multiple-images'
   | 'calorie-counter';
 
+// One scan = capture/pick -> optimize -> analyze. Every step is visible; while
+// optimizing/analyzing (or showing a result) the live CameraView is UNMOUNTED
+// and ScanSurface takes the screen — never a <Modal> over the camera preview
+// (iOS doesn't reliably render those, which made scans look like nothing ran).
+type ScanPhase = 'idle' | 'capturing' | 'optimizing' | 'analyzing';
+
 interface ScanResult {
   type: ScanMode;
-  data: {
-    name: string;
-    confidence: number;
-    items?: any[];
-    text?: string;
-    suggestions?: string[];
-    imageType?: string;
-    error?: string;
-    calories?: number;
-    nutrition?: {
-      protein: number;
-      carbs: number;
-      fat: number;
-      fiber: number;
-    };
-  };
+  data: ScanResultData;
 }
 
 interface EnhancedParsedItem extends ParsedItem {
@@ -95,14 +82,36 @@ async function shrinkToBase64(uri: string): Promise<string> {
   return out.base64;
 }
 
+// Explicit cap on each vision call so a stalled request surfaces as a real,
+// retryable error instead of an indefinite spinner.
+const VISION_TIMEOUT_MS = 60000;
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(t('camera.analysisTimeout'))), ms),
+    ),
+  ]);
+}
+
+const ANALYZE_LABEL_KEY: Record<ScanMode, string> = {
+  'food-recognition': 'camera.loadingFood',
+  'multiple-images': 'camera.loadingMultiple',
+  'calorie-counter': 'camera.loadingCalorie',
+  'receipt-scanner': 'camera.loadingReceipt',
+};
+
 export default function CameraScreen() {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [scanMode, setScanMode] = useState<ScanMode>('food-recognition');
-  const [isLoading, setIsLoading] = useState(false);
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('idle');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [pendingUris, setPendingUris] = useState<string[]>([]);
+  const [scanProgress, setScanProgress] = useState({ done: 0, total: 0 });
   const [showTutorial, setShowTutorial] = useState(true);
   const [multipleImages, setMultipleImages] = useState<string[]>([]);
 
@@ -116,12 +125,7 @@ export default function CameraScreen() {
   const [originalReceiptText, setOriginalReceiptText] = useState<string>('');
   const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
 
-  // ✅ STATES CLEANED - NO OCR
   const [lastScanImageUri, setLastScanImageUri] = useState<string | null>(null);
-
-  // ✅ NEW SMART LOADING STATES
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState('');
 
   const cameraRef = useRef<CameraView>(null);
   const tutorialOpacity = useRef(new Animated.Value(1)).current;
@@ -152,37 +156,6 @@ export default function CameraScreen() {
       description: 'Akıllı kiler',
     },
   };
-
-  // ✅ SMART LOADING MESSAGES
-  const LOADING_STEPS = [
-    { message: t('camera.loadingReceipt1'), duration: 1000 },
-    { message: t('camera.loadingReceipt2'), duration: 2000 },
-    { message: t('camera.loadingReceipt3'), duration: 1500 },
-    { message: t('camera.loadingReceipt4'), duration: 1000 },
-  ];
-
-  // ✅ SMART LOADING ANIMATION
-  useEffect(() => {
-    if (isLoading && scanMode === 'receipt-scanner') {
-      setLoadingStep(0);
-      setLoadingMessage(LOADING_STEPS[0].message);
-
-      const interval = setInterval(() => {
-        setLoadingStep((prev) => {
-          const nextStep = prev + 1;
-          if (nextStep < LOADING_STEPS.length) {
-            setLoadingMessage(LOADING_STEPS[nextStep].message);
-            return nextStep;
-          } else {
-            clearInterval(interval);
-            return prev;
-          }
-        });
-      }, 1500);
-
-      return () => clearInterval(interval);
-    }
-  }, [isLoading, scanMode]);
 
   // Hide tutorial after 4 seconds
   useEffect(() => {
@@ -248,7 +221,6 @@ export default function CameraScreen() {
     }
   };
 
-  // ✅ CLEANED - NO OCR REFERENCES
   const addToInventory = async (items: EnhancedParsedItem[]) => {
     try {
       console.log('Adding items to inventory:', items);
@@ -270,7 +242,6 @@ export default function CameraScreen() {
         throw new Error('Failed to add items to pantry');
       }
 
-      // ✅ SIMPLIFIED LEARNING DATA - NO OCR
       if (lastScanImageUri) {
         const confirmedItems = items.filter(
           (item) => item.user_action === 'confirmed',
@@ -338,41 +309,49 @@ export default function CameraScreen() {
     }
   };
 
-  // ✅ PURE AI PROCESSING - NO OCR
-  const processImageWithVision = async (imageUri: string | string[]) => {
+  // THE scan pipeline. Single path for all four modes; the mode only changes
+  // the prompt (server-side) and how the result is presented.
+  const runScan = async (uris: string[]) => {
+    if (uris.length === 0) return;
+    setPendingUris(uris); // kept for "retry" without retaking the photo
+    setScanResult(null);
+    setScanError(null);
+
     try {
-      setIsLoading(true);
-      setScanResult(null);
+      // 1) Optimize: resize+compress+base64 in one call (no FileSystem read).
+      setScanPhase('optimizing');
+      const images: string[] = [];
+      for (const uri of uris) {
+        images.push(await shrinkToBase64(uri));
+      }
+      setLastScanImageUri(uris[0]);
 
-      console.log('Starting AI Vision processing...');
+      // 2) Analyze via the vision-analyze edge fn, explicit timeout per image.
+      setScanPhase('analyzing');
+      setScanProgress({ done: 0, total: images.length });
+      const results: OpenAIVisionResult[] = [];
+      for (const base64 of images) {
+        console.log(
+          `vision-analyze call ${results.length + 1}/${images.length} (${scanMode}, ${base64.length} chars)`,
+        );
+        const analysis = await withTimeout(
+          OpenAIVisionService.analyzeImage(base64, scanMode),
+          VISION_TIMEOUT_MS,
+        );
+        results.push(analysis);
+        setScanProgress({ done: results.length, total: images.length });
+      }
 
-      // Set scan image URI at the beginning
-      setLastScanImageUri(Array.isArray(imageUri) ? imageUri[0] : imageUri);
-
-      let result;
-
-      if (scanMode === 'multiple-images' && Array.isArray(imageUri)) {
-        // Multiple images processing
-        const allResults = [];
-
-        for (const uri of imageUri) {
-          const base64 = await shrinkToBase64(uri);
-
-          const analysisResult = await OpenAIVisionService.analyzeImage(
-            base64,
-            scanMode,
-          );
-          allResults.push(analysisResult);
-        }
-
-        const combinedItems = allResults.flatMap((r) => r.detectedItems ?? []);
+      // 3) Mode-specific result assembly.
+      if (scanMode === 'multiple-images') {
+        const combinedItems = results.flatMap((r) => r.detectedItems ?? []);
         const hasItems = combinedItems.length > 0;
 
-        result = {
+        setScanResult({
           type: scanMode,
           data: {
             name: hasItems
-              ? `${imageUri.length} ${t('camera.imagesAnalyzed')}`
+              ? `${uris.length} ${t('camera.imagesAnalyzed')}`
               : t('camera.noItemsDetected'),
             // Guard against empty -> avoids NaN confidence (blank-looking card).
             confidence: hasItems
@@ -392,42 +371,19 @@ export default function CameraScreen() {
               : [t('camera.tryClearerPhotos')],
             imageType: 'ai-multiple-analysis',
           },
-        };
+        });
       } else {
-        // Single image processing
-        const base64 = await shrinkToBase64(
-          Array.isArray(imageUri) ? imageUri[0] : imageUri,
-        );
+        const analysisResult = results[0];
 
-        const analysisResult = await OpenAIVisionService.analyzeImage(
-          base64,
-          scanMode,
-        );
-
-        result = {
-          type: scanMode,
-          data: {
-            name: analysisResult.mainItem || 'Analysis Complete',
-            confidence: analysisResult.confidence,
-            items: analysisResult.detectedItems,
-            suggestions: analysisResult.suggestions,
-            imageType: `ai-${scanMode}`,
-            text: analysisResult.text,
-            calories: analysisResult.calories,
-            nutrition: analysisResult.nutrition,
-          },
-        };
-
-        // ✅ PURE AI RECEIPT SCANNER - NO OCR
         if (
           scanMode === 'receipt-scanner' &&
           analysisResult.detectedItems &&
           analysisResult.detectedItems.length > 0
         ) {
+          // Receipt: go straight to the confirm-items flow (learning preserved).
           setLearningStartTime(Date.now());
           setOriginalReceiptText(analysisResult.text || 'AI Receipt Analysis');
 
-          // Convert AI results to EnhancedParsedItem format
           const aiItems: EnhancedParsedItem[] =
             analysisResult.detectedItems.map((item: any, index: number) => ({
               id: `ai_${Date.now()}_${index}`,
@@ -441,16 +397,23 @@ export default function CameraScreen() {
             }));
 
           setParsedItems(aiItems);
-
-          setTimeout(() => {
-            setShowAddToInventoryModal(true);
-          }, 1000);
-          return; // ✅ Go directly to AddToInventoryModal
+          setShowAddToInventoryModal(true);
+        } else {
+          setScanResult({
+            type: scanMode,
+            data: {
+              name: analysisResult.mainItem || 'Analysis Complete',
+              confidence: analysisResult.confidence,
+              items: analysisResult.detectedItems,
+              suggestions: analysisResult.suggestions,
+              imageType: `ai-${scanMode}`,
+              text: analysisResult.text,
+              calories: analysisResult.calories,
+              nutrition: analysisResult.nutrition,
+            },
+          });
         }
       }
-
-      console.log('AI Vision processing successful:', result);
-      setScanResult(result);
 
       if (Haptics.notificationAsync) {
         await Haptics.notificationAsync(
@@ -460,55 +423,47 @@ export default function CameraScreen() {
     } catch (error) {
       const errMsg =
         error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('AI Vision processing failed:', error);
-      // Never fail silently: surface the real reason so the user (and we) can see it.
-      Alert.alert(t('common.error'), errMsg);
-
-      setScanResult({
-        type: scanMode,
-        data: {
-          name: 'Processing Failed',
-          confidence: 0,
-          error: errMsg,
-        },
-      });
+      console.error('Scan pipeline failed:', error);
+      // Never silent: ScanSurface shows the real message with a retry button.
+      setScanError(errMsg);
 
       if (Haptics.notificationAsync) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
-      setIsLoading(false);
-      setLoadingStep(0);
-      setLoadingMessage('');
+      setScanPhase('idle');
     }
   };
 
   // Take photo with camera
   const takePicture = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current || scanPhase !== 'idle') return;
 
     try {
-      console.log('Taking picture...');
+      setScanPhase('capturing');
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         base64: false,
       });
 
-      if (photo?.uri) {
-        console.log('Picture taken:', photo.uri);
+      if (!photo?.uri) throw new Error('Camera returned no photo');
+      console.log('Picture taken:', photo.uri);
 
-        if (scanMode === 'multiple-images') {
-          setMultipleImages((prev) => [...prev, photo.uri]);
-          if (Haptics.impactAsync) {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-        } else {
-          await processImageWithVision(photo.uri);
+      if (scanMode === 'multiple-images') {
+        setScanPhase('idle');
+        setMultipleImages((prev) => [...prev, photo.uri]);
+        if (Haptics.impactAsync) {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
+      } else {
+        await runScan([photo.uri]);
       }
     } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Failed to take picture';
       console.error('Error taking picture:', error);
-      Alert.alert('Error', 'Failed to take picture');
+      setScanPhase('idle');
+      setScanError(errMsg);
     }
   };
 
@@ -526,7 +481,7 @@ export default function CameraScreen() {
         if (!result.canceled && result.assets.length > 0) {
           const imageUris = result.assets.map((asset) => asset.uri);
           console.log('Multiple images picked:', imageUris.length);
-          await processImageWithVision(imageUris);
+          await runScan(imageUris);
         }
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -539,37 +494,71 @@ export default function CameraScreen() {
         if (!result.canceled && result.assets[0]) {
           const imageUri = result.assets[0].uri;
           console.log('Image picked from gallery:', imageUri);
-          await processImageWithVision(imageUri);
+          await runScan([imageUri]);
         }
       }
     } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Failed to pick image';
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      setScanError(errMsg);
     }
   };
 
-  // Process multiple images
+  // Process accumulated MULTI-mode photos
   const processMultipleImages = async () => {
     if (multipleImages.length === 0) {
-      Alert.alert('No Images', 'Please take some photos first');
+      Alert.alert(t('camera.noPhotosTitle'), t('camera.noPhotosMessage'));
       return;
     }
 
-    await processImageWithVision(multipleImages);
+    const uris = multipleImages;
     setMultipleImages([]);
+    await runScan(uris);
   };
 
-  // ✅ CLEANED - NO OCR REFERENCES
   const clearResults = () => {
     setScanResult(null);
+    setScanError(null);
+    setPendingUris([]);
+    setScanProgress({ done: 0, total: 0 });
     setMultipleImages([]);
     setParsedItems([]);
     setUserFeedback([]);
     setCurrentReceiptLearningId(null);
     setOriginalReceiptText('');
     setLastScanImageUri(null);
-    setLoadingStep(0);
-    setLoadingMessage('');
+  };
+
+  // "Add all" from the result surface (FOOD / MULTI / RECEIPT-fallback)
+  const handleAddAll = () => {
+    const detected = scanResult?.data.items;
+    if (!detected || detected.length === 0) return;
+
+    confirmDestructive({
+      title: t('camera.addAll'),
+      message: t('camera.addAllConfirmMessage', { count: detected.length }),
+      confirmText: t('camera.addAll'),
+      cancelText: t('camera.addAllCancel'),
+      destructive: false,
+      onConfirm: () => {
+        const items: EnhancedParsedItem[] = detected.map(
+          (item: any, index: number) => ({
+            id: `scan_${Date.now()}_${index}`,
+            name: item.name || item.item || 'Unknown Item',
+            price: item.price || 0,
+            quantity: item.quantity || 1,
+            category: 'food',
+            confidence: item.confidence || 70,
+            is_food: true,
+            user_action: 'confirmed',
+          }),
+        );
+
+        addToInventory(items);
+        clearResults();
+      },
+    });
   };
 
   // Hide tutorial manually
@@ -581,23 +570,6 @@ export default function CameraScreen() {
     }).start(() => setShowTutorial(false));
   };
 
-  // ✅ ENHANCED PROGRESS INDICATOR
-  const renderProgressIndicator = () => {
-    const progress = ((loadingStep + 1) / LOADING_STEPS.length) * 100;
-
-    return (
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-        <Text style={styles.progressText}>
-          {progressLabel(Math.round(progress))}
-        </Text>
-      </View>
-    );
-  };
-
-  // ✅ CLEANED ADD TO INVENTORY MODAL - NO OCR REFERENCES
   const AddToInventoryModal = () => {
     const confirmedCount = parsedItems.filter(
       (item) => item.user_action === 'confirmed',
@@ -874,516 +846,247 @@ export default function CameraScreen() {
     );
   }
 
+  // Visible step label while the pipeline runs (optimizing/analyzing).
+  const phaseLabel =
+    scanPhase === 'optimizing'
+      ? t('camera.stepOptimizing')
+      : scanPhase === 'analyzing'
+        ? scanProgress.total > 1
+          ? t('camera.analyzingCount', {
+              done: Math.min(scanProgress.done + 1, scanProgress.total),
+              total: scanProgress.total,
+            })
+          : t(ANALYZE_LABEL_KEY[scanMode])
+        : null;
+
+  // While a scan runs / a result or error is up / the inventory modal owns the
+  // screen, the live camera is unmounted and ScanSurface takes over (no Modal
+  // is ever rendered above an active CameraView).
+  const showSurface =
+    scanPhase === 'optimizing' ||
+    scanPhase === 'analyzing' ||
+    scanResult !== null ||
+    scanError !== null ||
+    showAddToInventoryModal;
+
   return (
     <View style={styles.container}>
-      {/* Camera Full Screen */}
-      <View style={styles.cameraContainer}>
-        <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
-          {/* Tutorial Overlay */}
-          {showTutorial && (
-            <Animated.View
-              style={[styles.tutorialOverlay, { opacity: tutorialOpacity }]}
-            >
-              <View
-                style={[
-                  styles.tutorialContent,
-                  { backgroundColor: colors.surface },
-                ]}
+      {showSurface ? (
+        <ScanSurface
+          phaseLabel={phaseLabel}
+          result={
+            scanResult && !showAddToInventoryModal ? scanResult.data : null
+          }
+          error={scanError}
+          showAddAll={
+            !!scanResult?.data.items?.length && scanMode !== 'calorie-counter'
+          }
+          showReceiptText={scanMode === 'receipt-scanner'}
+          onRetry={() => runScan(pendingUris)}
+          onClose={clearResults}
+          onAddAll={handleAddAll}
+        />
+      ) : (
+        <View style={styles.cameraContainer}>
+          <CameraView ref={cameraRef} style={styles.camera} facing={facing}>
+            {/* Tutorial Overlay */}
+            {showTutorial && (
+              <Animated.View
+                style={[styles.tutorialOverlay, { opacity: tutorialOpacity }]}
               >
-                <TouchableOpacity
+                <View
                   style={[
-                    styles.tutorialClose,
-                    { backgroundColor: colors.background },
+                    styles.tutorialContent,
+                    { backgroundColor: colors.surface },
                   ]}
-                  onPress={hideTutorial}
                 >
-                  <X size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <Eyebrow>{t('camera.tutorialEyebrow')}</Eyebrow>
-                <Display
-                  size="md"
-                  color={colors.textPrimary}
-                  style={styles.tutorialTitle}
-                >
-                  {t('camera.tutorialTitle')}
-                </Display>
-                <Text
-                  style={[styles.tutorialText, { color: colors.textSecondary }]}
-                >
-                  <Text
-                    style={[
-                      styles.tutorialHighlight,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    {t('camera.modeFoodRecognition')}:
-                  </Text>{' '}
-                  {t('camera.tutorialFood')}
-                  {'\n'}
-                  <Text
-                    style={[
-                      styles.tutorialHighlight,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    {t('camera.modeCalorie')}:
-                  </Text>{' '}
-                  {t('camera.tutorialCalorie')}
-                  {'\n'}
-                  <Text
-                    style={[
-                      styles.tutorialHighlight,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    {t('camera.modeMultiple')}:
-                  </Text>{' '}
-                  {t('camera.tutorialMultiple')}
-                  {'\n'}
-                  <Text
-                    style={[
-                      styles.tutorialHighlight,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    {t('camera.modeReceipt')}:
-                  </Text>{' '}
-                  {t('camera.tutorialReceipt')}
-                </Text>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* ✅ ENHANCED LOADING OVERLAY WITH SMART MESSAGES */}
-          {isLoading && (
-            <View style={styles.loadingOverlay}>
-              <View style={styles.loadingContent}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-                <Text style={styles.loadingText}>
-                  {scanMode === 'receipt-scanner'
-                    ? loadingMessage
-                    : scanMode === 'food-recognition'
-                      ? t('camera.loadingFood')
-                      : scanMode === 'calorie-counter'
-                        ? t('camera.loadingCalorie')
-                        : scanMode === 'multiple-images'
-                          ? t('camera.loadingMultiple')
-                          : t('camera.loadingDefault')}
-                </Text>
-
-                {/* ✅ PROGRESS INDICATOR FOR RECEIPT SCANNING */}
-                {scanMode === 'receipt-scanner' && renderProgressIndicator()}
-              </View>
-            </View>
-          )}
-
-          {/* Apple-style Mode Selector - RESPONSIVE FIXED */}
-          <View style={styles.appleModeContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.appleModeScroll}
-              style={styles.appleModeSelector}
-            >
-              {Object.entries(CAMERA_MODES).map(([key, mode]) => {
-                const isActive = scanMode === key;
-                return (
                   <TouchableOpacity
-                    key={key}
                     style={[
-                      styles.appleModeButton,
-                      isActive && [
-                        styles.appleModeButtonActive,
-                        { backgroundColor: mode.color },
-                      ],
+                      styles.tutorialClose,
+                      { backgroundColor: colors.background },
                     ]}
-                    onPress={() => {
-                      setScanMode(key as ScanMode);
-                      clearResults();
-                      setShowTutorial(false);
-                    }}
+                    onPress={hideTutorial}
+                  >
+                    <X size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <Eyebrow>{t('camera.tutorialEyebrow')}</Eyebrow>
+                  <Display
+                    size="md"
+                    color={colors.textPrimary}
+                    style={styles.tutorialTitle}
+                  >
+                    {t('camera.tutorialTitle')}
+                  </Display>
+                  <Text
+                    style={[
+                      styles.tutorialText,
+                      { color: colors.textSecondary },
+                    ]}
                   >
                     <Text
                       style={[
-                        styles.appleModeText,
-                        isActive && styles.appleModeTextActive,
+                        styles.tutorialHighlight,
+                        { color: colors.primary },
                       ]}
                     >
-                      {mode.title}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Multiple Images Counter */}
-          {scanMode === 'multiple-images' && multipleImages.length > 0 && (
-            <View
-              style={[
-                styles.multipleCounter,
-                { backgroundColor: colors.primary },
-              ]}
-            >
-              <Text style={styles.multipleCounterText}>
-                {`${multipleImages.length} ${t('camera.photosCount')}`}
-              </Text>
-              <TouchableOpacity
-                style={styles.processButton}
-                onPress={processMultipleImages}
-              >
-                <Text style={styles.processButtonText}>
-                  {t('camera.analyze')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Apple-style Controls - RESPONSIVE FIXED */}
-          <View style={styles.appleControls}>
-            {/* Gallery Button */}
-            <TouchableOpacity
-              style={styles.appleGalleryButton}
-              onPress={pickImages}
-            >
-              {scanMode === 'multiple-images' ? (
-                <Images size={22} color="#FFFFFF" />
-              ) : (
-                <Image size={22} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
-
-            {/* Capture Button */}
-            <TouchableOpacity
-              style={styles.appleCaptureButton}
-              onPress={takePicture}
-              disabled={isLoading}
-            >
-              <View
-                style={[
-                  styles.appleCaptureInner,
-                  { borderColor: colors.primary },
-                  isLoading && styles.captureButtonDisabled,
-                ]}
-              />
-            </TouchableOpacity>
-
-            {/* Flip Button */}
-            <TouchableOpacity
-              style={styles.appleFlipButton}
-              onPress={() =>
-                setFacing((current) => (current === 'back' ? 'front' : 'back'))
-              }
-            >
-              <FlipHorizontal size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </CameraView>
-      </View>
-
-      {/* ✅ RESULTS DISPLAY - NOW AS MODAL WITH NO CONFIDENCE SCORES */}
-      {scanResult && !showAddToInventoryModal && (
-        <Modal
-          visible={true}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={clearResults}
-        >
-          <View style={styles.resultsModalOverlay}>
-            <TouchableOpacity
-              style={styles.resultsModalBackground}
-              onPress={clearResults}
-              activeOpacity={1}
-            />
-            <View
-              style={[
-                styles.resultsModalContainer,
-                { backgroundColor: colors.background },
-              ]}
-            >
-              <View
-                style={[
-                  styles.resultsDragHandle,
-                  { backgroundColor: colors.border },
-                ]}
-              />
-              <ScrollView
-                style={styles.resultsScroll}
-                showsVerticalScrollIndicator={false}
-              >
-                <View style={styles.resultHeader}>
-                  <Eyebrow style={styles.resultEyebrow}>
-                    {t('camera.resultEyebrow')}
-                  </Eyebrow>
-                  <Display
-                    size="lg"
-                    color={colors.textPrimary}
-                    style={styles.resultTitle}
-                  >
-                    {scanResult.data.name}
-                  </Display>
-                </View>
-
-                {/* Calorie & Nutrition Info */}
-                {scanResult.data.calories && (
-                  <View
-                    style={[
-                      styles.calorieContainer,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.borderLight,
-                      },
-                    ]}
-                  >
-                    <Eyebrow style={styles.calorieTitle}>
-                      {t('camera.nutritionTitle')}
-                    </Eyebrow>
-                    <View style={styles.calorieGrid}>
-                      <View style={styles.calorieItem}>
-                        <Display size="md" color={colors.primary}>
-                          {scanResult.data.calories}
-                        </Display>
-                        <Text
-                          style={[
-                            styles.calorieLabel,
-                            { color: colors.textSecondary },
-                          ]}
-                        >
-                          {t('camera.calories')}
-                        </Text>
-                      </View>
-                      {scanResult.data.nutrition && (
-                        <>
-                          <View style={styles.calorieItem}>
-                            <Display size="md" color={colors.secondary}>
-                              {scanResult.data.nutrition.protein}g
-                            </Display>
-                            <Text
-                              style={[
-                                styles.calorieLabel,
-                                { color: colors.textSecondary },
-                              ]}
-                            >
-                              {t('camera.protein')}
-                            </Text>
-                          </View>
-                          <View style={styles.calorieItem}>
-                            <Display size="md" color={colors.accent}>
-                              {scanResult.data.nutrition.carbs}g
-                            </Display>
-                            <Text
-                              style={[
-                                styles.calorieLabel,
-                                { color: colors.textSecondary },
-                              ]}
-                            >
-                              {t('camera.carbs')}
-                            </Text>
-                          </View>
-                          <View style={styles.calorieItem}>
-                            <Display size="md" color={colors.error}>
-                              {scanResult.data.nutrition.fat}g
-                            </Display>
-                            <Text
-                              style={[
-                                styles.calorieLabel,
-                                { color: colors.textSecondary },
-                              ]}
-                            >
-                              {t('camera.fat')}
-                            </Text>
-                          </View>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {scanResult.data.error ? (
-                  <View style={styles.errorContainer}>
-                    <AlertTriangle size={24} color={colors.error} />
-                    <Text style={[styles.errorText, { color: colors.error }]}>
-                      {scanResult.data.error}
-                    </Text>
-                    <TouchableOpacity
+                      {t('camera.modeFoodRecognition')}:
+                    </Text>{' '}
+                    {t('camera.tutorialFood')}
+                    {'\n'}
+                    <Text
                       style={[
-                        styles.retryButton,
-                        { backgroundColor: colors.primary },
+                        styles.tutorialHighlight,
+                        { color: colors.primary },
                       ]}
-                      onPress={clearResults}
                     >
-                      <Text style={styles.retryButtonText}>
-                        {t('common.retry')}
+                      {t('camera.modeCalorie')}:
+                    </Text>{' '}
+                    {t('camera.tutorialCalorie')}
+                    {'\n'}
+                    <Text
+                      style={[
+                        styles.tutorialHighlight,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      {t('camera.modeMultiple')}:
+                    </Text>{' '}
+                    {t('camera.tutorialMultiple')}
+                    {'\n'}
+                    <Text
+                      style={[
+                        styles.tutorialHighlight,
+                        { color: colors.primary },
+                      ]}
+                    >
+                      {t('camera.modeReceipt')}:
+                    </Text>{' '}
+                    {t('camera.tutorialReceipt')}
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Capturing flash (View overlay is fine — only <Modal> breaks) */}
+            {scanPhase === 'capturing' && (
+              <View style={styles.loadingOverlay}>
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                  <Text style={styles.loadingText}>
+                    {t('camera.stepCapturing')}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Apple-style Mode Selector - RESPONSIVE FIXED */}
+            <View style={styles.appleModeContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.appleModeScroll}
+                style={styles.appleModeSelector}
+              >
+                {Object.entries(CAMERA_MODES).map(([key, mode]) => {
+                  const isActive = scanMode === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.appleModeButton,
+                        isActive && [
+                          styles.appleModeButtonActive,
+                          { backgroundColor: mode.color },
+                        ],
+                      ]}
+                      onPress={() => {
+                        setScanMode(key as ScanMode);
+                        clearResults();
+                        setShowTutorial(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.appleModeText,
+                          isActive && styles.appleModeTextActive,
+                        ]}
+                      >
+                        {mode.title}
                       </Text>
                     </TouchableOpacity>
-                  </View>
-                ) : (
-                  <>
-                    {/* ✅ DETECTED ITEMS - NO CONFIDENCE SCORES */}
-                    {scanResult.data.items &&
-                      scanResult.data.items.length > 0 && (
-                        <View style={styles.itemsContainer}>
-                          <View style={styles.resultSectionTitle}>
-                            <Sparkles size={16} color={colors.secondary} />
-                            <Display size="sm" color={colors.textPrimary}>
-                              {t('camera.foundItems')}
-                            </Display>
-                          </View>
-                          {scanResult.data.items.map(
-                            (item: any, index: number) => (
-                              <View
-                                key={index}
-                                style={[
-                                  styles.detectedItem,
-                                  {
-                                    backgroundColor: colors.surface,
-                                    borderColor: colors.borderLight,
-                                  },
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.itemName,
-                                    { color: colors.textPrimary },
-                                  ]}
-                                >
-                                  {item.name || item.item}
-                                </Text>
-                              </View>
-                            ),
-                          )}
-                        </View>
-                      )}
-
-                    {/* Suggestions */}
-                    {scanResult.data.suggestions &&
-                      scanResult.data.suggestions.length > 0 && (
-                        <View style={styles.suggestionsContainer}>
-                          <View style={styles.resultSectionTitle}>
-                            <Lightbulb size={16} color={colors.accent} />
-                            <Display size="sm" color={colors.textPrimary}>
-                              {t('camera.suggestions')}
-                            </Display>
-                          </View>
-                          {scanResult.data.suggestions.map(
-                            (suggestion: string, index: number) => (
-                              <Text
-                                key={index}
-                                style={[
-                                  styles.suggestionText,
-                                  { color: colors.textSecondary },
-                                ]}
-                              >
-                                • {suggestion}
-                              </Text>
-                            ),
-                          )}
-                        </View>
-                      )}
-
-                    {/* Raw Text (for receipt scanner) */}
-                    {scanResult.data.text && scanMode === 'receipt-scanner' && (
-                      <View style={styles.textContainer}>
-                        <View style={styles.resultSectionTitle}>
-                          <FileText size={16} color={colors.textSecondary} />
-                          <Display size="sm" color={colors.textPrimary}>
-                            {t('camera.extractedText')}
-                          </Display>
-                        </View>
-                        <ScrollView
-                          style={[
-                            styles.textScroll,
-                            { backgroundColor: colors.surface },
-                          ]}
-                          nestedScrollEnabled={true}
-                        >
-                          <Text
-                            style={[
-                              styles.extractedText,
-                              { color: colors.textSecondary },
-                            ]}
-                          >
-                            {scanResult.data.text}
-                          </Text>
-                        </ScrollView>
-                      </View>
-                    )}
-                  </>
-                )}
-
-                {/* Action Buttons */}
-                <View style={styles.actionButtonsContainer}>
-                  <TouchableOpacity
-                    style={[styles.clearButton, { borderColor: colors.border }]}
-                    onPress={clearResults}
-                  >
-                    <X size={18} color={colors.textSecondary} />
-                    <Text
-                      style={[
-                        styles.clearButtonText,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {t('common.close')}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {scanResult.data.items &&
-                    scanResult.data.items.length > 0 &&
-                    scanMode !== 'calorie-counter' && (
-                      <TouchableOpacity
-                        style={[
-                          styles.addAllButton,
-                          { backgroundColor: colors.primary },
-                        ]}
-                        onPress={() => {
-                          // Add all detected items to pantry
-                          const detected = scanResult.data.items;
-                          if (!detected) return;
-                          confirmDestructive({
-                            title: t('camera.addAll'),
-                            message: t('camera.addAllConfirmMessage', {
-                              count: detected.length,
-                            }),
-                            confirmText: t('camera.addAll'),
-                            cancelText: t('camera.addAllCancel'),
-                            destructive: false,
-                            onConfirm: () => {
-                              // Convert to EnhancedParsedItem format
-                              const items: EnhancedParsedItem[] = detected.map(
-                                (item: any, index: number) => ({
-                                  id: `scan_${Date.now()}_${index}`,
-                                  name:
-                                    item.name || item.item || 'Unknown Item',
-                                  price: item.price || 0,
-                                  quantity: item.quantity || 1,
-                                  category: 'food',
-                                  confidence: item.confidence || 70,
-                                  is_food: true,
-                                  user_action: 'confirmed',
-                                }),
-                              );
-
-                              addToInventory(items);
-                              clearResults();
-                            },
-                          });
-                        }}
-                      >
-                        <Plus size={18} color="#FFFFFF" />
-                        <Text style={styles.addAllButtonText}>
-                          {t('camera.addAll')}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                </View>
+                  );
+                })}
               </ScrollView>
             </View>
-          </View>
-        </Modal>
+
+            {/* Multiple Images Counter */}
+            {scanMode === 'multiple-images' && multipleImages.length > 0 && (
+              <View
+                style={[
+                  styles.multipleCounter,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={styles.multipleCounterText}>
+                  {`${multipleImages.length} ${t('camera.photosCount')}`}
+                </Text>
+                <TouchableOpacity
+                  style={styles.processButton}
+                  onPress={processMultipleImages}
+                >
+                  <Text style={styles.processButtonText}>
+                    {t('camera.analyze')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Apple-style Controls - RESPONSIVE FIXED */}
+            <View style={styles.appleControls}>
+              {/* Gallery Button */}
+              <TouchableOpacity
+                style={styles.appleGalleryButton}
+                onPress={pickImages}
+              >
+                {scanMode === 'multiple-images' ? (
+                  <Images size={22} color="#FFFFFF" />
+                ) : (
+                  <Image size={22} color="#FFFFFF" />
+                )}
+              </TouchableOpacity>
+
+              {/* Capture Button */}
+              <TouchableOpacity
+                style={styles.appleCaptureButton}
+                onPress={takePicture}
+                disabled={scanPhase !== 'idle'}
+              >
+                <View
+                  style={[
+                    styles.appleCaptureInner,
+                    { borderColor: colors.primary },
+                    scanPhase !== 'idle' && styles.captureButtonDisabled,
+                  ]}
+                />
+              </TouchableOpacity>
+
+              {/* Flip Button */}
+              <TouchableOpacity
+                style={styles.appleFlipButton}
+                onPress={() =>
+                  setFacing((current) =>
+                    current === 'back' ? 'front' : 'back',
+                  )
+                }
+              >
+                <FlipHorizontal size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </CameraView>
+        </View>
       )}
 
-      {/* Add to Inventory Modal */}
+      {/* Add to Inventory Modal (camera is unmounted whenever this is visible) */}
       <AddToInventoryModal />
     </View>
   );
@@ -1481,7 +1184,7 @@ const makeStyles = (colors: Colors) =>
       color: colors.primary,
     },
 
-    // Loading Styles
+    // Capturing overlay
     loadingOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -1502,31 +1205,6 @@ const makeStyles = (colors: Colors) =>
       fontWeight: '500',
       marginTop: 15,
       textAlign: 'center',
-    },
-
-    // ✅ PROGRESS INDICATOR STYLES
-    progressContainer: {
-      marginTop: 20,
-      width: '100%',
-      alignItems: 'center',
-    },
-    progressBar: {
-      width: '80%',
-      height: 6,
-      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-      borderRadius: 3,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
-      backgroundColor: '#FFFFFF',
-      borderRadius: 3,
-    },
-    progressText: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '500',
-      marginTop: 8,
     },
 
     // Apple-style Mode Selector
@@ -1655,207 +1333,6 @@ const makeStyles = (colors: Colors) =>
       alignItems: 'center',
       borderWidth: 2,
       borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-
-    // Results Modal Styles
-    resultsModalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'flex-end',
-    },
-    resultsModalBackground: {
-      flex: 1,
-    },
-    resultsModalContainer: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 25,
-      borderTopRightRadius: 25,
-      maxHeight: '70%',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 10,
-    },
-    resultsDragHandle: {
-      width: 40,
-      height: 4,
-      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-      borderRadius: 2,
-      alignSelf: 'center',
-      marginTop: 8,
-      marginBottom: 15,
-    },
-    resultsScroll: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    resultHeader: {
-      marginBottom: 20,
-    },
-    resultEyebrow: {
-      marginBottom: 6,
-    },
-    resultTitle: {
-      // serif Display; layout only
-    },
-    resultSectionTitle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginBottom: 12,
-    },
-
-    // Error Styles
-    errorContainer: {
-      alignItems: 'center',
-      padding: 20,
-    },
-    errorText: {
-      fontSize: 15,
-      fontFamily: 'Inter-Medium',
-      color: colors.error,
-      textAlign: 'center',
-      marginVertical: 15,
-      lineHeight: 22,
-    },
-    retryButton: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 24,
-      height: 48,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    retryButtonText: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontFamily: 'Inter-Bold',
-    },
-
-    // Calorie Styles
-    calorieContainer: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      marginBottom: 20,
-      shadowColor: '#3C2814',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.05,
-      shadowRadius: 12,
-      elevation: 2,
-    },
-    calorieTitle: {
-      textAlign: 'center',
-      marginBottom: 15,
-    },
-    calorieGrid: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      flexWrap: 'wrap',
-    },
-    calorieItem: {
-      alignItems: 'center',
-      minWidth: 60,
-      gap: 2,
-    },
-    calorieLabel: {
-      fontSize: 11,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-
-    // Items Styles
-    itemsContainer: {
-      marginBottom: 20,
-    },
-    detectedItem: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 15,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderLight,
-      borderRadius: radius.md,
-      marginBottom: 8,
-    },
-    itemName: {
-      fontSize: 15,
-      fontFamily: 'Inter-Medium',
-      color: colors.textPrimary,
-      flex: 1,
-    },
-
-    // Suggestions Styles
-    suggestionsContainer: {
-      marginBottom: 20,
-    },
-    suggestionText: {
-      fontSize: 14,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      marginBottom: 6,
-      lineHeight: 20,
-    },
-
-    // Text Container
-    textContainer: {
-      marginBottom: 20,
-    },
-    textScroll: {
-      maxHeight: 150,
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
-      padding: 15,
-    },
-    extractedText: {
-      fontSize: 13,
-      color: colors.textPrimary,
-      lineHeight: 18,
-      fontFamily: 'monospace',
-    },
-
-    // Action Buttons
-    actionButtonsContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: 20,
-      paddingBottom: 30,
-    },
-    clearButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingHorizontal: 20,
-      height: 48,
-      borderRadius: 18,
-    },
-    clearButtonText: {
-      color: colors.textSecondary,
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      marginLeft: 8,
-    },
-    addAllButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primary,
-      paddingHorizontal: 22,
-      height: 48,
-      borderRadius: 18,
-    },
-    addAllButtonText: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontFamily: 'Inter-Bold',
-      marginLeft: 8,
     },
 
     // Modal Styles
