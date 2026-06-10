@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stovd — Cook what you have</title>
+<meta name="description" content="Stovd turns the ingredients you already own into dinner. Scan your pantry, get AI recipe matches, waste less. Warm, considered, premium." />
+<link rel="icon" href="./assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,900;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ter:#C8472B; --ter-d:#A5391F; --herb:#5B8C5A; --saf:#E8A13A;
+    --paper:#FBF7F0; --paper2:#F4EEE4; --card:#FFFFFF; --esp:#2A2422;
+    --mut:#7A6E5D; --line:#E9E0D3; --cream:#FBF4E9;
+    --r:22px; --shadow:0 24px 60px rgba(120,40,22,.14); --shadow-sm:0 10px 30px rgba(120,40,22,.10);
+    --serif:'Fraunces',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--esp);background:var(--paper);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;line-height:1.05}
+  .eyebrow{font-size:13px;letter-spacing:.26em;text-transform:uppercase;color:var(--ter);font-weight:600}
+  a{color:inherit;text-decoration:none}
+  .serif-it{font-family:var(--serif);font-style:italic;font-weight:500}
+
+  nav{position:sticky;top:0;z-index:50;background:rgba(251,247,240,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:74px}
+  .brand{display:flex;align-items:center;gap:12px;font-family:var(--serif);font-weight:600;font-size:26px}
+  .brand img{width:42px;height:42px;border-radius:11px;box-shadow:var(--shadow-sm)}
+  .nav-links{display:flex;gap:34px;align-items:center;font-size:15px;font-weight:500;color:var(--mut)}
+  .nav-links a:hover{color:var(--esp)}
+  .btn{display:inline-flex;align-items:center;gap:9px;background:var(--ter);color:#fff;padding:12px 22px;border-radius:999px;font-weight:600;font-size:15px;box-shadow:var(--shadow-sm);transition:transform .18s ease,background .18s ease}
+  .btn:hover{transform:translateY(-2px);background:var(--ter-d)}
+  .btn-ghost{background:transparent;color:var(--esp);border:1px solid var(--line)}
+  .btn-ghost:hover{background:var(--paper2)}
+  @media(max-width:780px){.nav-links{display:none}}
+
+  /* ---------- PHONE + FAITHFUL APP SCREENS ---------- */
+  .phone{position:relative;width:300px;height:622px;background:#1A1614;border-radius:46px;padding:11px;box-shadow:0 40px 90px rgba(120,40,22,.30);border:1px solid #2c2622;flex:none}
+  .screen{width:100%;height:100%;background:var(--paper);border-radius:36px;overflow:hidden;position:relative;font-size:13px}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:118px;height:25px;background:#1A1614;border-radius:0 0 16px 16px;z-index:8}
+  .sb{display:flex;justify-content:space-between;align-items:center;padding:9px 20px 0;font-size:11px;font-weight:600;color:var(--esp)}
+  .sp{padding:8px 16px 16px;height:calc(100% - 24px);overflow:hidden}
+  .ae{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ter);font-weight:700}
+  .at{font-family:var(--serif);font-weight:600;font-size:22px;margin:2px 0 12px;line-height:1.05}
+  .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 12px;color:var(--mut);font-size:12px;margin-bottom:12px}
+  .chips{display:flex;gap:7px;margin-bottom:12px;overflow:hidden}
+  .chip{font-size:10px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--line);color:var(--mut);background:#fff;white-space:nowrap;display:flex;gap:5px;align-items:center}
+  .chip.on{background:var(--ter);color:#fff;border-color:transparent}
+  .chip b{font-weight:700;opacity:.85}
+  .statrow{display:flex;background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px 6px;margin-bottom:13px}
+  .statrow .c{flex:1;text-align:center;border-right:1px solid var(--line)}
+  .statrow .c:last-child{border:0}
+  .statrow .c b{font-family:var(--serif);font-size:19px;display:block;color:var(--esp)}
+  .statrow .c span{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+  .irow{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px;margin-bottom:9px}
+  .ithumb{width:46px;height:46px;border-radius:11px;background-size:cover;background-position:center;flex:none}
+  .iinfo{flex:1;min-width:0}
+  .iinfo b{font-family:var(--serif);font-size:14px;font-weight:600;display:block}
+  .iinfo .loc{font-size:10px;color:var(--mut);display:flex;align-items:center;gap:4px;margin-top:2px}
+  .iinfo .exp{font-size:10px;color:var(--herb);font-weight:600;margin-top:2px}
+  .qty{font-size:11px;font-weight:700;color:var(--esp);background:var(--paper2);padding:4px 9px;border-radius:8px}
+
+  /* recipe cards (home) */
+  .rcard{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:11px;box-shadow:var(--shadow-sm)}
+  .rcard .ph{height:104px;background-size:cover;background-position:center;position:relative}
+  .rcard .ph .mt{position:absolute;top:9px;right:9px;background:rgba(26,22,20,.78);color:#fff;font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px)}
+  .rcard .meta{padding:10px 13px}
+  .rcard .meta b{font-family:var(--serif);font-size:15px;font-weight:600;display:block}
+  .rcard .meta span{font-size:11px;color:var(--mut)}
+  .matchbar{height:5px;background:var(--paper2);border-radius:999px;margin-top:8px;overflow:hidden}
+  .matchbar i{display:block;height:100%;background:var(--herb);border-radius:999px}
+
+  /* recipe detail */
+  .rd-hero{height:188px;margin:-8px -16px 0;background-size:cover;background-position:center;position:relative}
+  .rd-hero .back{position:absolute;top:12px;left:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center}
+  .rd-hero .fav{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;color:var(--ter)}
+  .rd-title{font-family:var(--serif);font-size:21px;font-weight:600;margin:12px 0 10px;line-height:1.1}
+  .stchips{display:flex;gap:7px;margin-bottom:13px}
+  .stchip{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
+  .stchip b{font-family:var(--serif);font-size:15px;display:block;color:var(--esp)}
+  .stchip span{font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+  .pm{background:rgba(91,140,90,.10);border:1px solid rgba(91,140,90,.25);border-radius:13px;padding:11px;margin-bottom:12px}
+  .pm .top{display:flex;justify-content:space-between;font-size:11px;font-weight:600}
+  .pm .top .g{color:var(--herb)}
+  .ing{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+  .ing .dot{width:7px;height:7px;border-radius:50%;background:var(--herb);margin-right:8px;display:inline-block}
+  .ing .miss{background:var(--saf)}
+  .cookbtn{position:absolute;left:16px;right:16px;bottom:14px;background:var(--ter);color:#fff;text-align:center;padding:13px;border-radius:14px;font-weight:700;font-size:14px;box-shadow:var(--shadow-sm)}
+
+  /* camera */
+  .cam{position:absolute;inset:0;background:linear-gradient(180deg,#3a3330,#211c1a)}
+  .cam .modes{position:absolute;top:34px;left:0;right:0;display:flex;justify-content:center;gap:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.55)}
+  .cam .modes .on{color:#fff;border-bottom:2px solid var(--ter);padding-bottom:4px}
+  .cam .pot{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:24px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.35)}
+  .cam .shutter{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4)}
+  .cam .toast{position:absolute;left:24px;right:24px;bottom:120px;background:rgba(26,22,20,.92);color:#fff;border-radius:14px;padding:14px;text-align:center}
+  .cam .toast b{font-family:var(--serif);font-size:15px;display:block;margin-bottom:2px}
+  .cam .toast span{font-size:11px;opacity:.8}
+  .cam .toast .ok{margin-top:10px;background:var(--ter);border-radius:10px;padding:8px;font-weight:700;font-size:12px}
+
+  /* meal plan */
+  .mp{display:flex;flex-direction:column;gap:9px}
+  .mpday{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 13px}
+  .mpday .d{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ter);font-weight:700}
+  .mpmeal{display:flex;align-items:center;gap:9px;margin-top:8px}
+  .mpmeal .ph{width:38px;height:38px;border-radius:9px;background-size:cover;background-position:center;flex:none}
+  .mpmeal b{font-family:var(--serif);font-size:13px;font-weight:600;display:block}
+  .mpmeal span{font-size:10px;color:var(--mut)}
+
+  /* shopping */
+  .shgrp{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:700;margin:12px 0 7px}
+  .shrow{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:7px;font-size:13px}
+  .shbox{width:19px;height:19px;border-radius:6px;border:2px solid var(--line);flex:none}
+  .shbox.on{background:var(--herb);border-color:var(--herb);display:flex;align-items:center;justify-content:center}
+  .shrow.done{color:var(--mut);text-decoration:line-through}
+  .shqty{margin-left:auto;font-size:11px;color:var(--mut)}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;padding:80px 0 56px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  .hero h1{font-size:72px;margin:18px 0 22px}
+  .hero h1 em{font-style:italic;color:var(--ter);font-weight:600}
+  .hero p.lead{font-size:20px;color:var(--mut);max-width:520px}
+  .badges{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap}
+  .store{display:inline-flex;align-items:center;gap:11px;background:var(--esp);color:#fff;padding:12px 20px;border-radius:14px;transition:transform .18s ease}
+  .store:hover{transform:translateY(-2px)}
+  .store small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;line-height:1.1}
+  .store b{font-family:var(--serif);font-size:18px;font-weight:600}
+  .hero-note{margin-top:18px;font-size:14px;color:var(--mut);display:flex;align-items:center;gap:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--herb);display:inline-block}
+  .phone-stage{position:relative;display:flex;justify-content:center}
+  .blur-blob{position:absolute;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(232,161,58,.35),transparent 70%);filter:blur(20px);top:8%;left:50%;transform:translateX(-50%);z-index:0}
+  .phone-stage .phone{position:relative;z-index:1}
+
+  .strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper2)}
+  .strip-in{display:flex;justify-content:space-between;gap:24px;padding:26px 0;flex-wrap:wrap}
+  .stat b{font-family:var(--serif);font-size:30px;font-weight:600;color:var(--ter)}
+  .stat span{font-size:13px;color:var(--mut);display:block}
+
+  section{padding:92px 0}
+  .sec-head{max-width:680px;margin-bottom:50px}
+  .sec-head h2{font-size:46px;margin:14px 0 14px}
+  .sec-head p{font-size:18px;color:var(--mut)}
+
+  /* feature rows with screenshots */
+  .frow{display:grid;grid-template-columns:1fr 360px;gap:60px;align-items:center;margin-bottom:104px}
+  .frow:last-child{margin-bottom:0}
+  .frow.rev{grid-template-columns:360px 1fr}
+  .frow.rev .ftext{order:2}
+  .ftext .eyebrow{margin-bottom:12px;display:block}
+  .ftext h2{font-size:40px;margin-bottom:14px}
+  .ftext p{font-size:17px;color:var(--mut);max-width:440px}
+  .ftext .mini{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+  .ftext .mini div{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--esp)}
+  .ftext .mini svg{color:var(--herb);flex:none;margin-top:3px}
+  .fphone{display:flex;justify-content:center;position:relative}
+  .fphone::before{content:"";position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(200,71,43,.12),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%)}
+  @media(max-width:880px){.frow,.frow.rev{grid-template-columns:1fr}.frow.rev .ftext{order:0}.hero-grid{grid-template-columns:1fr}.hero h1{font-size:50px}}
+
+  .showcase{background:var(--esp)}
+  .showcase .sec-head .eyebrow{color:var(--saf)}
+  .showcase .sec-head h2{color:var(--cream)}
+  .showcase .sec-head p{color:#B9AB97}
+  .gallery{display:flex;gap:22px;justify-content:center;flex-wrap:wrap}
+
+  .price-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:760px;margin:0 auto}
+  .pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:36px;box-shadow:var(--shadow-sm)}
+  .pcard.pro{background:var(--ter);color:#fff;border-color:transparent;position:relative;box-shadow:var(--shadow)}
+  .pcard h3{font-size:26px;margin-bottom:6px}
+  .pcard .amt{font-family:var(--serif);font-size:46px;font-weight:600;margin:8px 0}
+  .pcard.pro .amt{color:#fff}
+  .plist{list-style:none;margin:20px 0;display:flex;flex-direction:column;gap:11px;font-size:15px}
+  .plist li{display:flex;gap:10px;align-items:flex-start}
+  .pcard:not(.pro) .plist li svg{color:var(--herb)}
+  .tagp{position:absolute;top:18px;right:18px;background:var(--saf);color:var(--esp);font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;letter-spacing:.04em}
+  @media(max-width:780px){.price-grid{grid-template-columns:1fr}}
+
+  .faq{max-width:780px;margin:0 auto}
+  details{border-bottom:1px solid var(--line);padding:22px 0}
+  summary{font-family:var(--serif);font-size:20px;font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  summary::-webkit-details-marker{display:none}
+  summary .plus{color:var(--ter);font-size:26px;transition:transform .2s ease}
+  details[open] summary .plus{transform:rotate(45deg)}
+  details p{margin-top:12px;color:var(--mut);font-size:16px}
+
+  .cta{background:linear-gradient(135deg,#D75B3D,#C8472B 50%,#A5391F);color:#fff;border-radius:32px;padding:64px;text-align:center;position:relative;overflow:hidden}
+  .cta h2{font-size:46px;color:#fff;margin-bottom:14px}
+  .cta p{color:rgba(255,255,255,.86);font-size:18px;max-width:520px;margin:0 auto 30px}
+  .cta .badges{justify-content:center}
+  .cta .store{background:#1A1614}
+  .cta .ember{position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(255,217,138,.4),transparent 70%);top:-120px;right:-80px}
+
+  footer{padding:60px 0 50px;border-top:1px solid var(--line)}
+  .foot-in{display:flex;justify-content:space-between;align-items:flex-start;gap:30px;flex-wrap:wrap}
+  .foot-brand{display:flex;align-items:center;gap:12px;font-family:var(--serif);font-size:24px;font-weight:600}
+  .foot-brand img{width:38px;height:38px;border-radius:10px}
+  .foot-links{display:flex;gap:48px;flex-wrap:wrap}
+  .foot-col h4{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+  .foot-col a{display:block;font-size:15px;color:var(--esp);margin-bottom:9px;opacity:.8}
+  .foot-col a:hover{opacity:1;color:var(--ter)}
+  .foot-bottom{margin-top:42px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--mut);font-size:14px;flex-wrap:wrap;gap:10px}
+  .foot-bottom .serif-it{color:var(--ter);font-size:16px}
+
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#"><img src="./assets/icon.png" alt="Stovd"/>Stovd</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn" href="#download">Get the app</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="reveal in">
+      <span class="eyebrow">AI pantry companion</span>
+      <h1>Cook what you <em>already have.</em></h1>
+      <p class="lead">Stovd scans your pantry and turns the ingredients you own into tonight's dinner — fewer trips to the store, far less waste.</p>
+      <div class="badges" id="download">
+        <a class="store" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c.1 1-.3 2-.9 2.7-.7.8-1.7 1.4-2.7 1.3-.1-1 .4-2 .9-2.6.7-.8 1.8-1.3 2.7-1.4zM19 17.4c-.5 1.1-.7 1.6-1.3 2.6-.9 1.4-2.1 3.1-3.6 3.1-1.3 0-1.7-.9-3.5-.9s-2.2.9-3.5.9c-1.5 0-2.6-1.5-3.5-2.9C.7 16.9.4 12.1 2 9.6c1-1.6 2.6-2.5 4.1-2.5 1.5 0 2.5 1 3.7 1s2-.9 3.7-.9c1.3 0 2.7.7 3.7 2-3.2 1.8-2.7 6.4.1 8.2z"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
+        <a class="store" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 1.8 13 11.2 3.6 20.6c-.3-.2-.5-.6-.5-1.1V2.9c0-.5.2-.9.5-1.1zM14.2 12.4l2.6 2.6-9.9 5.6 7.3-8.2zm0-2.4L6.9 1.8l9.9 5.6-2.6 2.6zM17.9 9.7l3 1.7c.7.4.7 1.4 0 1.8l-3 1.7-2.8-2.8 2.8-2.4z"/></svg><span><small>Get it on</small><b>Google Play</b></span></a>
+      </div>
+      <div class="hero-note"><span class="dot"></span> Free to start · No card required · 7-day premium trial</div>
+    </div>
+    <div class="phone-stage reveal in">
+      <div class="blur-blob"></div>
+      <!-- HOME SCREEN -->
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
+        <div class="sp">
+          <div class="ae">Tonight · Ready to cook</div>
+          <div class="at">What are we<br>cooking tonight?</div>
+          <div class="rcard">
+            <div class="ph" style="background-image:url('./assets/scene-counter.png')"><div class="mt">92% match</div></div>
+            <div class="meta"><b>Tomato &amp; basil rigatoni</b><span>25 min · 6 of 7 ingredients on hand</span>
+              <div class="matchbar"><i style="width:92%"></i></div>
+            </div>
+          </div>
+          <div class="rcard">
+            <div class="ph" style="background-image:url('./assets/scene-flatlay.png')"><div class="mt">100% match</div></div>
+            <div class="meta"><b>Saffron herb omelette</b><span>12 min · all ingredients ready</span>
+              <div class="matchbar"><i style="width:100%"></i></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap strip-in">
+    <div class="stat reveal"><b>30s</b><span>Scan a full pantry</span></div>
+    <div class="stat reveal"><b>10k+</b><span>Recipes matched to your shelf</span></div>
+    <div class="stat reveal"><b>40%</b><span>Less food thrown away</span></div>
+    <div class="stat reveal"><b>4.8★</b><span>Average tester rating</span></div>
+  </div>
+</div>
+
+<!-- FEATURES with real app screens -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Every feature, in your pocket</span>
+      <h2>See it the way you'll use it.</h2>
+      <p>Each screen is built in the same warm, considered language — a cookbook you can scan, search and cook from.</p>
+    </div>
+
+    <!-- 1. Pantry -->
+    <div class="frow">
+      <div class="ftext reveal">
+        <span class="eyebrow">Your pantry, organised</span>
+        <h2>Everything you own, in one place.</h2>
+        <p>Stovd keeps a living inventory of your kitchen with freshness tracking, so nothing hides at the back of the shelf.</p>
+        <div class="mini">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Freshness countdown on every item</div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Filter by category in one tap</div>
+        </div>
+      </div>
+      <div class="fphone reveal">
+        <div class="phone"><div class="screen"><div class="notch"></div>
+          <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
+          <div class="sp">
+            <div class="ae">In your kitchen</div>
+            <div class="at">My Pantry</div>
+            <div class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Search items…</div>
+            <div class="chips"><span class="chip on">All <b>33</b></span><span class="chip">Dairy <b>6</b></span><span class="chip">Meat &amp; Fish <b>3</b></span></div>
+            <div class="statrow"><div class="c"><b>33</b><span>Total</span></div><div class="c"><b>0</b><span>Expiring</span></div><div class="c"><b>0</b><span>Expired</span></div></div>
+            <div class="irow"><div class="ithumb" style="background-image:url('./assets/scene-pantry.png')"></div><div class="iinfo"><b>Chicken Breast</b><div class="loc">◍ fridge</div><div class="exp">▦ 12 days</div></div><span class="qty">500 g</span></div>
+            <div class="irow"><div class="ithumb" style="background-image:url('./assets/scene-counter.png')"></div><div class="iinfo"><b>Ground Beef</b><div class="loc">◍ fridge</div><div class="exp">▦ 12 days</div></div><span class="qty">400 g</span></div>
+            <div class="irow"><div class="ithumb" style="background-image:url('./assets/scene-flatlay.png')"></div><div class="iinfo"><b>Salmon Fillet</b><div class="loc">◍ fridge</div><div class="exp">▦ 9 days</div></div><span class="qty">2 pcs</span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- 2. Camera scan -->
+    <div class="frow rev">
+      <div class="fphone reveal">
+        <div class="phone"><div class="screen"><div class="notch"></div>
+          <div class="cam">
+            <div class="modes"><span>FOOD</span><span class="on">MULTI</span><span>CALORIE</span><span>RECEIPT</span></div>
+            <div class="pot"></div>
+            <div class="toast"><b>Added to your pantry</b><span>2 items recognised — Potato, Onion</span><div class="ok">Great</div></div>
+            <div class="shutter"></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="ftext reveal">
+        <span class="eyebrow">Point &amp; stock</span>
+        <h2>Scan a shelf, a receipt, a single item.</h2>
+        <p>The camera recognises your food and stocks your pantry in seconds — no typing, four scan modes for whatever's in front of you.</p>
+        <div class="mini">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Food, multi-item, calorie &amp; receipt modes</div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Edit before it's saved</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Recipe detail -->
+    <div class="frow">
+      <div class="ftext reveal">
+        <span class="eyebrow">Cook with confidence</span>
+        <h2>Recipes ranked by what you can make now.</h2>
+        <p>A clear pantry-match score tells you exactly what's ready and what's missing — then walks you through every step.</p>
+        <div class="mini">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Live pantry-match on every recipe</div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Step-by-step cooking mode</div>
+        </div>
+      </div>
+      <div class="fphone reveal">
+        <div class="phone"><div class="screen"><div class="notch"></div>
+          <div class="sp" style="padding-top:0;position:relative">
+            <div class="rd-hero" style="background-image:url('./assets/scene-counter.png')"><div class="back">‹</div><div class="fav">♥</div></div>
+            <div class="rd-title">Tomato &amp; basil rigatoni</div>
+            <div class="stchips"><div class="stchip"><b>25</b><span>Min</span></div><div class="stchip"><b>2</b><span>Serves</span></div><div class="stchip"><b>Easy</b><span>Difficulty</span></div><div class="stchip"><b>92%</b><span>Match</span></div></div>
+            <div class="pm"><div class="top"><span>Pantry match</span><span class="g">6 / 7 on hand</span></div><div class="matchbar" style="margin-top:7px"><i style="width:92%"></i></div></div>
+            <div class="ing"><span><span class="dot"></span>Rigatoni</span><span style="color:var(--herb)">In pantry</span></div>
+            <div class="ing"><span><span class="dot"></span>Tomatoes</span><span style="color:var(--herb)">In pantry</span></div>
+            <div class="ing"><span><span class="dot miss"></span>Fresh basil</span><span style="color:var(--saf)">Missing</span></div>
+            <div class="cookbtn">Start cooking</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- 4. Meal plan -->
+    <div class="frow rev">
+      <div class="fphone reveal">
+        <div class="phone"><div class="screen"><div class="notch"></div>
+          <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
+          <div class="sp">
+            <div class="ae">AI meal plan</div>
+            <div class="at">Your week</div>
+            <div class="mp">
+              <div class="mpday"><div class="d">Monday</div>
+                <div class="mpmeal"><div class="ph" style="background-image:url('./assets/scene-flatlay.png')"></div><div><b>Saffron omelette</b><span>Breakfast · 320 kcal</span></div></div>
+                <div class="mpmeal"><div class="ph" style="background-image:url('./assets/scene-counter.png')"></div><div><b>Basil rigatoni</b><span>Dinner · 540 kcal</span></div></div>
+              </div>
+              <div class="mpday"><div class="d">Tuesday</div>
+                <div class="mpmeal"><div class="ph" style="background-image:url('./assets/scene-pantry.png')"></div><div><b>Garlic salmon bowl</b><span>Dinner · 610 kcal</span></div></div>
+              </div>
+              <div class="mpday"><div class="d">Wednesday</div>
+                <div class="mpmeal"><div class="ph" style="background-image:url('./assets/scene-counter.png')"></div><div><b>Herb chicken &amp; rice</b><span>Dinner · 580 kcal</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <div class="ftext reveal">
+        <span class="eyebrow">Plan the whole week</span>
+        <h2>A week of dinners, built around your shelf.</h2>
+        <p>Generate a balanced weekly or monthly plan in one tap — portioned to your goals and the food you already have.</p>
+        <div class="mini">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Weekly &amp; monthly plans <span style="color:var(--ter);font-weight:600">· Premium</span></div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Calories &amp; macros per meal</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Shopping list -->
+    <div class="frow">
+      <div class="ftext reveal">
+        <span class="eyebrow">Only what's missing</span>
+        <h2>A shopping list that fills itself.</h2>
+        <p>Cook a recipe and Stovd subtracts what you used and adds what you're short on — grouped by aisle so the shop is quick.</p>
+        <div class="mini">
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Auto-built from recipes you cook</div>
+          <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Grouped by aisle</div>
+        </div>
+      </div>
+      <div class="fphone reveal">
+        <div class="phone"><div class="screen"><div class="notch"></div>
+          <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
+          <div class="sp">
+            <div class="ae">Shopping</div>
+            <div class="at">Your list</div>
+            <div class="shgrp">Produce</div>
+            <div class="shrow"><span class="shbox"></span>Fresh basil<span class="shqty">1 bunch</span></div>
+            <div class="shrow"><span class="shbox"></span>Lemons<span class="shqty">3</span></div>
+            <div class="shrow done"><span class="shbox on">✓</span>Garlic<span class="shqty">1 head</span></div>
+            <div class="shgrp">Pantry</div>
+            <div class="shrow"><span class="shbox"></span>Olive oil<span class="shqty">1</span></div>
+            <div class="shrow"><span class="shbox"></span>Rigatoni<span class="shqty">500 g</span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="showcase" id="how">
+  <div class="wrap">
+    <div class="sec-head reveal" style="margin:0 auto 50px;text-align:center">
+      <span class="eyebrow">How it works</span>
+      <h2>Three steps to dinner.</h2>
+      <p>Stock it once, and Stovd does the thinking every night after.</p>
+    </div>
+    <div class="gallery">
+      <div class="phone reveal"><div class="screen"><div class="notch"></div>
+        <div class="cam">
+          <div class="modes"><span class="on">FOOD</span><span>MULTI</span><span>CALORIE</span><span>RECEIPT</span></div>
+          <div class="pot"></div><div class="shutter"></div>
+        </div></div></div>
+      <div class="phone reveal"><div class="screen"><div class="notch"></div>
+        <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
+        <div class="sp"><div class="ae">Tonight · Ready to cook</div><div class="at">What are we<br>cooking tonight?</div>
+          <div class="rcard"><div class="ph" style="background-image:url('./assets/scene-counter.png')"><div class="mt">92% match</div></div><div class="meta"><b>Basil rigatoni</b><span>25 min · 6 of 7 on hand</span><div class="matchbar"><i style="width:92%"></i></div></div></div>
+          <div class="rcard"><div class="ph" style="background-image:url('./assets/scene-flatlay.png')"><div class="mt">100% match</div></div><div class="meta"><b>Saffron omelette</b><span>12 min · all ready</span><div class="matchbar"><i style="width:100%"></i></div></div></div>
+        </div></div></div>
+      <div class="phone reveal"><div class="screen"><div class="notch"></div>
+        <div class="sp" style="padding-top:0">
+          <div class="rd-hero" style="background-image:url('./assets/scene-flatlay.png')"><div class="back">‹</div><div class="fav">♥</div></div>
+          <div class="rd-title">Saffron herb omelette</div>
+          <div class="stchips"><div class="stchip"><b>12</b><span>Min</span></div><div class="stchip"><b>1</b><span>Serves</span></div><div class="stchip"><b>Easy</b><span>Diff.</span></div><div class="stchip"><b>100%</b><span>Match</span></div></div>
+          <div class="pm"><div class="top"><span>Pantry match</span><span class="g">all on hand</span></div><div class="matchbar" style="margin-top:7px"><i style="width:100%"></i></div></div>
+          <div class="cookbtn">Start cooking</div>
+        </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" style="background:var(--paper2)">
+  <div class="wrap">
+    <div class="sec-head reveal" style="text-align:center;margin:0 auto 50px">
+      <span class="eyebrow">Pricing</span>
+      <h2>Start free. Upgrade when it earns it.</h2>
+      <p>Every core feature is free. Premium lifts the limits for cooks who live in their kitchen.</p>
+    </div>
+    <div class="price-grid">
+      <div class="pcard reveal">
+        <h3>Free</h3>
+        <div class="amt">$0</div>
+        <p style="color:var(--mut);font-size:14px">Everything you need to start cooking smarter.</p>
+        <ul class="plist">
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Pantry tracking &amp; freshness</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 10 AI photo scans / month</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 3 AI meal plans / month</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Smart shopping list</li>
+        </ul>
+        <a class="btn btn-ghost" href="#download" style="width:100%;justify-content:center">Get started</a>
+      </div>
+      <div class="pcard pro reveal">
+        <span class="tagp">7-day trial</span>
+        <h3>Premium</h3>
+        <div class="amt">$9.99<span style="font-size:18px;font-family:var(--sans);font-weight:500;opacity:.8">/mo</span></div>
+        <p style="color:rgba(255,255,255,.82);font-size:14px">For everyday cooks who want no limits.</p>
+        <ul class="plist">
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Unlimited AI scans &amp; imports</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Weekly &amp; monthly meal plans</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Import recipes from any link</li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Priority new features</li>
+        </ul>
+        <a class="btn" href="#download" style="width:100%;justify-content:center;background:#1A1614">Start free trial</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap faq">
+    <div class="sec-head reveal" style="text-align:center;margin:0 auto 40px">
+      <span class="eyebrow">FAQ</span>
+      <h2>Good questions.</h2>
+    </div>
+    <details class="reveal" open><summary>How does the pantry scan work?<span class="plus">+</span></summary><p>Snap a photo of a shelf, a fridge, a receipt, or a single item. Stovd's vision model recognises the food, estimates quantity, and adds it to your digital pantry. You can always edit before saving.</p></details>
+    <details class="reveal"><summary>Do I need to enter every ingredient by hand?<span class="plus">+</span></summary><p>No. Scanning does the heavy lifting. Manual add is there for the odd item, but most cooks build their pantry with the camera.</p></details>
+    <details class="reveal"><summary>Is my data private?<span class="plus">+</span></summary><p>Your pantry and recipes are yours. We never sell your data, and you can export or delete your account at any time from settings.</p></details>
+    <details class="reveal"><summary>What's the difference between Free and Premium?<span class="plus">+</span></summary><p>Free covers daily cooking with generous monthly limits. Premium ($9.99/mo) removes the caps and unlocks weekly &amp; monthly meal planning and recipe imports from any link.</p></details>
+    <details class="reveal"><summary>Which devices are supported?<span class="plus">+</span></summary><p>Stovd is available on iPhone and Android, with a web app for planning on a bigger screen.</p></details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta reveal">
+      <div class="ember"></div>
+      <h2>Tonight's dinner is already in your kitchen.</h2>
+      <p>Download Stovd and turn what you have into something worth cooking.</p>
+      <div class="badges">
+        <a class="store" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c.1 1-.3 2-.9 2.7-.7.8-1.7 1.4-2.7 1.3-.1-1 .4-2 .9-2.6.7-.8 1.8-1.3 2.7-1.4zM19 17.4c-.5 1.1-.7 1.6-1.3 2.6-.9 1.4-2.1 3.1-3.6 3.1-1.3 0-1.7-.9-3.5-.9s-2.2.9-3.5.9c-1.5 0-2.6-1.5-3.5-2.9C.7 16.9.4 12.1 2 9.6c1-1.6 2.6-2.5 4.1-2.5 1.5 0 2.5 1 3.7 1s2-.9 3.7-.9c1.3 0 2.7.7 3.7 2-3.2 1.8-2.7 6.4.1 8.2z"/></svg><span><small>Download on the</small><b>App Store</b></span></a>
+        <a class="store" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 1.8 13 11.2 3.6 20.6c-.3-.2-.5-.6-.5-1.1V2.9c0-.5.2-.9.5-1.1zM14.2 12.4l2.6 2.6-9.9 5.6 7.3-8.2zm0-2.4L6.9 1.8l9.9 5.6-2.6 2.6zM17.9 9.7l3 1.7c.7.4.7 1.4 0 1.8l-3 1.7-2.8-2.8 2.8-2.4z"/></svg><span><small>Get it on</small><b>Google Play</b></span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-in">
+      <div>
+        <div class="foot-brand"><img src="./assets/icon.png" alt=""/>Stovd</div>
+        <p style="color:var(--mut);font-size:15px;margin-top:12px;max-width:280px">An editorial pantry companion. Cook what you have.</p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col"><h4>Product</h4><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#download">Download</a></div>
+        <div class="foot-col"><h4>Company</h4><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></div>
+        <div class="foot-col"><h4>Legal</h4><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/data-deletion.html">Data deletion</a></div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Stovd. All rights reserved.</span>
+      <span class="serif-it">from pantry to plate</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.1});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
