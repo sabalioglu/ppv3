@@ -31,7 +31,9 @@ export default {
     android: {
       package: 'com.stovd.app',
       adaptiveIcon: {
-        backgroundColor: '#ffffff',
+        foregroundImage: './assets/images/adaptive-icon-foreground.png',
+        backgroundImage: './assets/images/adaptive-icon-background.png',
+        backgroundColor: '#C8472B',
       },
       intentFilters: [
         {
@@ -59,6 +61,16 @@ export default {
       'expo-web-browser',
       'expo-localization',
       './plugins/withAppleSignInEntitlement',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/images/splash-icon.png',
+          imageWidth: 200,
+          resizeMode: 'contain',
+          backgroundColor: '#FBF7F0',
+          dark: { backgroundColor: '#1A1614' },
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,
