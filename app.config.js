@@ -13,7 +13,8 @@ export default {
     newArchEnabled: true,
     assetBundlePatterns: ['**/*'],
     ios: {
-      supportsTablet: true,
+      // iPhone-only for v1.0 — avoids the ASC iPad screenshot requirement.
+      supportsTablet: false,
       bundleIdentifier: 'com.stovd.app',
       usesAppleSignIn: true,
       infoPlist: {
