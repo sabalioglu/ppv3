@@ -1041,6 +1041,9 @@ export default function PantryScreen() {
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      {/* Nested inside this Modal on purpose: iOS silently refuses to
+          present a sibling Modal while another Modal is open. */}
+      {renderUnitDropdown()}
     </Modal>
   );
 
@@ -1174,7 +1177,6 @@ export default function PantryScreen() {
       </TouchableOpacity>
 
       {renderAddItemModal()}
-      {renderUnitDropdown()}
     </SafeAreaView>
   );
 }
