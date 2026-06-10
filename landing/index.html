@@ -91,16 +91,28 @@
   .ing .miss{background:var(--saf)}
   .cookbtn{position:absolute;left:16px;right:16px;bottom:14px;background:var(--ter);color:#fff;text-align:center;padding:13px;border-radius:14px;font-weight:700;font-size:14px;box-shadow:var(--shadow-sm)}
 
-  /* camera */
-  .cam{position:absolute;inset:0;background:linear-gradient(180deg,#3a3330,#211c1a)}
-  .cam .modes{position:absolute;top:34px;left:0;right:0;display:flex;justify-content:center;gap:16px;font-size:11px;font-weight:700;color:rgba(255,255,255,.55)}
+  /* camera — live feed with active recognition */
+  .cam{position:absolute;inset:0;background:#1a1614;overflow:hidden}
+  .camfeed{position:absolute;inset:0;background-size:cover;background-position:center}
+  .camveil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,16,18,.62),rgba(20,16,18,.12) 26%,rgba(20,16,18,.20) 68%,rgba(20,16,18,.80))}
+  .cam .modes{position:absolute;top:34px;left:0;right:0;display:flex;justify-content:center;gap:15px;font-size:11px;font-weight:700;color:rgba(255,255,255,.62);z-index:4;text-shadow:0 1px 3px rgba(0,0,0,.5)}
   .cam .modes .on{color:#fff;border-bottom:2px solid var(--ter);padding-bottom:4px}
-  .cam .pot{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:24px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.35)}
-  .cam .shutter{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.4)}
-  .cam .toast{position:absolute;left:24px;right:24px;bottom:120px;background:rgba(26,22,20,.92);color:#fff;border-radius:14px;padding:14px;text-align:center}
-  .cam .toast b{font-family:var(--serif);font-size:15px;display:block;margin-bottom:2px}
-  .cam .toast span{font-size:11px;opacity:.8}
-  .cam .toast .ok{margin-top:10px;background:var(--ter);border-radius:10px;padding:8px;font-weight:700;font-size:12px}
+  .det{position:absolute;border:2.5px solid var(--herb);border-radius:9px;box-shadow:0 0 0 2px rgba(0,0,0,.18),0 4px 14px rgba(0,0,0,.3);z-index:3}
+  .det b{position:absolute;top:-11px;left:-2px;background:var(--herb);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap}
+  .scanline{position:absolute;left:7%;right:7%;height:2px;background:linear-gradient(90deg,transparent,var(--saf),transparent);box-shadow:0 0 12px var(--saf);z-index:3;animation:scan 2.6s ease-in-out infinite}
+  @keyframes scan{0%{top:20%}50%{top:74%}100%{top:20%}}
+  .cam .reticle{position:absolute;inset:14% 9% 24%;z-index:2}
+  .cam .reticle i{position:absolute;width:22px;height:22px;border:2.5px solid rgba(255,255,255,.85)}
+  .cam .reticle i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:6px 0 0 0}
+  .cam .reticle i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 6px 0 0}
+  .cam .reticle i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 6px}
+  .cam .reticle i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 6px 0}
+  .cam .shutter{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);width:60px;height:60px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.45);z-index:4}
+  .cam .foundbar{position:absolute;left:18px;right:18px;bottom:104px;background:rgba(26,22,20,.88);backdrop-filter:blur(6px);color:#fff;border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:10px;z-index:4}
+  .cam .foundbar .fb-ic{width:30px;height:30px;border-radius:8px;background:rgba(91,140,90,.25);color:#9ec79b;display:flex;align-items:center;justify-content:center;flex:none}
+  .cam .foundbar b{font-family:var(--serif);font-size:13px;display:block}
+  .cam .foundbar span{font-size:10px;opacity:.8}
+  .cam .foundbar .add{margin-left:auto;background:var(--ter);border-radius:9px;padding:7px 13px;font-weight:700;font-size:12px;flex:none}
 
   /* meal plan */
   .mp{display:flex;flex-direction:column;gap:9px}
@@ -313,9 +325,14 @@
       <div class="fphone reveal">
         <div class="phone"><div class="screen"><div class="notch"></div>
           <div class="cam">
+            <div class="camfeed" style="background-image:url('./assets/camera-feed.png')"></div>
+            <div class="camveil"></div>
             <div class="modes"><span>FOOD</span><span class="on">MULTI</span><span>CALORIE</span><span>RECEIPT</span></div>
-            <div class="pot"></div>
-            <div class="toast"><b>Added to your pantry</b><span>2 items recognised — Potato, Onion</span><div class="ok">Great</div></div>
+            <div class="scanline"></div>
+            <div class="det" style="left:9%;top:30%;width:33%;height:15%"><b>Potato 96%</b></div>
+            <div class="det" style="left:55%;top:14%;width:34%;height:16%"><b>Onion 92%</b></div>
+            <div class="det" style="left:58%;top:60%;width:28%;height:14%"><b>Garlic 88%</b></div>
+            <div class="foundbar"><div class="fb-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><div><b>3 ingredients detected</b><span>Potato · Onion · Garlic</span></div><div class="add">Add all</div></div>
             <div class="shutter"></div>
           </div>
         </div></div>
@@ -435,8 +452,14 @@
     <div class="gallery">
       <div class="phone reveal"><div class="screen"><div class="notch"></div>
         <div class="cam">
+          <div class="camfeed" style="background-image:url('./assets/camera-feed.png')"></div>
+          <div class="camveil"></div>
           <div class="modes"><span class="on">FOOD</span><span>MULTI</span><span>CALORIE</span><span>RECEIPT</span></div>
-          <div class="pot"></div><div class="shutter"></div>
+          <div class="reticle"><i></i><i></i><i></i><i></i></div>
+          <div class="scanline"></div>
+          <div class="det" style="left:11%;top:34%;width:32%;height:15%"><b>Potato 96%</b></div>
+          <div class="det" style="left:56%;top:16%;width:33%;height:16%"><b>Onion 93%</b></div>
+          <div class="shutter"></div>
         </div></div></div>
       <div class="phone reveal"><div class="screen"><div class="notch"></div>
         <div class="sb"><span>9:41</span><span>● ▮▮▮</span></div>
