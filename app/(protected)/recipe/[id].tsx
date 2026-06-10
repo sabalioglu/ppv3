@@ -793,7 +793,10 @@ export default function RecipeDetail() {
       // Supabase errors are plain objects, not Error instances — surface the
       // real message so failures are debuggable from the device.
       const msg = (e as { message?: string })?.message;
-      Alert.alert(t('common.error'), msg || t('recipeDetail.saveToLibraryError'));
+      Alert.alert(
+        t('common.error'),
+        msg || t('recipeDetail.saveToLibraryError'),
+      );
     } finally {
       setSavingToLibrary(false);
     }

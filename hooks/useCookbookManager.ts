@@ -27,7 +27,9 @@ export const useCookbookManager = () => {
       setLoading(true);
       setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Authentication required');
       }
@@ -58,85 +60,96 @@ export const useCookbookManager = () => {
     }
   }, []);
 
-  const manageRecipeCookbooks = useCallback(async (
-    recipeId: string,
-    cookbookIds: string[],
-    operation: 'replace' | 'add' | 'remove' = 'replace'
-  ) => {
-    try {
-      setError(null);
+  const manageRecipeCookbooks = useCallback(
+    async (
+      recipeId: string,
+      cookbookIds: string[],
+      operation: 'replace' | 'add' | 'remove' = 'replace',
+    ) => {
+      try {
+        setError(null);
 
-      const { data, error } = await supabase.rpc('manage_recipe_cookbooks', {
-        p_recipe_id: recipeId,
-        p_cookbook_ids: cookbookIds,
-        p_operation: operation
-      });
+        const { data, error } = await supabase.rpc('manage_recipe_cookbooks', {
+          p_recipe_id: recipeId,
+          p_cookbook_ids: cookbookIds,
+          p_operation: operation,
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadCookbooks();
-      return data;
-    } catch (err: any) {
-      console.error('❌ Error managing recipe cookbooks:', err);
-      setError(err.message);
-      throw err;
-    }
-  }, [loadCookbooks]);
-
-  const getRecipeCookbooks = useCallback(async (recipeId: string): Promise<string[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('recipe_cookbooks')
-        .select('cookbook_id')
-        .eq('recipe_id', recipeId);
-
-      if (error) throw error;
-
-      return data?.map(item => item.cookbook_id) || [];
-    } catch (err: any) {
-      console.error('❌ Error getting recipe cookbooks:', err);
-      setError(err.message);
-      return [];
-    }
-  }, []);
-
-  const createCookbook = useCallback(async (cookbookData: {
-    name: string;
-    description?: string;
-    emoji?: string;
-    color?: string;
-  }): Promise<Cookbook | null> => {
-    try {
-      setError(null);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Authentication required');
+        await loadCookbooks();
+        return data;
+      } catch (err: any) {
+        console.error('❌ Error managing recipe cookbooks:', err);
+        setError(err.message);
+        throw err;
       }
+    },
+    [loadCookbooks],
+  );
 
-      const { data, error } = await supabase
-        .from('cookbooks')
-        .insert({
-          user_id: user.id,
-          name: cookbookData.name.trim(),
-          description: cookbookData.description?.trim() || null,
-          emoji: cookbookData.emoji || '📚',
-          color: cookbookData.color || '#F97316'
-        })
-        .select()
-        .single();
+  const getRecipeCookbooks = useCallback(
+    async (recipeId: string): Promise<string[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('recipe_cookbooks')
+          .select('cookbook_id')
+          .eq('recipe_id', recipeId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadCookbooks();
+        return data?.map((item) => item.cookbook_id) || [];
+      } catch (err: any) {
+        console.error('❌ Error getting recipe cookbooks:', err);
+        setError(err.message);
+        return [];
+      }
+    },
+    [],
+  );
 
-      return { ...data, recipe_count: 0 } as Cookbook;
-    } catch (err: any) {
-      console.error('❌ Error creating cookbook:', err);
-      setError(err.message);
-      return null;
-    }
-  }, [loadCookbooks]);
+  const createCookbook = useCallback(
+    async (cookbookData: {
+      name: string;
+      description?: string;
+      emoji?: string;
+      color?: string;
+    }): Promise<Cookbook | null> => {
+      try {
+        setError(null);
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('Authentication required');
+        }
+
+        const { data, error } = await supabase
+          .from('cookbooks')
+          .insert({
+            user_id: user.id,
+            name: cookbookData.name.trim(),
+            description: cookbookData.description?.trim() || null,
+            emoji: cookbookData.emoji || '📚',
+            color: cookbookData.color || '#F97316',
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await loadCookbooks();
+
+        return { ...data, recipe_count: 0 } as Cookbook;
+      } catch (err: any) {
+        console.error('❌ Error creating cookbook:', err);
+        setError(err.message);
+        return null;
+      }
+    },
+    [loadCookbooks],
+  );
 
   useEffect(() => {
     loadCookbooks();
@@ -151,11 +164,11 @@ export const useCookbookManager = () => {
     getRecipeCookbooks,
     createCookbook,
     // Convenience methods
-    addRecipeToCookbooks: (recipeId: string, cookbookIds: string[]) => 
+    addRecipeToCookbooks: (recipeId: string, cookbookIds: string[]) =>
       manageRecipeCookbooks(recipeId, cookbookIds, 'add'),
-    removeRecipeFromCookbooks: (recipeId: string, cookbookIds: string[]) => 
+    removeRecipeFromCookbooks: (recipeId: string, cookbookIds: string[]) =>
       manageRecipeCookbooks(recipeId, cookbookIds, 'remove'),
-    replaceRecipeCookbooks: (recipeId: string, cookbookIds: string[]) => 
-      manageRecipeCookbooks(recipeId, cookbookIds, 'replace')
+    replaceRecipeCookbooks: (recipeId: string, cookbookIds: string[]) =>
+      manageRecipeCookbooks(recipeId, cookbookIds, 'replace'),
   };
 };

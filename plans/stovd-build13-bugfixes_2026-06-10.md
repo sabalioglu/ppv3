@@ -12,7 +12,7 @@ Build 12 cihaz testinde bulunan pantry/cookbook bug'larini kapatip tek seferde b
 
 **Bug listesi (durum etiketli):**
 
-- [ ] **B1 - Unit dropdown "Piece"de sabit** (`app/(protected)/(tabs)/pantry.tsx`)
+- [x] **B1 - Unit dropdown "Piece"de sabit** - commit `cc97698` (`app/(protected)/(tabs)/pantry.tsx`)
   Kok neden BULUNDU: `renderUnitDropdown()` (satir 1047, `<Modal>`) Add-Item modal'inin DISINDA, ekran kokunde kardes olarak render ediliyor (satir 1177). iOS bir Modal acikken kardes ikinci Modal'i sessizce present ETMIYOR (kameradaki Modal-over-CameraView ile ayni sinif). Fix: `{renderUnitDropdown()}` cagrisini `renderAddItemModal` icine, kapanis `</Modal>`'dan hemen once tasi (ic ice Modal iOS'ta calisir). Edit modal ayni formu kullaniyorsa o yol da kapsanmis olur.
 - [x] **B2 - Kameradan eklenen urun pantry'de gorunmuyor** (patates) - commit `393ef42`
   Insert DB'ye BASARILI gidiyor (payload canli semayla diff'lendi, temiz; "2 items added" gercek success). Liste mount-only fetch oldugu icin gorunmuyordu. Fix: `useFocusEffect` ile her odakta refetch. Build 12'de dogrulama: app'i tamamen kapatip ac VEYA listeyi asagi cek-birak -> patates gorunmeli. Gorunmezse B2 yeniden acilir (Supabase log incelemesi).

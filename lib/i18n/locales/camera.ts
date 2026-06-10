@@ -30,8 +30,7 @@ export default {
     loadingMultiple: 'Processing photos…',
     loadingReceipt: 'Reading your receipt…',
     analyzingCount: 'Analyzing %{done}/%{total}…',
-    analysisTimeout:
-      'Analysis timed out. Check your connection and try again.',
+    analysisTimeout: 'Analysis timed out. Check your connection and try again.',
     scanFailedTitle: 'Scan failed',
     noPhotosTitle: 'No photos',
     noPhotosMessage: 'Take a few photos first',
