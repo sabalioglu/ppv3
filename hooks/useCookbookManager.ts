@@ -32,38 +32,23 @@ export const useCookbookManager = () => {
         throw new Error('Authentication required');
       }
 
-      // ✅ Önce cookbook_with_stats'ı dene, yoksa cookbooks tablosundan çek
-      let { data, error } = await supabase
-        .from('cookbook_with_stats')
-        .select('*')
+      // cookbooks tablosu + embedded recipe sayısı (cookbook_with_stats view'ı
+      // prod'da yok — tablo doğrudan sorgulanır)
+      const { data, error } = await supabase
+        .from('cookbooks')
+        .select('*, recipe_cookbooks(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      // Eğer view yoksa, normal cookbooks tablosundan çek
-      if (error && error.message.includes('relation "cookbook_with_stats" does not exist')) {
-        console.log('📚 Using cookbooks table instead of view');
-        const result = await supabase
-          .from('cookbooks')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        
-        data = result.data;
-        error = result.error;
-        
-        // Recipe count'u manuel olarak ekle
-        if (data) {
-          data = data.map(cookbook => ({
-            ...cookbook,
-            recipe_count: 0 // Şimdilik 0, sonra hesaplayabiliriz
-          }));
-        }
-      }
-
       if (error) throw error;
 
-      console.log('📚 Loaded cookbooks:', data?.length || 0);
-      setCookbooks(data || []);
+      const withCounts = (data || []).map((cookbook: any) => ({
+        ...cookbook,
+        recipe_count: cookbook.recipe_cookbooks?.[0]?.count ?? 0,
+      }));
+
+      console.log('📚 Loaded cookbooks:', withCounts.length);
+      setCookbooks(withCounts);
     } catch (err: any) {
       console.error('❌ Error loading cookbooks:', err);
       setError(err.message);
@@ -136,8 +121,7 @@ export const useCookbookManager = () => {
           name: cookbookData.name.trim(),
           description: cookbookData.description?.trim() || null,
           emoji: cookbookData.emoji || '📚',
-          color: cookbookData.color || '#F97316',
-          is_public: false
+          color: cookbookData.color || '#F97316'
         })
         .select()
         .single();

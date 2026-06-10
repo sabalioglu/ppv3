@@ -179,6 +179,9 @@ export const EditCookbookBottomSheet: React.FC<
       enablePanDownToClose={true}
       backdropComponent={renderBackdrop}
       onClose={onClose}
+      keyboardBehavior="extend"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
       handleIndicatorStyle={styles.handleIndicator}
       backgroundStyle={styles.bottomSheetBackground}
     >
@@ -268,8 +271,8 @@ export const EditCookbookBottomSheet: React.FC<
             </View>
           </View>
 
-          {/* Spacer for bottom */}
-          <View style={{ height: 50 }} />
+          {/* Spacer so the Color section can scroll above the keyboard */}
+          <View style={{ height: 320 }} />
         </BottomSheetScrollView>
       </BottomSheetView>
     </BottomSheet>

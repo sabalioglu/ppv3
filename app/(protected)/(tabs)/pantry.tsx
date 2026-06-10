@@ -1,7 +1,8 @@
 // app/(tabs)/pantry.tsx — Stovd pantry ("Dolabım") in the Warm Kitchen language:
 // cream paper, serif screen title, Eyebrow kickers, category chips, editorial
 // item cards. Restyle only — all data hooks, CRUD and navigation are unchanged.
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -238,9 +239,13 @@ export default function PantryScreen() {
     location: 'Buzdolabı',
   });
 
-  useEffect(() => {
-    loadPantryItems();
-  }, []);
+  // Refetch on every focus: items added elsewhere (camera scan, shopping
+  // list) must appear without an app restart — the tab stays mounted.
+  useFocusEffect(
+    useCallback(() => {
+      loadPantryItems();
+    }, []),
+  );
 
   useEffect(() => {
     filterItems();
@@ -1117,7 +1122,11 @@ export default function PantryScreen() {
         style={styles.flatListContainer}
         contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={renderCategoriesHeader}
+        // Element (not function ref): a new function identity each render
+        // remounts the header, blurring the search input and dropping the
+        // keyboard between keystrokes.
+        ListHeaderComponent={renderCategoriesHeader()}
+        keyboardShouldPersistTaps="handled"
         CellRendererComponent={CellRendererComponent}
         removeClippedSubviews={false}
         refreshControl={
